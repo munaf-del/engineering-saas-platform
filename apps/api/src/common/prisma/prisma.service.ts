@@ -7,6 +7,8 @@ const TENANT_SCOPED_MODELS = new Set<Prisma.ModelName>([
   'StandardsProfile',
   'AuditLog',
   'OrganisationMember',
+  'ImportJob',
+  'Document',
 ]);
 
 const READ_ACTIONS = new Set([

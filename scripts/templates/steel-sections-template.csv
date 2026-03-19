@@ -1,0 +1,2 @@
+designation,sectionType,massPerMetre,depth,flangeWidth,flangeThickness,webThickness,sectionArea,momentOfInertiaX,momentOfInertiaY,sectionModulusX,sectionModulusY,plasticModulusX,plasticModulusY,radiusOfGyrationX,radiusOfGyrationY
+200UB25.4,UB,25.4,203,133,7.8,5.8,3230,23600,1550,233,23.3,260,35.9,85.5,21.9

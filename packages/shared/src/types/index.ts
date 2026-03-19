@@ -4,3 +4,7 @@ export * from './project.js';
 export * from './materials.js';
 export * from './calculations.js';
 export * from './standards.js';
+export * from './catalogue.js';
+export * from './geotech.js';
+export * from './imports.js';
+export * from './documents.js';

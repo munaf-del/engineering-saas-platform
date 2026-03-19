@@ -8,15 +8,31 @@ export const MATERIAL_CATEGORIES = [
 ] as const;
 export type MaterialCategory = (typeof MATERIAL_CATEGORIES)[number];
 
+export interface MaterialFamily {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category: MaterialCategory;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Material {
   id: string;
   organisationId?: string;
+  familyId?: string;
   category: MaterialCategory;
   name: string;
   grade?: string;
   standardRef?: string;
+  sourceStandard?: string;
+  sourceEdition?: string;
+  sourceAmendment?: string;
   properties: Record<string, MaterialProperty>;
   isSystemDefault: boolean;
+  isDemo: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,13 +44,24 @@ export interface MaterialProperty {
   clauseRef?: string;
 }
 
-export interface SteelSection {
+export interface MaterialPropertySchema {
   id: string;
-  designation: string;
-  sectionType: string;
-  properties: SteelSectionProperties;
-  standardRef?: string;
-  sourceDoc?: string;
+  familyId: string;
+  key: string;
+  label: string;
+  unit: string;
+  required: boolean;
+  sortOrder: number;
+}
+
+export interface MaterialPropertySet {
+  id: string;
+  materialId: string;
+  key: string;
+  value: number;
+  unit: string;
+  source?: string;
+  clauseRef?: string;
 }
 
 export interface SteelSectionProperties {
@@ -52,19 +79,6 @@ export interface SteelSectionProperties {
   plasticModulusY: number;
   radiusOfGyrationX: number;
   radiusOfGyrationY: number;
-}
-
-export interface RebarSpecification {
-  id: string;
-  designation: string;
-  grade: string;
-  nominalDiameter: number;
-  nominalArea: number;
-  nominalMassPerMetre: number;
-  characteristicYieldStrength: number;
-  characteristicTensileStrength: number;
-  ductilityClass: string;
-  standardRef?: string;
 }
 
 export interface SoilLayer {

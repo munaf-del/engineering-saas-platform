@@ -1,0 +1,2 @@
+name,category,grade,sourceStandard,sourceEdition,sourceAmendment,properties_json
+N40 Concrete,concrete,N40,AS 3600,2018,Amdt 2 (2021),"{""compressiveStrength"":{""value"":40,""unit"":""MPa""}}"

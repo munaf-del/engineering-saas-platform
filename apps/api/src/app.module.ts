@@ -10,6 +10,12 @@ import { AuthModule } from './modules/auth/auth.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { StandardsModule } from './modules/standards/standards.module';
+import { MaterialsModule } from './modules/materials/materials.module';
+import { GeotechModule } from './modules/geotech/geotech.module';
+import { SteelSectionsModule } from './modules/steel-sections/steel-sections.module';
+import { RebarModule } from './modules/rebar/rebar.module';
+import { ImportsModule } from './modules/imports/imports.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -23,6 +29,12 @@ import { StandardsModule } from './modules/standards/standards.module';
     OrganisationsModule,
     ProjectsModule,
     StandardsModule,
+    MaterialsModule,
+    GeotechModule,
+    SteelSectionsModule,
+    RebarModule,
+    ImportsModule,
+    DocumentsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },

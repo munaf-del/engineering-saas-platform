@@ -17,11 +17,16 @@ model Organisation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members           OrganisationMember[]
-  projects          Project[]
-  materials         Material[]
-  standardsProfiles StandardsProfile[]
-  auditLogs         AuditLog[]
+  members              OrganisationMember[]
+  projects             Project[]
+  materials            Material[]
+  standardsProfiles    StandardsProfile[]
+  auditLogs            AuditLog[]
+  geotechParameterSets GeotechParameterSet[]
+  steelSectionCatalogs SteelSectionCatalog[]
+  rebarCatalogs        RebarCatalog[]
+  importJobs           ImportJob[]
+  documents            Document[]
 
   @@map("organisations")
 }
@@ -77,11 +82,13 @@ model Project {
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
 
-  organisation     Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  standardsProfile StandardsProfile? @relation(fields: [standardsProfileId], references: [id])
-  members          ProjectMember[]
-  elements         Element[]
-  calculationRuns  CalculationRun[]
+  organisation        Organisation                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  standardsProfile    StandardsProfile?           @relation(fields: [standardsProfileId], references: [id])
+  members             ProjectMember[]
+  elements            Element[]
+  calculationRuns     CalculationRun[]
+  standardAssignments ProjectStandardAssignment[]
+  documents           Document[]
 
   @@unique([organisationId, code])
   @@map("projects")
@@ -134,21 +141,51 @@ model Element {
 
 // ─── Standards ────────────────────────────────────────────────────
 
-model StandardEdition {
-  id            String         @id @default(uuid()) @db.Uuid
-  code          String
-  title         String
-  edition       String
-  amendment     String?
-  clauseRef     String?        @map("clause_ref")
-  note          String?
-  sourceDoc     String?        @map("source_doc")
-  effectiveDate DateTime       @map("effective_date")
-  status        StandardStatus @default(current)
-  rulePackId    String?        @map("rule_pack_id") @db.Uuid
+model Standard {
+  id        String           @id @default(uuid()) @db.Uuid
+  code      String           @unique
+  title     String
+  category  StandardCategory
+  isDemo    Boolean          @default(false) @map("is_demo")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
-  rulePack         RulePack?         @relation(fields: [rulePackId], references: [id])
-  pinnedStandards  PinnedStandard[]
+  editions StandardEdition[]
+
+  @@map("standards")
+}
+
+enum StandardCategory {
+  loading
+  concrete
+  steel
+  reinforcement
+  geotech
+  general
+}
+
+model StandardEdition {
+  id              String         @id @default(uuid()) @db.Uuid
+  standardId      String         @map("standard_id") @db.Uuid
+  code            String
+  title           String
+  edition         String
+  amendment       String?
+  sourceEdition   String         @map("source_edition")
+  sourceAmendment String?        @map("source_amendment")
+  clauseRef       String?        @map("clause_ref")
+  note            String?
+  sourceDoc       String?        @map("source_doc")
+  effectiveDate   DateTime       @map("effective_date")
+  status          StandardStatus @default(current)
+  isDemo          Boolean        @default(false) @map("is_demo")
+  rulePackId      String?        @map("rule_pack_id") @db.Uuid
+
+  standard           Standard                    @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  rulePack           StandardRulePack?           @relation(fields: [rulePackId], references: [id])
+  clauseRefs         StandardClauseRef[]
+  pinnedStandards    PinnedStandard[]
+  projectAssignments ProjectStandardAssignment[]
 
   @@unique([code, edition])
   @@map("standard_editions")
@@ -160,12 +197,13 @@ enum StandardStatus {
   withdrawn
 }
 
-model RulePack {
+model StandardRulePack {
   id           String   @id @default(uuid()) @db.Uuid
   standardCode String   @map("standard_code")
   version      String
   contentHash  String   @map("content_hash")
   rules        Json
+  isDemo       Boolean  @default(false) @map("is_demo")
   importedBy   String   @map("imported_by")
   importedAt   DateTime @default(now()) @map("imported_at")
 
@@ -175,11 +213,26 @@ model RulePack {
   @@map("rule_packs")
 }
 
+model StandardClauseRef {
+  id                String  @id @default(uuid()) @db.Uuid
+  standardEditionId String  @map("standard_edition_id") @db.Uuid
+  clause            String
+  title             String
+  description       String?
+  isDemo            Boolean @default(false) @map("is_demo")
+
+  standardEdition StandardEdition @relation(fields: [standardEditionId], references: [id], onDelete: Cascade)
+
+  @@unique([standardEditionId, clause])
+  @@map("standard_clause_refs")
+}
+
 model StandardsProfile {
   id             String   @id @default(uuid()) @db.Uuid
   organisationId String   @map("organisation_id") @db.Uuid
   name           String
   description    String?
+  isDefault      Boolean  @default(false) @map("is_default")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -191,7 +244,7 @@ model StandardsProfile {
 }
 
 model PinnedStandard {
-  id                String @id @default(uuid()) @db.Uuid
+  id                 String @id @default(uuid()) @db.Uuid
   standardsProfileId String @map("standards_profile_id") @db.Uuid
   standardEditionId  String @map("standard_edition_id") @db.Uuid
 
@@ -202,21 +255,59 @@ model PinnedStandard {
   @@map("pinned_standards")
 }
 
+model ProjectStandardAssignment {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @map("project_id") @db.Uuid
+  standardEditionId String   @map("standard_edition_id") @db.Uuid
+  notes             String?
+  pinnedAt          DateTime @default(now()) @map("pinned_at")
+  pinnedBy          String   @map("pinned_by") @db.Uuid
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  standardEdition StandardEdition @relation(fields: [standardEditionId], references: [id])
+
+  @@unique([projectId, standardEditionId])
+  @@map("project_standard_assignments")
+}
+
 // ─── Materials ────────────────────────────────────────────────────
+
+model MaterialFamily {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  name        String
+  description String?
+  category    MaterialCategory
+  isDemo      Boolean          @default(false) @map("is_demo")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  grades          Material[]
+  propertySchemas MaterialPropertySchema[]
+
+  @@map("material_families")
+}
 
 model Material {
   id              String           @id @default(uuid()) @db.Uuid
   organisationId  String?          @map("organisation_id") @db.Uuid
+  familyId        String?          @map("family_id") @db.Uuid
   category        MaterialCategory
   name            String
   grade           String?
   standardRef     String?          @map("standard_ref")
+  sourceStandard  String?          @map("source_standard")
+  sourceEdition   String?          @map("source_edition")
+  sourceAmendment String?          @map("source_amendment")
   properties      Json
   isSystemDefault Boolean          @default(false) @map("is_system_default")
+  isDemo          Boolean          @default(false) @map("is_demo")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  family       MaterialFamily?  @relation(fields: [familyId], references: [id])
+  propertySets MaterialPropertySet[]
 
   @@map("materials")
 }
@@ -230,25 +321,253 @@ enum MaterialCategory {
   timber
 }
 
+model MaterialPropertySchema {
+  id        String  @id @default(uuid()) @db.Uuid
+  familyId  String  @map("family_id") @db.Uuid
+  key       String
+  label     String
+  unit      String
+  required  Boolean @default(true)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  family MaterialFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, key])
+  @@map("material_property_schemas")
+}
+
+model MaterialPropertySet {
+  id         String  @id @default(uuid()) @db.Uuid
+  materialId String  @map("material_id") @db.Uuid
+  key        String
+  value      Float
+  unit       String
+  source     String?
+  clauseRef  String? @map("clause_ref")
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, key])
+  @@map("material_property_sets")
+}
+
+// ─── Geotechnical ─────────────────────────────────────────────────
+
+model GeotechMaterialClass {
+  id             String   @id @default(uuid()) @db.Uuid
+  code           String   @unique
+  name           String
+  description    String?
+  classification String?
+  isDemo         Boolean  @default(false) @map("is_demo")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  parameterSets GeotechParameterSet[]
+
+  @@map("geotech_material_classes")
+}
+
+model GeotechParameterSet {
+  id              String   @id @default(uuid()) @db.Uuid
+  organisationId  String?  @map("organisation_id") @db.Uuid
+  classId         String   @map("class_id") @db.Uuid
+  name            String
+  description     String?
+  sourceStandard  String?  @map("source_standard")
+  sourceEdition   String?  @map("source_edition")
+  sourceAmendment String?  @map("source_amendment")
+  parameters      Json
+  isDemo          Boolean  @default(false) @map("is_demo")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  class        GeotechMaterialClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  organisation Organisation?        @relation(fields: [organisationId], references: [id])
+
+  @@map("geotech_parameter_sets")
+}
+
+// ─── Steel Section Catalogues (versioned snapshots) ───────────────
+
+model SteelSectionCatalog {
+  id              String        @id @default(uuid()) @db.Uuid
+  organisationId  String?       @map("organisation_id") @db.Uuid
+  name            String
+  version         String
+  sourceStandard  String        @map("source_standard")
+  sourceEdition   String        @map("source_edition")
+  sourceAmendment String?       @map("source_amendment")
+  snapshotHash    String?       @map("snapshot_hash")
+  status          CatalogStatus @default(draft)
+  isDemo          Boolean       @default(false) @map("is_demo")
+  importJobId     String?       @map("import_job_id") @db.Uuid
+  createdBy       String?       @map("created_by") @db.Uuid
+  effectiveDate   DateTime?     @map("effective_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id])
+  sections     SteelSection[]
+
+  @@unique([name, version])
+  @@map("steel_section_catalogs")
+}
+
+enum CatalogStatus {
+  draft
+  active
+  superseded
+  archived
+}
+
 model SteelSection {
-  id          String @id @default(uuid()) @db.Uuid
-  designation String @unique
-  sectionType String @map("section_type")
+  id          String  @id @default(uuid()) @db.Uuid
+  catalogId   String  @map("catalog_id") @db.Uuid
+  designation String
+  sectionType String  @map("section_type")
   properties  Json
   standardRef String? @map("standard_ref")
   sourceDoc   String? @map("source_doc")
+  isDemo      Boolean @default(false) @map("is_demo")
 
+  catalog SteelSectionCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, designation])
   @@map("steel_sections")
 }
 
-model RebarSpecification {
-  id          String @id @default(uuid()) @db.Uuid
-  designation String @unique
-  grade       String
-  properties  Json
-  standardRef String? @map("standard_ref")
+// ─── Rebar Catalogues (versioned snapshots) ───────────────────────
 
-  @@map("rebar_specifications")
+model RebarCatalog {
+  id              String        @id @default(uuid()) @db.Uuid
+  organisationId  String?       @map("organisation_id") @db.Uuid
+  name            String
+  version         String
+  sourceStandard  String        @map("source_standard")
+  sourceEdition   String        @map("source_edition")
+  sourceAmendment String?       @map("source_amendment")
+  snapshotHash    String?       @map("snapshot_hash")
+  status          CatalogStatus @default(draft)
+  isDemo          Boolean       @default(false) @map("is_demo")
+  importJobId     String?       @map("import_job_id") @db.Uuid
+  createdBy       String?       @map("created_by") @db.Uuid
+  effectiveDate   DateTime?     @map("effective_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id])
+  sizes        RebarSize[]
+
+  @@unique([name, version])
+  @@map("rebar_catalogs")
+}
+
+model RebarSize {
+  id             String  @id @default(uuid()) @db.Uuid
+  catalogId      String  @map("catalog_id") @db.Uuid
+  designation    String
+  barDiameter    Float   @map("bar_diameter")
+  nominalArea    Float   @map("nominal_area")
+  massPerMetre   Float   @map("mass_per_metre")
+  grade          String
+  ductilityClass String  @map("ductility_class")
+  standardRef    String? @map("standard_ref")
+  isDemo         Boolean @default(false) @map("is_demo")
+
+  catalog RebarCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, designation])
+  @@map("rebar_sizes")
+}
+
+// ─── Import Subsystem ─────────────────────────────────────────────
+
+model ImportJob {
+  id             String       @id @default(uuid()) @db.Uuid
+  organisationId String       @map("organisation_id") @db.Uuid
+  entityType     String       @map("entity_type")
+  format         ImportFormat
+  fileName       String       @map("file_name")
+  status         ImportStatus @default(pending)
+  totalRows      Int          @default(0) @map("total_rows")
+  validRows      Int          @default(0) @map("valid_rows")
+  errorRows      Int          @default(0) @map("error_rows")
+  dryRun         Boolean      @default(false) @map("dry_run")
+  snapshotId     String?      @map("snapshot_id") @db.Uuid
+  diff           Json?
+  createdBy      String       @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  completedAt    DateTime?    @map("completed_at")
+  rolledBackAt   DateTime?    @map("rolled_back_at")
+  rolledBackBy   String?      @map("rolled_back_by") @db.Uuid
+
+  organisation Organisation     @relation(fields: [organisationId], references: [id])
+  errors       ImportItemError[]
+
+  @@index([organisationId, createdAt])
+  @@map("import_jobs")
+}
+
+enum ImportFormat {
+  csv
+  xlsx
+  json
+}
+
+enum ImportStatus {
+  pending
+  validating
+  validated
+  applying
+  applied
+  rolling_back
+  rolled_back
+  failed
+}
+
+model ImportItemError {
+  id          String              @id @default(uuid()) @db.Uuid
+  importJobId String              @map("import_job_id") @db.Uuid
+  rowNumber   Int                 @map("row_number")
+  field       String?
+  message     String
+  severity    ImportErrorSeverity @default(error)
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId])
+  @@map("import_item_errors")
+}
+
+enum ImportErrorSeverity {
+  error
+  warning
+}
+
+// ─── Documents ────────────────────────────────────────────────────
+
+model Document {
+  id             String   @id @default(uuid()) @db.Uuid
+  organisationId String   @map("organisation_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  entityType     String?  @map("entity_type")
+  entityId       String?  @map("entity_id") @db.Uuid
+  name           String
+  fileName       String   @map("file_name")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  storagePath    String   @map("storage_path")
+  uploadedBy     String   @map("uploaded_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([organisationId])
+  @@index([projectId])
+  @@map("documents")
 }
 
 // ─── Calculations ─────────────────────────────────────────────────
