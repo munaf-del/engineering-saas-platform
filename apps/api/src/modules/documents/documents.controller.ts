@@ -4,16 +4,20 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -70,6 +74,22 @@ export class DocumentsController {
       throw new ForbiddenException('File is required');
     }
     return this.documentsService.create(user.organisationId!, user.id, dto, file);
+  }
+
+  @Get(':id/download')
+  @ApiOperation({ summary: 'Download a document file (not yet implemented)' })
+  async download(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+    @Res() res: Response,
+  ) {
+    this.requireOrgContext(user);
+    await this.documentsService.findById(id, user.organisationId!);
+    res.status(HttpStatus.NOT_IMPLEMENTED).json({
+      statusCode: HttpStatus.NOT_IMPLEMENTED,
+      message:
+        'File storage backend is not yet implemented. Document metadata is available via GET /documents/:id.',
+    });
   }
 
   @Delete(':id')
