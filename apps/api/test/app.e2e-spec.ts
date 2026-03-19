@@ -447,7 +447,7 @@ describe('API E2E Tests', () => {
       await request(app.getHttpServer())
         .post(`/api/v1/organisations/${orgId}/members`)
         .set('Authorization', `Bearer ${viewerToken}`)
-        .send({ userId: '00000000-0000-0000-0000-000000000001', role: 'viewer' })
+        .send({ userId: '00000000-0000-4000-8000-000000000001', role: 'viewer' })
         .expect(403);
     });
 
@@ -455,7 +455,7 @@ describe('API E2E Tests', () => {
       await request(app.getHttpServer())
         .post(`/api/v1/organisations/${orgId}/members`)
         .set('Authorization', `Bearer ${engineerToken}`)
-        .send({ userId: '00000000-0000-0000-0000-000000000001', role: 'viewer' })
+        .send({ userId: '00000000-0000-4000-8000-000000000001', role: 'viewer' })
         .expect(403);
     });
 

@@ -46,6 +46,12 @@ export class StandardsController {
     return this.standardsService.findAllStandards(pagination);
   }
 
+  @Get('current')
+  @ApiOperation({ summary: 'List current standard editions (alias)' })
+  async findCurrentEditionsAlias(@Query() pagination: PaginationDto) {
+    return this.standardsService.findCurrent(pagination);
+  }
+
   @Get('code/:code')
   @ApiOperation({ summary: 'Find standard by code' })
   async findStandardByCode(@Param('code') code: string) {
@@ -260,6 +266,14 @@ export class StandardsController {
       user.organisationId!,
       editionId,
     );
+  }
+
+  // ── Catch-all code lookup (must be last single-segment GET) ──
+
+  @Get(':code')
+  @ApiOperation({ summary: 'Find standard by code (shorthand)' })
+  async findStandardByCodeShort(@Param('code') code: string) {
+    return this.standardsService.findStandardByCode(code);
   }
 
   // ── Helper ────────────────────────────────────────────────────
