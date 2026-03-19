@@ -1,0 +1,174 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { CalcEngineClient } from './calc-engine.client';
+import { SnapshotService } from './snapshot.service';
+import { SubmitCalculationDto } from './dto/submit-calculation.dto';
+
+const VALID_CALC_TYPES = new Set([
+  'pile_capacity', 'pile_settlement', 'pile_lateral', 'pile_group',
+  'beam_check', 'column_check', 'connection_check', 'footing_check',
+  'retaining_wall', 'bearing_capacity',
+]);
+
+const SI_CONVERSIONS: Record<string, { toSI: number; dimension: string }> = {
+  m: { toSI: 1, dimension: 'length' },
+  mm: { toSI: 0.001, dimension: 'length' },
+  cm: { toSI: 0.01, dimension: 'length' },
+  km: { toSI: 1000, dimension: 'length' },
+  N: { toSI: 1, dimension: 'force' },
+  kN: { toSI: 1000, dimension: 'force' },
+  MN: { toSI: 1e6, dimension: 'force' },
+  Pa: { toSI: 1, dimension: 'stress' },
+  kPa: { toSI: 1000, dimension: 'stress' },
+  MPa: { toSI: 1e6, dimension: 'stress' },
+  GPa: { toSI: 1e9, dimension: 'stress' },
+  'N·m': { toSI: 1, dimension: 'moment' },
+  'kN·m': { toSI: 1000, dimension: 'moment' },
+  'm²': { toSI: 1, dimension: 'area' },
+  'mm²': { toSI: 1e-6, dimension: 'area' },
+  'm³': { toSI: 1, dimension: 'volume' },
+  'kg/m³': { toSI: 1, dimension: 'density' },
+  'kN/m³': { toSI: 1000, dimension: 'unit_weight' },
+  rad: { toSI: 1, dimension: 'angle' },
+  deg: { toSI: Math.PI / 180, dimension: 'angle' },
+};
+
+const SI_UNIT_FOR_DIMENSION: Record<string, string> = {
+  length: 'm',
+  force: 'N',
+  stress: 'Pa',
+  moment: 'N·m',
+  area: 'm²',
+  volume: 'm³',
+  density: 'kg/m³',
+  unit_weight: 'kN/m³',
+  angle: 'rad',
+};
+
+@Injectable()
+export class OrchestrationService {
+  private readonly logger = new Logger(OrchestrationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly calcEngineClient: CalcEngineClient,
+    private readonly snapshotService: SnapshotService,
+  ) {}
+
+  async submitCalculation(projectId: string, userId: string, dto: SubmitCalculationDto) {
+    this.validateRequest(dto);
+
+    const normalizedInputs = this.normalizeInputsToSI(dto.inputs);
+
+    const requestPayload = {
+      calcType: dto.calcType,
+      inputs: normalizedInputs,
+      loadCombinations: dto.loadCombinations,
+      rulePack: dto.rulePack,
+      standardsRefs: dto.standardsRefs,
+      options: dto.options,
+    };
+
+    const snapshotData = this.snapshotService.buildSnapshotData({
+      inputs: normalizedInputs,
+      standardsRefs: dto.standardsRefs,
+      rulePack: dto.rulePack,
+      loadCombinations: dto.loadCombinations,
+    });
+
+    const run = await this.prisma.calculationRun.create({
+      data: {
+        projectId,
+        elementId: dto.elementId,
+        calculatorVersionId: dto.calculatorVersionId,
+        calcType: dto.calcType,
+        status: 'running',
+        requestSnapshot: requestPayload,
+        requestHash: snapshotData.combinedHash,
+        notes: dto.notes,
+        createdBy: userId,
+      },
+    });
+
+    try {
+      const result = await this.calcEngineClient.runCalculation(requestPayload);
+
+      const hasErrors = result.errors && result.errors.length > 0;
+      const status = hasErrors ? 'failed' : 'completed';
+
+      const updatedRun = await this.prisma.calculationRun.update({
+        where: { id: run.id },
+        data: {
+          status,
+          resultSnapshot: result,
+          durationMs: Math.round(result.durationMs),
+        },
+      });
+
+      const outputSnapshot = result.outputs ? { outputs: result.outputs, steps: result.steps } : undefined;
+      await this.snapshotService.createSnapshot(run.id, snapshotData, outputSnapshot);
+
+      return {
+        ...updatedRun,
+        result,
+      };
+    } catch (error) {
+      await this.prisma.calculationRun.update({
+        where: { id: run.id },
+        data: { status: 'failed' },
+      });
+
+      await this.snapshotService.createSnapshot(run.id, snapshotData);
+
+      throw error;
+    }
+  }
+
+  private validateRequest(dto: SubmitCalculationDto): void {
+    if (!VALID_CALC_TYPES.has(dto.calcType)) {
+      throw new BadRequestException(
+        `Invalid calcType '${dto.calcType}'. Must be one of: ${[...VALID_CALC_TYPES].join(', ')}`,
+      );
+    }
+
+    if (!dto.rulePack || !dto.rulePack.rules || Object.keys(dto.rulePack.rules).length === 0) {
+      throw new BadRequestException(
+        'rulePack with at least one rule is required. Cannot proceed without rule-pack inputs.',
+      );
+    }
+
+    if (!dto.inputs || Object.keys(dto.inputs).length === 0) {
+      throw new BadRequestException('At least one input value is required.');
+    }
+
+    if (!dto.standardsRefs || dto.standardsRefs.length === 0) {
+      throw new BadRequestException('At least one standards reference is required.');
+    }
+  }
+
+  private normalizeInputsToSI(
+    inputs: Record<string, { value: number; unit: string; label: string; source?: string }>,
+  ): Record<string, { value: number; unit: string; label: string; source?: string }> {
+    const normalized: Record<string, { value: number; unit: string; label: string; source?: string }> = {};
+
+    for (const [key, input] of Object.entries(inputs)) {
+      const conv = SI_CONVERSIONS[input.unit];
+      if (conv) {
+        normalized[key] = {
+          value: input.value * conv.toSI,
+          unit: SI_UNIT_FOR_DIMENSION[conv.dimension] ?? input.unit,
+          label: input.label,
+          source: input.source,
+        };
+      } else {
+        normalized[key] = { ...input };
+      }
+    }
+
+    return normalized;
+  }
+}

@@ -8,3 +8,4 @@ export * from './catalogue.js';
 export * from './geotech.js';
 export * from './imports.js';
 export * from './documents.js';
+export * from './piles.js';

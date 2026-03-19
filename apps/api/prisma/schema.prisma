@@ -89,6 +89,11 @@ model Project {
   calculationRuns     CalculationRun[]
   standardAssignments ProjectStandardAssignment[]
   documents           Document[]
+  loadCases           LoadCase[]
+  loadCombinationSets LoadCombinationSet[]
+  pileGroups          PileGroup[]
+  pileCapacityProfiles PileCapacityProfile[]
+  reports             CalculationReport[]
 
   @@unique([organisationId, code])
   @@map("projects")
@@ -570,23 +575,158 @@ model Document {
   @@map("documents")
 }
 
+// ─── Load Cases ──────────────────────────────────────────────────
+
+enum LoadCategory {
+  permanent
+  imposed
+  wind
+  earthquake
+  liquid_pressure
+  earth_pressure
+  thermal
+}
+
+model LoadCase {
+  id          String       @id @default(uuid()) @db.Uuid
+  projectId   String       @map("project_id") @db.Uuid
+  name        String
+  category    LoadCategory
+  description String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actions LoadAction[]
+
+  @@map("load_cases")
+}
+
+enum LoadActionDirection {
+  fx
+  fy
+  fz
+  mx
+  my
+  mz
+}
+
+model LoadAction {
+  id         String              @id @default(uuid()) @db.Uuid
+  loadCaseId String              @map("load_case_id") @db.Uuid
+  name       String
+  direction  LoadActionDirection
+  magnitude  Float
+  unit       String
+  metadata   Json                @default("{}")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  loadCase LoadCase @relation(fields: [loadCaseId], references: [id], onDelete: Cascade)
+
+  @@map("load_actions")
+}
+
+// ─── Load Combination Sets ───────────────────────────────────────
+
+enum LimitState {
+  strength
+  serviceability
+  stability
+}
+
+model LoadCombinationSet {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  name        String
+  standardRef String?  @map("standard_ref")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  combinations LoadCombination[]
+
+  @@map("load_combination_sets")
+}
+
+model LoadCombination {
+  id         String     @id @default(uuid()) @db.Uuid
+  setId      String     @map("set_id") @db.Uuid
+  name       String
+  limitState LimitState @map("limit_state")
+  clauseRef  String?    @map("clause_ref")
+  factors    Json
+
+  set LoadCombinationSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@map("load_combinations")
+}
+
+// ─── Calculator Registry ─────────────────────────────────────────
+
+enum CalculatorStatus {
+  draft
+  active
+  deprecated
+}
+
+model CalculatorDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  calcType    String   @map("calc_type")
+  description String?
+  category    String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions CalculatorVersion[]
+
+  @@map("calculator_definitions")
+}
+
+model CalculatorVersion {
+  id            String           @id @default(uuid()) @db.Uuid
+  definitionId  String           @map("definition_id") @db.Uuid
+  version       String
+  inputSchema   Json             @map("input_schema")
+  outputSchema  Json?            @map("output_schema")
+  defaultInputs Json?            @map("default_inputs")
+  status        CalculatorStatus @default(draft)
+  releaseNotes  String?          @map("release_notes")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  definition      CalculatorDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  calculationRuns CalculationRun[]
+
+  @@unique([definitionId, version])
+  @@map("calculator_versions")
+}
+
 // ─── Calculations ─────────────────────────────────────────────────
 
 model CalculationRun {
-  id              String     @id @default(uuid()) @db.Uuid
-  projectId       String     @map("project_id") @db.Uuid
-  elementId       String?    @map("element_id") @db.Uuid
-  calcType        String     @map("calc_type")
-  status          CalcStatus @default(draft)
-  requestSnapshot Json       @map("request_snapshot")
-  resultSnapshot  Json?      @map("result_snapshot")
-  requestHash     String     @map("request_hash")
-  createdBy       String     @map("created_by") @db.Uuid
-  createdAt       DateTime   @default(now()) @map("created_at")
+  id                  String     @id @default(uuid()) @db.Uuid
+  projectId           String     @map("project_id") @db.Uuid
+  elementId           String?    @map("element_id") @db.Uuid
+  calculatorVersionId String?    @map("calculator_version_id") @db.Uuid
+  calcType            String     @map("calc_type")
+  status              CalcStatus @default(draft)
+  requestSnapshot     Json       @map("request_snapshot")
+  resultSnapshot      Json?      @map("result_snapshot")
+  requestHash         String     @map("request_hash")
+  durationMs          Int?       @map("duration_ms")
+  notes               String?
+  createdBy           String     @map("created_by") @db.Uuid
+  createdAt           DateTime   @default(now()) @map("created_at")
 
-  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  element Element? @relation(fields: [elementId], references: [id])
-  creator User     @relation(fields: [createdBy], references: [id])
+  project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  element           Element?             @relation(fields: [elementId], references: [id])
+  calculatorVersion CalculatorVersion?   @relation(fields: [calculatorVersionId], references: [id])
+  creator           User                 @relation(fields: [createdBy], references: [id])
+  snapshot          CalculationSnapshot?
+  reports           CalculationReport[]
+  designChecks      PileDesignCheck[]
 
   @@index([projectId])
   @@index([requestHash])
@@ -599,6 +739,171 @@ enum CalcStatus {
   completed
   failed
   superseded
+}
+
+// ─── Calculation Snapshots (immutable) ────────────────────────────
+
+model CalculationSnapshot {
+  id                String   @id @default(uuid()) @db.Uuid
+  calculationRunId  String   @unique @map("calculation_run_id") @db.Uuid
+  inputSnapshot     Json     @map("input_snapshot")
+  inputHash         String   @map("input_hash")
+  standardsSnapshot Json     @map("standards_snapshot")
+  standardsHash     String   @map("standards_hash")
+  rulePackSnapshot  Json     @map("rule_pack_snapshot")
+  rulePackHash      String   @map("rule_pack_hash")
+  outputSnapshot    Json?    @map("output_snapshot")
+  outputHash        String?  @map("output_hash")
+  combinedHash      String   @map("combined_hash")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  calculationRun CalculationRun @relation(fields: [calculationRunId], references: [id], onDelete: Cascade)
+
+  @@index([combinedHash])
+  @@map("calculation_snapshots")
+}
+
+// ─── Calculation Reports ─────────────────────────────────────────
+
+enum ReportStatus {
+  draft
+  generating
+  completed
+  failed
+}
+
+model CalculationReport {
+  id               String       @id @default(uuid()) @db.Uuid
+  calculationRunId String       @map("calculation_run_id") @db.Uuid
+  projectId        String       @map("project_id") @db.Uuid
+  title            String
+  format           String       @default("json")
+  status           ReportStatus @default(draft)
+  evidenceBundle   Json?        @map("evidence_bundle")
+  generatedBy      String       @map("generated_by") @db.Uuid
+  generatedAt      DateTime?    @map("generated_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  calculationRun CalculationRun @relation(fields: [calculationRunId], references: [id], onDelete: Cascade)
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("calculation_reports")
+}
+
+// ─── Pile Groups & Piles ─────────────────────────────────────────
+
+enum PileType {
+  bored
+  driven
+  cfa
+  micropile
+  screw
+}
+
+model PileGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  name        String
+  description String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  piles        Pile[]
+  layoutPoints PileLayoutPoint[]
+  designChecks PileDesignCheck[]
+
+  @@map("pile_groups")
+}
+
+model Pile {
+  id             String   @id @default(uuid()) @db.Uuid
+  pileGroupId    String   @map("pile_group_id") @db.Uuid
+  name           String
+  pileType       PileType @map("pile_type")
+  diameter       Float
+  length         Float
+  embedmentDepth Float?   @map("embedment_depth")
+  rakeAngle      Float?   @map("rake_angle")
+  materialId     String?  @map("material_id") @db.Uuid
+  properties     Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  pileGroup        PileGroup             @relation(fields: [pileGroupId], references: [id], onDelete: Cascade)
+  layoutPoints     PileLayoutPoint[]
+  capacityProfiles PileCapacityProfile[]
+  designChecks     PileDesignCheck[]
+
+  @@map("piles")
+}
+
+model PileLayoutPoint {
+  id          String  @id @default(uuid()) @db.Uuid
+  pileGroupId String  @map("pile_group_id") @db.Uuid
+  pileId      String? @map("pile_id") @db.Uuid
+  x           Float
+  y           Float
+  z           Float   @default(0)
+  label       String?
+
+  pileGroup PileGroup @relation(fields: [pileGroupId], references: [id], onDelete: Cascade)
+  pile      Pile?     @relation(fields: [pileId], references: [id])
+
+  @@map("pile_layout_points")
+}
+
+// ─── Pile Capacity Profiles ──────────────────────────────────────
+
+model PileCapacityProfile {
+  id            String   @id @default(uuid()) @db.Uuid
+  projectId     String   @map("project_id") @db.Uuid
+  pileId        String?  @map("pile_id") @db.Uuid
+  soilProfileId String?  @map("soil_profile_id") @db.Uuid
+  method        String
+  standardRef   String?  @map("standard_ref")
+  parameters    Json
+  inputSnapshot Json     @map("input_snapshot")
+  inputHash     String   @map("input_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pile    Pile?   @relation(fields: [pileId], references: [id])
+
+  @@map("pile_capacity_profiles")
+}
+
+// ─── Pile Design Checks ──────────────────────────────────────────
+
+enum DesignCheckStatus {
+  pass
+  fail
+  warning
+  not_checked
+}
+
+model PileDesignCheck {
+  id               String            @id @default(uuid()) @db.Uuid
+  calculationRunId String            @map("calculation_run_id") @db.Uuid
+  pileId           String?           @map("pile_id") @db.Uuid
+  pileGroupId      String?           @map("pile_group_id") @db.Uuid
+  checkType        String            @map("check_type")
+  limitState       LimitState        @map("limit_state")
+  demandValue      Float             @map("demand_value")
+  capacityValue    Float             @map("capacity_value")
+  utilisationRatio Float             @map("utilisation_ratio")
+  status           DesignCheckStatus
+  clauseRef        String?           @map("clause_ref")
+  notes            String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  calculationRun CalculationRun @relation(fields: [calculationRunId], references: [id], onDelete: Cascade)
+  pile           Pile?          @relation(fields: [pileId], references: [id])
+  pileGroup      PileGroup?     @relation(fields: [pileGroupId], references: [id])
+
+  @@map("pile_design_checks")
 }
 
 // ─── Refresh Tokens ──────────────────────────────────────────────

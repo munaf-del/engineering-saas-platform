@@ -16,6 +16,13 @@ import { SteelSectionsModule } from './modules/steel-sections/steel-sections.mod
 import { RebarModule } from './modules/rebar/rebar.module';
 import { ImportsModule } from './modules/imports/imports.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { LoadCasesModule } from './modules/load-cases/load-cases.module';
+import { LoadCombinationsModule } from './modules/load-combinations/load-combinations.module';
+import { CalculatorsModule } from './modules/calculators/calculators.module';
+import { CalculationsModule } from './modules/calculations/calculations.module';
+import { PileGroupsModule } from './modules/pile-groups/pile-groups.module';
+import { PileCapacityModule } from './modules/pile-capacity/pile-capacity.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -35,6 +42,13 @@ import { DocumentsModule } from './modules/documents/documents.module';
     RebarModule,
     ImportsModule,
     DocumentsModule,
+    LoadCasesModule,
+    LoadCombinationsModule,
+    CalculatorsModule,
+    CalculationsModule,
+    PileGroupsModule,
+    PileCapacityModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
