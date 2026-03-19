@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Multi-tenancy root ───────────────────────────────────────────
+
+model Organisation {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  abn       String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members           OrganisationMember[]
+  projects          Project[]
+  materials         Material[]
+  standardsProfiles StandardsProfile[]
+  auditLogs         AuditLog[]
+
+  @@map("organisations")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orgMemberships     OrganisationMember[]
+  projectMemberships ProjectMember[]
+  calculationRuns    CalculationRun[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model OrganisationMember {
+  id             String   @id @default(uuid()) @db.Uuid
+  organisationId String   @map("organisation_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  role           OrgRole
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userId])
+  @@map("organisation_members")
+}
+
+enum OrgRole {
+  owner
+  admin
+  engineer
+  viewer
+}
+
+// ─── Projects ─────────────────────────────────────────────────────
+
+model Project {
+  id                 String        @id @default(uuid()) @db.Uuid
+  organisationId     String        @map("organisation_id") @db.Uuid
+  name               String
+  code               String
+  description        String?
+  status             ProjectStatus @default(active)
+  standardsProfileId String?       @map("standards_profile_id") @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  organisation     Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  standardsProfile StandardsProfile? @relation(fields: [standardsProfileId], references: [id])
+  members          ProjectMember[]
+  elements         Element[]
+  calculationRuns  CalculationRun[]
+
+  @@unique([organisationId, code])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  active
+  on_hold
+  completed
+  archived
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid()) @db.Uuid
+  projectId String      @map("project_id") @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  role      ProjectRole
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+enum ProjectRole {
+  lead
+  engineer
+  reviewer
+  viewer
+}
+
+// ─── Elements ─────────────────────────────────────────────────────
+
+model Element {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  name        String
+  elementType String   @map("element_type")
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  calculationRuns CalculationRun[]
+
+  @@map("elements")
+}
+
+// ─── Standards ────────────────────────────────────────────────────
+
+model StandardEdition {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String
+  title         String
+  edition       String
+  amendment     String?
+  clauseRef     String?        @map("clause_ref")
+  note          String?
+  sourceDoc     String?        @map("source_doc")
+  effectiveDate DateTime       @map("effective_date")
+  status        StandardStatus @default(current)
+  rulePackId    String?        @map("rule_pack_id") @db.Uuid
+
+  rulePack         RulePack?         @relation(fields: [rulePackId], references: [id])
+  pinnedStandards  PinnedStandard[]
+
+  @@unique([code, edition])
+  @@map("standard_editions")
+}
+
+enum StandardStatus {
+  current
+  superseded
+  withdrawn
+}
+
+model RulePack {
+  id           String   @id @default(uuid()) @db.Uuid
+  standardCode String   @map("standard_code")
+  version      String
+  contentHash  String   @map("content_hash")
+  rules        Json
+  importedBy   String   @map("imported_by")
+  importedAt   DateTime @default(now()) @map("imported_at")
+
+  standardEditions StandardEdition[]
+
+  @@unique([standardCode, version])
+  @@map("rule_packs")
+}
+
+model StandardsProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  organisationId String   @map("organisation_id") @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organisation    Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  pinnedStandards PinnedStandard[]
+  projects        Project[]
+
+  @@map("standards_profiles")
+}
+
+model PinnedStandard {
+  id                String @id @default(uuid()) @db.Uuid
+  standardsProfileId String @map("standards_profile_id") @db.Uuid
+  standardEditionId  String @map("standard_edition_id") @db.Uuid
+
+  standardsProfile StandardsProfile @relation(fields: [standardsProfileId], references: [id], onDelete: Cascade)
+  standardEdition  StandardEdition  @relation(fields: [standardEditionId], references: [id])
+
+  @@unique([standardsProfileId, standardEditionId])
+  @@map("pinned_standards")
+}
+
+// ─── Materials ────────────────────────────────────────────────────
+
+model Material {
+  id              String           @id @default(uuid()) @db.Uuid
+  organisationId  String?          @map("organisation_id") @db.Uuid
+  category        MaterialCategory
+  name            String
+  grade           String?
+  standardRef     String?          @map("standard_ref")
+  properties      Json
+  isSystemDefault Boolean          @default(false) @map("is_system_default")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@map("materials")
+}
+
+enum MaterialCategory {
+  concrete
+  structural_steel
+  reinforcing_steel
+  soil
+  rock
+  timber
+}
+
+model SteelSection {
+  id          String @id @default(uuid()) @db.Uuid
+  designation String @unique
+  sectionType String @map("section_type")
+  properties  Json
+  standardRef String? @map("standard_ref")
+  sourceDoc   String? @map("source_doc")
+
+  @@map("steel_sections")
+}
+
+model RebarSpecification {
+  id          String @id @default(uuid()) @db.Uuid
+  designation String @unique
+  grade       String
+  properties  Json
+  standardRef String? @map("standard_ref")
+
+  @@map("rebar_specifications")
+}
+
+// ─── Calculations ─────────────────────────────────────────────────
+
+model CalculationRun {
+  id              String     @id @default(uuid()) @db.Uuid
+  projectId       String     @map("project_id") @db.Uuid
+  elementId       String?    @map("element_id") @db.Uuid
+  calcType        String     @map("calc_type")
+  status          CalcStatus @default(draft)
+  requestSnapshot Json       @map("request_snapshot")
+  resultSnapshot  Json?      @map("result_snapshot")
+  requestHash     String     @map("request_hash")
+  createdBy       String     @map("created_by") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  element Element? @relation(fields: [elementId], references: [id])
+  creator User     @relation(fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@index([requestHash])
+  @@map("calculation_runs")
+}
+
+enum CalcStatus {
+  draft
+  running
+  completed
+  failed
+  superseded
+}
+
+// ─── Audit ────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organisationId String   @map("organisation_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id") @db.Uuid
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([organisationId, createdAt])
+  @@map("audit_logs")
+}

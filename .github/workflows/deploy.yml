@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: australia-southeast1
+  REGISTRY: australia-southeast1-docker.pkg.dev
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build and push images
+        run: |
+          TAG="${{ github.sha }}"
+          REPO="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/engplatform"
+
+          docker build -f apps/web/Dockerfile -t ${REPO}/web:${TAG} -t ${REPO}/web:latest .
+          docker build -f apps/api/Dockerfile -t ${REPO}/api:${TAG} -t ${REPO}/api:latest .
+          docker build -f apps/calc-engine/Dockerfile -t ${REPO}/calc-engine:${TAG} -t ${REPO}/calc-engine:latest apps/calc-engine
+
+          docker push ${REPO}/web:${TAG}
+          docker push ${REPO}/web:latest
+          docker push ${REPO}/api:${TAG}
+          docker push ${REPO}/api:latest
+          docker push ${REPO}/calc-engine:${TAG}
+          docker push ${REPO}/calc-engine:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          TAG="${{ github.sha }}"
+          REPO="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/engplatform"
+
+          gcloud run deploy engplatform-api \
+            --image ${REPO}/api:${TAG} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --quiet
+
+          gcloud run deploy engplatform-calc-engine \
+            --image ${REPO}/calc-engine:${TAG} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --quiet
+
+          gcloud run deploy engplatform-web \
+            --image ${REPO}/web:${TAG} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --quiet

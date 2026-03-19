@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: engplatform
+      POSTGRES_PASSWORD: engplatform
+      POSTGRES_DB: engplatform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "postgresql://engplatform:engplatform@postgres:5432/engplatform?schema=public"
+      JWT_SECRET: "local-dev-secret-change-in-prod"
+      CALC_ENGINE_URL: "http://calc-engine:8000"
+      PORT: "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  calc-engine:
+    build:
+      context: ./apps/calc-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      CALC_ENGINE_ENVIRONMENT: development
+      CALC_ENGINE_LOG_LEVEL: DEBUG
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:4000"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:

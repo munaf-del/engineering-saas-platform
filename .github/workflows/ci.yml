@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Typecheck (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm build --filter @eng/shared
+      - run: pnpm typecheck
+      - run: pnpm lint
+
+  test-shared:
+    name: Test shared package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @eng/shared test
+
+  test-api:
+    name: Test API
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: engplatform
+          POSTGRES_PASSWORD: engplatform
+          POSTGRES_DB: engplatform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U engplatform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @eng/shared build
+      - run: cd apps/api && npx prisma generate
+        env:
+          DATABASE_URL: postgresql://engplatform:engplatform@localhost:5432/engplatform
+      - run: pnpm --filter @eng/api test
+        env:
+          DATABASE_URL: postgresql://engplatform:engplatform@localhost:5432/engplatform
+
+  test-calc-engine:
+    name: Test Calc Engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: apps/calc-engine
+        run: |
+          pip install uv
+          uv pip install --system ".[dev]"
+
+      - name: Lint
+        working-directory: apps/calc-engine
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type check
+        working-directory: apps/calc-engine
+        run: mypy app/
+
+      - name: Test
+        working-directory: apps/calc-engine
+        run: pytest -v
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test-shared, test-api, test-calc-engine]
+    strategy:
+      matrix:
+        service: [web, api, calc-engine]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          if [ "${{ matrix.service }}" = "calc-engine" ]; then
+            docker build -f apps/calc-engine/Dockerfile apps/calc-engine
+          else
+            docker build -f apps/${{ matrix.service }}/Dockerfile .
+          fi
