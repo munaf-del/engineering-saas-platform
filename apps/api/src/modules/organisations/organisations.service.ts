@@ -96,6 +96,16 @@ export class OrganisationsService {
     return this.prisma.organisation.delete({ where: { id } });
   }
 
+  async listMembers(organisationId: string, actorUserId: string) {
+    await this.assertMembership(organisationId, actorUserId);
+
+    return this.prisma.organisationMember.findMany({
+      where: { organisationId },
+      include: { user: { select: { id: true, email: true, name: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async addMember(
     organisationId: string,
     actorUserId: string,
@@ -104,12 +114,56 @@ export class OrganisationsService {
   ) {
     await this.assertRole(organisationId, actorUserId, ['owner', 'admin']);
 
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!targetUser) {
+      throw new NotFoundException('Target user not found');
+    }
+
+    const existing = await this.prisma.organisationMember.findUnique({
+      where: {
+        organisationId_userId: { organisationId, userId: targetUserId },
+      },
+    });
+    if (existing) {
+      throw new ConflictException('User is already a member of this organisation');
+    }
+
     return this.prisma.organisationMember.create({
       data: {
         organisationId,
         userId: targetUserId,
         role: role as 'owner' | 'admin' | 'engineer' | 'viewer',
       },
+      include: { user: { select: { id: true, email: true, name: true } } },
+    });
+  }
+
+  async updateMemberRole(
+    organisationId: string,
+    actorUserId: string,
+    targetUserId: string,
+    role: string,
+  ) {
+    await this.assertRole(organisationId, actorUserId, ['owner', 'admin']);
+
+    const membership = await this.prisma.organisationMember.findUnique({
+      where: {
+        organisationId_userId: { organisationId, userId: targetUserId },
+      },
+    });
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    if (membership.role === 'owner' && actorUserId !== targetUserId) {
+      throw new ForbiddenException('Cannot change the role of an owner');
+    }
+
+    return this.prisma.organisationMember.update({
+      where: { id: membership.id },
+      data: { role: role as 'owner' | 'admin' | 'engineer' | 'viewer' },
       include: { user: { select: { id: true, email: true, name: true } } },
     });
   }
@@ -134,9 +188,23 @@ export class OrganisationsService {
       throw new NotFoundException('Membership not found');
     }
 
+    if (membership.role === 'owner') {
+      throw new ForbiddenException('Cannot remove an owner');
+    }
+
     return this.prisma.organisationMember.delete({
       where: { id: membership.id },
     });
+  }
+
+  private async assertMembership(organisationId: string, userId: string) {
+    const membership = await this.prisma.organisationMember.findUnique({
+      where: { organisationId_userId: { organisationId, userId } },
+    });
+    if (!membership) {
+      throw new NotFoundException('Organisation not found');
+    }
+    return membership;
   }
 
   private async assertRole(
@@ -144,12 +212,7 @@ export class OrganisationsService {
     userId: string,
     allowedRoles: string[],
   ) {
-    const membership = await this.prisma.organisationMember.findUnique({
-      where: { organisationId_userId: { organisationId, userId } },
-    });
-    if (!membership) {
-      throw new NotFoundException('Organisation not found');
-    }
+    const membership = await this.assertMembership(organisationId, userId);
     if (!allowedRoles.includes(membership.role)) {
       throw new ForbiddenException('Insufficient role');
     }

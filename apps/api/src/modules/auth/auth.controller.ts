@@ -5,9 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -30,8 +32,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login and receive access + refresh tokens' })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.login(dto, req.headers['x-request-id'] as string);
   }
 
   @Post('refresh')
@@ -59,8 +61,9 @@ export class AuthController {
   async switchOrg(
     @Body() dto: SwitchOrgDto,
     @CurrentUser() user: RequestUser,
+    @Req() req: Request,
   ) {
-    return this.authService.switchOrg(user.id, dto.organisationId);
+    return this.authService.switchOrg(user.id, dto.organisationId, req.headers['x-request-id'] as string);
   }
 
   @Get('me')

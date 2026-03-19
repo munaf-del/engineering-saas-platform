@@ -38,7 +38,12 @@ export class ProjectsService {
     return paginate(data, total, page, limit);
   }
 
-  async findById(id: string, organisationId: string) {
+  async findById(
+    id: string,
+    organisationId: string,
+    userId: string,
+    orgRole?: string,
+  ) {
     const project = await this.prisma.project.findFirst({
       where: { id, organisationId },
       include: {
@@ -53,6 +58,8 @@ export class ProjectsService {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
+
+    this.assertProjectAccess(project.members, userId, orgRole);
     return project;
   }
 
@@ -97,8 +104,21 @@ export class ProjectsService {
     return this.prisma.project.delete({ where: { id } });
   }
 
-  async listMembers(projectId: string, organisationId: string) {
-    await this.assertExists(projectId, organisationId);
+  async listMembers(
+    projectId: string,
+    organisationId: string,
+    userId: string,
+    orgRole?: string,
+  ) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, organisationId },
+      include: { members: true },
+    });
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    this.assertProjectAccess(project.members, userId, orgRole);
 
     return this.prisma.projectMember.findMany({
       where: { projectId },
@@ -154,6 +174,20 @@ export class ProjectsService {
     return this.prisma.projectMember.delete({
       where: { id: membership.id },
     });
+  }
+
+  private assertProjectAccess(
+    members: { userId: string }[],
+    userId: string,
+    orgRole?: string,
+  ) {
+    if (orgRole === 'owner' || orgRole === 'admin') {
+      return;
+    }
+    const isMember = members.some((m) => m.userId === userId);
+    if (!isMember) {
+      throw new ForbiddenException('Not a member of this project');
+    }
   }
 
   private async assertExists(id: string, organisationId: string) {

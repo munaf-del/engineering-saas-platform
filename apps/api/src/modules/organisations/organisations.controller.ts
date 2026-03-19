@@ -14,6 +14,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganisationsService } from './organisations.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { AddOrgMemberDto } from './dto/add-org-member.dto';
+import { UpdateOrgMemberRoleDto } from './dto/update-org-member-role.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   CurrentUser,
@@ -72,5 +74,47 @@ export class OrganisationsController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.organisationsService.remove(id, user.id);
+  }
+
+  // ── Member Management ──────────────────────────────────────────
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'List organisation members (requires membership)' })
+  async listMembers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.listMembers(id, user.id);
+  }
+
+  @Post(':id/members')
+  @ApiOperation({ summary: 'Add a member to the organisation (owner/admin only)' })
+  async addMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddOrgMemberDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.addMember(id, user.id, dto.userId, dto.role);
+  }
+
+  @Patch(':id/members/:userId')
+  @ApiOperation({ summary: 'Update a member role (owner/admin only)' })
+  async updateMemberRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) targetUserId: string,
+    @Body() dto: UpdateOrgMemberRoleDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.updateMemberRole(id, user.id, targetUserId, dto.role);
+  }
+
+  @Delete(':id/members/:userId')
+  @ApiOperation({ summary: 'Remove a member from the organisation (owner/admin only)' })
+  async removeMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) targetUserId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.removeMember(id, user.id, targetUserId);
   }
 }

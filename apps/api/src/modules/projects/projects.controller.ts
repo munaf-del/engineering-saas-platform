@@ -45,13 +45,13 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get project by ID' })
+  @ApiOperation({ summary: 'Get project by ID (requires project membership or org admin/owner)' })
   async findById(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.projectsService.findById(id, user.organisationId!);
+    return this.projectsService.findById(id, user.organisationId!, user.id, user.orgRole);
   }
 
   @Post()
@@ -92,13 +92,13 @@ export class ProjectsController {
   }
 
   @Get(':id/members')
-  @ApiOperation({ summary: 'List project members' })
+  @ApiOperation({ summary: 'List project members (requires project membership or org admin/owner)' })
   async listMembers(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.projectsService.listMembers(id, user.organisationId!);
+    return this.projectsService.listMembers(id, user.organisationId!, user.id, user.orgRole);
   }
 
   @Post(':id/members')

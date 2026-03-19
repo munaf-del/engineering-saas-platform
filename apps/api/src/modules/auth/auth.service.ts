@@ -51,7 +51,7 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, requestId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: {
@@ -92,7 +92,7 @@ export class AuthService {
     );
     const refreshToken = await this.createRefreshToken(user.id);
 
-    this.writeAuthAudit(user.id, orgId, 'login');
+    this.writeAuthAudit(user.id, orgId, 'login', requestId);
 
     return {
       accessToken,
@@ -153,7 +153,7 @@ export class AuthService {
     }
   }
 
-  async switchOrg(userId: string, organisationId: string) {
+  async switchOrg(userId: string, organisationId: string, requestId?: string) {
     const membership = await this.prisma.organisationMember.findUnique({
       where: { organisationId_userId: { organisationId, userId } },
     });
@@ -174,7 +174,7 @@ export class AuthService {
     );
     const refreshToken = await this.createRefreshToken(user.id);
 
-    this.writeAuthAudit(userId, organisationId, 'switch_org');
+    this.writeAuthAudit(userId, organisationId, 'switch_org', requestId);
 
     return {
       accessToken,
@@ -244,6 +244,7 @@ export class AuthService {
     userId: string,
     organisationId: string | undefined,
     action: string,
+    requestId?: string,
   ) {
     this.prisma.auditLog
       .create({
@@ -252,6 +253,7 @@ export class AuthService {
           organisationId: organisationId ?? null,
           action,
           entityType: 'auth',
+          metadata: requestId ? { requestId } : undefined,
         },
       })
       .catch((err) => this.logger.error('Failed to write auth audit log', err));
