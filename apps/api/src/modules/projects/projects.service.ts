@@ -7,24 +7,46 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
+import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(organisationId: string) {
-    return this.prisma.project.findMany({
-      where: { organisationId },
-      include: { members: { include: { user: { select: { id: true, email: true, name: true } } } } },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAll(organisationId: string, pagination: PaginationDto) {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const where = { organisationId };
+
+    const [data, total] = await Promise.all([
+      this.prisma.project.findMany({
+        where,
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, email: true, name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+
+    return paginate(data, total, page, limit);
   }
 
   async findById(id: string, organisationId: string) {
     const project = await this.prisma.project.findFirst({
       where: { id, organisationId },
       include: {
-        members: { include: { user: { select: { id: true, email: true, name: true } } } },
+        members: {
+          include: {
+            user: { select: { id: true, email: true, name: true } },
+          },
+        },
         standardsProfile: true,
       },
     });
@@ -34,7 +56,11 @@ export class ProjectsService {
     return project;
   }
 
-  async create(organisationId: string, userId: string, dto: CreateProjectDto) {
+  async create(
+    organisationId: string,
+    userId: string,
+    dto: CreateProjectDto,
+  ) {
     return this.prisma.project.create({
       data: {
         organisationId,
@@ -70,8 +96,6 @@ export class ProjectsService {
     await this.assertExists(id, organisationId);
     return this.prisma.project.delete({ where: { id } });
   }
-
-  // ── Membership ──────────────────────────────────────────────────
 
   async listMembers(projectId: string, organisationId: string) {
     await this.assertExists(projectId, organisationId);
@@ -131,8 +155,6 @@ export class ProjectsService {
       where: { id: membership.id },
     });
   }
-
-  // ── Helpers ─────────────────────────────────────────────────────
 
   private async assertExists(id: string, organisationId: string) {
     const project = await this.prisma.project.findFirst({

@@ -15,6 +15,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
+    "prisma:seed": "ts-node prisma/seed.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
@@ -51,7 +52,12 @@
     "ts-jest": "^29.2.0",
     "ts-loader": "^9.5.0",
     "ts-node": "^10.9.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.0",
     "typescript": "^5.7.0"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],

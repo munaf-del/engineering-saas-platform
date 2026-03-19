@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SwitchOrgDto } from './dto/switch-org.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, RequestUser } from './decorators/current-user.decorator';
 
@@ -18,9 +28,39 @@ export class AuthController {
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Login and receive a JWT' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login and receive access + refresh tokens' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using a refresh token' })
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke a refresh token' })
+  async logout(@Body() dto: RefreshTokenDto) {
+    await this.authService.logout(dto.refreshToken);
+    return { message: 'Logged out' };
+  }
+
+  @Post('switch-org')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Switch organisation context (issues new tokens)',
+  })
+  async switchOrg(
+    @Body() dto: SwitchOrgDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.authService.switchOrg(user.id, dto.organisationId);
   }
 
   @Get('me')

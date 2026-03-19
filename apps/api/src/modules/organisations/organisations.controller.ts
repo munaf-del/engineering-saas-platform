@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -14,7 +15,11 @@ import { OrganisationsService } from './organisations.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  RequestUser,
+} from '../auth/decorators/current-user.decorator';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('organisations')
 @ApiBearerAuth()
@@ -25,8 +30,11 @@ export class OrganisationsController {
 
   @Get()
   @ApiOperation({ summary: 'List organisations the current user belongs to' })
-  async findAll(@CurrentUser() user: RequestUser) {
-    return this.organisationsService.findByUser(user.id);
+  async findAll(
+    @CurrentUser() user: RequestUser,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.organisationsService.findByUser(user.id, pagination);
   }
 
   @Get(':id')

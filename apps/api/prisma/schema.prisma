@@ -38,6 +38,7 @@ model User {
   projectMemberships ProjectMember[]
   calculationRuns    CalculationRun[]
   auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
 
   @@map("users")
 }
@@ -281,11 +282,27 @@ enum CalcStatus {
   superseded
 }
 
+// ─── Refresh Tokens ──────────────────────────────────────────────
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
 // ─── Audit ────────────────────────────────────────────────────────
 
 model AuditLog {
   id             String   @id @default(uuid()) @db.Uuid
-  organisationId String   @map("organisation_id") @db.Uuid
+  organisationId String?  @map("organisation_id") @db.Uuid
   userId         String   @map("user_id") @db.Uuid
   action         String
   entityType     String   @map("entity_type")
@@ -293,8 +310,8 @@ model AuditLog {
   metadata       Json?
   createdAt      DateTime @default(now()) @map("created_at")
 
-  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id])
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id])
 
   @@index([organisationId, createdAt])
   @@map("audit_logs")

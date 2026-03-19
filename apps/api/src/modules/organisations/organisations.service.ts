@@ -7,21 +7,34 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 
 @Injectable()
 export class OrganisationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByUser(userId: string) {
-    const memberships = await this.prisma.organisationMember.findMany({
-      where: { userId },
-      include: { organisation: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return memberships.map((m) => ({
+  async findByUser(userId: string, pagination: PaginationDto) {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const where = { userId };
+
+    const [memberships, total] = await Promise.all([
+      this.prisma.organisationMember.findMany({
+        where,
+        include: { organisation: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.organisationMember.count({ where }),
+    ]);
+
+    const data = memberships.map((m) => ({
       ...m.organisation,
       role: m.role,
     }));
+
+    return paginate(data, total, page, limit);
   }
 
   async findById(id: string, userId: string) {
@@ -83,8 +96,6 @@ export class OrganisationsService {
     return this.prisma.organisation.delete({ where: { id } });
   }
 
-  // ── Membership helpers ──────────────────────────────────────────
-
   async addMember(
     organisationId: string,
     actorUserId: string,
@@ -127,8 +138,6 @@ export class OrganisationsService {
       where: { id: membership.id },
     });
   }
-
-  // ── Helpers ─────────────────────────────────────────────────────
 
   private async assertRole(
     organisationId: string,

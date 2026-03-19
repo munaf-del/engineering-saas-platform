@@ -1,22 +1,26 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { StandardsService } from './standards.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('standards')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('standards')
 export class StandardsController {
   constructor(private readonly standardsService: StandardsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all standard editions' })
-  async findAll() {
-    return this.standardsService.findAll();
+  @ApiOperation({ summary: 'List all standard editions (paginated)' })
+  async findAll(@Query() pagination: PaginationDto) {
+    return this.standardsService.findAll(pagination);
   }
 
   @Get('current')
-  @ApiOperation({ summary: 'List current standard editions' })
-  async findCurrent() {
-    return this.standardsService.findCurrent();
+  @ApiOperation({ summary: 'List current standard editions (paginated)' })
+  async findCurrent(@Query() pagination: PaginationDto) {
+    return this.standardsService.findCurrent(pagination);
   }
 
   @Get(':code')
