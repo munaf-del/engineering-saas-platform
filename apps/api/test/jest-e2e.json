@@ -4,7 +4,9 @@
   "testEnvironment": "node",
   "testRegex": "test/.*\\.e2e-spec\\.ts$",
   "transform": {
-    "^.+\\.ts$": "ts-jest"
+    "^.+\\.ts$": ["ts-jest", {
+      "diagnostics": false
+    }]
   },
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/src/$1"

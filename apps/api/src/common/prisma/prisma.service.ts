@@ -21,54 +21,59 @@ const READ_ACTIONS = new Set([
 
 const WRITE_MANY_ACTIONS = new Set(['updateMany', 'deleteMany']);
 
+function createPrismaClient() {
+  return new PrismaClient().$extends({
+    query: {
+      $allOperations({ model, operation, args, query }) {
+        const tenant = getCurrentTenant();
+
+        if (!tenant?.organisationId || !model) {
+          return query(args);
+        }
+
+        if (!TENANT_SCOPED_MODELS.has(model as Prisma.ModelName)) {
+          return query(args);
+        }
+
+        const orgId = tenant.organisationId;
+
+        if (READ_ACTIONS.has(operation)) {
+          args = { ...args, where: { ...(args as any).where, organisationId: orgId } };
+        }
+
+        if (operation === 'create') {
+          args = { ...args, data: { ...(args as any).data, organisationId: orgId } };
+        }
+
+        if (WRITE_MANY_ACTIONS.has(operation)) {
+          args = { ...args, where: { ...(args as any).where, organisationId: orgId } };
+        }
+
+        return query(args);
+      },
+    },
+  });
+}
+
+const ExtendedPrismaClient = class {
+  constructor() {
+    return createPrismaClient();
+  }
+} as new () => ReturnType<typeof createPrismaClient>;
+
 @Injectable()
 export class PrismaService
-  extends PrismaClient
+  extends ExtendedPrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
 
   async onModuleInit() {
     await this.$connect();
-    this.setupTenantMiddleware();
+    this.logger.log('Tenant-scoping query extension registered');
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-  }
-
-  private setupTenantMiddleware() {
-    this.$use(async (params: Prisma.MiddlewareParams, next) => {
-      const tenant = getCurrentTenant();
-
-      if (!tenant?.organisationId || !params.model) {
-        return next(params);
-      }
-
-      if (!TENANT_SCOPED_MODELS.has(params.model as Prisma.ModelName)) {
-        return next(params);
-      }
-
-      const orgId = tenant.organisationId;
-
-      if (READ_ACTIONS.has(params.action)) {
-        params.args = params.args ?? {};
-        params.args.where = { ...params.args.where, organisationId: orgId };
-      }
-
-      if (params.action === 'create') {
-        params.args = params.args ?? {};
-        params.args.data = { ...params.args.data, organisationId: orgId };
-      }
-
-      if (WRITE_MANY_ACTIONS.has(params.action)) {
-        params.args = params.args ?? {};
-        params.args.where = { ...params.args.where, organisationId: orgId };
-      }
-
-      return next(params);
-    });
-
-    this.logger.log('Tenant-scoping middleware registered');
   }
 }

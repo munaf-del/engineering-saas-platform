@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma/prisma.service';
 
@@ -685,7 +685,7 @@ describe('API E2E Tests', () => {
 
       expect(logs.length).toBeGreaterThan(0);
 
-      const actions = logs.map((l) => l.action);
+      const actions = logs.map((l: { action: string }) => l.action);
       expect(actions).toContain('login');
     });
 
@@ -696,7 +696,7 @@ describe('API E2E Tests', () => {
 
       expect(logs.length).toBeGreaterThanOrEqual(2);
 
-      const entityTypes = logs.map((l) => l.entityType);
+      const entityTypes = logs.map((l: { entityType: string }) => l.entityType);
       expect(entityTypes).toContain('organisations');
       expect(entityTypes).toContain('projects');
     });
@@ -709,7 +709,8 @@ describe('API E2E Tests', () => {
       });
 
       expect(loginLogs.length).toBe(1);
-      const meta = loginLogs[0].metadata as Record<string, unknown> | null;
+      expect(loginLogs[0]).toBeDefined();
+      const meta = loginLogs[0]!.metadata as Record<string, unknown> | null;
       if (meta) {
         expect(meta.requestId).toBeDefined();
       }
@@ -723,7 +724,8 @@ describe('API E2E Tests', () => {
       });
 
       expect(createLogs.length).toBe(1);
-      const meta = createLogs[0].metadata as Record<string, unknown> | null;
+      expect(createLogs[0]).toBeDefined();
+      const meta = createLogs[0]!.metadata as Record<string, unknown> | null;
       if (meta) {
         expect(meta.requestId).toBeDefined();
       }
