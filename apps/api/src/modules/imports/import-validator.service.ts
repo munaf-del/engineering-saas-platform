@@ -14,7 +14,14 @@ export interface RowError {
   severity: 'error' | 'warning';
 }
 
-type EntityType = 'steel_section' | 'rebar_size' | 'material' | 'geotech_parameter';
+type EntityType =
+  | 'steel_section'
+  | 'rebar_size'
+  | 'material'
+  | 'geotech_parameter'
+  | 'standards_registry'
+  | 'load_combination_rules'
+  | 'pile_design_rules';
 
 interface FieldSpec {
   required: boolean;
@@ -57,6 +64,26 @@ const FIELD_SPECS: Record<EntityType, Record<string, FieldSpec>> = {
     unitWeight: { required: false, type: 'number' },
     cohesion: { required: false, type: 'number' },
     frictionAngle: { required: false, type: 'number' },
+  },
+  standards_registry: {
+    code: { required: true, type: 'string' },
+    title: { required: true, type: 'string' },
+    category: { required: true, type: 'string' },
+    edition: { required: true, type: 'string' },
+    amendment: { required: false, type: 'string' },
+    sourceEdition: { required: true, type: 'string' },
+    effectiveDate: { required: true, type: 'string' },
+    sourceDataset: { required: true, type: 'string' },
+  },
+  load_combination_rules: {
+    ruleKey: { required: true, type: 'string' },
+    clauseRef: { required: true, type: 'string' },
+    description: { required: true, type: 'string' },
+  },
+  pile_design_rules: {
+    ruleKey: { required: true, type: 'string' },
+    clauseRef: { required: true, type: 'string' },
+    description: { required: true, type: 'string' },
   },
 };
 
@@ -139,6 +166,53 @@ export class ImportValidatorService {
           rowNumber,
           field: 'sourceEdition',
           message: 'Missing required source edition for traceability',
+          severity: 'error',
+        });
+      }
+    }
+
+    if (entityType === 'standards_registry') {
+      const validCategories = ['loading', 'concrete', 'steel', 'reinforcement', 'geotech', 'general'];
+      const cat = data['category'];
+      if (cat && !validCategories.includes(String(cat))) {
+        errors.push({
+          rowNumber,
+          field: 'category',
+          message: `Invalid category "${cat}". Must be one of: ${validCategories.join(', ')}`,
+          severity: 'error',
+        });
+      }
+      if (!data['sourceDataset'] && !data['source_dataset']) {
+        errors.push({
+          rowNumber,
+          field: 'sourceDataset',
+          message: 'Missing required sourceDataset for traceability',
+          severity: 'error',
+        });
+      }
+    }
+
+    if (entityType === 'load_combination_rules' || entityType === 'pile_design_rules') {
+      const meta = data['_yamlMeta'] as Record<string, unknown> | undefined;
+      if (meta) {
+        if (!meta['standardCode']) {
+          errors.push({ rowNumber, field: 'standardCode', message: 'Missing required standardCode in YAML metadata', severity: 'error' });
+        }
+        if (!meta['version']) {
+          errors.push({ rowNumber, field: 'version', message: 'Missing required version in YAML metadata', severity: 'error' });
+        }
+        if (!meta['effectiveDate']) {
+          errors.push({ rowNumber, field: 'effectiveDate', message: 'Missing required effectiveDate in YAML metadata', severity: 'error' });
+        }
+        if (!meta['sourceDataset']) {
+          errors.push({ rowNumber, field: 'sourceDataset', message: 'Missing required sourceDataset in YAML metadata', severity: 'error' });
+        }
+      }
+      if (data['value'] === undefined && data['table'] === undefined && data['formula'] === undefined) {
+        errors.push({
+          rowNumber,
+          field: 'value|table|formula',
+          message: 'Each rule must have at least one of: value, table, or formula',
           severity: 'error',
         });
       }

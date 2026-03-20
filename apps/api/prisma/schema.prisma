@@ -213,6 +213,7 @@ model StandardRulePack {
   importedAt   DateTime @default(now()) @map("imported_at")
 
   standardEditions StandardEdition[]
+  activations      RulePackActivation[]
 
   @@unique([standardCode, version])
   @@map("rule_packs")
@@ -507,9 +508,15 @@ model ImportJob {
   completedAt    DateTime?    @map("completed_at")
   rolledBackAt   DateTime?    @map("rolled_back_at")
   rolledBackBy   String?      @map("rolled_back_by") @db.Uuid
+  approvedAt     DateTime?    @map("approved_at")
+  approvedBy     String?      @map("approved_by") @db.Uuid
+  rejectedAt     DateTime?    @map("rejected_at")
+  rejectedBy     String?      @map("rejected_by") @db.Uuid
+  rejectionReason String?     @map("rejection_reason")
 
-  organisation Organisation     @relation(fields: [organisationId], references: [id])
+  organisation Organisation      @relation(fields: [organisationId], references: [id])
   errors       ImportItemError[]
+  approvals    ImportApproval[]
 
   @@index([organisationId, createdAt])
   @@map("import_jobs")
@@ -519,12 +526,16 @@ enum ImportFormat {
   csv
   xlsx
   json
+  yaml
 }
 
 enum ImportStatus {
   pending
   validating
   validated
+  awaiting_approval
+  approved
+  rejected
   applying
   applied
   rolling_back
@@ -549,6 +560,37 @@ model ImportItemError {
 enum ImportErrorSeverity {
   error
   warning
+}
+
+model ImportApproval {
+  id          String   @id @default(uuid()) @db.Uuid
+  importJobId String   @map("import_job_id") @db.Uuid
+  action      String
+  reason      String?
+  userId      String   @map("user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId])
+  @@map("import_approvals")
+}
+
+model RulePackActivation {
+  id           String    @id @default(uuid()) @db.Uuid
+  rulePackId   String    @map("rule_pack_id") @db.Uuid
+  importJobId  String?   @map("import_job_id") @db.Uuid
+  activatedBy  String    @map("activated_by") @db.Uuid
+  activatedAt  DateTime  @default(now()) @map("activated_at")
+  deactivatedAt DateTime? @map("deactivated_at")
+  deactivatedBy String?  @map("deactivated_by") @db.Uuid
+  isActive     Boolean   @default(true) @map("is_active")
+  note         String?
+
+  rulePack  StandardRulePack @relation(fields: [rulePackId], references: [id])
+
+  @@index([rulePackId])
+  @@map("rule_pack_activations")
 }
 
 // ─── Documents ────────────────────────────────────────────────────

@@ -1,0 +1,25 @@
+# Load Combination Rules Template
+# Replace placeholder values with actual licensed data before importing
+# This file must NOT be committed with real standards values
+
+standardCode: "PLACEHOLDER-1170.0"
+version: "1.0"
+effectiveDate: "2024-01-01"
+sourceDataset: "placeholder-dataset"
+rules:
+  - ruleKey: gamma_g_permanent
+    clauseRef: "placeholder"
+    description: "Permanent action factor (placeholder)"
+    value: 0.0
+  - ruleKey: gamma_q_imposed
+    clauseRef: "placeholder"
+    description: "Imposed action factor (placeholder)"
+    value: 0.0
+  - ruleKey: psi_s_short_term
+    clauseRef: "placeholder"
+    description: "Short-term combination factor (placeholder)"
+    value: 0.0
+  - ruleKey: psi_l_long_term
+    clauseRef: "placeholder"
+    description: "Long-term combination factor (placeholder)"
+    value: 0.0

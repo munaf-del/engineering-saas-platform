@@ -10,6 +10,7 @@ import {
   FolderOpen,
   History,
   Import,
+  Package,
   Settings,
   Users,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const catalogueNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { label: 'Standards', href: '/standards', icon: ClipboardList },
   { label: 'Imports', href: '/imports', icon: Import },
+  { label: 'Rule Packs', href: '/rule-packs', icon: Package },
   { label: 'Members', href: '/settings/members', icon: Users },
   { label: 'Audit Trail', href: '/audit', icon: History },
 ];

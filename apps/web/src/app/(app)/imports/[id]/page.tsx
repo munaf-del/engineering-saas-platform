@@ -1,28 +1,69 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, RotateCcw } from 'lucide-react';
-import { useImport, useImportErrors, useApplyImport, useRollbackImport } from '@/hooks/use-imports';
+import { ArrowLeft, CheckCircle, RotateCcw, ShieldCheck, ShieldX, Send, Zap } from 'lucide-react';
+import {
+  useImport,
+  useImportErrors,
+  useImportApprovals,
+  useApplyImport,
+  useRollbackImport,
+  useSubmitForApproval,
+  useApproveImport,
+  useRejectImport,
+  useActivateImport,
+} from '@/hooks/use-imports';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageLoading } from '@/components/loading';
 import { toast } from 'sonner';
+
+const statusColors: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'secondary'> = {
+  pending: 'secondary',
+  validating: 'warning',
+  validated: 'default',
+  awaiting_approval: 'warning',
+  approved: 'success',
+  rejected: 'destructive',
+  applying: 'warning',
+  applied: 'success',
+  rolling_back: 'warning',
+  rolled_back: 'destructive',
+  failed: 'destructive',
+};
 
 export default function ImportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: job, isLoading } = useImport(id);
   const { data: errors } = useImportErrors(id);
+  const { data: approvals } = useImportApprovals(id);
   const applyImport = useApplyImport();
   const rollbackImport = useRollbackImport();
+  const submitForApproval = useSubmitForApproval();
+  const approveImport = useApproveImport();
+  const rejectImport = useRejectImport();
+  const activateImport = useActivateImport();
+
+  const [showReject, setShowReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   if (isLoading || !job) return <PageLoading />;
 
   const canApply = job.status === 'validated';
+  const canSubmitForApproval = job.status === 'validated';
+  const canApprove = job.status === 'awaiting_approval';
+  const canReject = job.status === 'awaiting_approval';
+  const canActivate = job.status === 'approved';
   const canRollback = job.status === 'applied';
+
+  const isRulePack = ['load_combination_rules', 'pile_design_rules'].includes(job.entityType);
 
   return (
     <>
@@ -34,20 +75,49 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
 
       <PageHeader
         title={`Import: ${job.fileName}`}
-        description={`${job.entityType.replace('_', ' ')} · ${job.format.toUpperCase()}`}
+        description={`${job.entityType.replace(/_/g, ' ')} · ${job.format.toUpperCase()}`}
         badges={
-          <Badge variant={job.status === 'applied' ? 'success' : job.status === 'failed' ? 'destructive' : 'secondary'}>
-            {job.status.replace('_', ' ')}
+          <Badge variant={statusColors[job.status] ?? 'default'}>
+            {job.status.replace(/_/g, ' ')}
           </Badge>
         }
         actions={
           <div className="flex gap-2">
-            {canApply && (
+            {canSubmitForApproval && isRulePack && (
+              <Button variant="outline" onClick={async () => {
+                try { await submitForApproval.mutateAsync(id); toast.success('Submitted for approval'); }
+                catch { toast.error('Submission failed'); }
+              }} disabled={submitForApproval.isPending}>
+                <Send className="mr-2 h-4 w-4" />Submit for Approval
+              </Button>
+            )}
+            {canApply && !isRulePack && (
               <Button onClick={async () => {
                 try { await applyImport.mutateAsync(id); toast.success('Import applied'); }
                 catch { toast.error('Apply failed'); }
               }} disabled={applyImport.isPending}>
                 <CheckCircle className="mr-2 h-4 w-4" />Apply Import
+              </Button>
+            )}
+            {canApprove && (
+              <Button onClick={async () => {
+                try { await approveImport.mutateAsync({ id }); toast.success('Import approved'); }
+                catch { toast.error('Approve failed'); }
+              }} disabled={approveImport.isPending}>
+                <ShieldCheck className="mr-2 h-4 w-4" />Approve
+              </Button>
+            )}
+            {canReject && (
+              <Button variant="destructive" onClick={() => setShowReject(true)}>
+                <ShieldX className="mr-2 h-4 w-4" />Reject
+              </Button>
+            )}
+            {canActivate && (
+              <Button onClick={async () => {
+                try { await activateImport.mutateAsync(id); toast.success('Import activated'); }
+                catch { toast.error('Activation failed'); }
+              }} disabled={activateImport.isPending}>
+                <Zap className="mr-2 h-4 w-4" />Activate
               </Button>
             )}
             {canRollback && (
@@ -74,6 +144,9 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
               <div className="flex justify-between"><dt className="text-muted-foreground">Dry Run</dt><dd>{job.dryRun ? 'Yes' : 'No'}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Created</dt><dd>{new Date(job.createdAt).toLocaleString()}</dd></div>
               {job.completedAt && <div className="flex justify-between"><dt className="text-muted-foreground">Completed</dt><dd>{new Date(job.completedAt).toLocaleString()}</dd></div>}
+              {job.approvedAt && <div className="flex justify-between"><dt className="text-muted-foreground">Approved</dt><dd>{new Date(job.approvedAt).toLocaleString()}</dd></div>}
+              {job.rejectedAt && <div className="flex justify-between"><dt className="text-muted-foreground">Rejected</dt><dd>{new Date(job.rejectedAt).toLocaleString()}</dd></div>}
+              {job.rejectionReason && <div className="flex justify-between"><dt className="text-muted-foreground">Rejection Reason</dt><dd className="text-red-600">{job.rejectionReason}</dd></div>}
               {job.snapshotId && <div className="flex justify-between"><dt className="text-muted-foreground">Snapshot ID</dt><dd className="font-mono text-xs">{job.snapshotId}</dd></div>}
             </dl>
           </CardContent>
@@ -93,6 +166,34 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
           </Card>
         )}
       </div>
+
+      {approvals && approvals.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader><CardTitle className="text-base">Approval History</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[120px]">Action</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="w-[180px]">Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvals.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      <Badge variant={a.action === 'approve' ? 'success' : 'destructive'}>{a.action}</Badge>
+                    </TableCell>
+                    <TableCell>{a.reason ?? '—'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {errors && errors.length > 0 && (
         <Card className="mt-6">
@@ -123,6 +224,34 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={showReject} onOpenChange={setShowReject}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Import</DialogTitle>
+            <DialogDescription>Provide a reason for rejecting this import.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason for rejection" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={async () => {
+              try {
+                await rejectImport.mutateAsync({ id, reason: rejectReason });
+                toast.success('Import rejected');
+                setShowReject(false);
+                setRejectReason('');
+              } catch { toast.error('Reject failed'); }
+            }} disabled={rejectImport.isPending}>
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

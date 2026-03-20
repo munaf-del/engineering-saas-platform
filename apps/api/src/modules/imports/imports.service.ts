@@ -9,6 +9,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { ImportParserService, ParsedRow } from './import-parser.service';
 import { ImportValidatorService } from './import-validator.service';
+import { RulePackIngestionService } from './rule-pack-ingestion.service';
 import { CreateImportJobDto } from './dto/import.dto';
 
 export interface DiffRow {
@@ -42,6 +43,7 @@ export class ImportsService {
     private readonly prisma: PrismaService,
     private readonly parser: ImportParserService,
     private readonly validator: ImportValidatorService,
+    private readonly rulePackIngestion: RulePackIngestionService,
   ) {}
 
   // ── List Jobs ─────────────────────────────────────────────────
@@ -159,9 +161,10 @@ export class ImportsService {
   async apply(id: string, userId: string) {
     const job = await this.findById(id);
 
-    if (job.status !== 'validated') {
+    const applyableStatuses = ['validated', 'approved'];
+    if (!applyableStatuses.includes(job.status)) {
       throw new BadRequestException(
-        `Cannot apply import in status "${job.status}". Must be "validated".`,
+        `Cannot apply import in status "${job.status}". Must be "validated" or "approved".`,
       );
     }
 
@@ -246,6 +249,110 @@ export class ImportsService {
       });
       throw err;
     }
+  }
+
+  // ── Submit for Approval ─────────────────────────────────────
+
+  async submitForApproval(id: string) {
+    const job = await this.findById(id);
+    if (job.status !== 'validated') {
+      throw new BadRequestException(
+        `Cannot submit for approval in status "${job.status}". Must be "validated".`,
+      );
+    }
+
+    return this.prisma.importJob.update({
+      where: { id },
+      data: { status: 'awaiting_approval' },
+    });
+  }
+
+  // ── Approve ────────────────────────────────────────────────
+
+  async approve(id: string, userId: string, reason?: string) {
+    const job = await this.findById(id);
+    if (job.status !== 'awaiting_approval') {
+      throw new BadRequestException(
+        `Cannot approve import in status "${job.status}". Must be "awaiting_approval".`,
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.importApproval.create({
+        data: {
+          importJobId: id,
+          action: 'approve',
+          reason,
+          userId,
+        },
+      }),
+      this.prisma.importJob.update({
+        where: { id },
+        data: {
+          status: 'approved',
+          approvedAt: new Date(),
+          approvedBy: userId,
+        },
+      }),
+    ]);
+
+    return this.findById(id);
+  }
+
+  // ── Reject ────────────────────────────────────────────────
+
+  async reject(id: string, userId: string, reason?: string) {
+    const job = await this.findById(id);
+    if (job.status !== 'awaiting_approval') {
+      throw new BadRequestException(
+        `Cannot reject import in status "${job.status}". Must be "awaiting_approval".`,
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.importApproval.create({
+        data: {
+          importJobId: id,
+          action: 'reject',
+          reason,
+          userId,
+        },
+      }),
+      this.prisma.importJob.update({
+        where: { id },
+        data: {
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectedBy: userId,
+          rejectionReason: reason,
+        },
+      }),
+    ]);
+
+    return this.findById(id);
+  }
+
+  // ── Activate (post-approval apply) ────────────────────────
+
+  async activate(id: string, userId: string) {
+    const job = await this.findById(id);
+
+    if (job.status !== 'approved') {
+      throw new BadRequestException(
+        `Cannot activate import in status "${job.status}". Must be "approved".`,
+      );
+    }
+
+    return this.apply(id, userId);
+  }
+
+  // ── Get Approvals ─────────────────────────────────────────
+
+  async getApprovals(jobId: string) {
+    return this.prisma.importApproval.findMany({
+      where: { importJobId: jobId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   // ── Get Errors ────────────────────────────────────────────────
@@ -438,6 +545,36 @@ export class ImportsService {
         }
         break;
       }
+      case 'standards_registry': {
+        const editions = await this.prisma.standardEdition.findMany({
+          include: { standard: true },
+        });
+        for (const e of editions) {
+          const key = `${e.code}||${e.edition}`;
+          map.set(key, {
+            code: e.code,
+            title: e.title,
+            edition: e.edition,
+            category: e.standard.category,
+            effectiveDate: e.effectiveDate.toISOString(),
+          });
+        }
+        break;
+      }
+      case 'load_combination_rules':
+      case 'pile_design_rules': {
+        const activations = await this.prisma.rulePackActivation.findMany({
+          where: { isActive: true },
+          include: { rulePack: true },
+        });
+        for (const a of activations) {
+          const rules = a.rulePack.rules as Record<string, unknown>;
+          for (const [ruleKey, ruleVal] of Object.entries(rules)) {
+            map.set(`${a.rulePack.standardCode}||${ruleKey}`, ruleVal as Record<string, unknown>);
+          }
+        }
+        break;
+      }
     }
 
     return map;
@@ -452,6 +589,14 @@ export class ImportsService {
         return `${data['name'] ?? ''}||${data['grade'] ?? ''}`;
       case 'geotech_parameter':
         return `${data['name'] ?? ''}||${data['classCode'] ?? ''}`;
+      case 'standards_registry':
+        return `${data['code'] ?? ''}||${data['edition'] ?? ''}`;
+      case 'load_combination_rules':
+      case 'pile_design_rules': {
+        const meta = data['_yamlMeta'] as Record<string, unknown> | undefined;
+        const stdCode = meta?.['standardCode'] ?? '';
+        return `${stdCode}||${data['ruleKey'] ?? data['rule_key'] ?? ''}`;
+      }
       default:
         return String(data['designation'] ?? data['name'] ?? 'unknown');
     }
@@ -505,6 +650,11 @@ export class ImportsService {
         return [
           'sourceStandard', 'sourceEdition', 'unitWeight', 'cohesion', 'frictionAngle',
         ];
+      case 'standards_registry':
+        return ['title', 'category', 'effectiveDate'];
+      case 'load_combination_rules':
+      case 'pile_design_rules':
+        return ['clauseRef', 'description', 'value', 'table', 'formula'];
       default:
         return [];
     }
@@ -532,6 +682,11 @@ export class ImportsService {
         return this.applyMaterials(job, rows, meta);
       case 'geotech_parameter':
         return this.applyGeotechParameters(job, rows, meta);
+      case 'standards_registry':
+        return this.applyStandardsRegistry(job, rows, meta);
+      case 'load_combination_rules':
+      case 'pile_design_rules':
+        return this.applyRulePack(job, rows, meta);
       default:
         return null;
     }
@@ -769,6 +924,103 @@ export class ImportsService {
     return job.id;
   }
 
+  private async applyStandardsRegistry(
+    job: { id: string; organisationId: string },
+    rows: DiffRow[],
+    meta: {
+      catalogName: string;
+      catalogVersion: string;
+      sourceStandard: string;
+      sourceEdition: string;
+      sourceAmendment?: string;
+    },
+  ): Promise<string> {
+    const createdIds: string[] = [];
+
+    for (const row of rows) {
+      if (!row.data) continue;
+      const d = row.data;
+
+      const code = String(d['code'] ?? '');
+      const title = String(d['title'] ?? '');
+      const category = String(d['category'] ?? 'general');
+      const edition = String(d['edition'] ?? '');
+      const sourceEdition = String(d['sourceEdition'] ?? d['source_edition'] ?? meta.sourceEdition);
+      const effectiveDate = String(d['effectiveDate'] ?? d['effective_date'] ?? '');
+
+      const validCategories = ['loading', 'concrete', 'steel', 'reinforcement', 'geotech', 'general'];
+      const resolvedCategory = validCategories.includes(category) ? category : 'general';
+
+      let standard = await this.prisma.standard.findUnique({ where: { code } });
+      if (!standard) {
+        standard = await this.prisma.standard.create({
+          data: { code, title, category: resolvedCategory as any, isDemo: false },
+        });
+      }
+
+      const stdEdition = await this.prisma.standardEdition.create({
+        data: {
+          standardId: standard.id,
+          code,
+          title,
+          edition,
+          amendment: d['amendment'] ? String(d['amendment']) : null,
+          sourceEdition,
+          sourceAmendment: d['sourceAmendment'] ? String(d['sourceAmendment']) : meta.sourceAmendment ?? null,
+          effectiveDate: new Date(effectiveDate || Date.now()),
+          sourceDoc: d['sourceDataset'] ? String(d['sourceDataset']) : d['source_dataset'] ? String(d['source_dataset']) : null,
+          status: 'current',
+          isDemo: false,
+        },
+      });
+
+      createdIds.push(stdEdition.id);
+    }
+
+    await this.storeCreatedIds(job.id, createdIds);
+    return job.id;
+  }
+
+  private async applyRulePack(
+    job: { id: string; organisationId: string; entityType: string; createdBy?: string },
+    rows: DiffRow[],
+    meta: {
+      catalogName: string;
+      catalogVersion: string;
+      sourceStandard: string;
+      sourceEdition: string;
+      sourceAmendment?: string;
+    },
+  ): Promise<string> {
+    const parsedRows: ParsedRow[] = rows
+      .filter((r) => r.data)
+      .map((r) => ({ rowNumber: r.rowNumber, data: r.data! }));
+
+    const preview = await this.rulePackIngestion.validateAndPreview(
+      parsedRows,
+      job.entityType as 'load_combination_rules' | 'pile_design_rules',
+    );
+
+    if (preview.conflicts.length > 0) {
+      throw new BadRequestException(
+        `Rule pack has ${preview.conflicts.length} conflicting rule(s) with active packs. ` +
+        `Resolve conflicts before applying. Conflicts: ${preview.conflicts.map(c => c.ruleKey).join(', ')}`,
+      );
+    }
+
+    const userId = (job as any).createdBy ?? 'system';
+    const result = await this.rulePackIngestion.ingest(
+      userId,
+      preview.standardCode,
+      preview.version,
+      preview.rules,
+      preview.contentHash,
+    );
+
+    await this.storeCreatedIds(job.id, [result.rulePackId]);
+    return result.rulePackId;
+  }
+
   private defaultUnit(field: string): string {
     switch (field) {
       case 'unitWeight': return 'kN/m³';
@@ -822,6 +1074,22 @@ export class ImportsService {
         const ids = this.extractCreatedIds(diff);
         if (ids.length > 0) {
           await this.prisma.geotechParameterSet.deleteMany({ where: { id: { in: ids } } });
+        }
+        break;
+      }
+      case 'standards_registry': {
+        const ids = this.extractCreatedIds(diff);
+        if (ids.length > 0) {
+          await this.prisma.standardEdition.deleteMany({ where: { id: { in: ids } } });
+        }
+        break;
+      }
+      case 'load_combination_rules':
+      case 'pile_design_rules': {
+        const ids = this.extractCreatedIds(diff);
+        if (ids.length > 0) {
+          await this.prisma.rulePackActivation.deleteMany({ where: { rulePackId: { in: ids } } });
+          await this.prisma.standardRulePack.deleteMany({ where: { id: { in: ids } } });
         }
         break;
       }

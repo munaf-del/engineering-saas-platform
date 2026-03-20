@@ -1,10 +1,13 @@
-export const IMPORT_FORMATS = ['csv', 'xlsx', 'json'] as const;
+export const IMPORT_FORMATS = ['csv', 'xlsx', 'json', 'yaml'] as const;
 export type ImportFormat = (typeof IMPORT_FORMATS)[number];
 
 export const IMPORT_STATUSES = [
   'pending',
   'validating',
   'validated',
+  'awaiting_approval',
+  'approved',
+  'rejected',
   'applying',
   'applied',
   'rolling_back',
@@ -18,6 +21,9 @@ export const IMPORT_ENTITY_TYPES = [
   'rebar_size',
   'material',
   'geotech_parameter',
+  'standards_registry',
+  'load_combination_rules',
+  'pile_design_rules',
 ] as const;
 export type ImportEntityType = (typeof IMPORT_ENTITY_TYPES)[number];
 
@@ -43,6 +49,11 @@ export interface ImportJob {
   completedAt?: string;
   rolledBackAt?: string;
   rolledBackBy?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
 }
 
 export interface ImportItemError {
@@ -67,4 +78,30 @@ export interface ImportDiffRow {
   action: 'add' | 'modify' | 'remove' | 'unchanged';
   key: string;
   changes?: Record<string, { old: unknown; new: unknown }>;
+}
+
+export interface ImportApproval {
+  id: string;
+  importJobId: string;
+  action: 'approve' | 'reject';
+  reason?: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface RulePackImportMeta {
+  standardCode: string;
+  version: string;
+  ruleCount: number;
+  sourceFile: string;
+  contentHash: string;
+  conflicts?: RulePackConflict[];
+}
+
+export interface RulePackConflict {
+  ruleKey: string;
+  existingVersion: string;
+  incomingVersion: string;
+  existingValue?: unknown;
+  incomingValue?: unknown;
 }

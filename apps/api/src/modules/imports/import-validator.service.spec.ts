@@ -183,6 +183,208 @@ describe('ImportValidatorService', () => {
     });
   });
 
+  describe('standards_registry validation', () => {
+    it('should pass valid standards registry rows', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 2,
+          data: {
+            code: 'PLACEHOLDER-STD',
+            title: 'Placeholder Standard',
+            category: 'loading',
+            edition: '2024',
+            sourceEdition: '2024',
+            effectiveDate: '2024-01-01',
+            sourceDataset: 'placeholder-dataset',
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'standards_registry');
+      expect(result.valid).toBe(true);
+    });
+
+    it('should fail on missing code', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 2,
+          data: {
+            title: 'Placeholder',
+            category: 'loading',
+            edition: '2024',
+            sourceEdition: '2024',
+            effectiveDate: '2024-01-01',
+            sourceDataset: 'test',
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'standards_registry');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'code')).toBe(true);
+    });
+
+    it('should fail on invalid category', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 2,
+          data: {
+            code: 'TEST',
+            title: 'Test',
+            category: 'invalid_category',
+            edition: '2024',
+            sourceEdition: '2024',
+            effectiveDate: '2024-01-01',
+            sourceDataset: 'test',
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'standards_registry');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'category')).toBe(true);
+    });
+
+    it('should fail on missing sourceDataset', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 2,
+          data: {
+            code: 'TEST',
+            title: 'Test',
+            category: 'loading',
+            edition: '2024',
+            sourceEdition: '2024',
+            effectiveDate: '2024-01-01',
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'standards_registry');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'sourceDataset')).toBe(true);
+    });
+  });
+
+  describe('load_combination_rules validation', () => {
+    it('should pass valid rule rows', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 1,
+          data: {
+            ruleKey: 'gamma_g',
+            clauseRef: '4.2.2',
+            description: 'Placeholder factor',
+            value: 1.0,
+            _yamlMeta: {
+              standardCode: 'PLACEHOLDER',
+              version: '1.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'load_combination_rules');
+      expect(result.valid).toBe(true);
+    });
+
+    it('should fail on missing ruleKey', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 1,
+          data: {
+            clauseRef: '4.2.2',
+            description: 'Test',
+            value: 1.0,
+            _yamlMeta: {
+              standardCode: 'TEST',
+              version: '1.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'load_combination_rules');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'ruleKey')).toBe(true);
+    });
+
+    it('should fail when rule has no value, table, or formula', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 1,
+          data: {
+            ruleKey: 'gamma_g',
+            clauseRef: '4.2.2',
+            description: 'Test',
+            _yamlMeta: {
+              standardCode: 'TEST',
+              version: '1.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'load_combination_rules');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'value|table|formula')).toBe(true);
+    });
+
+    it('should fail on missing standardCode in YAML metadata', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 1,
+          data: {
+            ruleKey: 'gamma_g',
+            clauseRef: '4.2.2',
+            description: 'Test',
+            value: 1.0,
+            _yamlMeta: {
+              version: '1.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'load_combination_rules');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.field === 'standardCode')).toBe(true);
+    });
+  });
+
+  describe('pile_design_rules validation', () => {
+    it('should pass valid pile design rule rows', () => {
+      const rows: ParsedRow[] = [
+        {
+          rowNumber: 1,
+          data: {
+            ruleKey: 'phi_g',
+            clauseRef: '4.3.1',
+            description: 'Placeholder geotechnical factor',
+            value: 0.5,
+            _yamlMeta: {
+              standardCode: 'PLACEHOLDER-2159',
+              version: '1.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
+          },
+        },
+      ];
+
+      const result = validator.validate(rows, 'pile_design_rules');
+      expect(result.valid).toBe(true);
+    });
+  });
+
   describe('unknown entity type', () => {
     it('should return invalid for unknown entity type', () => {
       const result = validator.validate([], 'unknown_type' as any);

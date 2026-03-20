@@ -55,3 +55,11 @@ logs/
 
 # Generated
 prisma/generated/
+
+# Licensed/internal data staging (never commit raw standards files)
+data/local-imports/*
+!data/local-imports/README.md
+data/staging/
+*.licensed.csv
+*.licensed.yaml
+*.licensed.json

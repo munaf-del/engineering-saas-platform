@@ -1,0 +1,21 @@
+# Pile Design Rules Template
+# Replace placeholder values with actual licensed data before importing
+# This file must NOT be committed with real standards values
+
+standardCode: "PLACEHOLDER-2159"
+version: "1.0"
+effectiveDate: "2024-01-01"
+sourceDataset: "placeholder-dataset"
+rules:
+  - ruleKey: phi_g_ultimate
+    clauseRef: "placeholder"
+    description: "Geotechnical strength reduction factor (placeholder)"
+    value: 0.0
+  - ruleKey: phi_g_serviceability
+    clauseRef: "placeholder"
+    description: "Geotechnical serviceability factor (placeholder)"
+    value: 0.0
+  - ruleKey: skin_friction_method
+    clauseRef: "placeholder"
+    description: "Skin friction calculation method (placeholder)"
+    formula: "placeholder"

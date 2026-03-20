@@ -8,6 +8,13 @@ import { CalcEngineClient, CalcEngineDesignCheck } from './calc-engine.client';
 import { SnapshotService } from './snapshot.service';
 import { SubmitCalculationDto } from './dto/submit-calculation.dto';
 
+interface ResolvedRulePack {
+  id: string;
+  standardCode: string;
+  version: string;
+  rules: Record<string, unknown>;
+}
+
 const VALID_CALC_TYPES = new Set([
   'pile_capacity', 'pile_settlement', 'pile_lateral', 'pile_group',
   'beam_check', 'column_check', 'connection_check', 'footing_check',
@@ -62,13 +69,15 @@ export class OrchestrationService {
   async submitCalculation(projectId: string, userId: string, dto: SubmitCalculationDto) {
     this.validateRequest(dto);
 
+    const resolvedRulePack = await this.resolveRulePack(dto.rulePack);
+
     const normalizedInputs = this.normalizeInputsToSI(dto.inputs);
 
     const requestPayload = {
       calcType: dto.calcType,
       inputs: normalizedInputs,
       loadCombinations: dto.loadCombinations,
-      rulePack: dto.rulePack,
+      rulePack: resolvedRulePack,
       standardsRefs: dto.standardsRefs,
       options: dto.options,
     };
@@ -76,7 +85,7 @@ export class OrchestrationService {
     const snapshotData = this.snapshotService.buildSnapshotData({
       inputs: normalizedInputs,
       standardsRefs: dto.standardsRefs,
-      rulePack: dto.rulePack,
+      rulePack: resolvedRulePack,
       loadCombinations: dto.loadCombinations,
     });
 
@@ -183,6 +192,39 @@ export class OrchestrationService {
     } catch (error) {
       this.logger.error(`Failed to persist design checks: ${error}`);
     }
+  }
+
+  private async resolveRulePack(dtoRulePack: {
+    id: string;
+    standardCode: string;
+    version: string;
+    rules: Record<string, unknown>;
+  }): Promise<ResolvedRulePack> {
+    const dbPack = await this.prisma.standardRulePack.findUnique({
+      where: { id: dtoRulePack.id },
+    });
+
+    if (dbPack) {
+      const activation = await this.prisma.rulePackActivation.findFirst({
+        where: { rulePackId: dbPack.id, isActive: true },
+      });
+
+      if (!activation) {
+        this.logger.warn(
+          `Rule pack ${dbPack.standardCode}@${dbPack.version} is not activated. ` +
+          `Using rule data from request, but calculations should use approved activated rule packs.`,
+        );
+      }
+
+      return {
+        id: dbPack.id,
+        standardCode: dbPack.standardCode,
+        version: dbPack.version,
+        rules: dbPack.rules as Record<string, unknown>,
+      };
+    }
+
+    return dtoRulePack;
   }
 
   private normalizeInputsToSI(

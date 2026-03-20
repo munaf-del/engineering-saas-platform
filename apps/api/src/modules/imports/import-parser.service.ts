@@ -11,7 +11,7 @@ export class ImportParserService {
 
   async parse(
     buffer: Buffer,
-    format: 'csv' | 'xlsx' | 'json',
+    format: 'csv' | 'xlsx' | 'json' | 'yaml',
     fileName: string,
   ): Promise<ParsedRow[]> {
     switch (format) {
@@ -21,6 +21,8 @@ export class ImportParserService {
         return this.parseXlsx(buffer);
       case 'json':
         return this.parseJson(buffer);
+      case 'yaml':
+        return this.parseYaml(buffer);
       default:
         throw new BadRequestException(`Unsupported format: ${format}`);
     }
@@ -139,6 +141,50 @@ export class ImportParserService {
       rowNumber: idx + 1,
       data: item as Record<string, unknown>,
     }));
+  }
+
+  private async parseYaml(buffer: Buffer): Promise<ParsedRow[]> {
+    let parsed: unknown;
+    try {
+      const yaml = await import('js-yaml');
+      parsed = yaml.load(buffer.toString('utf-8'));
+    } catch {
+      throw new BadRequestException('Invalid YAML');
+    }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const obj = parsed as Record<string, unknown>;
+      if (Array.isArray(obj['rules'])) {
+        return (obj['rules'] as unknown[]).map((item, idx) => ({
+          rowNumber: idx + 1,
+          data: {
+            ...(typeof item === 'object' && item !== null ? (item as Record<string, unknown>) : {}),
+            _yamlMeta: {
+              standardCode: obj['standardCode'] ?? obj['standard_code'],
+              version: obj['version'],
+              effectiveDate: obj['effectiveDate'] ?? obj['effective_date'],
+              sourceDataset: obj['sourceDataset'] ?? obj['source_dataset'],
+            },
+          },
+        }));
+      }
+      if (Array.isArray(obj['data'])) {
+        return (obj['data'] as unknown[]).map((item, idx) => ({
+          rowNumber: idx + 1,
+          data: item as Record<string, unknown>,
+        }));
+      }
+      return [{ rowNumber: 1, data: obj }];
+    }
+
+    if (Array.isArray(parsed)) {
+      return (parsed as unknown[]).map((item, idx) => ({
+        rowNumber: idx + 1,
+        data: item as Record<string, unknown>,
+      }));
+    }
+
+    throw new BadRequestException('YAML must contain an object with rules/data or an array');
   }
 
   private coerceValue(raw: string): unknown {

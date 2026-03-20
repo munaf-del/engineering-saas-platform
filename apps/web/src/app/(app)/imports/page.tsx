@@ -15,12 +15,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { IMPORT_ENTITY_TYPES, IMPORT_FORMATS, type ImportJob } from '@eng/shared';
+import { IMPORT_ENTITY_TYPES, type ImportJob } from '@eng/shared';
+
+const UPLOAD_FORMATS = ['csv', 'xlsx', 'json', 'yaml'] as const;
 
 const statusColors: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'secondary'> = {
   pending: 'secondary',
   validating: 'warning',
   validated: 'default',
+  awaiting_approval: 'warning',
+  approved: 'success',
+  rejected: 'destructive',
   applying: 'warning',
   applied: 'success',
   rolling_back: 'warning',
@@ -59,7 +64,7 @@ export default function ImportsPage() {
   const upload = useUploadImport();
   const [showUpload, setShowUpload] = useState(false);
   const [entityType, setEntityType] = useState('steel_section');
-  const [format, setFormat] = useState('csv');
+  const [format, setFormat] = useState<string>('csv');
   const [file, setFile] = useState<File | null>(null);
   const [catalogName, setCatalogName] = useState('');
   const [catalogVersion, setCatalogVersion] = useState('');
@@ -75,7 +80,8 @@ export default function ImportsPage() {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('entityType', entityType);
-    fd.append('format', format);
+    const resolvedFormat = format === 'yaml' || file.name.endsWith('.yaml') || file.name.endsWith('.yml') ? 'yaml' : format;
+    fd.append('format', resolvedFormat);
     fd.append('catalogName', catalogName);
     fd.append('catalogVersion', catalogVersion);
     fd.append('sourceStandard', sourceStandard);
@@ -130,7 +136,7 @@ export default function ImportsPage() {
                 <Select value={entityType} onValueChange={setEntityType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {IMPORT_ENTITY_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace('_', ' ')}</SelectItem>)}
+                    {IMPORT_ENTITY_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -139,7 +145,7 @@ export default function ImportsPage() {
                 <Select value={format} onValueChange={setFormat}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {IMPORT_FORMATS.map((f) => <SelectItem key={f} value={f}>{f.toUpperCase()}</SelectItem>)}
+                    {UPLOAD_FORMATS.map((f) => <SelectItem key={f} value={f}>{f.toUpperCase()}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -166,7 +172,7 @@ export default function ImportsPage() {
             </div>
             <div className="space-y-2">
               <Label>File</Label>
-              <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required accept=".csv,.xlsx,.json" />
+              <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required accept=".csv,.xlsx,.json,.yaml,.yml" />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowUpload(false)}>Cancel</Button>
