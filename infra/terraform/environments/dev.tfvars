@@ -1,13 +1,13 @@
 # ─── Dev environment ─────────────────────────────────────────────────────────
 # Usage: terraform plan -var-file=environments/dev.tfvars
 
-project_id   = "engplatform-dev"
-region       = "australia-southeast1"
-environment  = "dev"
+project_id  = "engplatform-dev"
+region      = "australia-southeast1"
+environment = "dev"
 
 # Cost-conscious defaults
-db_tier           = "db-custom-1-3840"
-db_ha             = false
+db_tier            = "db-custom-1-3840"
+db_ha              = false
 db_max_connections = 50
 
 web_min_instances         = 0

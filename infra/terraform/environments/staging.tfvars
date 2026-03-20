@@ -1,13 +1,13 @@
 # ─── Staging environment ─────────────────────────────────────────────────────
 # Usage: terraform plan -var-file=environments/staging.tfvars
 
-project_id   = "engplatform-staging"
-region       = "australia-southeast2"
-environment  = "staging"
+project_id  = "engplatform-staging"
+region      = "australia-southeast2"
+environment = "staging"
 
 # Slightly larger than dev to catch scaling issues
-db_tier           = "db-custom-1-3840"
-db_ha             = false
+db_tier            = "db-custom-1-3840"
+db_ha              = false
 db_max_connections = 100
 
 web_min_instances         = 0

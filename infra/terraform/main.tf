@@ -62,11 +62,11 @@ module "artifact_registry" {
 module "secret_manager" {
   source = "./modules/secret-manager"
 
-  project_id           = var.project_id
-  name_prefix          = local.name_prefix
-  environment          = var.environment
-  api_service_account  = module.iam.api_service_account_email
-  web_service_account  = module.iam.web_service_account_email
+  project_id          = var.project_id
+  name_prefix         = local.name_prefix
+  environment         = var.environment
+  api_service_account = module.iam.api_service_account_email
+  web_service_account = module.iam.web_service_account_email
 
   depends_on = [google_project_service.apis]
 }
@@ -98,12 +98,12 @@ module "cloud_sql" {
 module "cloud_storage" {
   source = "./modules/cloud-storage"
 
-  project_id              = var.project_id
-  region                  = var.region
-  name_prefix             = local.name_prefix
-  environment             = var.environment
-  api_service_account     = module.iam.api_service_account_email
-  labels                  = local.common_labels
+  project_id          = var.project_id
+  region              = var.region
+  name_prefix         = local.name_prefix
+  environment         = var.environment
+  api_service_account = module.iam.api_service_account_email
+  labels              = local.common_labels
 
   depends_on = [google_project_service.apis]
 }
@@ -152,8 +152,8 @@ module "cloud_run" {
   api_service_account         = module.iam.api_service_account_email
   calc_engine_service_account = module.iam.calc_engine_service_account_email
 
-  web_image_tag    = var.web_image_tag
-  api_image_tag    = var.api_image_tag
+  web_image_tag         = var.web_image_tag
+  api_image_tag         = var.api_image_tag
   calc_engine_image_tag = var.calc_engine_image_tag
 
   web_min_instances         = var.web_min_instances
@@ -164,9 +164,9 @@ module "cloud_run" {
   calc_engine_max_instances = var.calc_engine_max_instances
 
   # Secret references (versioned latest)
-  database_url_secret   = module.secret_manager.database_url_secret_version
-  jwt_secret_secret     = module.secret_manager.jwt_secret_secret_version
-  db_password_secret    = module.secret_manager.db_password_secret_version
+  database_url_secret = module.secret_manager.database_url_secret_version
+  jwt_secret_secret   = module.secret_manager.jwt_secret_secret_version
+  db_password_secret  = module.secret_manager.db_password_secret_version
 
   labels = local.common_labels
 

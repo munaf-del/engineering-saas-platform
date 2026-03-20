@@ -48,13 +48,13 @@ resource "google_pubsub_subscription" "calculation_processor" {
 // ─── IAM ────────────────────────────────────────────────────────────────────
 
 resource "google_pubsub_topic_iam_member" "api_publish_projects" {
-  topic   = google_pubsub_topic.project_events.id
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${var.api_service_account}"
+  topic  = google_pubsub_topic.project_events.id
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${var.api_service_account}"
 }
 
 resource "google_pubsub_topic_iam_member" "api_publish_calculations" {
-  topic   = google_pubsub_topic.calculation_events.id
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${var.api_service_account}"
+  topic  = google_pubsub_topic.calculation_events.id
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${var.api_service_account}"
 }

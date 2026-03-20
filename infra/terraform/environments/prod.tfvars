@@ -1,12 +1,12 @@
 # ─── Production environment ──────────────────────────────────────────────────
 # Usage: terraform plan -var-file=environments/prod.tfvars
 
-project_id   = "engplatform-prod"
-region       = "australia-southeast1"
-environment  = "prod"
+project_id  = "engplatform-prod"
+region      = "australia-southeast1"
+environment = "prod"
 
-db_tier           = "db-custom-2-4096"
-db_ha             = true
+db_tier            = "db-custom-2-4096"
+db_ha              = true
 db_max_connections = 200
 
 web_min_instances         = 1
