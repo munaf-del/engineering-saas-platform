@@ -1,0 +1,37 @@
+# Cloud Build: Run Prisma migrations as a standalone job
+# Use for: manual migration runs, rollback scripts, seed jobs
+#
+# Trigger manually:
+#   gcloud builds submit --config=deployment/cloudbuild/cloudbuild-migrate.yaml \
+#     --substitutions=_ENVIRONMENT=dev .
+
+substitutions:
+  _REGION: australia-southeast1
+  _REPO: engplatform
+  _ENVIRONMENT: dev
+
+steps:
+  # Run prisma migrate deploy using the latest API image
+  - id: migrate
+    name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
+    entrypoint: npx
+    args: ["prisma", "migrate", "deploy"]
+    secretEnv: ["DATABASE_URL"]
+
+  # Optional: run seed (only for dev/staging, skip for prod)
+  - id: seed
+    name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
+    entrypoint: npx
+    args: ["prisma", "db", "seed"]
+    secretEnv: ["DATABASE_URL"]
+    waitFor: ["migrate"]
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/${PROJECT_ID}/secrets/engplatform-${_ENVIRONMENT}-database-url/versions/latest
+      env: DATABASE_URL
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 600s

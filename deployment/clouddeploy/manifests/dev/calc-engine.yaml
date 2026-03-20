@@ -1,0 +1,28 @@
+# Cloud Run service manifest for Cloud Deploy (dev)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: engplatform-calc-engine
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"
+    spec:
+      serviceAccountName: engplatform-calc@engplatform-dev.iam.gserviceaccount.com
+      containers:
+        - image: calc-engine
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2Gi
+          env:
+            - name: CALC_ENGINE_ENVIRONMENT
+              value: dev
+            - name: CALC_ENGINE_LOG_LEVEL
+              value: INFO
+            - name: CALC_ENGINE_LOG_FORMAT
+              value: json

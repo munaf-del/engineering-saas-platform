@@ -1,0 +1,27 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: engplatform-calc-engine
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "50"
+    spec:
+      serviceAccountName: engplatform-calc@engplatform-prod.iam.gserviceaccount.com
+      containers:
+        - image: calc-engine
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2Gi
+          env:
+            - name: CALC_ENGINE_ENVIRONMENT
+              value: prod
+            - name: CALC_ENGINE_LOG_LEVEL
+              value: WARNING
+            - name: CALC_ENGINE_LOG_FORMAT
+              value: json

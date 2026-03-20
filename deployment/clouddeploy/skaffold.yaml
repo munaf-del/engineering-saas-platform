@@ -1,0 +1,24 @@
+# Skaffold config used by Cloud Deploy for rendering and deploying
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: engplatform
+
+profiles:
+  - name: dev
+    manifests:
+      rawYaml:
+        - deployment/clouddeploy/manifests/dev/*.yaml
+
+  - name: staging
+    manifests:
+      rawYaml:
+        - deployment/clouddeploy/manifests/staging/*.yaml
+
+  - name: prod
+    manifests:
+      rawYaml:
+        - deployment/clouddeploy/manifests/prod/*.yaml
+
+deploy:
+  cloudrun: {}

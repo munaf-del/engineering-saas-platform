@@ -1,0 +1,31 @@
+# Cloud Run service manifest for Cloud Deploy (dev)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: engplatform-api
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/cloudsql-instances: CLOUD_SQL_CONNECTION
+    spec:
+      serviceAccountName: engplatform-api@engplatform-dev.iam.gserviceaccount.com
+      containers:
+        - image: api
+          ports:
+            - containerPort: 4000
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4000"
+            - name: ENVIRONMENT
+              value: dev
+            - name: LOG_FORMAT
+              value: json
