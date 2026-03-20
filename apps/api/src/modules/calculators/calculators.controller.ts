@@ -60,4 +60,12 @@ export class CalculatorsController {
   ) {
     return this.calculatorsService.createVersion(id, dto);
   }
+
+  @Post('seed/v1')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin')
+  @ApiOperation({ summary: 'Seed v1 calculator definitions (idempotent)' })
+  async seedV1() {
+    return this.calculatorsService.seedV1Calculators();
+  }
 }

@@ -1,11 +1,46 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateCalculatorDto } from './dto/create-calculator.dto';
 import { CreateCalculatorVersionDto } from './dto/create-calculator-version.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 
+const V1_CALCULATOR_SEEDS = [
+  {
+    code: 'pile-group-v1',
+    name: 'Pile Group Analysis',
+    calcType: 'pile_group',
+    description: 'Rigid cap pile group reaction distribution with design checks',
+    category: 'geotechnical',
+    version: '1.0.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        grid_nx: { type: 'number', description: 'Grid columns (grid layout)' },
+        grid_ny: { type: 'number', description: 'Grid rows (grid layout)' },
+        grid_spacing_x: { type: 'number', description: 'Grid X spacing in m' },
+        grid_spacing_y: { type: 'number', description: 'Grid Y spacing in m' },
+        pile_count: { type: 'number', description: 'Pile count (explicit layout)' },
+        pile_diameter: { type: 'number', description: 'Pile diameter in m' },
+        pile_length: { type: 'number', description: 'Pile length in m' },
+        compression_capacity: { type: 'number', description: 'Ultimate compression capacity in N' },
+        tension_capacity: { type: 'number', description: 'Ultimate tension capacity in N' },
+        lateral_capacity: { type: 'number', description: 'Ultimate lateral capacity in N' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        num_piles: { type: 'number' },
+        num_combinations: { type: 'number' },
+      },
+    },
+  },
+] as const;
+
 @Injectable()
 export class CalculatorsService {
+  private readonly logger = new Logger(CalculatorsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(pagination: PaginationDto) {
@@ -105,6 +140,47 @@ export class CalculatorsService {
       throw new NotFoundException('No active version found for this calculator');
     }
     return version;
+  }
+
+  async seedV1Calculators(): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+
+    for (const seed of V1_CALCULATOR_SEEDS) {
+      const existing = await this.prisma.calculatorDefinition.findUnique({
+        where: { code: seed.code },
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const def = await this.prisma.calculatorDefinition.create({
+        data: {
+          code: seed.code,
+          name: seed.name,
+          calcType: seed.calcType,
+          description: seed.description,
+          category: seed.category,
+        },
+      });
+
+      await this.prisma.calculatorVersion.create({
+        data: {
+          definitionId: def.id,
+          version: seed.version,
+          inputSchema: seed.inputSchema,
+          outputSchema: seed.outputSchema,
+          status: 'active',
+          releaseNotes: 'v1 initial release — rigid cap pile group analysis.',
+        },
+      });
+
+      this.logger.log(`Seeded calculator: ${seed.code} v${seed.version}`);
+      created++;
+    }
+
+    return { created, skipped };
   }
 
   private async assertDefinitionExists(id: string) {

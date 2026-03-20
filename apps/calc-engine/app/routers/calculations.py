@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from app.models.calculation import CalculationRequest, CalculationResult
 from app.engine.dispatcher import dispatch_calculation
+from app.standards.loader import MissingRuleError
 
 router = APIRouter()
 
@@ -10,6 +11,8 @@ async def run_calculation(request: CalculationRequest) -> CalculationResult:
     try:
         result = dispatch_calculation(request)
         return result
+    except MissingRuleError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except KeyError as e:

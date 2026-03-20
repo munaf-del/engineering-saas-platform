@@ -4,7 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CalcEngineClient } from './calc-engine.client';
+import { CalcEngineClient, CalcEngineDesignCheck } from './calc-engine.client';
 import { SnapshotService } from './snapshot.service';
 import { SubmitCalculationDto } from './dto/submit-calculation.dto';
 
@@ -112,6 +112,10 @@ export class OrchestrationService {
       const outputSnapshot = result.outputs ? { outputs: result.outputs, steps: result.steps } : undefined;
       await this.snapshotService.createSnapshot(run.id, snapshotData, outputSnapshot);
 
+      if (result.designChecks && result.designChecks.length > 0) {
+        await this.persistDesignChecks(run.id, result.designChecks, dto);
+      }
+
       return {
         ...updatedRun,
         result,
@@ -147,6 +151,37 @@ export class OrchestrationService {
 
     if (!dto.standardsRefs || dto.standardsRefs.length === 0) {
       throw new BadRequestException('At least one standards reference is required.');
+    }
+  }
+
+  private async persistDesignChecks(
+    runId: string,
+    checks: CalcEngineDesignCheck[],
+    dto: SubmitCalculationDto,
+  ): Promise<void> {
+    const VALID_LIMIT_STATES = ['strength', 'serviceability', 'stability'] as const;
+    type PrismaLimitState = (typeof VALID_LIMIT_STATES)[number];
+
+    const data = checks
+      .filter((dc) => VALID_LIMIT_STATES.includes(dc.limitState as PrismaLimitState))
+      .map((dc) => ({
+        calculationRunId: runId,
+        pileGroupId: dto.elementId ?? undefined,
+        checkType: dc.checkType,
+        limitState: dc.limitState as PrismaLimitState,
+        demandValue: dc.demandValue,
+        capacityValue: dc.capacityValue,
+        utilisationRatio: dc.utilisationRatio,
+        status: dc.status as 'pass' | 'fail' | 'warning' | 'not_checked',
+        clauseRef: dc.clauseRef,
+        notes: dc.notes,
+      }));
+
+    try {
+      await this.prisma.pileDesignCheck.createMany({ data });
+      this.logger.log(`Persisted ${data.length} design checks for run ${runId}`);
+    } catch (error) {
+      this.logger.error(`Failed to persist design checks: ${error}`);
     }
   }
 

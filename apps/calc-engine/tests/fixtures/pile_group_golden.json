@@ -1,0 +1,108 @@
+{
+  "description": "Golden test fixtures for pile group rigid cap analysis. Hand-verified values.",
+  "fixtures": [
+    {
+      "name": "2x2_grid_pure_axial",
+      "description": "2×2 grid at 3m spacing, pure axial load N=4000 N. Each pile gets N/4 = 1000 N.",
+      "inputs": {
+        "grid_nx": 2,
+        "grid_ny": 2,
+        "grid_spacing_x": 3.0,
+        "grid_spacing_y": 3.0,
+        "lc_DL_N": 4000.0
+      },
+      "combination": {
+        "id": "c1",
+        "name": "1.0G",
+        "limitState": "strength",
+        "factors": [{"loadCaseId": "DL", "factor": 1.0, "source": "test"}],
+        "clauseRef": "Cl 1"
+      },
+      "expected_pile_reactions": {
+        "1": {"N": 1000.0, "Vx": 0.0, "Vy": 0.0},
+        "2": {"N": 1000.0, "Vx": 0.0, "Vy": 0.0},
+        "3": {"N": 1000.0, "Vx": 0.0, "Vy": 0.0},
+        "4": {"N": 1000.0, "Vx": 0.0, "Vy": 0.0}
+      }
+    },
+    {
+      "name": "2x2_grid_axial_plus_moment",
+      "description": "2×2 grid at 3m spacing. N=4000 N, Mx=900 N·m. Σyi²=4×1.5²=9. ΔN = Mx·y/Σyi² = 900×1.5/9 = 150. Top piles: 1000+150=1150, bottom: 1000-150=850.",
+      "inputs": {
+        "grid_nx": 2,
+        "grid_ny": 2,
+        "grid_spacing_x": 3.0,
+        "grid_spacing_y": 3.0,
+        "lc_DL_N": 4000.0,
+        "lc_DL_Mx": 900.0
+      },
+      "combination": {
+        "id": "c1",
+        "name": "1.0G",
+        "limitState": "strength",
+        "factors": [{"loadCaseId": "DL", "factor": 1.0, "source": "test"}],
+        "clauseRef": "Cl 1"
+      },
+      "expected_pile_reactions": {
+        "1": {"N": 850.0, "Vx": 0.0, "Vy": 0.0},
+        "2": {"N": 850.0, "Vx": 0.0, "Vy": 0.0},
+        "3": {"N": 1150.0, "Vx": 0.0, "Vy": 0.0},
+        "4": {"N": 1150.0, "Vx": 0.0, "Vy": 0.0}
+      },
+      "notes": "Piles 1,2 at y=-1.5; piles 3,4 at y=+1.5."
+    },
+    {
+      "name": "2x2_grid_biaxial",
+      "description": "2×2 grid at 3m spacing. N=4000 N, Mx=900 N·m, My=450 N·m. ΔN_mx=±150, ΔN_my=±75.",
+      "inputs": {
+        "grid_nx": 2,
+        "grid_ny": 2,
+        "grid_spacing_x": 3.0,
+        "grid_spacing_y": 3.0,
+        "lc_DL_N": 4000.0,
+        "lc_DL_Mx": 900.0,
+        "lc_DL_My": 450.0
+      },
+      "combination": {
+        "id": "c1",
+        "name": "1.0G",
+        "limitState": "strength",
+        "factors": [{"loadCaseId": "DL", "factor": 1.0, "source": "test"}],
+        "clauseRef": "Cl 1"
+      },
+      "expected_pile_reactions": {
+        "1": {"N": 775.0},
+        "2": {"N": 925.0},
+        "3": {"N": 1075.0},
+        "4": {"N": 1225.0}
+      },
+      "notes": "P1(-1.5,-1.5): 1000-150-75=775; P2(1.5,-1.5): 1000-150+75=925; P3(-1.5,1.5): 1000+150-75=1075; P4(1.5,1.5): 1000+150+75=1225."
+    },
+    {
+      "name": "3_pile_triangular_torsion",
+      "description": "3 piles in equilateral triangle (side=3m), pure torsion T=180 N·m. Centroid at origin.",
+      "inputs": {
+        "pile_count": 3,
+        "pile_1_x": 0.0,
+        "pile_1_y": 1.7321,
+        "pile_2_x": -1.5,
+        "pile_2_y": -0.8660,
+        "pile_3_x": 1.5,
+        "pile_3_y": -0.8660,
+        "lc_T_T": 180.0
+      },
+      "combination": {
+        "id": "c1",
+        "name": "1.0T",
+        "limitState": "strength",
+        "factors": [{"loadCaseId": "T", "factor": 1.0, "source": "test"}],
+        "clauseRef": "Cl 1"
+      },
+      "expected": {
+        "all_axial_zero": true,
+        "shear_magnitudes_equal": true,
+        "notes": "ri² = 3.0 for each pile (equilateral with side=3m centroid distance = √3). Σri² = 9.0. Shear per pile = T·r/Σri² = 180·√3/9 = 34.64 N."
+      }
+    }
+  ]
+}

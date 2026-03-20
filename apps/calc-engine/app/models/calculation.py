@@ -21,6 +21,9 @@ class LimitState(str, Enum):
     STABILITY = "stability"
 
 
+ACTIONS = ("N", "Vx", "Vy", "Mx", "My", "T")
+
+
 class InputValue(BaseModel):
     value: float
     unit: str
@@ -133,6 +136,24 @@ class ClauseReference(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class DesignCheckResult(BaseModel):
+    """Machine-readable design check output for API persistence as PileDesignCheck."""
+
+    pile_index: int = Field(alias="pileIndex")
+    check_type: str = Field(alias="checkType")
+    limit_state: str = Field(alias="limitState")
+    demand_value: float = Field(alias="demandValue")
+    capacity_value: float = Field(alias="capacityValue")
+    utilisation_ratio: float = Field(alias="utilisationRatio")
+    reserve_capacity: float = Field(alias="reserveCapacity")
+    status: str
+    governing_combination: str | None = Field(default=None, alias="governingCombination")
+    clause_ref: str | None = Field(default=None, alias="clauseRef")
+    notes: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
 class CalculationResult(BaseModel):
     request_hash: str = Field(alias="requestHash")
     outputs: dict[str, OutputValue]
@@ -141,6 +162,8 @@ class CalculationResult(BaseModel):
     warnings: list[CalcWarning]
     errors: list[CalcError]
     standard_refs_used: list[ClauseReference] = Field(alias="standardRefsUsed")
+    design_checks: list[DesignCheckResult] = Field(default_factory=list, alias="designChecks")
+    assumptions: list[str] = Field(default_factory=list)
     duration_ms: float = Field(alias="durationMs")
 
     model_config = {"populate_by_name": True}

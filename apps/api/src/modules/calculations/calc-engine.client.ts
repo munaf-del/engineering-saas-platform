@@ -10,6 +10,20 @@ export interface CalcEngineRequest {
   options?: { includeIntermediateSteps?: boolean; precisionDigits?: number };
 }
 
+export interface CalcEngineDesignCheck {
+  pileIndex: number;
+  checkType: string;
+  limitState: string;
+  demandValue: number;
+  capacityValue: number;
+  utilisationRatio: number;
+  reserveCapacity: number;
+  status: string;
+  governingCombination?: string;
+  clauseRef?: string;
+  notes?: string;
+}
+
 export interface CalcEngineResult {
   requestHash: string;
   outputs: Record<string, unknown>;
@@ -18,6 +32,8 @@ export interface CalcEngineResult {
   warnings: { code: string; message: string; clauseRef?: string }[];
   errors: { code: string; message: string; clauseRef?: string }[];
   standardRefsUsed: unknown[];
+  designChecks?: CalcEngineDesignCheck[];
+  assumptions?: string[];
   durationMs: number;
 }
 

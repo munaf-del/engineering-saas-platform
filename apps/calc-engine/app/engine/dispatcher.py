@@ -1,12 +1,21 @@
 import hashlib
 import json
 import time
+from collections.abc import Callable
 
+from app.engine import pile_group
 from app.models.calculation import (
     CalcType,
     CalculationRequest,
     CalculationResult,
 )
+from app.standards.loader import MissingRuleError
+
+EngineFunction = Callable[[CalculationRequest], CalculationResult]
+
+ENGINE_MAP: dict[CalcType, EngineFunction] = {
+    CalcType.PILE_GROUP: pile_group.run,
+}
 
 
 def _hash_request(request: CalculationRequest) -> str:
@@ -27,12 +36,7 @@ def dispatch_calculation(request: CalculationRequest) -> CalculationResult:
     start = time.perf_counter()
     request_hash = _hash_request(request)
 
-    engine_map: dict[CalcType, object] = {
-        # Engines will be registered here as they are implemented.
-        # e.g. CalcType.PILE_CAPACITY: pile_capacity.run,
-    }
-
-    engine_fn = engine_map.get(request.calc_type)
+    engine_fn = ENGINE_MAP.get(request.calc_type)
     if engine_fn is None:
         elapsed = (time.perf_counter() - start) * 1000
         return CalculationResult(
@@ -51,4 +55,33 @@ def dispatch_calculation(request: CalculationRequest) -> CalculationResult:
             durationMs=elapsed,
         )
 
-    raise NotImplementedError("Engine dispatch not yet wired")
+    try:
+        result = engine_fn(request)
+        elapsed = (time.perf_counter() - start) * 1000
+        result.request_hash = request_hash
+        result.duration_ms = elapsed
+        return result
+    except MissingRuleError as e:
+        elapsed = (time.perf_counter() - start) * 1000
+        return CalculationResult(
+            requestHash=request_hash,
+            outputs={},
+            steps=[],
+            governingCase=None,
+            warnings=[],
+            errors=[{"code": "MISSING_RULE", "message": str(e)}],
+            standardRefsUsed=[],
+            durationMs=elapsed,
+        )
+    except Exception as e:
+        elapsed = (time.perf_counter() - start) * 1000
+        return CalculationResult(
+            requestHash=request_hash,
+            outputs={},
+            steps=[],
+            governingCase=None,
+            warnings=[],
+            errors=[{"code": "ENGINE_ERROR", "message": str(e)}],
+            standardRefsUsed=[],
+            durationMs=elapsed,
+        )
