@@ -52,8 +52,6 @@ export default function MaterialsPage() {
   const { data, isLoading } = useMaterials(page);
   const { data: families } = useMaterialFamilies();
 
-  if (isLoading) return <PageLoading />;
-
   const materials = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
 
@@ -70,7 +68,9 @@ export default function MaterialsPage() {
         }
       />
 
-      {materials.length === 0 ? (
+      {isLoading ? (
+        <PageLoading />
+      ) : materials.length === 0 ? (
         <EmptyState icon={<Database className="h-12 w-12" />} title="No materials" description="Import or create material grades to populate the catalogue." />
       ) : (
         <DataTable

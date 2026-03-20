@@ -5,7 +5,8 @@ import type { PileGroup, Pile, PileLayoutPoint } from '@eng/shared';
 export function usePileGroups(projectId: string) {
   return useQuery({
     queryKey: ['projects', projectId, 'pile-groups'],
-    queryFn: () => api<PileGroup[]>(`/projects/${projectId}/pile-groups`),
+    queryFn: () =>
+      api<{ data: PileGroup[] }>(`/projects/${projectId}/pile-groups`).then((r) => r.data),
     enabled: !!projectId,
   });
 }

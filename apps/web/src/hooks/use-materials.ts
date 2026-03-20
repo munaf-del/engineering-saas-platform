@@ -6,7 +6,8 @@ import type { PaginatedResponse } from '@/lib/api-client';
 export function useMaterialFamilies() {
   return useQuery({
     queryKey: ['materials', 'families'],
-    queryFn: () => api<MaterialFamily[]>('/materials/families'),
+    queryFn: () =>
+      api<{ data: MaterialFamily[] }>('/materials/families').then((r) => r.data),
   });
 }
 

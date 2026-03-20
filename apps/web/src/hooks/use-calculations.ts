@@ -30,23 +30,23 @@ export function useCalculationSnapshot(projectId: string, id: string) {
   });
 }
 
+export interface DesignCheckResult {
+  id: string;
+  checkType: string;
+  limitState: string;
+  demandValue: number;
+  capacityValue: number;
+  utilisationRatio: number;
+  status: string;
+  clauseRef?: string;
+  notes?: string;
+}
+
 export function useCalculationDesignChecks(projectId: string, id: string) {
   return useQuery({
     queryKey: ['projects', projectId, 'calculations', id, 'design-checks'],
     queryFn: () =>
-      api<
-        {
-          id: string;
-          checkType: string;
-          limitState: string;
-          demandValue: number;
-          capacityValue: number;
-          utilisationRatio: number;
-          status: string;
-          clauseRef?: string;
-          notes?: string;
-        }[]
-      >(`/projects/${projectId}/calculations/${id}/design-checks`),
+      api<DesignCheckResult[]>(`/projects/${projectId}/calculations/${id}/design-checks`),
     enabled: !!projectId && !!id,
   });
 }
@@ -55,7 +55,7 @@ export function useSubmitCalculation(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      api<CalculationRun>(`/projects/${projectId}/calculations`, { method: 'POST', body: data }),
+      api<CalculationRun>(`/projects/${projectId}/calculations/run`, { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'calculations'] }),
   });
 }

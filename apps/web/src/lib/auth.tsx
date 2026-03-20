@@ -59,7 +59,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         organisations: Organisation[];
       }>('/auth/login', { method: 'POST', body: { email, password } });
       setTokens(data.accessToken, data.refreshToken);
-      setState({ user: data.user, organisations: data.organisations ?? [], loading: false, error: null });
+
+      const orgs = data.organisations ?? [];
+      if (orgs.length > 0 && !data.user.organisationId) {
+        try {
+          const switched = await api<{
+            accessToken: string;
+            refreshToken: string;
+            user?: AuthUser;
+            organisations?: Organisation[];
+          }>('/auth/switch-org', { method: 'POST', body: { organisationId: orgs[0].id } });
+          setTokens(switched.accessToken, switched.refreshToken);
+          setState({
+            user: switched.user ?? data.user,
+            organisations: switched.organisations ?? orgs,
+            loading: false,
+            error: null,
+          });
+          return;
+        } catch {
+          // fall through to default state
+        }
+      }
+
+      setState({ user: data.user, organisations: orgs, loading: false, error: null });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setState((s) => ({ ...s, loading: false, error: msg }));

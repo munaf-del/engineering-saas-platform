@@ -18,8 +18,6 @@ export default function GeotechPage() {
   const [page, setPage] = useState(1);
   const { data: params, isLoading: paramsLoading } = useGeotechParameters(page);
 
-  if (classesLoading || paramsLoading) return <PageLoading />;
-
   const parameterSets = params?.data ?? [];
   const total = params?.meta?.total ?? 0;
 
@@ -67,6 +65,9 @@ export default function GeotechPage() {
         }
       />
 
+      {(classesLoading || paramsLoading) ? (
+        <PageLoading />
+      ) : (
       <Tabs defaultValue="parameters">
         <TabsList>
           <TabsTrigger value="parameters">Parameter Sets ({total})</TabsTrigger>
@@ -106,6 +107,7 @@ export default function GeotechPage() {
           </div>
         </TabsContent>
       </Tabs>
+      )}
     </>
   );
 }

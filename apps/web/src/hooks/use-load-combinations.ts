@@ -24,7 +24,8 @@ interface LoadCombinationAPI {
 export function useLoadCombinationSets(projectId: string) {
   return useQuery({
     queryKey: ['projects', projectId, 'load-combination-sets'],
-    queryFn: () => api<LoadCombinationSetAPI[]>(`/projects/${projectId}/load-combination-sets`),
+    queryFn: () =>
+      api<{ data: LoadCombinationSetAPI[] }>(`/projects/${projectId}/load-combination-sets`).then((r) => r.data),
     enabled: !!projectId,
   });
 }

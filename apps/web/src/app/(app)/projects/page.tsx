@@ -79,9 +79,6 @@ export default function ProjectsPage() {
     }
   }
 
-  if (isLoading) return <PageLoading />;
-  if (error) return <div className="text-destructive">Failed to load projects</div>;
-
   const projects = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
 
@@ -98,17 +95,15 @@ export default function ProjectsPage() {
         }
       />
 
-      {projects.length === 0 ? (
+      {isLoading ? (
+        <PageLoading />
+      ) : error ? (
+        <div className="text-destructive">Failed to load projects</div>
+      ) : projects.length === 0 ? (
         <EmptyState
           icon={<FolderOpen className="h-12 w-12" />}
           title="No projects yet"
           description="Create your first project to start engineering calculations."
-          action={
-            <Button onClick={() => setShowCreate(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Project
-            </Button>
-          }
         />
       ) : (
         <DataTable

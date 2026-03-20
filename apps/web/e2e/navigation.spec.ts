@@ -7,12 +7,12 @@ test.describe('Navigation', () => {
   });
 
   test('sidebar shows main navigation sections', async ({ page }) => {
-    await expect(page.getByText('Projects')).toBeVisible();
-    await expect(page.getByText('Calculators')).toBeVisible();
-    await expect(page.getByText('Materials')).toBeVisible();
-    await expect(page.getByText('Geotech')).toBeVisible();
-    await expect(page.getByText('Steel Sections')).toBeVisible();
-    await expect(page.getByText('Rebar')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Calculators' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Materials' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Geotech' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Steel Sections' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Rebar' })).toBeVisible();
   });
 
   test('navigates to catalogues pages', async ({ page }) => {

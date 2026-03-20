@@ -2,9 +2,10 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, AlertTriangle, FileText } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText, Copy, Download, ShieldAlert, RefreshCw } from 'lucide-react';
 import { useCalculation, useCalculationSnapshot, useCalculationDesignChecks, useCalculationReports, useCreateReport } from '@/hooks/use-calculations';
 import { useProject } from '@/hooks/use-projects';
+import { useProjectStandardAssignments, useCurrentEditions } from '@/hooks/use-standards';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,14 @@ import { DesignCheckIndicator, UtilisationBar } from '@/components/design-check-
 import { PageLoading } from '@/components/loading';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+
+const statusVariant: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'secondary'> = {
+  completed: 'success',
+  failed: 'destructive',
+  running: 'warning',
+  draft: 'secondary',
+  superseded: 'default',
+};
 
 export default function CalculationDetailPage({
   params,
@@ -27,12 +36,22 @@ export default function CalculationDetailPage({
   const { data: snapshot } = useCalculationSnapshot(projectId, runId);
   const { data: designChecks } = useCalculationDesignChecks(projectId, runId);
   const { data: reports } = useCalculationReports(projectId, runId);
+  const { data: assignments } = useProjectStandardAssignments(projectId);
+  const { data: editions } = useCurrentEditions();
   const createReport = useCreateReport(projectId, runId);
 
   if (isLoading || !run) return <PageLoading />;
 
   const result = run.resultSnapshot;
   const hasUnapproved = designChecks?.some((dc) => dc.status === 'warning' || dc.status === 'fail');
+  const hasFailures = designChecks?.some((dc) => dc.status === 'fail');
+
+  const missingRulePacks = assignments?.some((a) => {
+    const ed = editions?.find((e) => e.id === a.standardEditionId);
+    return ed && !ed.rulePackId;
+  });
+
+  const isRunning = run.status === 'running' || run.status === 'draft';
 
   return (
     <>
@@ -46,12 +65,16 @@ export default function CalculationDetailPage({
         title={`${run.calcType.replace(/_/g, ' ')} — ${run.status}`}
         description={`${project?.code ?? ''} · Run ${new Date(run.createdAt).toLocaleString()}`}
         badges={
-          <Badge variant={run.status === 'completed' ? 'success' : run.status === 'failed' ? 'destructive' : 'secondary'}>
+          <Badge variant={statusVariant[run.status] ?? 'default'}>
+            {isRunning && <RefreshCw className="mr-1 h-3 w-3 animate-spin" />}
             {run.status}
           </Badge>
         }
         actions={
           <div className="flex gap-2">
+            <Link href={`/projects/${projectId}/calculations/new?cloneFrom=${runId}`}>
+              <Button variant="outline"><Copy className="mr-2 h-4 w-4" />Clone &amp; Re-run</Button>
+            </Link>
             <Link href={`/projects/${projectId}/calculations/${runId}/report`}>
               <Button variant="outline"><FileText className="mr-2 h-4 w-4" />View Report</Button>
             </Link>
@@ -76,10 +99,32 @@ export default function CalculationDetailPage({
 
       {hasUnapproved && (
         <Alert variant="warning" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
+          <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Engineer Review Required</AlertTitle>
           <AlertDescription>
-            One or more design checks have warnings or failures. Results must be reviewed by a qualified engineer before use.
+            {hasFailures
+              ? 'One or more design checks have FAILED. Results must NOT be used without review and sign-off by a qualified engineer.'
+              : 'One or more design checks have warnings. Results must be reviewed by a qualified engineer before use.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {missingRulePacks && (
+        <Alert variant="warning" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Missing Rule Packs</AlertTitle>
+          <AlertDescription>
+            Some assigned standards are missing approved rule packs. Results may be incomplete.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isRunning && (
+        <Alert className="mb-6">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <AlertTitle>Calculation In Progress</AlertTitle>
+          <AlertDescription>
+            This calculation is still {run.status === 'draft' ? 'queued' : 'running'}. Results will appear when processing completes.
           </AlertDescription>
         </Alert>
       )}
@@ -169,12 +214,37 @@ export default function CalculationDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {result?.errors && result.errors.length > 0 && (
+            <Card className="mt-4">
+              <CardHeader><CardTitle className="text-base text-red-600">Errors</CardTitle></CardHeader>
+              <CardContent>
+                <ul className="space-y-1 text-sm">
+                  {result.errors.map((e, i) => (
+                    <li key={i} className="text-red-700">
+                      <strong>{e.code}:</strong> {e.message}
+                      {e.clauseRef && <span className="ml-1 font-mono text-xs">({e.clauseRef})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="design-checks">
           {designChecks?.length ? (
             <Card>
               <CardContent className="pt-6">
+                {hasUnapproved && (
+                  <Alert variant="warning" className="mb-4">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertTitle>Engineer Review Required</AlertTitle>
+                    <AlertDescription>
+                      Checks marked with warnings or failures below require review by a qualified engineer before results can be approved.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -189,7 +259,7 @@ export default function CalculationDetailPage({
                   </TableHeader>
                   <TableBody>
                     {designChecks.map((dc) => (
-                      <TableRow key={dc.id}>
+                      <TableRow key={dc.id} className={dc.status === 'fail' ? 'bg-red-50' : dc.status === 'warning' ? 'bg-amber-50' : ''}>
                         <TableCell className="font-medium">{dc.checkType}</TableCell>
                         <TableCell><Badge variant="outline">{dc.limitState}</Badge></TableCell>
                         <TableCell className="text-right font-mono">{dc.demandValue.toFixed(2)}</TableCell>
@@ -290,10 +360,23 @@ export default function CalculationDetailPage({
                         {r.format} · {r.status} · {r.generatedAt ? new Date(r.generatedAt).toLocaleString() : 'Pending'}
                       </p>
                     </div>
-                    <Badge variant={r.status === 'completed' ? 'success' : 'secondary'}>{r.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={r.status === 'completed' ? 'success' : 'secondary'}>{r.status}</Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled
+                        title="File download not yet available — will be enabled with PDF export"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
+              <p className="mt-2 text-xs text-muted-foreground">
+                File download will be available when PDF export is implemented. Use the print-friendly report view in the meantime.
+              </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No reports generated yet.</p>

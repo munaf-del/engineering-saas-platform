@@ -5,7 +5,8 @@ import type { CalculatorDefinition, CalculatorVersion } from '@eng/shared';
 export function useCalculators() {
   return useQuery({
     queryKey: ['calculators'],
-    queryFn: () => api<CalculatorDefinition[]>('/calculators'),
+    queryFn: () =>
+      api<{ data: CalculatorDefinition[] }>('/calculators').then((r) => r.data),
   });
 }
 
@@ -20,7 +21,8 @@ export function useCalculator(id: string) {
 export function useCalculatorVersions(id: string) {
   return useQuery({
     queryKey: ['calculators', id, 'versions'],
-    queryFn: () => api<CalculatorVersion[]>(`/calculators/${id}/versions`),
+    queryFn: () =>
+      api<{ data: CalculatorVersion[] }>(`/calculators/${id}/versions`).then((r) => r.data),
     enabled: !!id,
   });
 }

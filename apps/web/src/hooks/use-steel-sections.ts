@@ -5,7 +5,8 @@ import type { SteelSectionCatalog, SteelSection } from '@eng/shared';
 export function useSteelSectionCatalogs() {
   return useQuery({
     queryKey: ['steel-sections', 'catalogs'],
-    queryFn: () => api<SteelSectionCatalog[]>('/steel-sections/catalogs'),
+    queryFn: () =>
+      api<{ data: SteelSectionCatalog[] }>('/steel-sections/catalogs').then((r) => r.data),
   });
 }
 

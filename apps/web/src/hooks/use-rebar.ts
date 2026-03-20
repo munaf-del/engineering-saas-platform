@@ -5,7 +5,8 @@ import type { RebarCatalog, RebarSize } from '@eng/shared';
 export function useRebarCatalogs() {
   return useQuery({
     queryKey: ['rebar', 'catalogs'],
-    queryFn: () => api<RebarCatalog[]>('/rebar/catalogs'),
+    queryFn: () =>
+      api<{ data: RebarCatalog[] }>('/rebar/catalogs').then((r) => r.data),
   });
 }
 

@@ -5,7 +5,8 @@ import type { GeotechMaterialClass, GeotechParameterSet } from '@eng/shared';
 export function useGeotechClasses() {
   return useQuery({
     queryKey: ['geotech', 'classes'],
-    queryFn: () => api<GeotechMaterialClass[]>('/geotech/classes'),
+    queryFn: () =>
+      api<{ data: GeotechMaterialClass[] }>('/geotech/classes').then((r) => r.data),
   });
 }
 

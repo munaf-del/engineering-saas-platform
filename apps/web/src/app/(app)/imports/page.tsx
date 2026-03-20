@@ -66,8 +66,6 @@ export default function ImportsPage() {
   const [sourceStandard, setSourceStandard] = useState('');
   const [sourceEdition, setSourceEdition] = useState('');
 
-  if (isLoading) return <PageLoading />;
-
   const imports = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
 
@@ -104,7 +102,9 @@ export default function ImportsPage() {
         }
       />
 
-      {imports.length === 0 ? (
+      {isLoading ? (
+        <PageLoading />
+      ) : imports.length === 0 ? (
         <EmptyState icon={<Import className="h-12 w-12" />} title="No imports" description="Upload catalogue data to populate materials, sections, or rebar." />
       ) : (
         <DataTable

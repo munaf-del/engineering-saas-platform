@@ -7,14 +7,13 @@ test.describe('Projects', () => {
   });
 
   test('shows projects page with empty state or project list', async ({ page }) => {
-    await expect(page.getByText('Projects')).toBeVisible();
-    const hasProjects = await page.getByText('New Project').isVisible().catch(() => false);
-    expect(hasProjects).toBeTruthy();
+    await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible();
   });
 
   test('can open create project dialog', async ({ page }) => {
     await page.getByRole('button', { name: 'New Project' }).click();
-    await expect(page.getByText('Create Project')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create Project' })).toBeVisible();
     await expect(page.getByLabel('Name')).toBeVisible();
     await expect(page.getByLabel('Code')).toBeVisible();
   });

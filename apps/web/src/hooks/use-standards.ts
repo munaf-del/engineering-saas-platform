@@ -5,28 +5,32 @@ import type { Standard, StandardEdition, StandardsProfile, ProjectStandardAssign
 export function useStandards() {
   return useQuery({
     queryKey: ['standards'],
-    queryFn: () => api<Standard[]>('/standards'),
+    queryFn: () =>
+      api<{ data: Standard[] }>('/standards').then((r) => r.data),
   });
 }
 
 export function useStandardEditions() {
   return useQuery({
     queryKey: ['standards', 'editions'],
-    queryFn: () => api<StandardEdition[]>('/standards/editions'),
+    queryFn: () =>
+      api<{ data: StandardEdition[] }>('/standards/editions').then((r) => r.data),
   });
 }
 
 export function useCurrentEditions() {
   return useQuery({
     queryKey: ['standards', 'editions', 'current'],
-    queryFn: () => api<StandardEdition[]>('/standards/editions/current'),
+    queryFn: () =>
+      api<{ data: StandardEdition[] }>('/standards/editions/current').then((r) => r.data),
   });
 }
 
 export function useStandardsProfiles() {
   return useQuery({
     queryKey: ['standards', 'profiles'],
-    queryFn: () => api<StandardsProfile[]>('/standards/profiles'),
+    queryFn: () =>
+      api<{ data: StandardsProfile[] }>('/standards/profiles').then((r) => r.data),
   });
 }
 

@@ -14,7 +14,7 @@ test.describe('Imports', () => {
   test('can open upload dialog', async ({ page }) => {
     await page.getByRole('link', { name: 'Imports' }).click();
     await page.getByRole('button', { name: 'Upload Import' }).click();
-    await expect(page.getByText('Upload Import')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Upload Import' })).toBeVisible();
     await expect(page.getByText('Entity Type')).toBeVisible();
     await expect(page.getByText('Format')).toBeVisible();
   });
