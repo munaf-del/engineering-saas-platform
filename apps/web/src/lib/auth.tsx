@@ -61,14 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokens(data.accessToken, data.refreshToken);
 
       const orgs = data.organisations ?? [];
-      if (orgs.length > 0 && !data.user.organisationId) {
+      const firstOrg = orgs[0];
+      if (firstOrg && !data.user.organisationId) {
         try {
           const switched = await api<{
             accessToken: string;
             refreshToken: string;
             user?: AuthUser;
             organisations?: Organisation[];
-          }>('/auth/switch-org', { method: 'POST', body: { organisationId: orgs[0].id } });
+          }>('/auth/switch-org', { method: 'POST', body: { organisationId: firstOrg.id } });
           setTokens(switched.accessToken, switched.refreshToken);
           setState({
             user: switched.user ?? data.user,
