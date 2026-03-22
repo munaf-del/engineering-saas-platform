@@ -13,9 +13,9 @@ describe('ImportParserService', () => {
       const rows = await parser.parse(Buffer.from(csv), 'csv', 'test.csv');
 
       expect(rows.length).toBe(2);
-      expect(rows[0].rowNumber).toBe(2);
-      expect(rows[0].data['designation']).toBe('200UB25.4');
-      expect(rows[0].data['massPerMetre']).toBe(25.4);
+      expect(rows[0]!.rowNumber).toBe(2);
+      expect(rows[0]!.data['designation']).toBe('200UB25.4');
+      expect(rows[0]!.data['massPerMetre']).toBe(25.4);
     });
 
     it('should handle quoted CSV fields', async () => {
@@ -23,8 +23,8 @@ describe('ImportParserService', () => {
       const rows = await parser.parse(Buffer.from(csv), 'csv', 'test.csv');
 
       expect(rows.length).toBe(1);
-      expect(rows[0].data['name']).toBe('Test, Item');
-      expect(rows[0].data['description']).toBe('Has "quotes" inside');
+      expect(rows[0]!.data['name']).toBe('Test, Item');
+      expect(rows[0]!.data['description']).toBe('Has "quotes" inside');
     });
 
     it('should reject CSV with only a header', async () => {
@@ -38,9 +38,9 @@ describe('ImportParserService', () => {
       const csv = 'val\n42.5\ntrue\nhello';
       const rows = await parser.parse(Buffer.from(csv), 'csv', 'test.csv');
 
-      expect(rows[0].data['val']).toBe(42.5);
-      expect(rows[1].data['val']).toBe(true);
-      expect(rows[2].data['val']).toBe('hello');
+      expect(rows[0]!.data['val']).toBe(42.5);
+      expect(rows[1]!.data['val']).toBe(true);
+      expect(rows[2]!.data['val']).toBe('hello');
     });
   });
 
@@ -53,7 +53,7 @@ describe('ImportParserService', () => {
       const rows = await parser.parse(Buffer.from(json), 'json', 'test.json');
 
       expect(rows.length).toBe(2);
-      expect(rows[0].data['designation']).toBe('N12');
+      expect(rows[0]!.data['designation']).toBe('N12');
     });
 
     it('should parse a JSON object with data array', async () => {

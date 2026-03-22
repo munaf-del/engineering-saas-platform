@@ -13,11 +13,11 @@ const STATUSES = ['current', 'superseded', 'withdrawn'] as const;
 export class CreateStandardEditionDto {
   @ApiProperty()
   @IsUUID()
-  standardId: string;
+  standardId!: string;
 
   @ApiProperty({ example: '2018' })
   @IsString()
-  edition: string;
+  edition!: string;
 
   @ApiPropertyOptional({ example: 'Amdt 2 (2021)' })
   @IsOptional()
@@ -26,7 +26,7 @@ export class CreateStandardEditionDto {
 
   @ApiProperty({ description: 'Source edition identifier for traceability', example: '2018' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional({ description: 'Source amendment for traceability' })
   @IsOptional()
@@ -50,7 +50,7 @@ export class CreateStandardEditionDto {
 
   @ApiProperty({ example: '2018-06-29' })
   @IsDateString()
-  effectiveDate: string;
+  effectiveDate!: string;
 
   @ApiPropertyOptional({ enum: STATUSES, default: 'current' })
   @IsOptional()

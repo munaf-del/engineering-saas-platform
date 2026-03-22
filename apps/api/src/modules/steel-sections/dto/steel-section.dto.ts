@@ -14,19 +14,19 @@ const CATALOG_STATUSES = ['draft', 'active', 'superseded', 'archived'] as const;
 export class CreateSteelSectionCatalogDto {
   @ApiProperty({ example: 'ASI Open Sections' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: '2024.1' })
   @IsString()
-  version: string;
+  version!: string;
 
   @ApiProperty({ description: 'Source standard (required)', example: 'AS/NZS 3679.1' })
   @IsString()
-  sourceStandard: string;
+  sourceStandard!: string;
 
   @ApiProperty({ description: 'Source edition (required)', example: '2016' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -64,15 +64,15 @@ export class UpdateSteelSectionCatalogDto {
 export class CreateSteelSectionDto {
   @ApiProperty()
   @IsUUID()
-  catalogId: string;
+  catalogId!: string;
 
   @ApiProperty({ example: '200UB25.4' })
   @IsString()
-  designation: string;
+  designation!: string;
 
   @ApiProperty({ example: 'UB' })
   @IsString()
-  sectionType: string;
+  sectionType!: string;
 
   @ApiProperty({
     description: 'Section properties with units',
@@ -85,7 +85,7 @@ export class CreateSteelSectionDto {
     },
   })
   @IsObject()
-  properties: Record<string, number>;
+  properties!: Record<string, number>;
 
   @ApiPropertyOptional()
   @IsOptional()

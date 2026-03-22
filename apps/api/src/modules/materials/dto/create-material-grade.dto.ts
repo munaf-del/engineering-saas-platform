@@ -20,11 +20,11 @@ export class CreateMaterialGradeDto {
 
   @ApiProperty({ enum: CATEGORIES })
   @IsEnum(CATEGORIES)
-  category: (typeof CATEGORIES)[number];
+  category!: (typeof CATEGORIES)[number];
 
   @ApiProperty({ example: 'N40 Concrete' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ example: 'N40' })
   @IsOptional()
@@ -38,11 +38,11 @@ export class CreateMaterialGradeDto {
 
   @ApiProperty({ description: 'Source standard code (required for traceability)', example: 'AS 3600' })
   @IsString()
-  sourceStandard: string;
+  sourceStandard!: string;
 
   @ApiProperty({ description: 'Source edition (required for traceability)', example: '2018' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -54,7 +54,7 @@ export class CreateMaterialGradeDto {
     example: { compressiveStrength: { value: 40, unit: 'MPa', source: 'AS 3600 Table 3.1.2' } },
   })
   @IsObject()
-  properties: Record<string, unknown>;
+  properties!: Record<string, unknown>;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

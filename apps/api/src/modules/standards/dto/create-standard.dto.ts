@@ -6,15 +6,15 @@ const CATEGORIES = ['loading', 'concrete', 'steel', 'reinforcement', 'geotech', 
 export class CreateStandardDto {
   @ApiProperty({ example: 'AS 3600' })
   @IsString()
-  code: string;
+  code!: string;
 
   @ApiProperty({ example: 'Concrete structures' })
   @IsString()
-  title: string;
+  title!: string;
 
   @ApiProperty({ enum: CATEGORIES, example: 'concrete' })
   @IsEnum(CATEGORIES, { message: `category must be one of: ${CATEGORIES.join(', ')}` })
-  category: (typeof CATEGORIES)[number];
+  category!: (typeof CATEGORIES)[number];
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

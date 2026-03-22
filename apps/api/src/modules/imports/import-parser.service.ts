@@ -36,16 +36,16 @@ export class ImportParserService {
       throw new BadRequestException('CSV must have a header row and at least one data row');
     }
 
-    const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+    const headers = lines[0]!.split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
     const rows: ParsedRow[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = this.parseCsvLine(lines[i]);
+      const values = this.parseCsvLine(lines[i]!);
       const data: Record<string, unknown> = {};
 
       for (let j = 0; j < headers.length; j++) {
         const raw = values[j]?.trim() ?? '';
-        data[headers[j]] = this.coerceValue(raw);
+        data[headers[j]!] = this.coerceValue(raw);
       }
 
       rows.push({ rowNumber: i + 1, data });
@@ -83,7 +83,7 @@ export class ImportParserService {
     try {
       const ExcelJS = await import('exceljs');
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(buffer);
+      await workbook.xlsx.load(buffer as any);
 
       const worksheet = workbook.worksheets[0];
       if (!worksheet || worksheet.rowCount < 2) {

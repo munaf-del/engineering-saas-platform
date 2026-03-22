@@ -13,11 +13,11 @@ export class CreateImportJobDto {
   @IsEnum(ENTITY_TYPES, {
     message: `entityType must be one of: ${ENTITY_TYPES.join(', ')}`,
   })
-  entityType: (typeof ENTITY_TYPES)[number];
+  entityType!: (typeof ENTITY_TYPES)[number];
 
   @ApiProperty({ enum: FORMATS })
   @IsEnum(FORMATS)
-  format: (typeof FORMATS)[number];
+  format!: (typeof FORMATS)[number];
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()
@@ -27,19 +27,19 @@ export class CreateImportJobDto {
 
   @ApiProperty({ description: 'Catalog name for snapshot creation', example: 'ASI Open Sections' })
   @IsString()
-  catalogName: string;
+  catalogName!: string;
 
   @ApiProperty({ description: 'Snapshot version', example: '2024.2' })
   @IsString()
-  catalogVersion: string;
+  catalogVersion!: string;
 
   @ApiProperty({ description: 'Source standard (required)', example: 'AS/NZS 3679.1' })
   @IsString()
-  sourceStandard: string;
+  sourceStandard!: string;
 
   @ApiProperty({ description: 'Source edition (required)', example: '2016' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

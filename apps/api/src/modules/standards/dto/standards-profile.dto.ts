@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateStandardsProfileDto {
   @ApiProperty({ example: 'AS Loading + Concrete 2021' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -37,20 +37,20 @@ export class UpdateStandardsProfileDto {
 export class PinStandardDto {
   @ApiProperty({ description: 'Standard edition ID to pin' })
   @IsUUID()
-  standardEditionId: string;
+  standardEditionId!: string;
 }
 
 export class BulkPinStandardsDto {
   @ApiProperty({ type: [String], description: 'Standard edition IDs to pin' })
   @IsArray()
   @IsUUID('4', { each: true })
-  standardEditionIds: string[];
+  standardEditionIds!: string[];
 }
 
 export class AssignProjectStandardDto {
   @ApiProperty()
   @IsUUID()
-  standardEditionId: string;
+  standardEditionId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

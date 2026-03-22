@@ -4,11 +4,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateGeotechMaterialClassDto {
   @ApiProperty({ example: 'CL' })
   @IsString()
-  code: string;
+  code!: string;
 
   @ApiProperty({ example: 'Clay (low plasticity)' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -29,11 +29,11 @@ export class CreateGeotechMaterialClassDto {
 export class CreateGeotechParameterSetDto {
   @ApiProperty()
   @IsUUID()
-  classId: string;
+  classId!: string;
 
   @ApiProperty({ example: 'Stiff Clay – Typical Parameters' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -42,11 +42,11 @@ export class CreateGeotechParameterSetDto {
 
   @ApiProperty({ description: 'Source standard (required for traceability)', example: 'AS 1726' })
   @IsString()
-  sourceStandard: string;
+  sourceStandard!: string;
 
   @ApiProperty({ description: 'Source edition (required for traceability)', example: '2017' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -62,7 +62,7 @@ export class CreateGeotechParameterSetDto {
     },
   })
   @IsObject()
-  parameters: Record<string, unknown>;
+  parameters!: Record<string, unknown>;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

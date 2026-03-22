@@ -4,19 +4,19 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreatePropertySchemaDto {
   @ApiProperty()
   @IsUUID()
-  familyId: string;
+  familyId!: string;
 
   @ApiProperty({ example: 'compressiveStrength' })
   @IsString()
-  key: string;
+  key!: string;
 
   @ApiProperty({ example: 'Characteristic Compressive Strength' })
   @IsString()
-  label: string;
+  label!: string;
 
   @ApiProperty({ description: 'Unit is required', example: 'MPa' })
   @IsString()
-  unit: string;
+  unit!: string;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

@@ -8,11 +8,11 @@ const CATEGORIES = [
 export class CreateMaterialFamilyDto {
   @ApiProperty({ example: 'CONCRETE' })
   @IsString()
-  code: string;
+  code!: string;
 
   @ApiProperty({ example: 'Concrete' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -21,7 +21,7 @@ export class CreateMaterialFamilyDto {
 
   @ApiProperty({ enum: CATEGORIES })
   @IsEnum(CATEGORIES)
-  category: (typeof CATEGORIES)[number];
+  category!: (typeof CATEGORIES)[number];
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

@@ -14,19 +14,19 @@ const CATALOG_STATUSES = ['draft', 'active', 'superseded', 'archived'] as const;
 export class CreateRebarCatalogDto {
   @ApiProperty({ example: 'AS/NZS 4671 Rebar Catalogue' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: '2024.1' })
   @IsString()
-  version: string;
+  version!: string;
 
   @ApiProperty({ description: 'Source standard (required)', example: 'AS/NZS 4671' })
   @IsString()
-  sourceStandard: string;
+  sourceStandard!: string;
 
   @ApiProperty({ description: 'Source edition (required)', example: '2019' })
   @IsString()
-  sourceEdition: string;
+  sourceEdition!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -64,31 +64,31 @@ export class UpdateRebarCatalogDto {
 export class CreateRebarSizeDto {
   @ApiProperty()
   @IsUUID()
-  catalogId: string;
+  catalogId!: string;
 
   @ApiProperty({ example: 'N12' })
   @IsString()
-  designation: string;
+  designation!: string;
 
   @ApiProperty({ example: 12.0 })
   @IsNumber()
-  barDiameter: number;
+  barDiameter!: number;
 
   @ApiProperty({ example: 113.1 })
   @IsNumber()
-  nominalArea: number;
+  nominalArea!: number;
 
   @ApiProperty({ example: 0.888 })
   @IsNumber()
-  massPerMetre: number;
+  massPerMetre!: number;
 
   @ApiProperty({ example: 'D500N' })
   @IsString()
-  grade: string;
+  grade!: string;
 
   @ApiProperty({ example: 'N' })
   @IsString()
-  ductilityClass: string;
+  ductilityClass!: string;
 
   @ApiPropertyOptional({ example: 'AS/NZS 4671:2019' })
   @IsOptional()
