@@ -82,6 +82,7 @@ module "cloud_sql" {
   environment        = var.environment
   network_id         = module.networking.network_id
   tier               = var.db_tier
+  db_edition         = var.db_edition
   ha                 = var.db_ha
   max_connections    = var.db_max_connections
   db_password_secret = module.secret_manager.db_password_secret_id

@@ -6,6 +6,7 @@ resource "google_sql_database_instance" "main" {
 
   settings {
     tier              = var.tier
+    edition           = var.db_edition
     availability_type = var.ha ? "REGIONAL" : "ZONAL"
     disk_autoresize   = true
     disk_size         = 10

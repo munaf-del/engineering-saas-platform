@@ -23,6 +23,11 @@ variable "tier" {
   default = "db-custom-1-3840"
 }
 
+variable "db_edition" {
+  type        = string
+  description = "Cloud SQL edition"
+}
+
 variable "ha" {
   description = "REGIONAL availability for production"
   type        = bool

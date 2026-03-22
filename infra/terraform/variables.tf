@@ -50,6 +50,17 @@ variable "db_tier" {
   default     = "db-custom-1-3840"
 }
 
+variable "db_edition" {
+  type        = string
+  description = "Cloud SQL edition"
+  default     = "ENTERPRISE"
+
+  validation {
+    condition     = contains(["ENTERPRISE", "ENTERPRISE_PLUS"], var.db_edition)
+    error_message = "db_edition must be ENTERPRISE or ENTERPRISE_PLUS."
+  }
+}
+
 variable "db_ha" {
   description = "Enable high availability (REGIONAL) for Cloud SQL"
   type        = bool
