@@ -192,6 +192,7 @@ module "monitoring" {
   web_service_name         = module.cloud_run.web_service_name
   api_service_name         = module.cloud_run.api_service_name
   calc_engine_service_name = module.cloud_run.calc_engine_service_name
+  api_url                  = module.cloud_run.api_url
   db_instance_name         = module.cloud_sql.instance_name
   calculation_queue_name   = module.cloud_tasks.calculation_queue_name
   report_queue_name        = module.cloud_tasks.report_queue_name

@@ -39,3 +39,8 @@ variable "calculation_queue_name" {
 variable "report_queue_name" {
   type = string
 }
+
+variable "api_url" {
+  description = "Full Cloud Run URL of the API service (https://...run.app)"
+  type        = string
+}

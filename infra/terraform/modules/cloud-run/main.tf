@@ -117,10 +117,6 @@ resource "google_cloud_run_v2_service" "api" {
         value = "production"
       }
       env {
-        name  = "PORT"
-        value = "4000"
-      }
-      env {
         name  = "CALC_ENGINE_URL"
         value = "https://${var.name_prefix}-calc-engine-${var.calc_engine_hash}.a.run.app"
       }

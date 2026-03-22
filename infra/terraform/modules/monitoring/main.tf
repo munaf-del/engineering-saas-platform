@@ -231,12 +231,8 @@ resource "google_monitoring_uptime_check_config" "api_health" {
     type = "uptime_url"
     labels = {
       project_id = var.project_id
-      host       = "" # Set after first deploy: the Cloud Run URL without https://
+      host       = replace(var.api_url, "https://", "")
     }
-  }
-
-  lifecycle {
-    ignore_changes = [monitored_resource[0].labels["host"]]
   }
 }
 
