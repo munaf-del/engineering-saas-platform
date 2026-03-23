@@ -16,6 +16,9 @@ steps:
     name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
     entrypoint: npx
     args: ["prisma", "migrate", "deploy"]
+    env:
+      - HOME=/workspace
+      - npm_config_cache=/workspace/.npm-cache
     secretEnv: ["DATABASE_URL"]
 
   # Optional: run seed (only for dev/staging, skip for prod)
@@ -23,6 +26,9 @@ steps:
     name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
     entrypoint: npx
     args: ["prisma", "db", "seed"]
+    env:
+      - HOME=/workspace
+      - npm_config_cache=/workspace/.npm-cache
     secretEnv: ["DATABASE_URL"]
     waitFor: ["migrate"]
 
