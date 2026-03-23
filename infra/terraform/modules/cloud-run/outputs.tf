@@ -3,7 +3,7 @@ output "web_url" {
 }
 
 output "api_url" {
-  value = google_cloud_run_v2_service.api.uri
+  value = google_cloud_run_v2_service.api.urls[0]
 }
 
 output "calc_engine_url" {
