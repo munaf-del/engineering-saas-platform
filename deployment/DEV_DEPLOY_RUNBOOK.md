@@ -1,6 +1,6 @@
 # First Dev Deployment Runbook
 
-> Step-by-step narrative for deploying `engplatform-dev` from a blank GCP project.
+> Step-by-step narrative for deploying `engine-dev-487802` from a blank GCP project.
 > Estimated wall-clock time: **45–90 minutes** (most of it waiting on Terraform and Docker builds).
 
 ---
@@ -19,7 +19,7 @@
 
 **What you need in GCP:**
 
-- A project called `engplatform-dev` with billing enabled.
+- A project called `engine-dev-487802` with billing enabled.
 - Your Google account has the **Owner** role on that project (or at minimum: Editor + Secret Manager Admin + IAM Admin).
 
 ---
@@ -29,10 +29,10 @@
 ```bash
 gcloud auth login
 gcloud auth application-default login
-gcloud config set project engplatform-dev
+gcloud config set project engine-dev-487802
 ```
 
-Verify: `gcloud config get project` should print `engplatform-dev`.
+Verify: `gcloud config get project` should print `engine-dev-487802`.
 
 ---
 
@@ -41,7 +41,7 @@ Verify: `gcloud config get project` should print `engplatform-dev`.
 This bucket stores Terraform's knowledge of what it has already created. It must exist *before* `terraform init`.
 
 ```bash
-gsutil mb -p engplatform-dev -l australia-southeast1 gs://engplatform-terraform-state
+gsutil mb -p engine-dev-487802 -l australia-southeast1 gs://engplatform-terraform-state
 gsutil versioning set on gs://engplatform-terraform-state
 ```
 
@@ -112,13 +112,13 @@ Save these somewhere — you'll need the registry URL and service URLs for the n
 Terraform auto-generates a database password, builds the `DATABASE_URL`, and generates a JWT secret. Verify they exist:
 
 ```bash
-gcloud secrets list --project=engplatform-dev --filter="labels.project=engplatform"
+gcloud secrets list --project=engine-dev-487802 --filter="labels.project=engplatform"
 ```
 
 You should see three secrets. Verify the database URL is correct:
 
 ```bash
-gcloud secrets versions access latest --secret=engplatform-dev-database-url
+gcloud secrets versions access latest --secret=engine-dev-487802-database-url
 ```
 
 It should look like: `postgresql://engplatform-app:<password>@<private-ip>:5432/engplatform`
@@ -127,7 +127,7 @@ If the password or IP is wrong, add a corrected version:
 
 ```bash
 echo -n "postgresql://engplatform-app:<correct-password>@<correct-ip>:5432/engplatform" | \
-  gcloud secrets versions add engplatform-dev-database-url --data-file=-
+  gcloud secrets versions add engine-dev-487802-database-url --data-file=-
 ```
 
 ---
@@ -137,7 +137,7 @@ echo -n "postgresql://engplatform-app:<correct-password>@<correct-ip>:5432/engpl
 From the repository root:
 
 ```bash
-REPO="australia-southeast1-docker.pkg.dev/engplatform-dev/engplatform"
+REPO="australia-southeast1-docker.pkg.dev/engine-dev-487802/engplatform"
 
 # Authenticate Docker
 gcloud auth configure-docker australia-southeast1-docker.pkg.dev
@@ -157,7 +157,7 @@ Verify the images are in the registry:
 
 ```bash
 gcloud artifacts docker images list \
-  australia-southeast1-docker.pkg.dev/engplatform-dev/engplatform \
+  australia-southeast1-docker.pkg.dev/engine-dev-487802/engplatform \
   --format="table(package,version,createTime)"
 ```
 
@@ -191,7 +191,7 @@ This triggers a Cloud Build job that runs `prisma migrate deploy` against the Cl
 Watch progress:
 
 ```bash
-gcloud builds list --project=engplatform-dev --limit=1
+gcloud builds list --project=engine-dev-487802 --limit=1
 ```
 
 ---
@@ -237,7 +237,7 @@ If any service fails, check logs:
 ```bash
 gcloud logging read \
   'resource.type="cloud_run_revision" AND severity>=ERROR' \
-  --project=engplatform-dev --limit=20 --freshness=15m \
+  --project=engine-dev-487802 --limit=20 --freshness=15m \
   --format="table(timestamp,resource.labels.service_name,jsonPayload.message)"
 ```
 

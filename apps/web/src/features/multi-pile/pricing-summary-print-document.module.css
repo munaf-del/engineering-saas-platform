@@ -1,0 +1,415 @@
+@page {
+  size: A4 landscape;
+  margin: 12mm;
+}
+
+.document {
+  margin: 0 auto;
+  max-width: 1520px;
+  border: 1px solid #dbe3f0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+  padding: 24px;
+  color: #0f172a;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.titleBlock {
+  min-width: 280px;
+  flex: 1 1 420px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  max-width: 720px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.summaryChips {
+  display: flex;
+  flex: 0 1 460px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  align-content: flex-start;
+}
+
+.summaryChip {
+  min-width: 180px;
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 12px 14px;
+}
+
+.summaryChipLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.summaryChipValue {
+  display: block;
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.section {
+  margin-top: 22px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sectionHeading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.sectionNote {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryField {
+  min-height: 84px;
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.summaryFieldLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.summaryFieldValue {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.tableShell {
+  overflow: hidden;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.table th,
+.table td {
+  padding: 8px 9px;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.table th:last-child,
+.table td:last-child {
+  border-right: 0;
+}
+
+.table thead th {
+  background: #f8fafc;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: #fcfdff;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr {
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.visualGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.visualCard {
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 16px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.visualTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.visualPair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.visualPanel {
+  border: 1px solid #dbe3f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.visualPanelTitle {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.visualPanelBody {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.visualSvg {
+  max-width: 220px;
+}
+
+.visualFallback {
+  display: flex;
+  min-height: 196px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.captionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.captionField {
+  border-top: 1px solid #dbe3f0;
+  padding-top: 10px;
+}
+
+.captionLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.captionValue {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+.identifierCell {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.emptyState {
+  padding: 22px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.footer {
+  margin-top: 18px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+@media (max-width: 1180px) {
+  .document {
+    padding: 20px;
+  }
+
+  .metaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summaryChips {
+    justify-content: flex-start;
+  }
+
+  .captionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .document {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryChip {
+    min-width: 0;
+    flex: 1 1 180px;
+  }
+
+  .visualGrid,
+  .visualPair,
+  .captionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .document {
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .summaryChip,
+  .summaryField,
+  .tableShell {
+    border-color: #cbd5e1;
+  }
+
+  .tableWrap {
+    overflow: visible;
+  }
+
+  .table {
+    font-size: 10px;
+  }
+
+  .table thead th {
+    font-size: 8.75px;
+  }
+
+  .visualGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .visualPanelBody {
+    min-height: 200px;
+  }
+
+  .visualFallback {
+    min-height: 176px;
+  }
+
+  .summaryChipValue {
+    font-size: 16px;
+  }
+
+  .footer {
+    margin-top: 14px;
+  }
+}

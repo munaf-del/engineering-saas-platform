@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganisationsService } from './organisations.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { UpdateOrganisationAiSettingsDto } from './dto/update-organisation-ai-settings.dto';
 import { AddOrgMemberDto } from './dto/add-org-member.dto';
 import { UpdateOrgMemberRoleDto } from './dto/update-org-member-role.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -65,6 +66,25 @@ export class OrganisationsController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.organisationsService.update(id, user.id, dto);
+  }
+
+  @Get(':id/ai-settings')
+  @ApiOperation({ summary: 'Get organisation AI assistant model settings' })
+  async getAiSettings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.getAiSettings(id, user.id);
+  }
+
+  @Patch(':id/ai-settings')
+  @ApiOperation({ summary: 'Update organisation AI assistant model settings (owner/admin only)' })
+  async updateAiSettings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOrganisationAiSettingsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organisationsService.updateAiSettings(id, user.id, dto);
   }
 
   @Delete(':id')

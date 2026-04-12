@@ -1,13 +1,21 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
+import {
+  getHydratedProjectMetadata,
+  mergeProjectMetadataWithSpecifics,
+  stripLegacyProjectSpecificsFromPileGroupMetadata,
+} from './project-specifics.adapter';
+import {
+  defaultProjectLoadDefinition,
+  getHydratedProjectMetadataWithLoadDefinition,
+  mergeProjectMetadataWithLoadDefinition,
+  stripLegacyProjectLoadDefinitionFromPileGroupMetadata,
+} from './project-load-definition.adapter';
 
 @Injectable()
 export class ProjectsService {
@@ -38,12 +46,7 @@ export class ProjectsService {
     return paginate(data, total, page, limit);
   }
 
-  async findById(
-    id: string,
-    organisationId: string,
-    userId: string,
-    orgRole?: string,
-  ) {
+  async findById(id: string, organisationId: string, userId: string, orgRole?: string) {
     const project = await this.prisma.project.findFirst({
       where: { id, organisationId },
       include: {
@@ -53,6 +56,7 @@ export class ProjectsService {
           },
         },
         standardsProfile: true,
+        pileGroups: { select: { metadata: true } },
       },
     });
     if (!project) {
@@ -60,14 +64,21 @@ export class ProjectsService {
     }
 
     this.assertProjectAccess(project.members, userId, orgRole);
-    return project;
+
+    const { pileGroups, ...rest } = project;
+    return {
+      ...rest,
+      metadata: getHydratedProjectMetadataWithLoadDefinition(
+        getHydratedProjectMetadata(project.metadata, pileGroups, {
+          projectName: project.name,
+          projectNumber: project.code,
+        }),
+        pileGroups,
+      ),
+    };
   }
 
-  async create(
-    organisationId: string,
-    userId: string,
-    dto: CreateProjectDto,
-  ) {
+  async create(organisationId: string, userId: string, dto: CreateProjectDto) {
     return this.prisma.project.create({
       data: {
         organisationId,
@@ -75,6 +86,9 @@ export class ProjectsService {
         code: dto.code,
         description: dto.description,
         standardsProfileId: dto.standardsProfileId,
+        metadata: {
+          projectLoadDefinition: defaultProjectLoadDefinition(),
+        },
         members: {
           create: { userId, role: 'lead' },
         },
@@ -84,32 +98,109 @@ export class ProjectsService {
   }
 
   async update(id: string, organisationId: string, dto: UpdateProjectDto) {
-    await this.assertExists(id, organisationId);
+    const project = await this.prisma.project.findFirst({
+      where: { id, organisationId },
+      include: {
+        pileGroups: { select: { id: true, metadata: true } },
+      },
+    });
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
 
-    return this.prisma.project.update({
-      where: { id },
-      data: {
+    const metadataInput =
+      dto.metadata && typeof dto.metadata === 'object' && !Array.isArray(dto.metadata)
+        ? dto.metadata
+        : undefined;
+    const hasProjectSpecificsPatch =
+      metadataInput !== undefined && 'projectSpecifics' in metadataInput;
+    const hasProjectLoadDefinitionPatch =
+      metadataInput !== undefined && 'projectLoadDefinition' in metadataInput;
+    let nextMetadata: Record<string, unknown> =
+      metadataInput === undefined
+        ? (project.metadata as Record<string, unknown>)
+        : {
+            ...(project.metadata as Record<string, unknown>),
+            ...metadataInput,
+          };
+
+    if (hasProjectSpecificsPatch) {
+      nextMetadata = mergeProjectMetadataWithSpecifics(
+        nextMetadata,
+        metadataInput?.projectSpecifics,
+        {
+          projectName: dto.name ?? project.name,
+          projectNumber: project.code,
+        },
+      );
+    }
+
+    if (hasProjectLoadDefinitionPatch) {
+      nextMetadata = mergeProjectMetadataWithLoadDefinition(
+        nextMetadata,
+        metadataInput?.projectLoadDefinition,
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updateData: Prisma.ProjectUncheckedUpdateInput = {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.standardsProfileId !== undefined && {
           standardsProfileId: dto.standardsProfileId,
         }),
-      },
+        ...(dto.metadata !== undefined && { metadata: nextMetadata as Prisma.InputJsonValue }),
+      };
+
+      const result = await tx.project.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (hasProjectSpecificsPatch || hasProjectLoadDefinitionPatch) {
+        await Promise.all(
+          project.pileGroups.map((pileGroup) => {
+            let metadata: unknown = pileGroup.metadata;
+            if (hasProjectSpecificsPatch) {
+              metadata = stripLegacyProjectSpecificsFromPileGroupMetadata(metadata);
+            }
+            if (hasProjectLoadDefinitionPatch) {
+              metadata = stripLegacyProjectLoadDefinitionFromPileGroupMetadata(metadata);
+            }
+
+            return tx.pileGroup.update({
+              where: { id: pileGroup.id },
+              data: { metadata: metadata as Prisma.InputJsonValue },
+            });
+          }),
+        );
+      }
+
+      return result;
     });
+
+    return updated;
   }
 
   async remove(id: string, organisationId: string) {
-    await this.assertExists(id, organisationId);
-    return this.prisma.project.delete({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.findFirst({
+        where: { id, organisationId },
+      });
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      await tx.document.deleteMany({
+        where: { projectId: id },
+      });
+
+      return tx.project.delete({ where: { id } });
+    });
   }
 
-  async listMembers(
-    projectId: string,
-    organisationId: string,
-    userId: string,
-    orgRole?: string,
-  ) {
+  async listMembers(projectId: string, organisationId: string, userId: string, orgRole?: string) {
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, organisationId },
       include: { members: true },
@@ -126,11 +217,7 @@ export class ProjectsService {
     });
   }
 
-  async addMember(
-    projectId: string,
-    organisationId: string,
-    dto: AddProjectMemberDto,
-  ) {
+  async addMember(projectId: string, organisationId: string, dto: AddProjectMemberDto) {
     await this.assertExists(projectId, organisationId);
 
     const orgMembership = await this.prisma.organisationMember.findUnique({
@@ -142,9 +229,7 @@ export class ProjectsService {
       },
     });
     if (!orgMembership) {
-      throw new ForbiddenException(
-        'User must be a member of the organisation first',
-      );
+      throw new ForbiddenException('User must be a member of the organisation first');
     }
 
     return this.prisma.projectMember.create({
@@ -157,11 +242,7 @@ export class ProjectsService {
     });
   }
 
-  async removeMember(
-    projectId: string,
-    organisationId: string,
-    userId: string,
-  ) {
+  async removeMember(projectId: string, organisationId: string, userId: string) {
     await this.assertExists(projectId, organisationId);
 
     const membership = await this.prisma.projectMember.findUnique({
@@ -176,11 +257,7 @@ export class ProjectsService {
     });
   }
 
-  private assertProjectAccess(
-    members: { userId: string }[],
-    userId: string,
-    orgRole?: string,
-  ) {
+  private assertProjectAccess(members: { userId: string }[], userId: string, orgRole?: string) {
     if (orgRole === 'owner' || orgRole === 'admin') {
       return;
     }

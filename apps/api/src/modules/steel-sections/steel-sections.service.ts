@@ -107,7 +107,7 @@ export class SteelSectionsService {
     });
 
     const hash = createHash('sha256')
-      .update(JSON.stringify(sections.map((s) => ({ d: s.designation, p: s.properties }))))
+      .update(JSON.stringify(sections.map((s: (typeof sections)[number]) => ({ d: s.designation, p: s.properties }))))
       .digest('hex');
 
     if (catalog.status === 'active' && catalog.snapshotHash === hash) {

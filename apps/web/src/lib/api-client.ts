@@ -1,4 +1,16 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const rawApiBase = process.env.NEXT_PUBLIC_API_URL?.trim();
+const API_BASE = (rawApiBase || (process.env.NODE_ENV !== 'production' ? 'http://localhost:4000' : undefined))?.replace(
+  /\/+$/,
+  '',
+);
+const API_PREFIX = API_BASE?.endsWith('/api/v1') ? '' : '/api/v1';
+
+if (!API_BASE) {
+  throw new Error(
+    'NEXT_PUBLIC_API_URL is not set. ' +
+      'Add it to your .env.local for development or set it in the deployment environment.',
+  );
+}
 
 type TokenStore = {
   accessToken: string | null;
@@ -41,7 +53,7 @@ export function getAccessToken(): string | null {
 async function attemptRefresh(): Promise<boolean> {
   if (!tokens.refreshToken) return false;
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${API_BASE}${API_PREFIX}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: tokens.refreshToken }),
@@ -74,7 +86,7 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
 export async function api<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { body, params, headers: extraHeaders, ...rest } = opts;
 
-  let url = `${API_BASE}${path}`;
+  let url = `${API_BASE}${API_PREFIX}${path}`;
   if (params) {
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {

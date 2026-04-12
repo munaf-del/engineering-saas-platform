@@ -261,7 +261,7 @@ export class StandardsService {
       where: { id: { in: editionIds } },
     });
     if (editions.length !== editionIds.length) {
-      const found = new Set(editions.map((e) => e.id));
+      const found = new Set(editions.map((e: (typeof editions)[number]) => e.id));
       const missing = editionIds.filter((id) => !found.has(id));
       throw new BadRequestException(`Standard editions not found: ${missing.join(', ')}`);
     }

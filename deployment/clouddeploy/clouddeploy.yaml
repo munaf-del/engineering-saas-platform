@@ -33,7 +33,7 @@ metadata:
   name: engplatform-dev
 description: Development environment
 run:
-  location: projects/engplatform-dev/locations/australia-southeast1
+  location: projects/engine-dev-487802/locations/australia-southeast1
 ---
 apiVersion: deploy.cloud.google.com/v1
 kind: Target

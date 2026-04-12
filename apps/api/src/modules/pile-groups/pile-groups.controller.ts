@@ -8,15 +8,19 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PileGroupsService } from './pile-groups.service';
+import { MultiPileService } from './multi-pile.service';
 import { CreatePileGroupDto } from './dto/create-pile-group.dto';
 import { UpdatePileGroupDto } from './dto/update-pile-group.dto';
 import { CreatePileDto } from './dto/create-pile.dto';
 import { CreatePileLayoutPointDto } from './dto/create-pile-layout-point.dto';
+import { RunMultiPileEnvelopeDto } from './dto/run-multi-pile-envelope.dto';
+import { SaveMultiPileStateDto } from './dto/save-multi-pile-state.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
@@ -28,7 +32,10 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('projects/:projectId/pile-groups')
 export class PileGroupsController {
-  constructor(private readonly pileGroupsService: PileGroupsService) {}
+  constructor(
+    private readonly pileGroupsService: PileGroupsService,
+    private readonly multiPileService: MultiPileService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List pile groups for a project' })
@@ -161,6 +168,56 @@ export class PileGroupsController {
   ) {
     this.requireOrgContext(user);
     return this.pileGroupsService.removeLayoutPoint(pointId, pileGroupId, projectId);
+  }
+
+  @Get(':id/multi-pile')
+  @ApiOperation({ summary: 'Get normalized multi-pile authored state for a pile group' })
+  async getMultiPileState(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) pileGroupId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    this.requireOrgContext(user);
+    return this.multiPileService.getState(pileGroupId, projectId);
+  }
+
+  @Put(':id/multi-pile')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Save normalized multi-pile authored state for a pile group' })
+  async saveMultiPileState(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) pileGroupId: string,
+    @Body() dto: SaveMultiPileStateDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    this.requireOrgContext(user);
+    return this.multiPileService.saveState(pileGroupId, projectId, dto.state);
+  }
+
+  @Post(':id/multi-pile/envelope-runs')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Run the multi-pile envelope calculation for a pile group' })
+  async runMultiPileEnvelope(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) pileGroupId: string,
+    @Body() dto: RunMultiPileEnvelopeDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    this.requireOrgContext(user);
+    return this.multiPileService.runEnvelope(pileGroupId, projectId, user.id, dto?.state);
+  }
+
+  @Get(':id/multi-pile/envelope-runs/latest')
+  @ApiOperation({ summary: 'Get the latest multi-pile envelope run for a pile group' })
+  async getLatestMultiPileEnvelope(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) pileGroupId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    this.requireOrgContext(user);
+    return this.multiPileService.getLatestEnvelopeRun(pileGroupId, projectId);
   }
 
   private requireOrgContext(user: RequestUser): asserts user is RequestUser & { organisationId: string } {

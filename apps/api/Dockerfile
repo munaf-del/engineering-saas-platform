@@ -27,6 +27,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 appgroup && adduser --system --uid 1001 appuser
 WORKDIR /app
 COPY --from=builder /app/deployed ./
+COPY --from=builder /app/apps/api/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder /app/apps/api/prisma/seed.ts ./prisma/seed.ts
+COPY --from=builder /app/apps/api/prisma/migrations ./prisma/migrations
+RUN mkdir -p /app/data/ai-uploads && chown -R appuser:appgroup /app/data/ai-uploads
 USER appuser
 EXPOSE 4000
 ENV PORT=4000

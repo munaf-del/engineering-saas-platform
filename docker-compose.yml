@@ -26,6 +26,11 @@ services:
       JWT_SECRET: "local-dev-secret-change-in-prod"
       CALC_ENGINE_URL: "http://calc-engine:8000"
       PORT: "4000"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      AI_FEATURE_ENABLED: ${AI_FEATURE_ENABLED:-true}
+      AI_UPLOAD_DIR: /app/data/ai-uploads
+    volumes:
+      - ai_uploads:/app/data/ai-uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,3 +58,4 @@ services:
 
 volumes:
   postgres-data:
+  ai_uploads:

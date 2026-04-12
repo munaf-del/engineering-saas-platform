@@ -10,7 +10,7 @@ spec:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "5"
     spec:
-      serviceAccountName: engplatform-calc@engplatform-dev.iam.gserviceaccount.com
+      serviceAccountName: engplatform-calc@engine-dev-487802.iam.gserviceaccount.com
       containers:
         - image: calc-engine
           ports:

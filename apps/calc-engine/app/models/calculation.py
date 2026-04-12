@@ -1,8 +1,10 @@
 from enum import Enum
+from typing import Any
 from pydantic import BaseModel, Field
 
 
 class CalcType(str, Enum):
+    MULTI_PILE_ENVELOPE = "multi_pile_envelope"
     PILE_CAPACITY = "pile_capacity"
     PILE_SETTLEMENT = "pile_settlement"
     PILE_LATERAL = "pile_lateral"
@@ -88,6 +90,7 @@ class CalculationRequest(BaseModel):
     rule_pack: RulePack = Field(alias="rulePack")
     standards_refs: list[StandardRef] = Field(alias="standardsRefs")
     options: CalcOptions | None = None
+    payload: dict[str, Any] | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -164,6 +167,7 @@ class CalculationResult(BaseModel):
     standard_refs_used: list[ClauseReference] = Field(alias="standardRefsUsed")
     design_checks: list[DesignCheckResult] = Field(default_factory=list, alias="designChecks")
     assumptions: list[str] = Field(default_factory=list)
+    artifacts: dict[str, Any] = Field(default_factory=dict)
     duration_ms: float = Field(alias="durationMs")
 
     model_config = {"populate_by_name": True}

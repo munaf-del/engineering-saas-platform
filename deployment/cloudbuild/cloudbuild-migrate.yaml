@@ -14,21 +14,23 @@ steps:
   # Run prisma migrate deploy using the latest API image
   - id: migrate
     name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
+    dir: /app
     entrypoint: npx
-    args: ["prisma", "migrate", "deploy"]
+    args: ["-y", "prisma@6.19.2", "migrate", "deploy", "--schema", "/app/prisma/schema.prisma"]
     env:
-      - HOME=/workspace
-      - npm_config_cache=/workspace/.npm-cache
+      - HOME=/tmp
+      - npm_config_cache=/tmp/.npm-cache
     secretEnv: ["DATABASE_URL"]
 
   # Optional: run seed (only for dev/staging, skip for prod)
   - id: seed
     name: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:latest
+    dir: /app
     entrypoint: npx
-    args: ["prisma", "db", "seed"]
+    args: ["-y", "prisma@6.19.2", "db", "seed", "--schema", "/app/prisma/schema.prisma"]
     env:
-      - HOME=/workspace
-      - npm_config_cache=/workspace/.npm-cache
+      - HOME=/tmp
+      - npm_config_cache=/tmp/.npm-cache
     secretEnv: ["DATABASE_URL"]
     waitFor: ["migrate"]
 

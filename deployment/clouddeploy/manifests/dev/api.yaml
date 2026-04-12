@@ -11,7 +11,7 @@ spec:
         autoscaling.knative.dev/maxScale: "3"
         run.googleapis.com/cloudsql-instances: CLOUD_SQL_CONNECTION
     spec:
-      serviceAccountName: engplatform-api@engplatform-dev.iam.gserviceaccount.com
+      serviceAccountName: engplatform-api@engine-dev-487802.iam.gserviceaccount.com
       containers:
         - image: api
           ports:

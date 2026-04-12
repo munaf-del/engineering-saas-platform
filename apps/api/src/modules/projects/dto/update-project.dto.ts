@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsUUID, MaxLength, MinLength, IsObject } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 enum ProjectStatus {
@@ -31,4 +31,9 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsUUID()
   standardsProfileId?: string;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
 }

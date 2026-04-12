@@ -11,6 +11,7 @@ export interface Project {
   description?: string;
   status: ProjectStatus;
   standardsProfileId?: string;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

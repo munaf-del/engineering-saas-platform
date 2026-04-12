@@ -311,6 +311,48 @@ describe('API E2E Tests', () => {
       expect(res.body).toHaveLength(1);
       expect(res.body[0].userId).toBe(userId);
     });
+
+    it('DELETE /projects/:id - should hard delete a disposable project and its project documents', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/api/v1/projects')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Disposable Project',
+          code: `E2E-DEL-${uniqueSuffix}`,
+        })
+        .expect(201);
+
+      const disposableProjectId = createRes.body.id as string;
+
+      const document = await prisma.document.create({
+        data: {
+          organisationId: orgId,
+          projectId: disposableProjectId,
+          name: 'Disposable Project Brief',
+          fileName: 'brief.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 128,
+          storagePath: `uploads/${orgId}/brief.pdf`,
+          uploadedBy: userId,
+        },
+      });
+
+      await request(app.getHttpServer())
+        .delete(`/api/v1/projects/${disposableProjectId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/projects/${disposableProjectId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      const deletedDocument = await prisma.document.findUnique({
+        where: { id: document.id },
+      });
+
+      expect(deletedDocument).toBeNull();
+    });
   });
 
   // ── Tenant Isolation ─────────────────────────────────────────

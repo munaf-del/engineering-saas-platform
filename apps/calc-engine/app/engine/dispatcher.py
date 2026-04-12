@@ -3,7 +3,7 @@ import json
 import time
 from collections.abc import Callable
 
-from app.engine import pile_group
+from app.engine import multi_pile_envelope, pile_group
 from app.models.calculation import (
     CalcType,
     CalculationRequest,
@@ -14,6 +14,7 @@ from app.standards.loader import MissingRuleError
 EngineFunction = Callable[[CalculationRequest], CalculationResult]
 
 ENGINE_MAP: dict[CalcType, EngineFunction] = {
+    CalcType.MULTI_PILE_ENVELOPE: multi_pile_envelope.run,
     CalcType.PILE_GROUP: pile_group.run,
 }
 

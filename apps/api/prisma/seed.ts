@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedNoiseVibrationStandards } from './seeds/noise-vibration-standards';
 
 const prisma = new PrismaClient();
 
@@ -115,6 +116,8 @@ async function main() {
       },
     });
   }
+
+  const noiseVibrationSeed = await seedNoiseVibrationStandards(prisma);
 
   // ── Standards Profile ─────────────────────────────────────────
 
@@ -353,6 +356,9 @@ async function main() {
   console.log(`  Org:     ${org.name} (${org.slug})`);
   console.log(`  Project: ${project.name} (${project.code})`);
   console.log(`  Standards: ${standardsDefs.length} standards with editions`);
+  console.log(
+    `  Noise/vibration standards: ${noiseVibrationSeed.sourceCount} sources, ${noiseVibrationSeed.groupCount} groups, ${noiseVibrationSeed.rowCount} rows`,
+  );
   console.log(`  Steel catalog: ${steelCatalog.name} v${steelCatalog.version}`);
   console.log(`  Rebar catalog: ${rebarCatalog.name} v${rebarCatalog.version}`);
   console.log('  All demo data marked is_demo=true');

@@ -14,6 +14,7 @@ model Organisation {
   name      String
   slug      String   @unique
   abn       String?
+  metadata  Json     @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -27,6 +28,7 @@ model Organisation {
   rebarCatalogs        RebarCatalog[]
   importJobs           ImportJob[]
   documents            Document[]
+  aiDocuments          AiDocument[]
 
   @@map("organisations")
 }
@@ -79,21 +81,27 @@ model Project {
   description        String?
   status             ProjectStatus @default(active)
   standardsProfileId String?       @map("standards_profile_id") @db.Uuid
+  metadata           Json          @default("{}")
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
 
-  organisation        Organisation                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  standardsProfile    StandardsProfile?           @relation(fields: [standardsProfileId], references: [id])
-  members             ProjectMember[]
-  elements            Element[]
-  calculationRuns     CalculationRun[]
-  standardAssignments ProjectStandardAssignment[]
-  documents           Document[]
-  loadCases           LoadCase[]
-  loadCombinationSets LoadCombinationSet[]
-  pileGroups          PileGroup[]
-  pileCapacityProfiles PileCapacityProfile[]
-  reports             CalculationReport[]
+  organisation                   Organisation                           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  standardsProfile               StandardsProfile?                      @relation(fields: [standardsProfileId], references: [id])
+  members                        ProjectMember[]
+  elements                       Element[]
+  calculationRuns                CalculationRun[]
+  standardAssignments            ProjectStandardAssignment[]
+  documents                      Document[]
+  loadCases                      LoadCase[]
+  loadCombinationSets            LoadCombinationSet[]
+  pileGroups                     PileGroup[]
+  pileCapacityProfiles           PileCapacityProfile[]
+  reports                        CalculationReport[]
+  aiDocuments                    AiDocument[]
+  cnvmp                          ProjectCnvmp?
+  environmentalMonitoringReports ProjectEnvironmentalMonitoringReport[]
+  wasteClassificationReports     ProjectWasteClassificationReport[]
+  spatialFeatures                ProjectSpatialFeature[]
 
   @@unique([organisationId, code])
   @@map("projects")
@@ -276,6 +284,923 @@ model ProjectStandardAssignment {
   @@map("project_standard_assignments")
 }
 
+// ─── Noise & Vibration Standards Registry ────────────────────────
+
+enum NoiseVibrationPublicationStatus {
+  active
+  draft_under_review
+  superseded
+}
+
+enum NoiseVibrationLegalStatus {
+  enforceable
+  guidance_only
+}
+
+enum NoiseVibrationInstrumentType {
+  statutory
+  consent_condition
+  guidance_only
+  project_specific
+}
+
+enum NoiseVibrationCriterionCategory {
+  working_hours
+  airborne_noise_management
+  ground_borne_noise
+  vibration_human_comfort
+  vibration_structural_damage
+  blasting_airblast
+  blasting_ground_vibration
+  time_period_definition
+}
+
+enum NoiseVibrationMetric {
+  laeq_15min
+  lamax
+  laf1_1min
+  lin_peak
+  ppv
+  vdv
+  none
+}
+
+enum NoiseVibrationValueBasis {
+  absolute
+  relative_to_rbl
+  frequency_banded
+  descriptive
+}
+
+enum NoiseVibrationReceiverType {
+  residential
+  heritage
+  sensitive
+  commercial
+  industrial
+  educational
+  hospital
+  place_of_worship
+  active_recreation
+  passive_recreation
+  office_retail
+  workshop
+  critical_area
+}
+
+enum NoiseVibrationTimePeriod {
+  day
+  evening
+  night
+  standard_hours
+  outside_standard_hours
+  blasting_hours
+  any
+}
+
+enum NoiseVibrationLocationBasis {
+  property_boundary
+  internal
+  external
+  occupied_point
+  foundation
+  uppermost_storey
+  any
+}
+
+enum NoiseVibrationWorkType {
+  general_construction
+  bored_piling
+  driven_piling
+  rock_breaking
+  blasting
+  excavation
+  dynamic_compaction
+}
+
+model NoiseVibrationStandardSource {
+  id                String                          @id @default(uuid()) @db.Uuid
+  slug              String                          @unique
+  name              String
+  shortName         String                          @map("short_name")
+  publisher         String
+  jurisdiction      String
+  year              Int
+  publicationStatus NoiseVibrationPublicationStatus @map("publication_status")
+  legalStatus       NoiseVibrationLegalStatus       @map("legal_status")
+  instrumentType    NoiseVibrationInstrumentType    @map("instrument_type")
+  sourceCitation    String                          @map("source_citation")
+  sourceUrl         String?                         @map("source_url")
+  notes             String?
+  isSeeded          Boolean                         @default(false) @map("is_seeded")
+  createdAt         DateTime                        @default(now()) @map("created_at")
+  updatedAt         DateTime                        @updatedAt @map("updated_at")
+
+  criterionGroups NoiseVibrationCriterionGroup[]
+  cnvmpSelections ProjectCnvmpSelectedSource[]
+
+  @@index([jurisdiction])
+  @@index([publicationStatus])
+  @@index([legalStatus])
+  @@index([instrumentType])
+  @@map("noise_vibration_standard_sources")
+}
+
+model NoiseVibrationCriterionGroup {
+  id                String                          @id @default(uuid()) @db.Uuid
+  standardSourceId  String                          @map("standard_source_id") @db.Uuid
+  slug              String
+  title             String
+  criterionCategory NoiseVibrationCriterionCategory @map("criterion_category")
+  metric            NoiseVibrationMetric
+  locationBasis     NoiseVibrationLocationBasis?    @map("location_basis")
+  description       String?
+  sortOrder         Int                             @default(0) @map("sort_order")
+  createdAt         DateTime                        @default(now()) @map("created_at")
+  updatedAt         DateTime                        @updatedAt @map("updated_at")
+
+  standardSource NoiseVibrationStandardSource @relation(fields: [standardSourceId], references: [id], onDelete: Cascade)
+  criterionRows  NoiseVibrationCriterionRow[]
+
+  @@unique([standardSourceId, slug])
+  @@index([criterionCategory])
+  @@index([metric])
+  @@map("noise_vibration_criterion_groups")
+}
+
+model NoiseVibrationCriterionRow {
+  id                         String                      @id @default(uuid()) @db.Uuid
+  criterionGroupId           String                      @map("criterion_group_id") @db.Uuid
+  rowKey                     String                      @map("row_key")
+  label                      String
+  receiverType               NoiseVibrationReceiverType? @map("receiver_type")
+  structureType              String?                     @map("structure_type")
+  timePeriod                 NoiseVibrationTimePeriod?   @map("time_period")
+  basisType                  NoiseVibrationValueBasis    @map("basis_type")
+  referenceBase              String?                     @map("reference_base")
+  relativeOffset             Decimal?                    @map("relative_offset") @db.Decimal(12, 3)
+  criterionValue             Decimal?                    @map("criterion_value") @db.Decimal(12, 3)
+  preferredValue             Decimal?                    @map("preferred_value") @db.Decimal(12, 3)
+  maximumValue               Decimal?                    @map("maximum_value") @db.Decimal(12, 3)
+  alertValue                 Decimal?                    @map("alert_value") @db.Decimal(12, 3)
+  stopWorkValue              Decimal?                    @map("stop_work_value") @db.Decimal(12, 3)
+  absoluteMaxValue           Decimal?                    @map("absolute_max_value") @db.Decimal(12, 3)
+  valueMin                   Decimal?                    @map("value_min") @db.Decimal(12, 3)
+  valueMax                   Decimal?                    @map("value_max") @db.Decimal(12, 3)
+  frequencyMinHz             Decimal?                    @map("frequency_min_hz") @db.Decimal(12, 3)
+  frequencyMaxHz             Decimal?                    @map("frequency_max_hz") @db.Decimal(12, 3)
+  weekdayStart               String?                     @map("weekday_start")
+  weekdayEnd                 String?                     @map("weekday_end")
+  saturdayStart              String?                     @map("saturday_start")
+  saturdayEnd                String?                     @map("saturday_end")
+  sundayAllowed              Boolean?                    @map("sunday_allowed")
+  publicHolidayAllowed       Boolean?                    @map("public_holiday_allowed")
+  exceedanceAllowancePercent Decimal?                    @map("exceedance_allowance_percent") @db.Decimal(12, 3)
+  exceedanceWindowText       String?                     @map("exceedance_window_text")
+  unit                       String?
+  sourceClause               String?                     @map("source_clause")
+  rowNotes                   String?                     @map("row_notes")
+  sortOrder                  Int                         @default(0) @map("sort_order")
+  createdAt                  DateTime                    @default(now()) @map("created_at")
+  updatedAt                  DateTime                    @updatedAt @map("updated_at")
+
+  criterionGroup                    NoiseVibrationCriterionGroup                      @relation(fields: [criterionGroupId], references: [id], onDelete: Cascade)
+  workTypes                         NoiseVibrationCriterionRowWorkType[]
+  cnvmpSelections                   ProjectCnvmpSelectedCriterion[]
+  environmentalMonitoringSelections ProjectEnvironmentalMonitoringSelectedCriterion[]
+  environmentalNoiseResults         ProjectEnvironmentalNoiseResultRow[]
+  environmentalVibrationResults     ProjectEnvironmentalVibrationResultRow[]
+
+  @@unique([criterionGroupId, rowKey])
+  @@index([receiverType])
+  @@index([timePeriod])
+  @@index([basisType])
+  @@map("noise_vibration_criterion_rows")
+}
+
+model NoiseVibrationCriterionRowWorkType {
+  criterionRowId String                 @map("criterion_row_id") @db.Uuid
+  workType       NoiseVibrationWorkType @map("work_type")
+
+  criterionRow NoiseVibrationCriterionRow @relation(fields: [criterionRowId], references: [id], onDelete: Cascade)
+
+  @@id([criterionRowId, workType])
+  @@index([workType])
+  @@map("noise_vibration_criterion_row_work_types")
+}
+
+// ─── Project CNVMP Builder ───────────────────────────────────────
+
+enum ProjectCnvmpSelectionPurpose {
+  noise
+  vibration_human_comfort
+  vibration_structural
+  blasting
+  time_definition
+  other
+}
+
+model ProjectCnvmp {
+  id                         String    @id @default(uuid()) @db.Uuid
+  projectId                  String    @unique @map("project_id") @db.Uuid
+  title                      String?
+  revision                   String?
+  issueDate                  DateTime? @map("issue_date")
+  preparedBy                 String?   @map("prepared_by")
+  checkedBy                  String?   @map("checked_by")
+  purpose                    String?
+  documentStatus             String?   @map("document_status")
+  client                     String?
+  projectName                String?   @map("project_name")
+  projectAddress             String?   @map("project_address")
+  projectDescription         String?   @map("project_description")
+  scopeOfWorks               String?   @map("scope_of_works")
+  constructionActivitiesNote String?   @map("construction_activities_note")
+  standardHoursNote          String?   @map("standard_hours_note")
+  outOfHoursNote             String?   @map("out_of_hours_note")
+  sensitiveReceiversNote     String?   @map("sensitive_receivers_note")
+  communityCommunicationNote String?   @map("community_communication_note")
+  contactDetailsNote         String?   @map("contact_details_note")
+  complaintsHandlingNote     String?   @map("complaints_handling_note")
+  respiteCommunicationNote   String?   @map("respite_communication_note")
+  assumptionsLimitations     String?   @map("assumptions_limitations")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+
+  project          Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  references       ProjectCnvmpReference[]
+  receivers        ProjectCnvmpReceiver[]
+  activities       ProjectCnvmpActivity[]
+  selectedSources  ProjectCnvmpSelectedSource[]
+  selectedCriteria ProjectCnvmpSelectedCriterion[]
+  mitigationRows   ProjectCnvmpMitigationMeasure[]
+  monitoringRows   ProjectCnvmpMonitoringRow[]
+
+  @@map("project_cnvmps")
+}
+
+model ProjectCnvmpReference {
+  id                 String  @id @default(uuid()) @db.Uuid
+  projectCnvmpId     String  @map("project_cnvmp_id") @db.Uuid
+  projectReferenceId String? @map("project_reference_id")
+  aiDocumentId       String? @map("ai_document_id") @db.Uuid
+  label              String?
+  note               String?
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+  aiDocument   AiDocument?  @relation(fields: [aiDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([projectCnvmpId, sortOrder])
+  @@index([aiDocumentId])
+  @@map("project_cnvmp_references")
+}
+
+model ProjectCnvmpReceiver {
+  id                      String                       @id @default(uuid()) @db.Uuid
+  projectCnvmpId          String                       @map("project_cnvmp_id") @db.Uuid
+  label                   String
+  receiverType            NoiseVibrationReceiverType   @map("receiver_type")
+  locationDescription     String?                      @map("location_description")
+  distanceNote            String?                      @map("distance_note")
+  sensitivityNote         String?                      @map("sensitivity_note")
+  usePeriodNote           String?                      @map("use_period_note")
+  isHeritage              Boolean                      @default(false) @map("is_heritage")
+  isCritical              Boolean                      @default(false) @map("is_critical")
+  assessmentLocationBasis NoiseVibrationLocationBasis? @map("assessment_location_basis")
+  sortOrder               Int                          @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+
+  @@index([projectCnvmpId, sortOrder])
+  @@index([receiverType])
+  @@map("project_cnvmp_receivers")
+}
+
+model ProjectCnvmpActivity {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  projectCnvmpId         String                 @map("project_cnvmp_id") @db.Uuid
+  label                  String
+  workType               NoiseVibrationWorkType @map("work_type")
+  description            String?
+  timingNote             String?                @map("timing_note")
+  isOutsideStandardHours Boolean                @default(false) @map("is_outside_standard_hours")
+  noiseRiskNote          String?                @map("noise_risk_note")
+  vibrationRiskNote      String?                @map("vibration_risk_note")
+  sortOrder              Int                    @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+
+  @@index([projectCnvmpId, sortOrder])
+  @@index([workType])
+  @@map("project_cnvmp_activities")
+}
+
+model ProjectCnvmpSelectedSource {
+  id                         String  @id @default(uuid()) @db.Uuid
+  projectCnvmpId             String  @map("project_cnvmp_id") @db.Uuid
+  standardSourceId           String  @map("standard_source_id") @db.Uuid
+  isGuidanceOnly             Boolean @default(true) @map("is_guidance_only")
+  isEnforceableOnThisProject Boolean @default(false) @map("is_enforceable_on_this_project")
+  projectConditionReference  String? @map("project_condition_reference")
+  selectionNote              String? @map("selection_note")
+  sortOrder                  Int     @default(0) @map("sort_order")
+
+  projectCnvmp   ProjectCnvmp                 @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+  standardSource NoiseVibrationStandardSource @relation(fields: [standardSourceId], references: [id])
+
+  @@unique([projectCnvmpId, standardSourceId])
+  @@index([projectCnvmpId, sortOrder])
+  @@index([standardSourceId])
+  @@map("project_cnvmp_selected_sources")
+}
+
+model ProjectCnvmpSelectedCriterion {
+  id                         String                       @id @default(uuid()) @db.Uuid
+  projectCnvmpId             String                       @map("project_cnvmp_id") @db.Uuid
+  criterionRowId             String                       @map("criterion_row_id") @db.Uuid
+  selectionPurpose           ProjectCnvmpSelectionPurpose @map("selection_purpose")
+  isEnforceableOnThisProject Boolean                      @default(false) @map("is_enforceable_on_this_project")
+  projectConditionReference  String?                      @map("project_condition_reference")
+  selectionNote              String?                      @map("selection_note")
+  sortOrder                  Int                          @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp               @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+  criterionRow NoiseVibrationCriterionRow @relation(fields: [criterionRowId], references: [id])
+
+  @@unique([projectCnvmpId, criterionRowId, selectionPurpose])
+  @@index([projectCnvmpId, sortOrder])
+  @@index([criterionRowId])
+  @@map("project_cnvmp_selected_criteria")
+}
+
+model ProjectCnvmpMitigationMeasure {
+  id             String  @id @default(uuid()) @db.Uuid
+  projectCnvmpId String  @map("project_cnvmp_id") @db.Uuid
+  category       String
+  measure        String
+  triggerNote    String? @map("trigger_note")
+  responsibility String?
+  timingStage    String? @map("timing_stage")
+  note           String?
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+
+  @@index([projectCnvmpId, sortOrder])
+  @@map("project_cnvmp_mitigation_measures")
+}
+
+model ProjectCnvmpMonitoringRow {
+  id             String  @id @default(uuid()) @db.Uuid
+  projectCnvmpId String  @map("project_cnvmp_id") @db.Uuid
+  parameter      String
+  method         String?
+  location       String?
+  frequency      String?
+  triggerAction  String? @map("trigger_action")
+  responsibility String?
+  reportingNote  String? @map("reporting_note")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  projectCnvmp ProjectCnvmp @relation(fields: [projectCnvmpId], references: [id], onDelete: Cascade)
+
+  @@index([projectCnvmpId, sortOrder])
+  @@map("project_cnvmp_monitoring_rows")
+}
+
+// ─── Environmental Monitoring Reports ────────────────────────────
+
+enum ProjectEnvironmentalMonitoringReportType {
+  noise_monitoring
+  vibration_monitoring
+}
+
+enum ProjectEnvironmentalMonitoringComplianceStatus {
+  not_assessed
+  complies
+  exceeds
+  review_required
+}
+
+enum ProjectEnvironmentalMonitoringMetricType {
+  ppv
+  vdv
+  lin_peak
+  other
+}
+
+model ProjectEnvironmentalMonitoringReport {
+  id                     String                                   @id @default(uuid()) @db.Uuid
+  projectId              String                                   @map("project_id") @db.Uuid
+  reportType             ProjectEnvironmentalMonitoringReportType @map("report_type")
+  title                  String?
+  revision               String?
+  issueDate              DateTime?                                @map("issue_date")
+  documentStatus         String?                                  @map("document_status")
+  preparedBy             String?                                  @map("prepared_by")
+  checkedBy              String?                                  @map("checked_by")
+  purpose                String?
+  monitoringDate         DateTime?                                @map("monitoring_date")
+  monitoringWindowStart  DateTime?                                @map("monitoring_window_start")
+  monitoringWindowEnd    DateTime?                                @map("monitoring_window_end")
+  weatherConditions      String?                                  @map("weather_conditions")
+  siteActivitySummary    String?                                  @map("site_activity_summary")
+  executiveSummary       String?                                  @map("executive_summary")
+  generalObservations    String?                                  @map("general_observations")
+  conclusion             String?
+  recommendationsSummary String?                                  @map("recommendations_summary")
+  assumptionsLimitations String?                                  @map("assumptions_limitations")
+  createdAt              DateTime                                 @default(now()) @map("created_at")
+  updatedAt              DateTime                                 @updatedAt @map("updated_at")
+
+  project          Project                                           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  references       ProjectEnvironmentalMonitoringReference[]
+  locations        ProjectEnvironmentalMonitoringLocation[]
+  selectedCriteria ProjectEnvironmentalMonitoringSelectedCriterion[]
+  noiseResults     ProjectEnvironmentalNoiseResultRow[]
+  vibrationResults ProjectEnvironmentalVibrationResultRow[]
+  observations     ProjectEnvironmentalMonitoringObservation[]
+  recommendations  ProjectEnvironmentalMonitoringRecommendation[]
+
+  @@index([projectId, createdAt])
+  @@index([projectId, reportType])
+  @@map("project_environmental_monitoring_reports")
+}
+
+model ProjectEnvironmentalMonitoringReference {
+  id                 String  @id @default(uuid()) @db.Uuid
+  monitoringReportId String  @map("monitoring_report_id") @db.Uuid
+  projectReferenceId String? @map("project_reference_id")
+  aiDocumentId       String? @map("ai_document_id") @db.Uuid
+  label              String?
+  note               String?
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  aiDocument       AiDocument?                          @relation(fields: [aiDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([monitoringReportId, sortOrder])
+  @@index([aiDocumentId])
+  @@map("project_environmental_monitoring_references")
+}
+
+model ProjectEnvironmentalMonitoringLocation {
+  id                      String                       @id @default(uuid()) @db.Uuid
+  monitoringReportId      String                       @map("monitoring_report_id") @db.Uuid
+  label                   String
+  receiverType            NoiseVibrationReceiverType   @map("receiver_type")
+  locationDescription     String?                      @map("location_description")
+  distanceNote            String?                      @map("distance_note")
+  chainageNote            String?                      @map("chainage_note")
+  coordinatesNote         String?                      @map("coordinates_note")
+  assessmentLocationBasis NoiseVibrationLocationBasis? @map("assessment_location_basis")
+  sortOrder               Int                          @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport     @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  noiseResults     ProjectEnvironmentalNoiseResultRow[]
+  vibrationResults ProjectEnvironmentalVibrationResultRow[]
+
+  @@index([monitoringReportId, sortOrder])
+  @@index([receiverType])
+  @@map("project_environmental_monitoring_locations")
+}
+
+model ProjectEnvironmentalMonitoringSelectedCriterion {
+  id                         String                       @id @default(uuid()) @db.Uuid
+  monitoringReportId         String                       @map("monitoring_report_id") @db.Uuid
+  criterionRowId             String                       @map("criterion_row_id") @db.Uuid
+  selectionPurpose           ProjectCnvmpSelectionPurpose @map("selection_purpose")
+  isEnforceableOnThisProject Boolean                      @default(false) @map("is_enforceable_on_this_project")
+  projectConditionReference  String?                      @map("project_condition_reference")
+  selectionNote              String?                      @map("selection_note")
+  sortOrder                  Int                          @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  criterionRow     NoiseVibrationCriterionRow           @relation(fields: [criterionRowId], references: [id])
+
+  @@unique([monitoringReportId, criterionRowId, selectionPurpose])
+  @@index([monitoringReportId, sortOrder])
+  @@index([criterionRowId])
+  @@map("project_environmental_monitoring_selected_criteria")
+}
+
+model ProjectEnvironmentalNoiseResultRow {
+  id                    String                                         @id @default(uuid()) @db.Uuid
+  monitoringReportId    String                                         @map("monitoring_report_id") @db.Uuid
+  locationId            String?                                        @map("location_id") @db.Uuid
+  observedAt            DateTime?                                      @map("observed_at")
+  activityLabel         String                                         @map("activity_label")
+  instrumentNote        String?                                        @map("instrument_note")
+  measurementPeriodNote String?                                        @map("measurement_period_note")
+  laeq15min             Decimal?                                       @map("laeq_15min") @db.Decimal(12, 3)
+  lamax                 Decimal?                                       @map("lamax") @db.Decimal(12, 3)
+  laf1_1min             Decimal?                                       @map("laf1_1min") @db.Decimal(12, 3)
+  backgroundNote        String?                                        @map("background_note")
+  criterionRowId        String?                                        @map("criterion_row_id") @db.Uuid
+  complianceStatus      ProjectEnvironmentalMonitoringComplianceStatus @default(not_assessed) @map("compliance_status")
+  resultNote            String?                                        @map("result_note")
+  sortOrder             Int                                            @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport    @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  location         ProjectEnvironmentalMonitoringLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  criterionRow     NoiseVibrationCriterionRow?             @relation(fields: [criterionRowId], references: [id], onDelete: SetNull)
+
+  @@index([monitoringReportId, sortOrder])
+  @@index([locationId])
+  @@index([criterionRowId])
+  @@map("project_environmental_noise_result_rows")
+}
+
+model ProjectEnvironmentalVibrationResultRow {
+  id                  String                                         @id @default(uuid()) @db.Uuid
+  monitoringReportId  String                                         @map("monitoring_report_id") @db.Uuid
+  locationId          String?                                        @map("location_id") @db.Uuid
+  observedAt          DateTime?                                      @map("observed_at")
+  activityLabel       String                                         @map("activity_label")
+  instrumentNote      String?                                        @map("instrument_note")
+  metricType          ProjectEnvironmentalMonitoringMetricType       @map("metric_type")
+  ppvValue            Decimal?                                       @map("ppv_value") @db.Decimal(12, 3)
+  vdvValue            Decimal?                                       @map("vdv_value") @db.Decimal(12, 3)
+  linPeakValue        Decimal?                                       @map("lin_peak_value") @db.Decimal(12, 3)
+  dominantFrequencyHz Decimal?                                       @map("dominant_frequency_hz") @db.Decimal(12, 3)
+  axisNote            String?                                        @map("axis_note")
+  criterionRowId      String?                                        @map("criterion_row_id") @db.Uuid
+  complianceStatus    ProjectEnvironmentalMonitoringComplianceStatus @default(not_assessed) @map("compliance_status")
+  resultNote          String?                                        @map("result_note")
+  sortOrder           Int                                            @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport    @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  location         ProjectEnvironmentalMonitoringLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  criterionRow     NoiseVibrationCriterionRow?             @relation(fields: [criterionRowId], references: [id], onDelete: SetNull)
+
+  @@index([monitoringReportId, sortOrder])
+  @@index([locationId])
+  @@index([criterionRowId])
+  @@map("project_environmental_vibration_result_rows")
+}
+
+model ProjectEnvironmentalMonitoringObservation {
+  id                 String  @id @default(uuid()) @db.Uuid
+  monitoringReportId String  @map("monitoring_report_id") @db.Uuid
+  category           String
+  observation        String
+  implicationNote    String? @map("implication_note")
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+
+  @@index([monitoringReportId, sortOrder])
+  @@map("project_environmental_monitoring_observations")
+}
+
+model ProjectEnvironmentalMonitoringRecommendation {
+  id                 String  @id @default(uuid()) @db.Uuid
+  monitoringReportId String  @map("monitoring_report_id") @db.Uuid
+  category           String
+  recommendation     String
+  priority           String?
+  responsibility     String?
+  timingNote         String? @map("timing_note")
+  sortOrder          Int     @default(0) @map("sort_order")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+
+  @@index([monitoringReportId, sortOrder])
+  @@map("project_environmental_monitoring_recommendations")
+}
+
+// ─── Project Waste Classification Reports ────────────────────────
+
+enum ProjectWasteClass {
+  special_waste
+  liquid_waste
+  hazardous_waste
+  restricted_solid_waste
+  general_solid_putrescible
+  general_solid_non_putrescible
+  not_yet_classified
+}
+
+enum ProjectWasteClassificationReferenceType {
+  epa_guideline
+  project_reference
+  ai_report
+  lab_report
+  other
+}
+
+enum ProjectWasteClassificationStepCode {
+  step_1_special_waste
+  step_2_liquid_waste
+  step_3_preclassified
+  step_4_hazardous_characteristics
+  step_5_chemical_assessment
+  step_6_putrescible
+}
+
+enum ProjectWasteClassificationOutcomeStatus {
+  not_started
+  in_progress
+  yes
+  no
+  requires_assessment
+  complete
+}
+
+enum ProjectWasteClassificationPathwayCode {
+  part_2_immobilisation
+  part_3_radioactive_material
+  part_4_acid_sulfate_soils
+  addendum_part_1
+}
+
+enum ProjectWasteClassificationMaterialPathwayCode {
+  venm
+  enm
+  acid_sulfate_soils
+}
+
+enum ProjectWasteClassificationMaterialPathwayOutcomeStatus {
+  not_assessed
+  qualifies
+  does_not_qualify
+  requires_further_assessment
+}
+
+enum ProjectWasteClassificationAcidSulfateSoilClass {
+  class_1
+  class_2
+  class_3
+  class_4
+  class_5
+  not_mapped_unknown
+}
+
+model ProjectWasteClassificationReport {
+  id                            String            @id @default(uuid()) @db.Uuid
+  projectId                     String            @map("project_id") @db.Uuid
+  title                         String?
+  revision                      String?
+  issueDate                     DateTime?         @map("issue_date")
+  documentStatus                String?           @map("document_status")
+  preparedBy                    String?           @map("prepared_by")
+  checkedBy                     String?           @map("checked_by")
+  purpose                       String?
+  wasteStreamName               String?           @map("waste_stream_name")
+  wasteSourceOrigin             String?           @map("waste_source_origin")
+  wasteDescription              String?           @map("waste_description")
+  samplingDate                  DateTime?         @map("sampling_date")
+  quantityEstimate              String?           @map("quantity_estimate")
+  proposedReceivingFacilityNote String?           @map("proposed_receiving_facility_note")
+  executiveSummary              String?           @map("executive_summary")
+  finalWasteClass               ProjectWasteClass @default(not_yet_classified) @map("final_waste_class")
+  finalClassificationReasoning  String?           @map("final_classification_reasoning")
+  managementRecommendation      String?           @map("management_recommendation")
+  assumptionsLimitations        String?           @map("assumptions_limitations")
+  createdAt                     DateTime          @default(now()) @map("created_at")
+  updatedAt                     DateTime          @updatedAt @map("updated_at")
+
+  project          Project                                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  references       ProjectWasteClassificationReference[]
+  stepDecisions    ProjectWasteClassificationStepDecision[]
+  labResults       ProjectWasteClassificationLabResult[]
+  recommendations  ProjectWasteClassificationRecommendation[]
+  materialPathways ProjectWasteClassificationMaterialPathway[]
+  relatedPathways  ProjectWasteClassificationRelatedPathway[]
+
+  @@index([projectId, createdAt])
+  @@index([projectId, finalWasteClass])
+  @@map("project_waste_classification_reports")
+}
+
+model ProjectWasteClassificationReference {
+  id                 String                                  @id @default(uuid()) @db.Uuid
+  reportId           String                                  @map("report_id") @db.Uuid
+  referenceType      ProjectWasteClassificationReferenceType @map("reference_type")
+  title              String
+  sourceUrl          String?                                 @map("source_url")
+  projectReferenceId String?                                 @map("project_reference_id")
+  aiDocumentId       String?                                 @map("ai_document_id") @db.Uuid
+  note               String?
+  isPrefilled        Boolean                                 @default(false) @map("is_prefilled")
+  isIncluded         Boolean                                 @default(true) @map("is_included")
+  sortOrder          Int                                     @default(0) @map("sort_order")
+
+  report           ProjectWasteClassificationReport            @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  aiDocument       AiDocument?                                 @relation(fields: [aiDocumentId], references: [id], onDelete: SetNull)
+  materialPathways ProjectWasteClassificationMaterialPathway[] @relation("WasteClassificationMaterialPathwayReference")
+  relatedPathways  ProjectWasteClassificationRelatedPathway[]  @relation("WasteClassificationPathwayReference")
+
+  @@index([reportId, sortOrder])
+  @@index([aiDocumentId])
+  @@map("project_waste_classification_references")
+}
+
+model ProjectWasteClassificationStepDecision {
+  id                    String                                  @id @default(uuid()) @db.Uuid
+  reportId              String                                  @map("report_id") @db.Uuid
+  stepCode              ProjectWasteClassificationStepCode      @map("step_code")
+  stepTitle             String                                  @map("step_title")
+  outcomeStatus         ProjectWasteClassificationOutcomeStatus @default(not_started) @map("outcome_status")
+  classificationReached Boolean                                 @default(false) @map("classification_reached")
+  resultingWasteClass   ProjectWasteClass?                      @map("resulting_waste_class")
+  decisionSummary       String?                                 @map("decision_summary")
+  detailedReasoning     String?                                 @map("detailed_reasoning")
+  isApplicable          Boolean                                 @default(true) @map("is_applicable")
+  sortOrder             Int                                     @default(0) @map("sort_order")
+
+  report         ProjectWasteClassificationReport          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  checklistItems ProjectWasteClassificationChecklistItem[]
+
+  @@unique([reportId, stepCode])
+  @@index([reportId, sortOrder])
+  @@map("project_waste_classification_step_decisions")
+}
+
+model ProjectWasteClassificationChecklistItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  stepDecisionId String  @map("step_decision_id") @db.Uuid
+  label          String
+  isChecked      Boolean @default(false) @map("is_checked")
+  note           String?
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  stepDecision ProjectWasteClassificationStepDecision @relation(fields: [stepDecisionId], references: [id], onDelete: Cascade)
+
+  @@index([stepDecisionId, sortOrder])
+  @@map("project_waste_classification_checklist_items")
+}
+
+model ProjectWasteClassificationLabResult {
+  id                     String   @id @default(uuid()) @db.Uuid
+  reportId               String   @map("report_id") @db.Uuid
+  contaminant            String
+  sampleId               String?  @map("sample_id")
+  analyticalMethod       String?  @map("analytical_method")
+  sccMgKg                Decimal? @map("scc_mg_kg") @db.Decimal(12, 3)
+  tclpMgL                Decimal? @map("tclp_mg_l") @db.Decimal(12, 3)
+  thresholdReferenceNote String?  @map("threshold_reference_note")
+  resultInterpretation   String?  @map("result_interpretation")
+  sortOrder              Int      @default(0) @map("sort_order")
+
+  report ProjectWasteClassificationReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, sortOrder])
+  @@map("project_waste_classification_lab_results")
+}
+
+model ProjectWasteClassificationRecommendation {
+  id             String  @id @default(uuid()) @db.Uuid
+  reportId       String  @map("report_id") @db.Uuid
+  category       String
+  recommendation String
+  priority       String?
+  responsibility String?
+  timingNote     String? @map("timing_note")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  report ProjectWasteClassificationReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, sortOrder])
+  @@map("project_waste_classification_recommendations")
+}
+
+model ProjectWasteClassificationMaterialPathway {
+  id                             String                                                 @id @default(uuid()) @db.Uuid
+  reportId                       String                                                 @map("report_id") @db.Uuid
+  pathwayCode                    ProjectWasteClassificationMaterialPathwayCode          @map("pathway_code")
+  title                          String
+  isRelevant                     Boolean                                                @default(true) @map("is_relevant")
+  outcomeStatus                  ProjectWasteClassificationMaterialPathwayOutcomeStatus @default(not_assessed) @map("outcome_status")
+  testingNote                    String?                                                @map("testing_note")
+  supportingReasoning            String?                                                @map("supporting_reasoning")
+  linkedReferenceId              String?                                                @map("linked_reference_id") @db.Uuid
+  assClass                       ProjectWasteClassificationAcidSulfateSoilClass?        @map("ass_class")
+  assClassSource                 String?                                                @map("ass_class_source")
+  projectLocationNote            String?                                                @map("project_location_note")
+  treatmentManagementNote        String?                                                @map("treatment_management_note")
+  step5ChemicalAssessmentApplies Boolean?                                               @map("step_5_chemical_assessment_applies")
+  assOrderRelevant               Boolean?                                               @map("ass_order_relevant")
+  assExemptionRelevant           Boolean?                                               @map("ass_exemption_relevant")
+  orderExemptionNote             String?                                                @map("order_exemption_note")
+  sortOrder                      Int                                                    @default(0) @map("sort_order")
+
+  report          ProjectWasteClassificationReport                         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  linkedReference ProjectWasteClassificationReference?                     @relation("WasteClassificationMaterialPathwayReference", fields: [linkedReferenceId], references: [id], onDelete: SetNull)
+  checklistItems  ProjectWasteClassificationMaterialPathwayChecklistItem[]
+
+  @@unique([reportId, pathwayCode])
+  @@index([reportId, sortOrder])
+  @@index([linkedReferenceId])
+  @@map("project_waste_classification_material_pathways")
+}
+
+model ProjectWasteClassificationMaterialPathwayChecklistItem {
+  id                String  @id @default(uuid()) @db.Uuid
+  materialPathwayId String  @map("material_pathway_id") @db.Uuid
+  label             String
+  isChecked         Boolean @default(false) @map("is_checked")
+  note              String?
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  materialPathway ProjectWasteClassificationMaterialPathway @relation(fields: [materialPathwayId], references: [id], onDelete: Cascade)
+
+  @@index([materialPathwayId, sortOrder])
+  @@map("project_waste_classification_material_pathway_checklist_items")
+}
+
+model ProjectWasteClassificationRelatedPathway {
+  id                String                                @id @default(uuid()) @db.Uuid
+  reportId          String                                @map("report_id") @db.Uuid
+  pathwayCode       ProjectWasteClassificationPathwayCode @map("pathway_code")
+  title             String
+  isRelevant        Boolean                               @default(false) @map("is_relevant")
+  summaryNote       String?                               @map("summary_note")
+  linkedReferenceId String?                               @map("linked_reference_id") @db.Uuid
+  resultingAction   String?                               @map("resulting_action")
+  sortOrder         Int                                   @default(0) @map("sort_order")
+
+  report          ProjectWasteClassificationReport     @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  linkedReference ProjectWasteClassificationReference? @relation("WasteClassificationPathwayReference", fields: [linkedReferenceId], references: [id], onDelete: SetNull)
+
+  @@unique([reportId, pathwayCode])
+  @@index([reportId, sortOrder])
+  @@index([linkedReferenceId])
+  @@map("project_waste_classification_related_pathways")
+}
+
+// ─── Project Spatial Workspace ───────────────────────────────────
+
+enum ProjectSpatialFeatureType {
+  site_boundary
+  parcel_boundary
+  borehole
+  monitoring_well
+  vibration_monitor
+  noise_monitor
+  receiver
+  structure
+  excavation_area
+  work_zone
+  reference_point
+  other
+}
+
+enum ProjectSpatialGeometryType {
+  point
+  line_string
+  polygon
+}
+
+enum ProjectSpatialSourceType {
+  manual
+  imported
+  report_derived
+  reference_derived
+  other
+}
+
+enum ProjectSpatialLinkedDeliverableType {
+  cnvmp
+  noise_monitoring_report
+  vibration_monitoring_report
+  geotechnical
+  foundations
+  other
+}
+
+model ProjectSpatialFeature {
+  id                       String                               @id @default(uuid()) @db.Uuid
+  projectId                String                               @map("project_id") @db.Uuid
+  featureType              ProjectSpatialFeatureType            @map("feature_type")
+  geometryType             ProjectSpatialGeometryType           @map("geometry_type")
+  label                    String
+  description              String?
+  geometryJson             Json                                 @map("geometry_json")
+  status                   String?
+  sourceType               ProjectSpatialSourceType?            @map("source_type")
+  sourceReference          String?                              @map("source_reference")
+  linkedProjectReferenceId String?                              @map("linked_project_reference_id")
+  linkedAiDocumentId       String?                              @map("linked_ai_document_id") @db.Uuid
+  linkedDeliverableType    ProjectSpatialLinkedDeliverableType? @map("linked_deliverable_type")
+  linkedDeliverableId      String?                              @map("linked_deliverable_id")
+  propertiesJson           Json?                                @map("properties_json")
+  sortOrder                Int                                  @default(0) @map("sort_order")
+  createdAt                DateTime                             @default(now()) @map("created_at")
+  updatedAt                DateTime                             @updatedAt @map("updated_at")
+
+  project          Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  linkedAiDocument AiDocument? @relation(fields: [linkedAiDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, sortOrder])
+  @@index([projectId, featureType])
+  @@index([projectId, geometryType])
+  @@index([projectId, linkedDeliverableType])
+  @@index([linkedAiDocumentId])
+  @@map("project_spatial_features")
+}
+
 // ─── Materials ────────────────────────────────────────────────────
 
 model MaterialFamily {
@@ -311,8 +1236,8 @@ model Material {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  family       MaterialFamily?  @relation(fields: [familyId], references: [id])
+  organisation Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  family       MaterialFamily?       @relation(fields: [familyId], references: [id])
   propertySets MaterialPropertySet[]
 
   @@map("materials")
@@ -413,7 +1338,7 @@ model SteelSectionCatalog {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  organisation Organisation? @relation(fields: [organisationId], references: [id])
+  organisation Organisation?  @relation(fields: [organisationId], references: [id])
   sections     SteelSection[]
 
   @@unique([name, version])
@@ -490,29 +1415,29 @@ model RebarSize {
 // ─── Import Subsystem ─────────────────────────────────────────────
 
 model ImportJob {
-  id             String       @id @default(uuid()) @db.Uuid
-  organisationId String       @map("organisation_id") @db.Uuid
-  entityType     String       @map("entity_type")
-  format         ImportFormat
-  fileName       String       @map("file_name")
-  status         ImportStatus @default(pending)
-  totalRows      Int          @default(0) @map("total_rows")
-  validRows      Int          @default(0) @map("valid_rows")
-  errorRows      Int          @default(0) @map("error_rows")
-  dryRun         Boolean      @default(false) @map("dry_run")
-  snapshotId     String?      @map("snapshot_id") @db.Uuid
-  diff           Json?
-  createdBy      String       @map("created_by") @db.Uuid
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  completedAt    DateTime?    @map("completed_at")
-  rolledBackAt   DateTime?    @map("rolled_back_at")
-  rolledBackBy   String?      @map("rolled_back_by") @db.Uuid
-  approvedAt     DateTime?    @map("approved_at")
-  approvedBy     String?      @map("approved_by") @db.Uuid
-  rejectedAt     DateTime?    @map("rejected_at")
-  rejectedBy     String?      @map("rejected_by") @db.Uuid
-  rejectionReason String?     @map("rejection_reason")
+  id              String       @id @default(uuid()) @db.Uuid
+  organisationId  String       @map("organisation_id") @db.Uuid
+  entityType      String       @map("entity_type")
+  format          ImportFormat
+  fileName        String       @map("file_name")
+  status          ImportStatus @default(pending)
+  totalRows       Int          @default(0) @map("total_rows")
+  validRows       Int          @default(0) @map("valid_rows")
+  errorRows       Int          @default(0) @map("error_rows")
+  dryRun          Boolean      @default(false) @map("dry_run")
+  snapshotId      String?      @map("snapshot_id") @db.Uuid
+  diff            Json?
+  createdBy       String       @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  completedAt     DateTime?    @map("completed_at")
+  rolledBackAt    DateTime?    @map("rolled_back_at")
+  rolledBackBy    String?      @map("rolled_back_by") @db.Uuid
+  approvedAt      DateTime?    @map("approved_at")
+  approvedBy      String?      @map("approved_by") @db.Uuid
+  rejectedAt      DateTime?    @map("rejected_at")
+  rejectedBy      String?      @map("rejected_by") @db.Uuid
+  rejectionReason String?      @map("rejection_reason")
 
   organisation Organisation      @relation(fields: [organisationId], references: [id])
   errors       ImportItemError[]
@@ -577,17 +1502,17 @@ model ImportApproval {
 }
 
 model RulePackActivation {
-  id           String    @id @default(uuid()) @db.Uuid
-  rulePackId   String    @map("rule_pack_id") @db.Uuid
-  importJobId  String?   @map("import_job_id") @db.Uuid
-  activatedBy  String    @map("activated_by") @db.Uuid
-  activatedAt  DateTime  @default(now()) @map("activated_at")
+  id            String    @id @default(uuid()) @db.Uuid
+  rulePackId    String    @map("rule_pack_id") @db.Uuid
+  importJobId   String?   @map("import_job_id") @db.Uuid
+  activatedBy   String    @map("activated_by") @db.Uuid
+  activatedAt   DateTime  @default(now()) @map("activated_at")
   deactivatedAt DateTime? @map("deactivated_at")
-  deactivatedBy String?  @map("deactivated_by") @db.Uuid
-  isActive     Boolean   @default(true) @map("is_active")
-  note         String?
+  deactivatedBy String?   @map("deactivated_by") @db.Uuid
+  isActive      Boolean   @default(true) @map("is_active")
+  note          String?
 
-  rulePack  StandardRulePack @relation(fields: [rulePackId], references: [id])
+  rulePack StandardRulePack @relation(fields: [rulePackId], references: [id])
 
   @@index([rulePackId])
   @@map("rule_pack_activations")
@@ -615,6 +1540,105 @@ model Document {
   @@index([organisationId])
   @@index([projectId])
   @@map("documents")
+}
+
+enum AiDocumentKind {
+  engineering_report
+}
+
+enum AiDocumentStatus {
+  uploaded_local
+  indexing
+  indexed
+  extracting
+  extracted
+  index_failed
+  extraction_failed
+}
+
+enum AiReportDocumentFamily {
+  geotechnical
+  environmental
+  structural
+  hydrogeology_dewatering
+  inspections
+  temporary_works
+  other
+}
+
+enum AiReportType {
+  geotechnical_investigation
+  geotechnical_comment
+  dewatering_management_plan
+  contamination_assessment
+  structural_design_report
+  inspection_report
+  temporary_works_report
+  other
+}
+
+enum AiReportOwnerWorkspace {
+  project
+  project_geotechnical
+  foundations
+  structural
+  environmental
+  inspections
+  other
+}
+
+model AiDocument {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  organisationId      String                 @map("organisation_id") @db.Uuid
+  projectId           String                 @map("project_id") @db.Uuid
+  pileGroupId         String?                @map("pile_group_id") @db.Uuid
+  kind                AiDocumentKind         @default(engineering_report)
+  documentFamily      AiReportDocumentFamily @default(other) @map("document_family")
+  reportType          AiReportType           @default(other) @map("report_type")
+  ownerWorkspace      AiReportOwnerWorkspace @default(project) @map("owner_workspace")
+  filename            String
+  mimeType            String                 @map("mime_type")
+  storagePath         String                 @map("storage_path")
+  openaiFileId        String?                @map("openai_file_id")
+  openaiVectorStoreId String?                @map("openai_vector_store_id")
+  status              AiDocumentStatus       @default(uploaded_local)
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+
+  organisation                      Organisation                              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project                           Project                                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pileGroup                         PileGroup?                                @relation(fields: [pileGroupId], references: [id], onDelete: SetNull)
+  extractionRuns                    AiExtractionRun[]
+  cnvmpReferences                   ProjectCnvmpReference[]
+  environmentalMonitoringReferences ProjectEnvironmentalMonitoringReference[]
+  wasteClassificationReferences     ProjectWasteClassificationReference[]
+  spatialFeatures                   ProjectSpatialFeature[]
+
+  @@index([organisationId])
+  @@index([projectId, createdAt])
+  @@index([pileGroupId])
+  @@map("ai_documents")
+}
+
+enum AiExtractionRunStatus {
+  pending
+  completed
+  failed
+}
+
+model AiExtractionRun {
+  id          String                @id @default(uuid()) @db.Uuid
+  documentId  String                @map("document_id") @db.Uuid
+  model       String
+  status      AiExtractionRunStatus @default(pending)
+  requestJson Json                  @map("request_json")
+  resultJson  Json?                 @map("result_json")
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  document AiDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@map("ai_extraction_runs")
 }
 
 // ─── Load Cases ──────────────────────────────────────────────────
@@ -851,10 +1875,11 @@ model PileGroup {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   piles        Pile[]
   layoutPoints PileLayoutPoint[]
   designChecks PileDesignCheck[]
+  aiDocuments  AiDocument[]
 
   @@map("pile_groups")
 }

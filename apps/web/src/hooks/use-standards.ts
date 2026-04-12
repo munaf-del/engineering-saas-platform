@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import type { Standard, StandardEdition, StandardsProfile, ProjectStandardAssignment } from '@eng/shared';
+import type {
+  NoiseVibrationCriteriaFilters,
+  NoiseVibrationCriterionRow,
+  NoiseVibrationStandardSource,
+} from '@/features/standards/noise-vibration-types';
 
 export function useStandards() {
   return useQuery({
@@ -23,6 +28,24 @@ export function useCurrentEditions() {
     queryKey: ['standards', 'editions', 'current'],
     queryFn: () =>
       api<{ data: StandardEdition[] }>('/standards/editions/current').then((r) => r.data),
+  });
+}
+
+export function useNoiseVibrationSources() {
+  return useQuery({
+    queryKey: ['standards', 'noise-vibration', 'sources'],
+    queryFn: () =>
+      api<NoiseVibrationStandardSource[]>('/standards/noise-vibration/sources'),
+  });
+}
+
+export function useNoiseVibrationCriteria(filters: NoiseVibrationCriteriaFilters = {}) {
+  return useQuery({
+    queryKey: ['standards', 'noise-vibration', 'criteria', filters],
+    queryFn: () =>
+      api<NoiseVibrationCriterionRow[]>('/standards/noise-vibration/criteria', {
+        params: compactNoiseVibrationFilters(filters),
+      }),
   });
 }
 
@@ -84,4 +107,10 @@ export function useAssignProjectStandard(projectId: string) {
       api(`/standards/projects/${projectId}/assignments`, { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'standard-assignments'] }),
   });
+}
+
+function compactNoiseVibrationFilters(filters: NoiseVibrationCriteriaFilters) {
+  return Object.fromEntries(
+    Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''),
+  ) as Record<string, string>;
 }

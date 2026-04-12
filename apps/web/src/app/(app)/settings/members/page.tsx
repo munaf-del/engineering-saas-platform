@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/empty-state';
 import { PageLoading } from '@/components/loading';
+import { SettingsSectionNav } from '@/features/settings/settings-section-nav';
 import { toast } from 'sonner';
 import { ORG_ROLES } from '@eng/shared';
 
@@ -65,6 +66,8 @@ export default function OrgMembersPage() {
 
   return (
     <>
+      <SettingsSectionNav />
+
       <PageHeader
         title="Organisation Members"
         description="Manage team members and their roles"

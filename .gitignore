@@ -63,3 +63,5 @@ data/staging/
 *.licensed.csv
 *.licensed.yaml
 *.licensed.json
+tmp/
+.claude/

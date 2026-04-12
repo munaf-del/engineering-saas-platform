@@ -1,0 +1,3199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MULTI-PILE LOAD + GEO (AS/NZS 1170.0, AS 2159) - STABLE</title>
+  <style>
+    :root{
+      --bg:#ffffff; --card:#ffffff; --line:#e6e6e6; --muted:#6b7280; --text:#111827;
+      --pill:#f3f4f6; --tab:#f6f6f6; --tabActive:#111827; --tabActiveText:#fff;
+      --btn:#111827; --btnText:#fff; --btn2:#e5e7eb; --btn2Text:#111827;
+    }
+    body{font-family:Arial, sans-serif; margin:18px; color:var(--text); background:var(--bg);}
+    h1{font-size:18px; margin:0 0 8px;}
+    h2{font-size:14px; margin:0 0 10px;}
+    .muted{color:var(--muted); font-size:12px;}
+    .card{border:1px solid var(--line); background:var(--card); border-radius:14px; padding:14px; margin:12px 0;}
+    .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+    .grid{display:grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap:10px;}
+    .grid5{display:grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap:10px;}
+    .grid4{display:grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap:10px;}
+    label{display:block; font-size:12px; color:#374151; margin-bottom:4px;}
+    input, select, textarea{width:100%; padding:9px 10px; border:1px solid #d1d5db; border-radius:10px; font-size:13px;}
+    input[readonly]{background:#f9fafb; color:#374151;}
+    textarea{min-height:120px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    button{padding:10px 14px; border:0; border-radius:12px; cursor:pointer; font-weight:700;}
+    .btn{background:var(--btn); color:var(--btnText);}
+    .btn2{background:var(--btn2); color:var(--btn2Text);}
+    .pill{display:inline-block; padding:4px 10px; border-radius:999px; background:var(--pill); font-size:12px;}
+    table{border-collapse:collapse; width:100%; margin-top:10px;}
+    th, td{border:1px solid var(--line); padding:6px 8px; font-size:12px; text-align:right;}
+    th{text-align:center; background:#f9fafb;}
+    td:first-child{text-align:left; white-space:nowrap;}
+
+    /* --- CSS-only tabs (NO JS REQUIRED) --- */
+    .tabs{display:flex; gap:8px; padding:10px 0 0; flex-wrap:wrap;}
+    .tab-radio{position:absolute; left:-9999px;}
+    .tab-label{
+      background:var(--tab); border:1px solid var(--line); border-radius:999px;
+      padding:8px 14px; cursor:pointer; font-weight:800; font-size:12px; user-select:none;
+    }
+    #tLoad:checked + label,
+    #tArr:checked + label,
+    #tGeo:checked + label,
+    #tRpt:checked + label{
+      background:var(--tabActive); color:var(--tabActiveText); border-color:var(--tabActive);
+    }
+
+    #tStr:checked + label{
+      background:var(--tabActive); color:var(--tabActiveText); border-color:var(--tabActive);
+    }
+    .tab-panel{display:none;}
+    #tLoad:checked ~ .panels #pLoad{display:block;}
+    #tArr:checked  ~ .panels #pArr{display:block;}
+    #tGeo:checked  ~ .panels #pGeo{display:block;}
+    #tStr:checked  ~ .panels #pStr{display:block;}
+    #tRpt:checked  ~ .panels #pRpt{display:block;}
+
+    details summary{cursor:pointer; font-weight:800;}
+    .kpi{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+    .kpi .pill{background:#eef2ff;}
+    .warn{color:#b45309; font-weight:700;}
+  
+    .notePreview{border:1px solid #e0e0e0;border-radius:12px;padding:12px;margin-top:10px;background:#fafafa;min-height:160px;white-space:normal;overflow:auto;}
+    .sec{font-weight:800;margin:12px 0 6px;font-size:13px;}
+    .notePreview h3{margin:10px 0 6px;font-size:13px;}
+    .notePreview p{margin:6px 0;font-size:12.5px;line-height:1.35;}
+    .notePreview table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;}
+    .notePreview th,.notePreview td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top;}
+    .notePreview th{background:#f3f3f3;}
+  
+    .pmChartWrap{ border-top:1px solid #eee; padding-top:10px; }
+    .pmChart{ width:100%; max-width:900px; height:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
+    .pmAxisText{ font-size:11px; fill:#333; }
+    .pmGrid{ stroke:#eaeaea; stroke-width:1; }
+    .pmCurve{ fill:none; stroke:#111827; stroke-width:2; }
+    .pmDot{ fill:#111827; }
+    .pmDotTen{ fill:#dc2626; }
+    .pmLine{ stroke:#6b7280; stroke-width:1; stroke-dasharray:5 4; }
+    .pmLabel{ font-size:11px; fill:#111827; }
+
+    .appShell{max-width:1600px; margin:0 auto;}
+    .appBar{
+      position:sticky; top:0; z-index:10020; margin:0 0 14px;
+      border:1px solid var(--line); border-radius:18px; padding:14px;
+      background:linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      box-shadow:0 8px 24px rgba(15,23,42,0.06);
+    }
+    .appBarGrid{
+      display:grid; gap:12px;
+      grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto;
+      align-items:end;
+    }
+    .projectActions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+    .projectMeta{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+    .statusOk{color:#166534;}
+    .statusWarn{color:#92400e;}
+    .appBadge{
+      display:inline-flex; align-items:center; padding:5px 10px; border-radius:999px;
+      background:#fff; border:1px solid #dbe3f0; font-size:12px; color:#334155;
+    }
+    .appHint{font-size:12px; color:#475569;}
+    .h2,.h3{font-weight:800; color:var(--text);}
+    .h2{font-size:14px;}
+    .h3{font-size:13px;}
+    .hr,.sep{border:0; border-top:1px solid var(--line); margin:14px 0;}
+
+    @media (max-width: 980px){
+      .appBarGrid{grid-template-columns:1fr;}
+      .projectActions{justify-content:flex-start;}
+      .grid,.grid4,.grid5{grid-template-columns:repeat(2, minmax(150px, 1fr));}
+    }
+    @media (max-width: 640px){
+      body{margin:12px;}
+      .grid,.grid4,.grid5{grid-template-columns:1fr;}
+      .tabs{top:138px;}
+    }
+
+  
+    /* --- FIX: ensure tabs are always clickable (no overlay) --- */
+    .tabs{position:sticky; top:0; z-index:9999; background:var(--bg); padding-bottom:10px;}
+    .tab-label{position:relative; z-index:10000;}
+    canvas{pointer-events:none;}
+
+</style>
+</head>
+<body>
+  <div class="appShell">
+  <div class="appBar">
+    <div class="appBarGrid">
+      <div>
+        <label for="projectName">PROJECT NAME</label>
+        <input id="projectName" type="text" value="Project 1" placeholder="Enter project name">
+      </div>
+      <div>
+        <label for="projectSelect">SAVED PROJECTS</label>
+        <select id="projectSelect"></select>
+      </div>
+      <div class="projectActions">
+        <button class="btn" type="button" id="btnProjectSave">SAVE</button>
+        <button class="btn2" type="button" id="btnProjectNew">NEW</button>
+        <button class="btn2" type="button" id="btnProjectDuplicate">DUPLICATE</button>
+        <button class="btn2" type="button" id="btnProjectExport">EXPORT</button>
+        <button class="btn2" type="button" id="btnProjectImport">IMPORT</button>
+        <button class="btn2" type="button" id="btnProjectDelete">DELETE</button>
+      </div>
+    </div>
+    <div class="projectMeta">
+      <span class="appBadge" id="projectCountBadge">0 saved</span>
+      <span class="appBadge" id="projectUpdatedBadge">No project loaded</span>
+      <span class="appHint" id="projectStatus">Autosave ready.</span>
+    </div>
+    <input id="projectImportFile" type="file" accept="application/json,.json" style="display:none;">
+  </div>
+  <h1>TEST: MULTI-PILE VECTOR COMBO ENGINE (N, Vx, Vy, Mx, My) + GW UPLIFT + MIN MOMENTS + MIN SHEAR</h1>
+  <div class="muted">Sign convention: <b>Compression N = +</b>, <b>Uplift N = −</b>. Units: kN, kNm, metres.</div>
+
+  <!-- CSS tabs -->
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs" id="tLoad" checked>
+    <label class="tab-label" for="tLoad">LOAD ENGINE</label>
+
+    <input class="tab-radio" type="radio" name="tabs" id="tArr">
+    <label class="tab-label" for="tArr">AS 2159 4.3 (ARR & φg)</label>
+
+    <input class="tab-radio" type="radio" name="tabs" id="tGeo">
+    <label class="tab-label" for="tGeo">AS 2159 4.4 GEO STRENGTH</label>
+
+
+    <input class="tab-radio" type="radio" name="tabs" id="tStr">
+    <label class="tab-label" for="tStr">AS 2159 SECTION 5 STRUCTURAL</label>
+
+    <input class="tab-radio" type="radio" name="tabs" id="tRpt">
+    <label class="tab-label" for="tRpt">REPORT OUTPUTS</label>
+
+    <div class="panels" style="width:100%;">
+      <!-- LOAD ENGINE PANEL -->
+      <section id="pLoad" class="tab-panel">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;">
+            <h2 style="margin:0;">GLOBAL PARAMETERS</h2>
+            <div class="muted">Project-level settings</div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label>BUILDING HEIGHT CLASS → α</label>
+              <select id="Hclass">
+                <option value="LE15" selected>≤ 15 m (α = 0.015)</option>
+                <option value="GT15">&gt; 15 m (α = 0.010)</option>
+              </select>
+            </div>
+
+            <div>
+              <label>PILE SIZE (mm)</label>
+              <select id="pileSize">
+                <option value="450" selected>450</option>
+                <option value="500">500</option>
+                <option value="600">600</option>
+                <option value="750">750</option>
+                <option value="900">900</option>
+                <option value="1050">1050</option>
+                <option value="1200">1200</option>
+                <option value="1500">1500</option>
+                <option value="1800">1800</option>
+              </select>
+              <div class="row" style="margin-top:6px;">
+                <input id="useCustomPile" type="checkbox" style="width:auto;">
+                <div class="muted"><b>USE CUSTOM PILE SIZE</b></div>
+              </div>
+            </div>
+
+            <div>
+              <label>CUSTOM PILE SIZE (mm) (if enabled)</label>
+              <input id="pileCustomMm" type="number" step="1" value="750" disabled>
+            </div>
+
+            <div>
+              <label>D (m) → used for 0.05D minimum moment</label>
+              <input id="D_m" type="number" step="0.001" value="0.450" readonly>
+            </div>
+
+            <div>
+              <label>OUT-OF-POSITION ECCENTRICITY e_oop (m)</label>
+              <input id="eoop" type="number" step="0.001" value="0.075">
+            </div>
+
+            <div>
+              <label>OCCUPANCY (ψ factors – Table 4.1)</label>
+              <select id="occ">
+                <option value="RES" selected>Residential / Domestic floors</option>
+                <option value="OFF">Offices</option>
+                <option value="RETAIL">Retail areas</option>
+                <option value="PARK">Parking (cars)</option>
+                <option value="STOR">Storage / Other</option>
+                <option value="ROOF_ACT">Roofs used for floor-type activities</option>
+                <option value="ROOF_OTHER">Other roofs (non-traffic)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px; gap:16px; align-items:flex-start;">
+            <div style="min-width:240px;">
+              <label>ψ FACTORS (AUTO – TABLE 4.1)</label>
+              <div class="grid4">
+                <div><label>ψs</label><input id="psi_s" value="0.7" readonly></div>
+                <div><label>ψl</label><input id="psi_l" value="0.4" readonly></div>
+                <div><label>ψc</label><input id="psi_c" value="0.4" readonly></div>
+                <div><label>ψE</label><input id="psi_E" value="0.3" readonly></div>
+              </div>
+            </div>
+
+            <div style="flex:1">
+              <details>
+                <summary>ADVANCED (GROUNDWATER + CONSTRUCTION STAGE)</summary>
+                <div style="margin-top:10px;" class="grid">
+                  <div>
+                    <label>γ_gw (groundwater factor)</label>
+                    <select id="ggw">
+                      <option value="1.2">1.2 (GW level defined)</option>
+                      <option value="1.5" selected>1.5 (otherwise)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>CUSTOM: G_min_factor (incomplete construction)</label>
+                    <input id="gmin" type="number" step="0.05" value="0.70">
+                  </div>
+                  <div>
+                    <label>CUSTOM: apply 0.9 to stage G also?</label>
+                    <select id="gmin09">
+                      <option value="no" selected>No: G_stage = gmin·G</option>
+                      <option value="yes">Yes: G_stage = 0.9·(gmin·G)</option>
+                    </select>
+                  </div>
+                </div>
+              </details>
+              <div class="muted" style="margin-top:8px;">
+                Includes: ULS (G,Q,W±,E±) + GW combos + 0.9G+GW uplift + DWSTOP scenario + per-pile min shear (Section 6).
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <h2 style="margin:0;">MULTI-PILE MODEL (V54 ENGINE) — POINT LOADS LINKED TO PILES</h2>
+    <div class="muted">This removes the ambiguity: every POINT LOAD states exactly which pile IDs take it.</div>
+  </div>
+
+  <div class="muted" style="margin-top:6px;">
+    <b>CALC LOGIC (PER PILE):</b> For each POINT LOAD assigned to the pile, contribution = (N,V,M)/nAssigned. Sum by action bucket (G/Q/W/E/GW). Then run the existing v54 ULS combination engine.
+  </div>
+
+  <div class="sec">PILE TYPE LIBRARY</div>
+  <div class="muted">Pile size + e<sub>oop</sub> live here (not in GLOBAL).</div>
+  <div id="mp_types"></div>
+  <div class="row" style="justify-content:flex-end; margin-top:8px;">
+    <button class="btn2" type="button" id="mp_add_type">+ ADD TYPE</button>
+  </div>
+
+  <div class="sec">PILE REGISTER</div>
+  <div class="muted">Each pile (P1, P2, …) references a type (BP1, …).</div>
+  <div id="mp_piles"></div>
+  <div class="row" style="justify-content:flex-end; margin-top:8px;">
+    <button class="btn2" type="button" id="mp_add_pile">+ ADD PILE</button>
+  </div>
+
+  <div class="sec">POINT LOADS REGISTER</div>
+  <div class="muted">Each row is ONE point load. MUST include assigned piles CSV, e.g. <code>P1,P2,P3</code>.</div>
+  <div id="mp_pl"></div>
+  <div class="row" style="justify-content:flex-end; margin-top:8px; gap:8px;">
+    <select id="mp_sel_pile" style="max-width:240px;"></select>
+    <button class="btn2" type="button" id="mp_calc_sel">CALCULATE SELECTED (SHOW COMBO TABLE)</button>
+    <button class="btn" type="button" id="mp_calc_all">CALCULATE ALL (SUMMARY TABLE)</button>
+  </div>
+
+  <!-- keep legacy ids to avoid JS init errors -->
+  <div style="display:none;">
+    <button type="button" id="btnRun"></button>
+    <button type="button" id="btnReset"></button>
+  </div>
+
+  <details style="margin-top:10px;">
+    <summary>DEBUG: per-pile action vectors sent to v54 engine</summary>
+    <div class="muted" style="margin-top:6px;">Auto-filled when you calculate a pile.</div>
+    <div class="grid5" style="margin-top:10px;">
+      <div><label>G_N</label><input id="G_N" type="number" step="0.001" value="0"></div>
+      <div><label>G_Vx</label><input id="G_Vx" type="number" step="0.001" value="0"></div>
+      <div><label>G_Vy</label><input id="G_Vy" type="number" step="0.001" value="0"></div>
+      <div><label>G_Mx</label><input id="G_Mx" type="number" step="0.001" value="0"></div>
+      <div><label>G_My</label><input id="G_My" type="number" step="0.001" value="0"></div>
+    </div>
+    <div class="grid5" style="margin-top:10px;">
+      <div><label>Q_N</label><input id="Q_N" type="number" step="0.001" value="0"></div>
+      <div><label>Q_Vx</label><input id="Q_Vx" type="number" step="0.001" value="0"></div>
+      <div><label>Q_Vy</label><input id="Q_Vy" type="number" step="0.001" value="0"></div>
+      <div><label>Q_Mx</label><input id="Q_Mx" type="number" step="0.001" value="0"></div>
+      <div><label>Q_My</label><input id="Q_My" type="number" step="0.001" value="0"></div>
+    </div>
+    <div class="grid5" style="margin-top:10px;">
+      <div><label>W_N</label><input id="W_N" type="number" step="0.001" value="0"></div>
+      <div><label>W_Vx</label><input id="W_Vx" type="number" step="0.001" value="0"></div>
+      <div><label>W_Vy</label><input id="W_Vy" type="number" step="0.001" value="0"></div>
+      <div><label>W_Mx</label><input id="W_Mx" type="number" step="0.001" value="0"></div>
+      <div><label>W_My</label><input id="W_My" type="number" step="0.001" value="0"></div>
+    </div>
+    <div class="grid5" style="margin-top:10px;">
+      <div><label>E_N</label><input id="E_N" type="number" step="0.001" value="0"></div>
+      <div><label>E_Vx</label><input id="E_Vx" type="number" step="0.001" value="0"></div>
+      <div><label>E_Vy</label><input id="E_Vy" type="number" step="0.001" value="0"></div>
+      <div><label>E_Mx</label><input id="E_Mx" type="number" step="0.001" value="0"></div>
+      <div><label>E_My</label><input id="E_My" type="number" step="0.001" value="0"></div>
+    </div>
+    <div class="grid5" style="margin-top:10px;">
+      <div><label>GW_N</label><input id="GW_N" type="number" step="0.001" value="0"></div>
+      <div><label>GW_Vx</label><input id="GW_Vx" type="number" step="0.001" value="0"></div>
+      <div><label>GW_Vy</label><input id="GW_Vy" type="number" step="0.001" value="0"></div>
+      <div><label>GW_Mx</label><input id="GW_Mx" type="number" step="0.001" value="0"></div>
+      <div><label>GW_My</label><input id="GW_My" type="number" step="0.001" value="0"></div>
+    </div>
+  </details>
+</div>
+
+        <div class="card">
+          <div class="row" style="justify-content:space-between;">
+            <h2 style="margin:0;">RESULTS</h2>
+            <div class="muted">Envelopes + combination table</div>
+          </div>
+          <div id="kpis" class="kpi"></div>
+          <div id="comboTable"></div>
+          <div class="muted" style="margin-top:8px;" id="notesBox"></div>
+        </div>
+      </section>
+
+      <!-- ARR PANEL -->
+      <section id="pArr" class="tab-panel">
+        <div class="card">
+          <h2>TABLE 4.3.2(A) – WEIGHTING FACTORS AND INDIVIDUAL RISK RATINGS (IRR)</h2>
+          <div class="muted">
+            Your input = IRR (1–5). Use 2/4 as intermediate judgement between the written descriptors.
+            Weighting factors are fixed. Total weighting = 14.5.
+          </div>
+
+          <div id="arrTable"></div>
+
+          <div class="grid" style="margin-top:10px;">
+            <div><label>TOTAL WEIGHTING</label><input id="arrWtot" readonly></div>
+            <div><label>TOTAL WEIGHTED SCORE</label><input id="arrScore" readonly></div>
+            <div><label>ARR (WEIGHTED AVERAGE)</label><input id="arrVal" readonly></div>
+            <div><label>ARR RANGE (TABLE 4.3.2(B))</label><input id="arrBand" readonly></div>
+            <div><label>φgb (LOW REDUNDANCY) (TABLE 4.3.2(C))</label><input id="phiLow" readonly></div>
+            <div><label>φgb (HIGH REDUNDANCY) (TABLE 4.3.2(C))</label><input id="phiHigh" readonly></div>
+          </div>
+
+                    <div class="card" style="margin-top:12px;">
+            <h2>4.3.1 TESTING BENEFIT (K) AND φg</h2>
+            <div class="muted">
+              φg is adjusted for load testing in accordance with AS 2159—2009 Clause 4.3.1:
+              φg = φgb + (φtf − φgb)K ≥ φgb, where K depends on the percentage of piles tested (p) that meet acceptance criteria.
+            </div>
+
+            <div class="grid4" style="margin-top:10px;">
+              <div>
+                <label>TEST TYPE (for φtf and K)</label>
+                <select id="testType">
+                  <option value="NONE" selected>NO TESTING (typical)</option>
+                  <option value="STATIC">STATIC LOAD TEST</option>
+                  <option value="RAPID">RAPID LOAD TEST</option>
+                  <option value="DYN_PREF">DYNAMIC (PREFORMED PILES)</option>
+                  <option value="DYN_OTHER">DYNAMIC (OTHER THAN PREFORMED)</option>
+                  <option value="BIDIR">BI-DIRECTIONAL LOAD TEST</option>
+                </select>
+              </div>
+              <div>
+                <label>p = % PILES TESTED (MEET ACCEPTANCE)</label>
+                <input id="testP" type="number" step="0.1" min="0" max="100" value="0"/>
+              </div>
+              <div>
+                <label>φtf (INTRINSIC TEST FACTOR)</label>
+                <input id="phi_tf" readonly/>
+              </div>
+              <div>
+                <label>K (TEST BENEFIT FACTOR)</label>
+                <input id="Kval" readonly/>
+              </div>
+            </div>
+
+            <div class="grid4" style="margin-top:10px;">
+              <div><label>φgb (LOW) (BASE)</label><input id="phiGbLow" readonly></div>
+              <div><label>φgb (HIGH) (BASE)</label><input id="phiGbHigh" readonly></div>
+              <div><label>φg (LOW) (WITH TESTING)</label><input id="phiGLow" readonly></div>
+              <div><label>φg (HIGH) (WITH TESTING)</label><input id="phiGHigh" readonly></div>
+            </div>
+          </div>
+
+<div class="row" style="justify-content:flex-end; margin-top:10px;">
+            <button class="btn2" type="button" id="btnArrReset">RESET IRR = 3</button>
+            <button class="btn" type="button" id="btnApplyArr">APPLY TO GEOTECH TAB</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- GEOTECH PANEL -->
+      <section id="pGeo" class="tab-panel">
+        <div class="card">
+          <h2>AS 2159 SECTION 4.4 – GEOTECHNICAL STRENGTH (ULS)</h2>
+          <div class="muted">
+            Uses governing <b>N*max</b> and <b>|N*min|</b> from the Load Engine. Select redundancy to apply φg (LOW/HIGH) from the ARR tab.
+          </div>
+
+          <div class="grid">
+            <div>
+              <label>REDUNDANCY (SELECTED FOR THIS PILE)</label>
+              <select id="geoRed">
+                <option value="LOW" selected>LOW</option>
+                <option value="HIGH">HIGH</option>
+              </select>
+              <div class="muted">φg comes from ARR tab; you choose LOW/HIGH here.</div>
+            </div>
+            <div>
+              <label>ARR (from ARR tab)</label>
+              <input id="geoARR" readonly>
+            </div>
+            <div>
+              <label>φg USED (based on redundancy)</label>
+              <input id="geoPhi" readonly>
+            </div>
+            <div>
+              <label>SHAFT REDUCTION (ηs) – COMPRESSION</label>
+              <input id="shaftRedComp" type="number" step="0.05" value="1.0">
+            </div>
+            <div>
+              <label>SHAFT REDUCTION (ηs) – TENSION</label>
+              <input id="shaftRedTen" type="number" step="0.05" value="0.5">
+            </div>
+          <div>
+              <label>NEGATIVE FRICTION (DOWNDRAG) Nnf (kN) (OPTIONAL)</label>
+              <div class="row" style="gap:8px;">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:#374151;white-space:nowrap;">
+                  <input id="useNnf" type="checkbox" style="width:auto;transform:translateY(1px);"> APPLY
+                </label>
+                <input id="Nnf" type="number" step="1" value="0" style="flex:1;">
+              </div>
+              <div class="muted">If applied, compression demand uses N*max + Nnf (AS 2159 Clause 4.4.5 concept).</div>
+            </div>
+          </div>
+
+          <h2 style="margin-top:14px;">SOIL LAYERS (SHAFT) – H (m), qs (kPa)</h2>
+          <div class="grid">
+            <div><label>Layer 1 H</label><input id="s1H" type="number" step="0.01" value="0"></div>
+            <div><label>Layer 1 qs</label><input id="s1qs" type="number" step="1" value="0"></div>
+            <div><label>Layer 2 H</label><input id="s2H" type="number" step="0.01" value="0"></div>
+            <div><label>Layer 2 qs</label><input id="s2qs" type="number" step="1" value="0"></div>
+            <div><label>Layer 3 H</label><input id="s3H" type="number" step="0.01" value="0"></div>
+            <div><label>Layer 3 qs</label><input id="s3qs" type="number" step="1" value="0"></div>
+          </div>
+
+          <h2 style="margin-top:14px;">ROCK SOCKET / BASE</h2>
+          <div class="grid">
+            <div><label>Socket length Ls (m) (fixed)</label><input id="Ls" type="number" step="0.05" value="2.0"></div>
+            <div>
+              <label>MIN SOCKET LENGTH INTO BEARING (m)</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input id="LsMinAuto" readonly title="Default = 1.5D" style="max-width:140px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#444;margin:0;">
+                  <input id="useLsMinOverride" type="checkbox" style="width:auto;margin:0;"> OVERRIDE
+                </label>
+                <input id="LsMinOverride" type="number" step="0.05" value="0" disabled style="max-width:140px;">
+              </div>
+              <div class="muted" style="margin-top:4px;">Default = 1.5D (can be overridden).</div>
+            </div>
+            <div><label>f<sub>m,s</sub> (kPa) — AVERAGE UNIT SHAFT RESISTANCE (COMPRESSION)</label><input id="qsRock" type="number" step="1" value="200"></div>
+            <div><label>f<sub>b</sub> (kPa) — ULTIMATE BASE PRESSURE (COMPRESSION)</label><input id="qbRock" type="number" step="1" value="3000"></div>
+            <div><label>Include base resistance?</label>
+              <select id="useBase">
+                <option value="YES" selected>YES</option>
+                <option value="NO">NO</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="justify-content:flex-end; margin-top:12px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#374151;font-weight:700;margin:0 12px 0 0;">
+              <input type="checkbox" id="autoSolveLs" checked style="width:auto;"> AUTO SOLVE Ls
+            </label>
+            <button class="btn" type="button" id="btnGeoSolve">AUTO SOLVE Ls</button>
+            <button class="btn" type="button" id="btnGeoRun">RUN GEO CHECK</button>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <h2>GEO RESULTS</h2>
+            <div id="geoKpis" class="kpi"></div>
+            <div id="geoMsg" class="muted"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORT PANEL -->
+
+      <!-- STRUCTURAL DESIGN PANEL -->
+      <section id="pStr" class="tab-panel">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <div class="h2">AS 2159 SECTION 5 — STRUCTURAL DESIGN (SINGLE PILE)</div>
+              <div class="muted">Structural checks are based on governing ULS envelopes from the Load Engine (N*max and |N*min|). Capacity reduction factors ϕ are fixed per AS 3600 Table 2.2.2 (Class N reinforcement).</div>
+            </div>
+          </div>
+
+          <div class="grid" style="margin-top:12px;">
+            <div>
+              <label>CONCRETE GRADE f'c (MPa) — AS 3600 Cl 3.1.1</label>
+              <select id="fcGrade">
+                <option value="20">20</option>
+                <option value="25">25</option>
+                <option value="32" selected>32</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+                <option value="65">65</option>
+                <option value="80">80</option>
+                <option value="100">100</option>
+                <option value="120">120</option>
+                <option value="custom">Custom (MPa)</option>
+              </select>
+              <input id="fcCustom" type="number" step="1" value="32" style="margin-top:6px; display:none;">
+              <input id="fc" type="hidden" value="32">
+              <label style="margin-top:6px;">E<sub>c</sub> (MPa) — AS 3600 Table 3.1.2</label>
+              <input id="Ec" type="text" value="30100" readonly>
+            </div>
+            <div>
+              <label>REINFORCEMENT GRADE f<sub>sy</sub> (MPa) — D500N</label>
+              <input id="fsy" type="number" step="1" value="500">
+            </div>
+
+            <div>
+              <label>CONCRETE PLACEMENT FACTOR k (AS 2159 TABLE 5.3.2)</label>
+              <select id="kPlace">
+                <option value="1.0" selected>k = 1.0 (appropriate placement/controls)</option>
+                <option value="0.75">k = 0.75 (reduced placement confidence)</option>
+              </select>
+              <div style="margin-top:10px;">
+                <label>PILE CONSTRUCTION METHOD (AS 2159 TABLE 5.3.2)</label>
+                <select id="kMethod">
+                  <option value="all" selected>All</option>
+                  <option value="cfa">CFA and cast in place displacement piling</option>
+                  <option value="drillfluid">Bored piles constructed under drilling fluid</option>
+                  <option value="preformed">Preformed driven</option>
+                </select>
+                <details style="margin-top:8px;">
+                  <summary>TABLE 5.3.2 — ASSESSMENT OF CONCRETE PLACEMENT FACTOR (k) (guidance)</summary>
+                  <div class="muted" style="margin-top:8px;">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="text-align:left;">Pile construction method</th>
+                          <th style="text-align:left;">Circumstances in which k = 1 is appropriate</th>
+                          <th style="text-align:left;">Circumstances in which k = 0.75 is appropriate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>All</td>
+                          <td>Successful use of specified construction methods in similar ground conditions.<br>At least 5% of piles are integrity-tested over the full length of the shaft by an appropriate means.</td>
+                          <td>No successful use of specified construction methods in similar ground conditions.<br>No dynamic load-testing or integrity-testing to be performed.</td>
+                        </tr>
+                        <tr>
+                          <td>CFA and cast in place displacement piling</td>
+                          <td>Full, real time monitoring of auger extraction rate, concrete/grout pressure, volume, pile depth and drilling parameters to be undertaken.</td>
+                          <td>Piles installed with partial monitoring (e.g. measurement of concrete/grout pressure and volume only).</td>
+                        </tr>
+                        <tr>
+                          <td>Bored piles constructed under drilling fluid</td>
+                          <td>Regular on site testing of drilling fluid; embedment depth of tremie tube to be regularly monitored and recorded during concreting. Hard copies of construction records to be maintained.</td>
+                          <td>No regular testing of drilling fluids or monitoring of tremie and concrete depths during concreting. Hard copies of construction records not to be maintained.</td>
+                        </tr>
+                        <tr>
+                          <td>Preformed driven</td>
+                          <td>Monitoring of driving stresses during pile installation in difficult ground conditions to check that high compression and/or tension stresses will not lead to pile damage.</td>
+                          <td>No monitoring of driving stresses during pile installation in difficult ground conditions.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div style="margin-top:6px;">
+                      <b>Notes:</b> (1) Table assumes the construction method adequately addresses major construction risks. (2) CFA piles without full monitoring are not recommended. (3) If shaft integrity testing cannot be carried out over the full length of the pile shaft, consider using k &lt; 1.0.
+                    </div>
+                  </div>
+                </details>
+              </div>
+              <div class="muted" style="margin-top:6px;">k is applied to the concrete contribution to structural strength for concrete/grout piles (AS 2159 Section 5).</div>
+            </div>
+            <div>
+              <label>AXIAL CAPACITY MODEL (COMPRESSION)</label>
+              <select id="axModel">
+                <option value="reinforced" selected>REINFORCED (CONCRETE + STEEL IN COMPRESSION)</option>
+                <option value="partial">PARTIALLY REINFORCED (IGNORE STEEL IN COMPRESSION)</option>
+                <option value="plain">PLAIN / CONCRETE ONLY (IGNORE STEEL)</option>
+              </select>
+              <div class="muted" style="margin-top:6px;">For deep partially reinforced piles, steel may be excluded from compression capacity (AS 2159 Section 5.3 series intent).</div>
+            </div>
+            <div id="partialReoBox" style="display:none; margin-top:8px; padding:10px; border:1px dashed #d8d8d8; border-radius:12px;">
+              <div class="muted"><b>AS 2159 Cl 5.3.4 (reporting inputs)</b>: reinforcement may be curtailed one development length below the level where bending actions become insignificant.</div>
+              <div style="display:grid; grid-template-columns: repeat(2, minmax(160px,1fr)); gap:10px; margin-top:8px;">
+                <div>
+                  <label>Reinforcement cut-off depth below pile head (m)</label>
+                  <input id="reoCutDepth" type="number" step="0.1" value="0">
+                </div>
+                <div>
+                  <label>Development length below cut-off, L<sub>d</sub> (m)</label>
+                  <input id="reoLd" type="number" step="0.1" value="0">
+                </div>
+              </div>
+              <div class="muted" style="margin-top:6px;">These inputs are used for reporting only; axial compression capacity is governed by the selected axial capacity model.</div>
+            </div>
+
+            <div>
+              <label>MIN LONGITUDINAL REINFORCEMENT (AS 2159 CLAUSE 5.3.3)</label>
+              <select id="minReoRule">
+                <option value="other_embedded" selected>OTHER PILES — FULLY EMBEDDED (A<sub>s,min</sub> = 0.005 A<sub>g</sub>)</option>
+                <option value="other_above">OTHER PILES — PORTION ABOVE GROUND (A<sub>s,min</sub> = 0.014 A<sub>g</sub>)</option>
+                <option value="precast">PRECAST REINFORCED CONCRETE PILES (A<sub>s,min</sub> = 0.014 A<sub>g</sub>)</option>
+              </select>
+              <div class="muted" style="margin-top:6px;">Note: At a depth of 3 pile diameters below ground surface, the longitudinal reinforcement limit may be reduced to 0.005 A<sub>g</sub> (AS 2159 Cl 5.3.3 note).</div>
+              <label style="margin-top:6px;">SECTION LOCATION (FOR A<sub>s,min</sub> NOTE)</label>
+              <select id="reoLoc">
+                <option value="below3d" selected>Below 3D below ground surface</option>
+                <option value="within3d">Within 3D of ground surface / projecting above ground</option>
+              </select>
+            </div>
+            <div>
+              <label>BAR SIZE (CLASS N)</label>
+              <select id="barDia">
+                <option value="16">N16</option>
+                <option value="20" selected>N20</option>
+                <option value="24">N24</option>
+                <option value="28">N28</option>
+                <option value="32">N32</option>
+                <option value="36">N36</option>
+                <option value="40">N40</option>
+              </select>
+            </div>
+            <div>
+              <label>NUMBER OF BARS (0 = AUTO)</label>
+              <input id="nBars" type="number" step="1" value="0">
+            </div>
+            <div>
+              <label>SECTION LOCATION FOR A<sub>s,min</sub> CHECK</label>
+              <select id="reoLocDetail">
+                <option value="above">AT / ABOVE GROUND SURFACE</option>
+                <option value="within3d">WITHIN 3D BELOW GROUND</option>
+                <option value="below3d" selected>BELOW 3D BELOW GROUND</option>
+              </select>
+            </div>
+            <div>
+              <label>A<sub>s,max</sub> LIMIT (AS 2159 CL 5.3.3)</label>
+              <div class="row" style="gap:8px; align-items:center;">
+                <input id="allowAsOver" type="checkbox" style="width:auto;">
+                <span class="muted">Allow A<sub>s</sub> &gt; 0.04A<sub>g</sub> (requires justification)</span>
+              </div>
+              <div class="muted" style="margin-top:6px;">Default limit: A<sub>s,max</sub> = 0.04 A<sub>g</sub>.</div>
+            </div>
+
+            <div>
+              <label>CAPACITY REDUCTION FACTORS (AS 3600 TABLE 2.2.2)</label>
+              <div class="muted" style="margin-top:6px;">
+                ϕ<sub>c</sub> (AXIAL COMPRESSION) = <b>0.65</b> &nbsp;|&nbsp;
+                ϕ<sub>t</sub> (AXIAL TENSION) = <b>0.85</b> &nbsp;|&nbsp;
+                ϕ<sub>v</sub> (SHEAR) = <b>0.75</b> &nbsp;|&nbsp;
+                ϕ<sub>b</sub> (BENDING max) = <b>0.85</b>
+              </div>
+              <div class="row" style="margin-top:8px; gap:12px; align-items:flex-end;">
+                <label style="display:flex; gap:8px; align-items:center; margin:0;">
+                  <input id="phiOverride" type="checkbox">
+                  Override ϕ values (advanced)
+                </label>
+                <div style="max-width:140px;">
+                  <label>ϕ<sub>c</sub></label>
+                  <input id="phiC" type="number" step="0.01" min="0.4" max="1.0" value="0.65" disabled>
+                </div>
+                <div style="max-width:140px;">
+                  <label>ϕ<sub>t</sub></label>
+                  <input id="phiT" type="number" step="0.01" min="0.4" max="1.0" value="0.85" disabled>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="row" style="justify-content:space-between; align-items:flex-start;">
+            <div style="flex:1; min-width:320px;">
+              <div class="h3">STRUCTURAL ACTIONS (FROM LOAD ENGINE)</div>
+              <div class="kpi" id="strKpi"></div>
+              <div class="muted">Note: Minimum moment is already applied in the Load Engine (Mx,DES and My,DES). P–M interaction is evaluated below per AS 3600 Section 10.</div>
+            </div>
+
+            <div style="flex:1; min-width:320px;">
+              <div class="h3">STRUCTURAL CAPACITY CHECKS (AXIAL ONLY)</div>
+              <div class="kpi" id="capKpi"></div>
+              <div class="muted" id="strMsg"></div>
+            </div>
+          </div>
+        </div>
+      
+          <hr class="sep">
+          <div class="h3">AS 3600 SECTION 10 — COMBINED AXIAL FORCE & BENDING (P–M INTERACTION)</div>
+          <div class="muted">Implements interaction check per AS 3600:2018 Clause 10.6 (rectangular stress block) and biaxial check per Clause 10.6.4, using Mx,DES and My,DES from the Load Engine. Slenderness/magnification (Clause 10.4) is flagged only (not applied) in this version.</div>
+
+          <div class="grid5" style="margin-top:10px;">
+            <div>
+              <label>COVER (mm) (to longitudinal bars)</label>
+              <input id="cover" type="number" step="1" value="75">
+            </div>
+            <div>
+              <label>STEEL MODULUS E<sub>s</sub> (MPa)</label>
+              <input id="Es" type="number" step="1000" value="200000">
+            </div>
+            <div>
+              <label>USE BIAXIAL CHECK (10.6.4)</label>
+              <select id="useBiax">
+                <option value="YES" selected>YES</option>
+                <option value="NO">NO (worst axis only)</option>
+              </select>
+            </div>
+            <div>
+              <label>BRACED / UNBRACED (slenderness flag)</label>
+              <select id="brace">
+                <option value="BRACED" selected>BRACED</option>
+                <option value="UNBRACED">UNBRACED</option>
+              </select>
+            </div>
+            <div>
+              <label>EFFECTIVE LENGTH L<sub>e</sub> (m) (optional)</label>
+              <input id="Le" type="number" step="0.1" value="">
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div id="pmKpi" class="kpi"></div>
+          </div>
+          <div id="pmMsg" class="muted"></div>
+          <div class="pmChartWrap" style="margin-top:12px;">
+            <div class="h3">P–M INTERACTION DIAGRAM (AS 3600 CLAUSE 10.6.2 / 10.6.4)</div>
+            <div class="muted">Curve shows φM–φN interaction (uniaxial). Demand point plotted for N*max and M* (resultant/worst-axis per selection). Confinement trigger lines shown per Figure 10.7.3.1(A).</div>
+            <svg id="pmSvg" class="pmChart" viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet" aria-label="Axial load–moment diagram"></svg>
+          <hr class="sep">
+          <div class="h3">AS 3600 SECTION 8.2 — SHEAR DESIGN (PILE)</div>
+          <div class="muted">Implements sectional shear design method (AS 3600:2018 Clause 8.2). Uses governing V* = max(|Vx,DES|, |Vy,DES|). Assumes non-prestressed member (Pv = 0) and perpendicular transverse reinforcement. Solid circular section: b<sub>v</sub> = D (Clause 8.2.1.5 note). Effective shear depth d<sub>v</sub> per Clause 8.2.1.9 using cover and bar sizes.</div>
+
+          <div class="grid5" style="margin-top:10px;">
+            <div>
+              <label>FITMENT / TIE BAR (CLASS N)</label>
+              <select id="tieDia">
+                <option value="10">N10</option>
+                <option value="12" selected>N12</option>
+                <option value="16">N16</option>
+              </select>
+            </div>
+            <div>
+              <label>FITMENT SPACING s (mm)</label>
+              <input id="tieS" type="number" step="10" value="200">
+            </div>
+            <div>
+              <label>NO. OF LEGS (closed tie equiv.)</label>
+              <input id="tieLegs" type="number" step="1" min="2" value="2">
+            </div>
+            <div>
+              <label>MAX AGGREGATE SIZE d<sub>g</sub> (mm)</label>
+              <input id="dg" type="number" step="1" value="20">
+            </div>
+            <div>
+              <label>ϕ<sub>v</sub> (fixed)</label>
+              <input id="phiV" type="text" value="0.75" readonly>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1; min-width:320px;">
+              <div class="h3">SHEAR ACTIONS / SECTION VALUES</div>
+              <div class="kpi" id="shearKpi"></div>
+            </div>
+            <div style="flex:1; min-width:320px;">
+              <div class="h3">SHEAR CAPACITY CHECKS (SECTION 8.2)</div>
+              <div class="kpi" id="shearCapKpi"></div>
+              <div class="muted" id="shearMsg"></div>
+            </div>
+          </div>
+          </div>
+
+</section>
+
+      <section id="pRpt" class="tab-panel">
+        <div class="card">
+          <h2>REPORT OUTPUTS</h2>
+          <div class="muted">
+            Generate a report-ready design note and an AI prompt using current model values (Load Engine + ARR + Geo).
+          </div>
+
+          <div class="row" style="justify-content:flex-end; margin-top:10px;">
+            <button class="btn2" type="button" id="btnGenNote">GENERATE DESIGN NOTE</button>
+            <button class="btn2" type="button" id="btnCopyNote">COPY NOTE</button>
+          </div>
+          <div class="muted" style="margin-top:10px;">FORMATTED REPORT OUTPUT (PREVIEW)</div>
+          <div class="notePreview" id="designNotePreview" aria-label="Design note preview"></div>
+          <textarea id="designNote" placeholder="Design note will appear here..."></textarea>
+
+          <div class="row" style="justify-content:flex-end; margin-top:10px;">
+            <button class="btn2" type="button" id="btnGenPrompt">GENERATE AI PROMPT</button>
+            <button class="btn2" type="button" id="btnCopyPrompt">COPY PROMPT</button>
+          </div>
+          <textarea id="aiPrompt" placeholder="AI prompt will appear here..."></textarea>
+
+          <div class="muted" style="margin-top:8px;">
+            Tip: RUN the Load Engine and Geo Check first so the outputs include governing N* and φg.
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  </div>
+
+<script>
+(function(){
+  // ---------- helpers ----------
+  const keys = ["N","Vx","Vy","Mx","My"];
+  const st = {
+    lastRun: null,
+    // load results
+    Nmax: null, Nmin: null,
+    VxDES: null, VyDES: null,
+    MxDESmax: null, MyDESmax: null,
+    alpha: null, Vrob: null,
+    emin: null, D: null, eoop: null,
+    // ARR results
+    ARR: 2.5, band: "2.0 to 2.5",
+    phiLow: 0.56, phiHigh: 0.64, // legacy (φgb)
+    phiGbLow: 0.56, phiGbHigh: 0.64,
+    phiGLow: 0.56, phiGHigh: 0.64,
+    test: {type:"NONE", p:0, K:0, phi_tf:null},
+    // Geo results
+    geo: { ok:null, phi:null, phiRcomp:null, phiRten:null, utilComp:null, utilTen:null }
+  };
+  const APP_STORAGE_KEY = "multiPileCalculator.projects.v1";
+  const APP_IMPORT_VERSION = 1;
+  const app = {
+    currentProjectId: null,
+    projects: {},
+    isApplyingProject: false,
+    autoSaveTimer: null
+  };
+
+  function num(id, def=0){
+    const v = parseFloat(document.getElementById(id).value);
+    return (isFinite(v) ? v : def);
+  }
+  function roundUpTo(x, step){
+    const s = (typeof step==='number' && isFinite(step) && step>0) ? step : 0;
+    if (s<=0) return x;
+    // subtract tiny epsilon to avoid floating artefacts when x is already on a step
+    return Math.ceil((x - 1e-12)/s) * s;
+  }
+  function setVal(id, v){ document.getElementById(id).value = v; }
+  function currentPileDiameter(){
+    const uiValue = num("D_m", NaN);
+    if (isFinite(uiValue) && uiValue > 0) return uiValue;
+    if (isFinite(st.D) && st.D > 0) return st.D;
+    return 0.75;
+  }
+
+  function vecFrom(prefix){
+    const v={};
+    v.N  = num(prefix+"_N",0);
+    v.Vx = num(prefix+"_Vx",0);
+    v.Vy = num(prefix+"_Vy",0);
+    v.Mx = num(prefix+"_Mx",0);
+    v.My = num(prefix+"_My",0);
+    return v;
+  }
+  function add(a,b){ const r={}; keys.forEach(k=>r[k]=a[k]+b[k]); return r; }
+  function mul(s,a){ const r={}; keys.forEach(k=>r[k]=s*a[k]); return r; }
+  function neg(a){ return mul(-1,a); }
+  function abs(x){ return Math.abs(x); }
+  function fmt(x){ const y = (Math.abs(x) < 0.0005) ? 0 : x; return y.toFixed(3); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#39;" }[c])); }
+  function pill(content){ return `<span class="pill">${content}</span>`; }
+  function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
+  function uid(){ return "p_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8); }
+  function isoNow(){ return new Date().toISOString(); }
+  function formatDateTime(iso){
+    if(!iso) return "Never";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "Never";
+    return d.toLocaleString();
+  }
+  function setProjectStatus(message, kind){
+    const el = document.getElementById("projectStatus");
+    if(!el) return;
+    el.textContent = message;
+    el.className = "appHint" + (kind==="ok" ? " statusOk" : kind==="warn" ? " statusWarn" : "");
+  }
+  function activeTabId(){
+    const active = document.querySelector('.tab-radio[name="tabs"]:checked');
+    return active ? active.id : "tLoad";
+  }
+  function setActiveTab(id){
+    const el = document.getElementById(id);
+    if(el && el.type === "radio") el.checked = true;
+  }
+
+  
+  function drawPMChart(pts, demands, phiNuo_kN, phiN03Agfc_kN, phiMu0_kNm){
+    const svg = document.getElementById('pmSvg');
+    if (!svg) return;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const W=720, H=360;
+    const m={l:70,r:20,t:20,b:50};
+    const iw=W-m.l-m.r, ih=H-m.t-m.b;
+
+    const allN = pts.map(p=>p.N).concat((demands||[]).map(d=>d.N||0));
+    const allM = pts.map(p=>p.M).concat((demands||[]).map(d=>Math.abs(d.M||0)));
+    const maxN = Math.max(phiNuo_kN||0, ...allN);
+    const minN = Math.min(0, ...allN);
+    const maxM = Math.max(phiMu0_kNm||0, ...allM);
+
+    const Nmax = maxN*1.08;
+    const Nmin = minN*1.08;
+    const Mmax = maxM*1.10;
+    const Mmin = 0;
+
+    const x = (M)=> m.l + ( (M-Mmin)/(Mmax-Mmin || 1) )*iw;
+    const y = (N)=> m.t + ih - ( (N-Nmin)/(Nmax-Nmin || 1) )*ih;
+
+    const gridLines = 6;
+    for(let i=0;i<=gridLines;i++){
+      const gx = m.l + (i/gridLines)*iw;
+      const gy = m.t + (i/gridLines)*ih;
+      const lx = document.createElementNS("http://www.w3.org/2000/svg","line");
+      lx.setAttribute("x1",gx); lx.setAttribute("x2",gx);
+      lx.setAttribute("y1",m.t); lx.setAttribute("y2",m.t+ih);
+      lx.setAttribute("class","pmGrid");
+      svg.appendChild(lx);
+
+      const ly = document.createElementNS("http://www.w3.org/2000/svg","line");
+      ly.setAttribute("x1",m.l); ly.setAttribute("x2",m.l+iw);
+      ly.setAttribute("y1",gy); ly.setAttribute("y2",gy);
+      ly.setAttribute("class","pmGrid");
+      svg.appendChild(ly);
+    }
+
+    // axes
+    const axX = document.createElementNS("http://www.w3.org/2000/svg","line");
+    axX.setAttribute("x1",m.l); axX.setAttribute("x2",m.l+iw);
+    axX.setAttribute("y1",y(0)); axX.setAttribute("y2",y(0));
+    axX.setAttribute("stroke","#111"); axX.setAttribute("stroke-width","1.5");
+    svg.appendChild(axX);
+
+    const axY = document.createElementNS("http://www.w3.org/2000/svg","line");
+    axY.setAttribute("x1",m.l); axY.setAttribute("x2",m.l);
+    axY.setAttribute("y1",m.t); axY.setAttribute("y2",m.t+ih);
+    axY.setAttribute("stroke","#111"); axY.setAttribute("stroke-width","1.5");
+    svg.appendChild(axY);
+
+    // axis labels
+    const tx = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tx.setAttribute("x",m.l+iw/2); tx.setAttribute("y",H-12);
+    tx.setAttribute("text-anchor","middle"); tx.setAttribute("class","pmAxisText");
+    tx.textContent = "DESIGN MOMENT ϕM (kNm)";
+    svg.appendChild(tx);
+
+    const ty = document.createElementNS("http://www.w3.org/2000/svg","text");
+    ty.setAttribute("x",18); ty.setAttribute("y",m.t+ih/2);
+    ty.setAttribute("text-anchor","middle"); ty.setAttribute("class","pmAxisText");
+    ty.setAttribute("transform",`rotate(-90 18 ${m.t+ih/2})`);
+    ty.textContent = "DESIGN AXIAL FORCE ϕN (kN)";
+    svg.appendChild(ty);
+
+    // confinement cue lines (compression side only)
+    function addHLine(N, label){
+      if (!(N>0)) return;
+      const L = document.createElementNS("http://www.w3.org/2000/svg","line");
+      L.setAttribute("x1",m.l); L.setAttribute("x2",m.l+iw);
+      L.setAttribute("y1",y(N)); L.setAttribute("y2",y(N));
+      L.setAttribute("class","pmLine");
+      svg.appendChild(L);
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      t.setAttribute("x",m.l+6); t.setAttribute("y",y(N)-4);
+      t.setAttribute("class","pmLabel");
+      t.textContent = label;
+      svg.appendChild(t);
+    }
+    addHLine(0.75*phiNuo_kN, "0.75ϕNuo");
+    addHLine(phiN03Agfc_kN, "0.3Ag f'c (ϕ)");
+
+    function addVLine(M, label){
+      if (!(M>0)) return;
+      const L = document.createElementNS("http://www.w3.org/2000/svg","line");
+      L.setAttribute("x1",x(M)); L.setAttribute("x2",x(M));
+      L.setAttribute("y1",m.t); L.setAttribute("y2",m.t+ih);
+      L.setAttribute("class","pmLine");
+      svg.appendChild(L);
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      t.setAttribute("x",x(M)+6); t.setAttribute("y",m.t+12);
+      t.setAttribute("class","pmLabel");
+      t.textContent = label;
+      svg.appendChild(t);
+    }
+    addVLine(0.6*phiMu0_kNm, "0.6ϕMu");
+
+    // curve polyline
+    const pl = document.createElementNS("http://www.w3.org/2000/svg","polyline");
+    const ptsStr = pts.map(p=>`${x(p.M)},${y(p.N)}`).join(" ");
+    pl.setAttribute("points",ptsStr);
+    pl.setAttribute("class","pmCurve");
+    svg.appendChild(pl);
+
+    // demand dots
+    (demands||[]).forEach((d, idx)=>{
+      const cx = x(Math.abs(d.M||0));
+      const cy = y(d.N||0);
+      const dot = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      dot.setAttribute("cx",cx); dot.setAttribute("cy",cy); dot.setAttribute("r",5);
+      dot.setAttribute("class", (d.cls||"pmDot"));
+      svg.appendChild(dot);
+      const dl = document.createElementNS("http://www.w3.org/2000/svg","text");
+      dl.setAttribute("x",cx+8); dl.setAttribute("y",cy-8);
+      dl.setAttribute("class","pmLabel");
+      dl.textContent = d.label || ("DEMAND "+(idx+1));
+      svg.appendChild(dl);
+    });
+  }
+
+
+
+  // ---------- occupancy ψ presets (Table 4.1) ----------
+  // (kept as practical presets matching what we've been using)
+  const psiPresets = {
+    RES:      {s:0.7,l:0.4,c:0.4,E:0.3},
+    OFF:      {s:0.7,l:0.4,c:0.4,E:0.3},
+    RETAIL:   {s:0.7,l:0.4,c:0.4,E:0.3},
+    PARK:     {s:0.7,l:0.4,c:0.4,E:0.3},
+    STOR:     {s:1.0,l:0.6,c:0.6,E:0.6},
+    ROOF_ACT: {s:0.7,l:0.4,c:0.4,E:0.3},
+    ROOF_OTHER:{s:0.7,l:0.0,c:0.0,E:0.0}
+  };
+
+  // ---------- ARR items (Table 4.3.2(A) wording from user snippets) ----------
+  const arrItems = [
+    {cat:"SITE", wi:2, name:"Geological complexity of site",
+     d1:"Horizontal strata, well-defined soil and rock characteristics",
+     d3:"Some variability over site, but without abrupt changes in stratigraphy",
+     d5:"Highly variable profile or presence of karstic features or steeply dipping rock levels or faults present on site, or combinations of these"},
+    {cat:"SITE", wi:2, name:"Extent of ground investigation",
+     d1:"Extensive drilling investigation covering whole site to an adequate depth",
+     d3:"Some boreholes extending at least 5 pile diameters below the base of the proposed pile foundation level",
+     d5:"Very limited investigation with few shallow boreholes"},
+    {cat:"SITE", wi:2, name:"Amount and quality of geotechnical data",
+     d1:"Detailed information on strength and compressibility of the main strata",
+     d3:"CPT probes over full depth of proposed piles or boreholes confirming rock as proposed founding level for piles",
+     d5:"Limited amount of simple in situ testing (e.g., SPT) or index tests only"},
+    {cat:"DESIGN", wi:1, name:"Experience with similar foundations in similar geological conditions",
+     d1:"Extensive", d3:"Limited", d5:"None"},
+    {cat:"DESIGN", wi:2, name:"Method of assessment of geotechnical parameters for design",
+     d1:"Based on appropriate laboratory or in situ tests or relevant existing pile load test data",
+     d3:"Based on site-specific correlations or on conventional laboratory or in situ testing",
+     d5:"Based on non-site-specific correlations with (for example) SPT data"},
+    {cat:"DESIGN", wi:1, name:"Design method adopted",
+     d1:"Well-established and soundly based method or methods",
+     d3:"Simplified methods with well-established basis",
+     d5:"Simple empirical methods or sophisticated methods that are not well established"},
+    {cat:"DESIGN", wi:2, name:"Method of utilizing results of in situ test data and installation data",
+     d1:"Design values based on minimum measured values on piles loaded to failure",
+     d3:"Design methods based on average values",
+     d5:"Design values based on maximum measured values on test piles loaded up only to working load, or indirect measurements used during installation, and not calibrated to static loading tests"},
+    {cat:"INSTALLATION", wi:2, name:"Level of construction control",
+     d1:"Detailed with professional geotechnical supervision, construction processes that are well established and relatively straightforward",
+     d3:"Limited degree of professional geotechnical involvement in supervision, conventional construction procedures",
+     d5:"Very limited or no involvement by designer, construction processes that are not well established or complex"},
+    {cat:"INSTALLATION", wi:0.5, name:"Level of performance monitoring of the supported structure during and after construction",
+     d1:"Detailed measurements of movements and pile loads",
+     d3:"Correlation of installed parameters with on-site static load tests carried out in accordance with this Standard",
+     d5:"No monitoring"}
+  ];
+
+  // ---------- φg vs ARR (from your stable logic) ----------
+  function phiFromARR(arr){
+    const rows=[
+      {max:1.5, low:0.67, high:0.76},
+      {max:2.0, low:0.61, high:0.70},
+      {max:2.5, low:0.56, high:0.64},
+      {max:3.0, low:0.52, high:0.60},
+      {max:3.5, low:0.48, high:0.56},
+      {max:4.0, low:0.45, high:0.52},
+      {max:4.5, low:0.42, high:0.49},
+      {max:1e9, low:0.40, high:0.47}
+    ];
+    let r=rows[rows.length-1];
+    for (const row of rows){ if (arr<=row.max){ r=row; break; } }
+    return r;
+  }
+  function bandFromARR(arr){
+    const bands=[1.5,2.0,2.5,3.0,3.5,4.0,4.5];
+    let lo=0, hi=1.5;
+    for (const b of bands){
+      hi=b;
+      if (arr<=hi) return (lo===0? `≤ ${hi}` : `> ${lo} to ${hi}`);
+      lo=b;
+    }
+    return `> 4.5`;
+  }
+
+  // ---------- UI init ----------
+  function syncPileD(){
+    const useCustom = document.getElementById("useCustomPile").checked;
+    const sizeSel = document.getElementById("pileSize");
+    const custom = document.getElementById("pileCustomMm");
+    if (useCustom){
+      custom.disabled = false;
+      sizeSel.disabled = true;
+      const mm = Math.max(50, num("pileCustomMm", 750));
+      setVal("D_m", (mm/1000).toFixed(3));
+      // Keep a single source of truth for diameter (mm)
+      st.Dmm = mm;
+      st.D = mm/1000;
+    } else {
+      custom.disabled = true;
+      sizeSel.disabled = false;
+      const mm = parseFloat(sizeSel.value);
+      setVal("D_m", (mm/1000).toFixed(3));
+      st.Dmm = mm;
+      st.D = mm/1000;
+    }
+
+    // Update default minimum socket length (1.5D) display / override
+    try { syncLsMin(); } catch(e) {}
+
+    // If user is on the GEO tab, refresh GEO results immediately so
+    // diameter changes are reflected without requiring a separate "RUN".
+    try {
+      if (document.getElementById("tGeo").checked){
+        runGeo();
+      }
+    } catch (e) {
+      // do nothing
+    }
+  }
+
+  function syncLsMin(){
+    const D = currentPileDiameter();
+    const auto = 1.5*D;
+    if (document.getElementById("LsMinAuto")) setVal("LsMinAuto", auto.toFixed(2));
+    const use = document.getElementById("useLsMinOverride") ? document.getElementById("useLsMinOverride").checked : false;
+    const ovEl = document.getElementById("LsMinOverride");
+    if (ovEl){
+      ovEl.disabled = !use;
+    }
+    const ov = use ? Math.max(0, num("LsMinOverride", 0)) : 0;
+    return (use && ov>0) ? ov : auto;
+  }
+
+  
+
+  function syncFc(){
+    const gradeEl = document.getElementById("fcGrade");
+    const fcHidden = document.getElementById("fc");
+    const fcCustom = document.getElementById("fcCustom");
+    const EcEl = document.getElementById("Ec");
+
+    if(!gradeEl || !fcHidden) return;
+
+    const Ecm = {
+      20:24000, 25:26700, 32:30100, 40:32800, 50:34800,
+      65:37400, 80:39600, 100:42200, 120:44400
+    };
+
+    let fcVal = 32;
+    if(gradeEl.value === "custom"){
+      if(fcCustom){ fcCustom.style.display="block"; fcVal = Math.max(10, Number(fcCustom.value||32)); }
+    } else {
+      if(fcCustom){ fcCustom.style.display="none"; }
+      fcVal = Number(gradeEl.value||32);
+    }
+    fcHidden.value = String(fcVal);
+
+    // Ec from AS 3600 Table 3.1.2 (standard grades); fallback to nearest
+    if(EcEl){
+      let Ec = Ecm[fcVal];
+      if(!Ec){
+        // nearest standard grade
+        const keys = Object.keys(Ecm).map(Number).sort((a,b)=>a-b);
+        let nearest = keys[0];
+        for(const k of keys){ if(Math.abs(k-fcVal)<Math.abs(nearest-fcVal)) nearest=k; }
+        Ec = Ecm[nearest];
+      }
+      EcEl.value = String(Ec);
+      st.Ec = Ec;
+    }
+  }
+
+  function syncAxModelUI(){
+    const axModel = document.getElementById("axModel");
+    const partialBox = document.getElementById("partialReoBox");
+    if(!axModel || !partialBox) return;
+    partialBox.style.display = (axModel.value === "partial") ? "block" : "none";
+  }
+
+function syncPsi(){
+    const occ = document.getElementById("occ").value;
+    const p = psiPresets[occ] || psiPresets.RES;
+    setVal("psi_s", p.s.toFixed(2));
+    setVal("psi_l", p.l.toFixed(2));
+    setVal("psi_c", p.c.toFixed(2));
+    setVal("psi_E", p.E.toFixed(2));
+  }
+
+  function buildArrTable(){
+    const container = document.getElementById("arrTable");
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;">CATEGORY</th>
+            <th style="text-align:left;">RISK FACTOR</th>
+            <th>wi</th>
+            <th style="text-align:left;">IRR 1 (VERY LOW RISK)</th>
+            <th style="text-align:left;">IRR 3 (MODERATE)</th>
+            <th style="text-align:left;">IRR 5 (VERY HIGH RISK)</th>
+            <th>YOUR IRR (1–5)</th>
+            <th>wi×IRR</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    arrItems.forEach((it, idx)=>{
+      html += `
+        <tr>
+          <td style="text-align:left;"><b>${it.cat}</b></td>
+          <td style="text-align:left;">${it.name}</td>
+          <td>${it.wi}</td>
+          <td style="text-align:left;">${it.d1}</td>
+          <td style="text-align:left;">${it.d3}</td>
+          <td style="text-align:left;">${it.d5}</td>
+          <td>
+            <select id="irr_${idx}">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </td>
+          <td id="wscore_${idx}">—</td>
+        </tr>
+      `;
+    });
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+
+    arrItems.forEach((_, idx)=>{
+      document.getElementById(`irr_${idx}`).addEventListener("change", calcARR);
+    });
+    calcARR();
+
+    // testing benefit inputs (Clause 4.3.1)
+    document.getElementById("testType")?.addEventListener("change", calcARR);
+    document.getElementById("testP")?.addEventListener("input", calcARR);
+
+  }
+
+  
+  function testParamsFromUI(){
+    const type = (document.getElementById("testType")?.value) || "NONE";
+    const p = Math.max(0, Math.min(100, num("testP", 0)));
+    let phi_tf = null; // null means "use φgb" (no testing)
+    if (type==="STATIC") phi_tf = 0.90;
+    else if (type==="RAPID") phi_tf = 0.75;
+    else if (type==="DYN_PREF") phi_tf = 0.80;
+    else if (type==="DYN_OTHER") phi_tf = 0.75;
+    else if (type==="BIDIR") phi_tf = 0.85;
+
+    // K per AS 2159—2009 Clause 4.3.1 (p in %)
+    let K = 0;
+    if (type==="STATIC" || type==="RAPID" || type==="BIDIR"){
+      K = (p>0) ? (1.33*p/(p+3.3)) : 0;
+    } else if (type==="DYN_PREF" || type==="DYN_OTHER"){
+      K = (p>0) ? (1.13*p/(p+3.3)) : 0;
+    } else {
+      K = 0;
+    }
+    if (K>1) K=1;
+    return {type, p, phi_tf, K};
+  }
+
+  function phiG_from(phiGb, tp){
+    const phi_tf_eff = (tp.type==="NONE" || tp.phi_tf==null) ? phiGb : tp.phi_tf;
+    let phi = phiGb + (phi_tf_eff - phiGb) * tp.K;
+    if (phi < phiGb) phi = phiGb; // enforce ≥ φgb
+    return phi;
+  }
+
+  function calcARR(){
+    let wtot=0, score=0;
+    arrItems.forEach((it, idx)=>{
+      const irr = parseFloat(document.getElementById(`irr_${idx}`).value);
+      const ws = it.wi * irr;
+      wtot += it.wi;
+      score += ws;
+      document.getElementById(`wscore_${idx}`).textContent = ws.toFixed(2);
+    });
+    const arr = score / wtot;
+
+    // φgb from ARR (Table 4.3.2(C))
+    const phiGb = phiFromARR(arr);
+
+    // testing benefit (Clause 4.3.1)
+    const tp = testParamsFromUI();
+    const phiG_low  = phiG_from(phiGb.low, tp);
+    const phiG_high = phiG_from(phiGb.high, tp);
+
+    st.ARR = arr;
+    st.band = bandFromARR(arr);
+
+    st.phiGbLow = phiGb.low;
+    st.phiGbHigh = phiGb.high;
+    st.phiGLow = phiG_low;
+    st.phiGHigh = phiG_high;
+    st.test = tp;
+
+    setVal("arrWtot", wtot.toFixed(3));
+    setVal("arrScore", score.toFixed(3));
+    setVal("arrVal", arr.toFixed(3));
+    setVal("arrBand", st.band);
+
+    // base factors (φgb)
+    setVal("phiLow", st.phiGbLow.toFixed(3));
+    setVal("phiHigh", st.phiGbHigh.toFixed(3));
+
+    // testing factors
+    setVal("phi_tf", (tp.type==="NONE") ? "φgb" : (tp.phi_tf!=null ? tp.phi_tf.toFixed(3) : "—"));
+    setVal("Kval", tp.K.toFixed(3));
+
+    // explicit base + final
+    setVal("phiGbLow", st.phiGbLow.toFixed(3));
+    setVal("phiGbHigh", st.phiGbHigh.toFixed(3));
+    setVal("phiGLow", st.phiGLow.toFixed(3));
+    setVal("phiGHigh", st.phiGHigh.toFixed(3));
+
+    // keep geo tab synced
+    setVal("geoARR", st.ARR.toFixed(3));
+    syncGeoPhi();
+  }
+
+
+  function resetARR(){
+    arrItems.forEach((_, idx)=>{ document.getElementById(`irr_${idx}`).value = "3"; });
+    calcARR();
+  }
+
+  function syncGeoPhi(){
+    const red = document.getElementById("geoRed").value;
+    const phi = (red==="HIGH") ? (st.phiGHigh ?? st.phiGbHigh ?? st.phiHigh) : (st.phiGLow ?? st.phiGbLow ?? st.phiLow);
+    st.geo.phi = phi;
+    setVal("geoPhi", phi.toFixed(3));
+  }
+
+
+  // ---------- MULTI-PILE REGISTERS (POINT LOAD → PILE LINK) ----------
+  const MP = {
+    types: [ {id:'BP1', Dmm:600, eoop:0.075} ],
+    piles: [ {id:'P1', type:'BP1'}, {id:'P2', type:'BP1'} ],
+    pointLoads: [
+      {id:'LP01', action:'G', N:5000, Vx:30, Vy:20, Mx:80, My:60, assigned:'P1,P2'},
+      {id:'LP02', action:'Q', N:1200, Vx:10, Vy:8, Mx:20, My:15, assigned:'P1,P2'},
+      {id:'LP03', action:'W', N:-300, Vx:90, Vy:0, Mx:220, My:40, assigned:'P1,P2'},
+      {id:'LP04', action:'E', N:-150, Vx:60, Vy:40, Mx:140, My:110, assigned:'P1,P2'},
+      {id:'LP05', action:'GW', N:-1200, Vx:0, Vy:0, Mx:0, My:0, assigned:'P1,P2'}
+    ]
+  };
+  const MP_DEFAULT = deepClone(MP);
+
+  function mpAssigned(csv){
+    return (csv||'').split(',').map(s=>s.trim()).filter(Boolean);
+  }
+  function mpV0(){ return {N:0,Vx:0,Vy:0,Mx:0,My:0}; }
+  function mpAdd(a, b, scale){
+    a.N += (b.N||0)*scale; a.Vx += (b.Vx||0)*scale; a.Vy += (b.Vy||0)*scale; a.Mx += (b.Mx||0)*scale; a.My += (b.My||0)*scale;
+  }
+  function mpTypeOpts(){
+    return MP.types.map(t=>`<option value="${t.id}">${t.id}</option>`).join('');
+  }
+
+  function mpRender(){
+    // Types
+    document.getElementById('mp_types').innerHTML = `
+      <table>
+        <thead><tr><th>TYPE</th><th>D (mm)</th><th>e_oop (m)</th><th></th></tr></thead>
+        <tbody>
+          ${MP.types.map((t,i)=>`<tr>
+            <td style="text-align:left"><input data-t-i="${i}" data-t-k="id" value="${t.id}"></td>
+            <td><input type="number" step="1" data-t-i="${i}" data-t-k="Dmm" value="${t.Dmm}"></td>
+            <td><input type="number" step="0.001" data-t-i="${i}" data-t-k="eoop" value="${t.eoop}"></td>
+            <td><button class="btn2" type="button" data-del-type="${i}">DEL</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+    // Piles
+    const opts = mpTypeOpts();
+    document.getElementById('mp_piles').innerHTML = `
+      <table>
+        <thead><tr><th>PILE ID</th><th>TYPE</th><th></th></tr></thead>
+        <tbody>
+          ${MP.piles.map((p,i)=>`<tr>
+            <td style="text-align:left"><input data-p-i="${i}" data-p-k="id" value="${p.id}"></td>
+            <td style="text-align:left"><select data-p-i="${i}" data-p-k="type">${opts}</select></td>
+            <td><button class="btn2" type="button" data-del-pile="${i}">DEL</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    document.querySelectorAll('#mp_piles select[data-p-k="type"]').forEach(sel=>{
+      const i=+sel.dataset.pI; sel.value = MP.piles[i].type;
+    });
+
+    // Point loads
+    const actionOpts = ['G','Q','W','E','GW'].map(a=>`<option value="${a}">${a}</option>`).join('');
+    document.getElementById('mp_pl').innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>LP ID</th><th>ACTION</th><th>N</th><th>Vx</th><th>Vy</th><th>Mx</th><th>My</th>
+            <th>ASSIGNED PILES (CSV)</th><th>n</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${MP.pointLoads.map((r,i)=>{
+            const n = mpAssigned(r.assigned).length || 0;
+            return `<tr>
+              <td style="text-align:left"><input data-l-i="${i}" data-l-k="id" value="${r.id}"></td>
+              <td style="text-align:left"><select data-l-i="${i}" data-l-k="action">${actionOpts}</select></td>
+              <td><input type="number" step="0.001" data-l-i="${i}" data-l-k="N" value="${r.N}"></td>
+              <td><input type="number" step="0.001" data-l-i="${i}" data-l-k="Vx" value="${r.Vx}"></td>
+              <td><input type="number" step="0.001" data-l-i="${i}" data-l-k="Vy" value="${r.Vy}"></td>
+              <td><input type="number" step="0.001" data-l-i="${i}" data-l-k="Mx" value="${r.Mx}"></td>
+              <td><input type="number" step="0.001" data-l-i="${i}" data-l-k="My" value="${r.My}"></td>
+              <td style="text-align:left"><input data-l-i="${i}" data-l-k="assigned" value="${r.assigned||''}" placeholder="P1,P2"></td>
+              <td style="text-align:center"><span class="pill">${n}</span></td>
+              <td><button class="btn2" type="button" data-del-pl="${i}">DEL</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="row" style="justify-content:flex-end; margin-top:8px;">
+        <button class="btn2" type="button" id="mp_add_pl">+ ADD POINT LOAD</button>
+      </div>`;
+    document.querySelectorAll('#mp_pl select[data-l-k="action"]').forEach(sel=>{
+      const i=+sel.dataset.lI; sel.value = MP.pointLoads[i].action;
+    });
+
+    // pile selector
+    const sel = document.getElementById('mp_sel_pile');
+    sel.innerHTML = MP.piles.map(p=>`<option value="${p.id}">${p.id}</option>`).join('');
+  }
+
+  function mpGetType(typeId){
+    return MP.types.find(t=>t.id===typeId) || MP.types[0];
+  }
+
+  function mpVectorsForPile(pileId){
+    const sums = {G:mpV0(),Q:mpV0(),W:mpV0(),E:mpV0(),GW:mpV0()};
+    const used=[];
+    for (const pl of MP.pointLoads){
+      const asg = mpAssigned(pl.assigned);
+      if (!asg.includes(pileId)) continue;
+      const n = asg.length || 1;
+      used.push({id:pl.id, action:pl.action, n});
+      mpAdd(sums[pl.action], pl, 1/n);
+    }
+    return {sums, used};
+  }
+
+  function mpApplyToEngine(pileId){
+    const pile = MP.piles.find(p=>p.id===pileId);
+    if (!pile){ alert('Pile not found'); return null; }
+    const t = mpGetType(pile.type);
+
+    // Override diameter & eccentricity (type-controlled)
+    document.getElementById('useCustomPile').checked = true;
+    document.getElementById('pileCustomMm').value = String(t.Dmm);
+    syncPileD();
+    document.getElementById('eoop').value = String(t.eoop);
+
+    const {sums, used} = mpVectorsForPile(pileId);
+    for (const a of ['G','Q','W','E','GW']){
+      setVal(`${a}_N`, sums[a].N);
+      setVal(`${a}_Vx`, sums[a].Vx);
+      setVal(`${a}_Vy`, sums[a].Vy);
+      setVal(`${a}_Mx`, sums[a].Mx);
+      setVal(`${a}_My`, sums[a].My);
+    }
+
+    return {pileId, typeId:pile.type, used};
+  }
+
+  function mpRenderSummary(rows){
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>PILE</th><th>TYPE</th><th>APPLIED LOAD POINTS (ACTION/SHARE)</th>
+            <th>N*max</th><th>N*min</th><th>Vx,DES</th><th>Vy,DES</th><th>Mx,DES,max</th><th>My,DES,max</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td style="text-align:left">${r.pileId}</td>
+            <td style="text-align:left">${r.typeId}</td>
+            <td style="text-align:left">${r.used.map(u=>`${u.id} (${u.action}/${u.n})`).join(', ') || '—'}</td>
+            <td>${fmt(r.Nmax)}</td>
+            <td>${fmt(r.Nmin)}</td>
+            <td>${fmt(r.VxDES)}</td>
+            <td>${fmt(r.VyDES)}</td>
+            <td>${fmt(r.MxDESmax)}</td>
+            <td>${fmt(r.MyDESmax)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    document.getElementById('comboTable').innerHTML = html;
+    document.getElementById('kpis').innerHTML = `<span class="pill">CALCULATED PILES: ${rows.length}</span>`;
+    document.getElementById('notesBox').innerText = 'This summary is per pile. For any single pile, use CALCULATE SELECTED to see the full combo table.';
+  }
+
+  function mpHook(){
+    document.getElementById('mp_add_type').addEventListener('click', ()=>{
+      const n = MP.types.length+1;
+      MP.types.push({id:`BP${n}`, Dmm:600, eoop:0.075});
+      mpRender();
+      scheduleAutoSave();
+    });
+    document.getElementById('mp_add_pile').addEventListener('click', ()=>{
+      const n = MP.piles.length+1;
+      MP.piles.push({id:`P${n}`, type:MP.types[0].id});
+      mpRender();
+      scheduleAutoSave();
+    });
+
+    document.body.addEventListener('click', (e)=>{
+      const el=e.target;
+      if (el.dataset.delType!=null){
+        const i=parseInt(el.dataset.delType,10);
+        if (MP.types.length>1){ MP.types.splice(i,1); mpRender(); scheduleAutoSave(); }
+      }
+      if (el.dataset.delPile!=null){
+        const i=parseInt(el.dataset.delPile,10);
+        MP.piles.splice(i,1); mpRender(); scheduleAutoSave();
+      }
+      if (el.dataset.delPl!=null){
+        const i=parseInt(el.dataset.delPl,10);
+        MP.pointLoads.splice(i,1); mpRender(); scheduleAutoSave();
+      }
+      if (el.id==='mp_add_pl'){
+        const n = MP.pointLoads.length+1;
+        MP.pointLoads.push({id:`LP${String(n).padStart(2,'0')}`, action:'G', N:0,Vx:0,Vy:0,Mx:0,My:0, assigned:''});
+        mpRender();
+        scheduleAutoSave();
+      }
+    });
+
+    document.body.addEventListener('input', (e)=>{
+      const el=e.target;
+      if (el.matches('input[data-t-i]')){
+        const i=+el.dataset.tI; const k=el.dataset.tK;
+        MP.types[i][k] = (k==='id') ? el.value : parseFloat(el.value||0);
+        mpRender();
+      }
+      if (el.matches('input[data-p-i]')){
+        const i=+el.dataset.pI; const k=el.dataset.pK;
+        MP.piles[i][k] = el.value;
+        mpRender();
+      }
+      if (el.matches('select[data-p-i]')){
+        const i=+el.dataset.pI; MP.piles[i].type = el.value;
+      }
+      if (el.matches('input[data-l-i]')){
+        const i=+el.dataset.lI; const k=el.dataset.lK;
+        if (k==='id' || k==='assigned') MP.pointLoads[i][k] = el.value;
+        else MP.pointLoads[i][k] = parseFloat(el.value||0);
+      }
+      if (el.matches('select[data-l-i]')){
+        const i=+el.dataset.lI; MP.pointLoads[i].action = el.value;
+      }
+      scheduleAutoSave();
+    });
+
+    document.getElementById('mp_calc_sel').addEventListener('click', ()=>{
+      const pileId = document.getElementById('mp_sel_pile').value;
+      const info = mpApplyToEngine(pileId);
+      runLoad();
+      refreshDerivedOutputs();
+      const used = info.used.map(u=>`${u.id} (${u.action}/${u.n})`).join(', ') || '—';
+      document.getElementById('notesBox').innerText = `PILE ${pileId}: APPLIED LOAD POINTS = ${used}`;
+      scheduleAutoSave();
+    });
+
+    document.getElementById('mp_calc_all').addEventListener('click', ()=>{
+      const out=[];
+      for (const p of MP.piles){
+        const info = mpApplyToEngine(p.id);
+        runLoad();
+        out.push({
+          pileId:p.id,
+          typeId:info.typeId,
+          used:info.used,
+          Nmax:st.Nmax, Nmin:st.Nmin,
+          VxDES:st.VxDES, VyDES:st.VyDES,
+          MxDESmax:st.MxDESmax, MyDESmax:st.MyDESmax
+        });
+      }
+      mpRenderSummary(out);
+      refreshDerivedOutputs();
+      scheduleAutoSave();
+    });
+  }
+
+  // ---------- Load Engine ----------
+  function runLoad(){
+    const Hc = document.getElementById("Hclass").value;
+    const alpha = (Hc==="GT15") ? 0.010 : 0.015;
+
+    syncPileD(); syncPsi();
+
+    const D = num("D_m",0.75);
+    const eoop = num("eoop",0.075);
+
+    const psic = parseFloat(document.getElementById("psi_c").value);
+    const psiE = parseFloat(document.getElementById("psi_E").value);
+    const psil = parseFloat(document.getElementById("psi_l").value);
+
+    const ggw = parseFloat(document.getElementById("ggw").value || "1.5");
+    const gmin = num("gmin",0.7);
+    const gmin09 = (document.getElementById("gmin09").value === "yes");
+
+    const G = vecFrom("G");
+    const Q = vecFrom("Q");
+    const W = vecFrom("W");
+    const E = vecFrom("E");
+    const Fgw = vecFrom("GW");
+
+    // reversal
+    const Wp = W, Wm = neg(W);
+    const Ep = E, Em = neg(E);
+
+    const Vrob = alpha * (G.N + psic*Q.N);
+    const emin = 0.05 * D;
+
+    const combos = [
+      {id:"ULS1  1.35G", calc:()=> mul(1.35,G)},
+      {id:"ULS2  1.2G + 1.5Q", calc:()=> add(mul(1.2,G), mul(1.5,Q))},
+      {id:`ULS3  1.2G + 1.5ψlQ (ψl=${psil.toFixed(2)})`, calc:()=> add(mul(1.2,G), mul(1.5*psil,Q))},
+      {id:`ULS4+ 1.2G + W+ + ${psic.toFixed(2)}Q`, calc:()=> add(add(mul(1.2,G), Wp), mul(psic,Q))},
+      {id:`ULS4- 1.2G + W- + ${psic.toFixed(2)}Q`, calc:()=> add(add(mul(1.2,G), Wm), mul(psic,Q))},
+      {id:"ULS5+ 0.9G + W+", calc:()=> add(mul(0.9,G), Wp)},
+      {id:"ULS5- 0.9G + W-", calc:()=> add(mul(0.9,G), Wm)},
+      {id:`ULS6+ G + E+ + ${psiE.toFixed(2)}Q`, calc:()=> add(add(G, Ep), mul(psiE,Q))},
+      {id:`ULS6- G + E- + ${psiE.toFixed(2)}Q`, calc:()=> add(add(G, Em), mul(psiE,Q))},
+      {id:`ULS-GW  1.2G + ${ggw.toFixed(1)}Fgw + ${psic.toFixed(2)}Q`, calc:()=> add(add(mul(1.2,G), mul(ggw,Fgw)), mul(psic,Q))},
+      {id:`ULS-GWU 0.9G + ${ggw.toFixed(1)}Fgw`, calc:()=> add(mul(0.9,G), mul(ggw,Fgw))},
+      {id:`DWSTOP  ${(gmin*(gmin09?0.9:1)).toFixed(2)}G + ${ggw.toFixed(1)}Fgw`, calc:()=>{
+        const Gstage = mul(gmin*(gmin09?0.9:1), G);
+        return add(Gstage, mul(ggw,Fgw));
+      }}
+    ];
+
+    const rows = combos.map(c=>{
+      const S = c.calc();
+      const MxA = S.Mx + (S.N * eoop);
+      const MyA = S.My + (S.N * eoop);
+      const MxB = abs(S.N) * emin;
+      const MyB = abs(S.N) * emin;
+      const MxDES = Math.max(abs(MxA), MxB);
+      const MyDES = Math.max(abs(MyA), MyB);
+      return { id:c.id, S, MxA, MyA, MxB, MyB, MxDES, MyDES };
+    });
+
+    const Nmax = Math.max(...rows.map(r=>r.S.N));
+    const Nmin = Math.min(...rows.map(r=>r.S.N));
+    const VxAbsMax = Math.max(...rows.map(r=>abs(r.S.Vx)));
+    const VyAbsMax = Math.max(...rows.map(r=>abs(r.S.Vy)));
+    const MxDESmax = Math.max(...rows.map(r=>r.MxDES));
+    const MyDESmax = Math.max(...rows.map(r=>r.MyDES));
+    const VxDES = Math.max(VxAbsMax, Vrob);
+    const VyDES = Math.max(VyAbsMax, Vrob);
+
+    // store
+    st.lastRun = new Date().toISOString();
+    st.alpha=alpha; st.Vrob=Vrob; st.emin=emin; st.D=D; st.eoop=eoop;
+    st.Nmax=Nmax; st.Nmin=Nmin; st.VxDES=VxDES; st.VyDES=VyDES; st.MxDESmax=MxDESmax; st.MyDESmax=MyDESmax;
+
+    renderLoad(rows, ggw, psic);
+    // keep geo demands visible (geo uses Nmax and |Nmin|)
+    document.getElementById("geoMsg").textContent = "";
+  }
+
+  function renderLoad(rows, ggw, psic){
+    const k = document.getElementById("kpis");
+    k.innerHTML = `
+      <span class="pill">α = ${st.alpha.toFixed(3)}</span>
+      <span class="pill">Vrob = ${fmt(st.Vrob)} kN</span>
+      <span class="pill">e_oop = ${fmt(st.eoop)} m</span>
+      <span class="pill">0.05D = ${fmt(st.emin)} m</span>
+      <span class="pill">N*max = ${fmt(st.Nmax)} kN</span>
+      <span class="pill">N*min = ${fmt(st.Nmin)} kN</span>
+      <span class="pill">Vx,DES = ${fmt(st.VxDES)} kN</span>
+      <span class="pill">Vy,DES = ${fmt(st.VyDES)} kN</span>
+      <span class="pill">Mx,DES,max = ${fmt(st.MxDESmax)} kNm</span>
+      <span class="pill">My,DES,max = ${fmt(st.MyDESmax)} kNm</span>
+    `;
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>COMBO</th>
+            <th>N* (kN)</th><th>Vx* (kN)</th><th>Vy* (kN)</th><th>Mx* (kNm)</th><th>My* (kNm)</th>
+            <th>|Mx*+N*e| (kNm)</th><th>|N*|·0.05D (kNm)</th><th>Mx,DES (kNm)</th>
+            <th>|My*+N*e| (kNm)</th><th>|N*|·0.05D (kNm)</th><th>My,DES (kNm)</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    rows.forEach(r=>{
+      html += `
+        <tr>
+          <td>${r.id}</td>
+          <td>${fmt(r.S.N)}</td>
+          <td>${fmt(r.S.Vx)}</td>
+          <td>${fmt(r.S.Vy)}</td>
+          <td>${fmt(r.S.Mx)}</td>
+          <td>${fmt(r.S.My)}</td>
+          <td>${fmt(abs(r.MxA))}</td>
+          <td>${fmt(r.MxB)}</td>
+          <td><b>${fmt(r.MxDES)}</b></td>
+          <td>${fmt(abs(r.MyA))}</td>
+          <td>${fmt(r.MyB)}</td>
+          <td><b>${fmt(r.MyDES)}</b></td>
+        </tr>`;
+    });
+    html += `</tbody></table>`;
+    document.getElementById("comboTable").innerHTML = html;
+
+    document.getElementById("notesBox").innerHTML =
+      `NOTES: (1) Vx,DES and Vy,DES apply per-pile minimum shear: Vrob = α (NG + ψc NQ). `+
+      `(2) Mx,DES = max(|Mx* + N*e_oop|, |N*|·0.05D); same for My,DES. `+
+      `(3) Groundwater uses γgw×Fgw (γgw=${ggw.toFixed(1)}).`;
+  }
+
+  function resetExample(){
+    // already set in default values; just re-sync D and psi, and run
+    document.getElementById("useCustomPile").checked = false;
+    document.getElementById("pileSize").value = "450";
+    document.getElementById("pileCustomMm").value = "750";
+    document.getElementById("occ").value = "RES";
+    document.getElementById("Hclass").value = "LE15";
+    document.getElementById("ggw").value = "1.5";
+    document.getElementById("gmin").value = "0.70";
+    document.getElementById("gmin09").value = "no";
+    syncPileD(); syncPsi();
+    runLoad();
+  }
+
+  function resetProjectWorkspace(){
+    resetExample();
+    resetARR();
+    document.getElementById("geoRed").value = "LOW";
+    document.getElementById("shaftRedComp").value = "1.0";
+    document.getElementById("shaftRedTen").value = "0.5";
+    document.getElementById("useNnf").checked = false;
+    document.getElementById("Nnf").value = "0";
+    document.getElementById("s1H").value = "0";
+    document.getElementById("s1qs").value = "0";
+    document.getElementById("s2H").value = "0";
+    document.getElementById("s2qs").value = "0";
+    document.getElementById("s3H").value = "0";
+    document.getElementById("s3qs").value = "0";
+    document.getElementById("Ls").value = "2.0";
+    document.getElementById("useLsMinOverride").checked = false;
+    document.getElementById("LsMinOverride").value = "0";
+    document.getElementById("qsRock").value = "200";
+    document.getElementById("qbRock").value = "3000";
+    document.getElementById("useBase").value = "YES";
+    document.getElementById("autoSolveLs").checked = true;
+    document.getElementById("fcGrade").value = "32";
+    document.getElementById("fcCustom").value = "32";
+    document.getElementById("fsy").value = "500";
+    document.getElementById("kPlace").value = "1.0";
+    document.getElementById("kMethod").value = "all";
+    document.getElementById("axModel").value = "reinforced";
+    document.getElementById("minReoRule").value = "other_embedded";
+    document.getElementById("reoLoc").value = "below3d";
+    const reoLocDetail = document.getElementById("reoLocDetail");
+    if(reoLocDetail) reoLocDetail.value = "below3d";
+    document.getElementById("allowAsOver").checked = false;
+    document.getElementById("phiOverride").checked = false;
+    document.getElementById("phiC").value = "0.65";
+    document.getElementById("phiT").value = "0.85";
+    document.getElementById("reoCutDepth").value = "0";
+    document.getElementById("reoLd").value = "0";
+    document.getElementById("barDia").value = "20";
+    document.getElementById("nBars").value = "0";
+    document.getElementById("cover").value = "75";
+    document.getElementById("Es").value = "200000";
+    document.getElementById("useBiax").value = "YES";
+    document.getElementById("brace").value = "BRACED";
+    document.getElementById("Le").value = "";
+    document.getElementById("tieDia").value = "12";
+    document.getElementById("tieS").value = "200";
+    document.getElementById("tieLegs").value = "2";
+    document.getElementById("dg").value = "20";
+    document.getElementById("designNote").value = "";
+    document.getElementById("designNotePreview").innerHTML = "";
+    document.getElementById("aiPrompt").value = "";
+    Object.assign(MP, deepClone(MP_DEFAULT));
+    mpRender();
+    syncPileD();
+    syncPsi();
+    syncGeoPhi();
+    syncFc();
+    syncAxModelUI();
+    try{ syncLsMin(); }catch(e){}
+    try{ calcARR(); }catch(e){}
+    try{ runLoad(); }catch(e){}
+    try{ solveLs(true); }catch(e){}
+    try{ runGeo(); }catch(e){}
+    try{ runStruct(); }catch(e){}
+    setActiveTab("tLoad");
+  }
+
+  function captureFormState(){
+    const state = {};
+    document.querySelectorAll("input[id], select[id], textarea[id]").forEach((el)=>{
+      if (!el.id || el.id === "projectImportFile" || el.id === "projectName" || el.id === "projectSelect") return;
+      if (el.type === "checkbox" || el.type === "radio"){
+        state[el.id] = {kind: "checked", value: !!el.checked};
+      } else {
+        state[el.id] = {kind: "value", value: el.value};
+      }
+    });
+    return state;
+  }
+
+  function applyFormState(state){
+    const entries = state || {};
+    document.querySelectorAll("input[id], select[id], textarea[id]").forEach((el)=>{
+      if (el.id === "projectName" || el.id === "projectSelect" || el.id === "projectImportFile") return;
+      if (!el.id || !Object.prototype.hasOwnProperty.call(entries, el.id)) return;
+      const item = entries[el.id];
+      if (!item) return;
+      if (item.kind === "checked") el.checked = !!item.value;
+      if (item.kind === "value") el.value = item.value;
+    });
+  }
+
+  function projectSnapshot(id, name, existing){
+    const now = isoNow();
+    return {
+      id,
+      name: (name || "Untitled Project").trim() || "Untitled Project",
+      createdAt: existing && existing.createdAt ? existing.createdAt : now,
+      updatedAt: now,
+      activeTab: activeTabId(),
+      form: captureFormState(),
+      mp: deepClone(MP)
+    };
+  }
+
+  function renderProjectUI(){
+    const select = document.getElementById("projectSelect");
+    const countBadge = document.getElementById("projectCountBadge");
+    const updatedBadge = document.getElementById("projectUpdatedBadge");
+    if(!select) return;
+    const projects = Object.values(app.projects).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+    select.innerHTML = projects.map((project)=>`<option value="${project.id}">${escapeHtml(project.name)}</option>`).join("");
+    if (app.currentProjectId && app.projects[app.currentProjectId]){
+      const current = app.projects[app.currentProjectId];
+      select.value = app.currentProjectId;
+      document.getElementById("projectName").value = current.name;
+      if(updatedBadge) updatedBadge.textContent = `Updated ${formatDateTime(current.updatedAt)}`;
+    }
+    if(countBadge) countBadge.textContent = `${projects.length} saved project${projects.length === 1 ? "" : "s"}`;
+  }
+
+  function persistProjects(){
+    localStorage.setItem(APP_STORAGE_KEY, JSON.stringify({
+      version: APP_IMPORT_VERSION,
+      currentProjectId: app.currentProjectId,
+      projects: app.projects
+    }));
+    renderProjectUI();
+  }
+
+  function saveCurrentProject(opts){
+    if(app.isApplyingProject) return;
+    const options = opts || {};
+    const existing = app.currentProjectId ? app.projects[app.currentProjectId] : null;
+    const id = existing ? existing.id : uid();
+    const name = document.getElementById("projectName").value || "Untitled Project";
+    app.currentProjectId = id;
+    app.projects[id] = projectSnapshot(id, name, existing);
+    persistProjects();
+    if(!options.silent) setProjectStatus(`Saved "${app.projects[id].name}".`, "ok");
+  }
+
+  function scheduleAutoSave(){
+    if(app.isApplyingProject || !app.currentProjectId) return;
+    clearTimeout(app.autoSaveTimer);
+    app.autoSaveTimer = setTimeout(()=>{
+      saveCurrentProject({silent:true});
+      const current = app.projects[app.currentProjectId];
+      if(current) setProjectStatus(`Autosaved "${current.name}".`, "ok");
+    }, 400);
+  }
+
+  function loadProject(id){
+    const project = app.projects[id];
+    if(!project) return;
+    app.isApplyingProject = true;
+    try{
+      app.currentProjectId = id;
+      resetProjectWorkspace();
+      Object.assign(MP, deepClone(project.mp || MP_DEFAULT));
+      mpRender();
+      applyFormState(project.form);
+      syncPileD();
+      syncPsi();
+      syncGeoPhi();
+      syncFc();
+      syncAxModelUI();
+      try{ syncLsMin(); }catch(e){}
+      setActiveTab(project.activeTab || "tLoad");
+      try{ calcARR(); }catch(e){}
+      try{ runLoad(); }catch(e){}
+      try{
+        const autoSolve = document.getElementById("autoSolveLs");
+        if(autoSolve && autoSolve.checked) solveLs(true);
+      }catch(e){}
+      try{ runGeo(); }catch(e){}
+      try{ runStruct(); }catch(e){}
+      try{ genDesignNote(); genPrompt(); }catch(e){}
+      renderProjectUI();
+      setProjectStatus(`Loaded "${project.name}".`, "ok");
+    } finally {
+      app.isApplyingProject = false;
+    }
+  }
+
+  function createProject(name){
+    const id = uid();
+    app.projects[id] = {
+      id,
+      name: (name || `Project ${Object.keys(app.projects).length + 1}`).trim(),
+      createdAt: isoNow(),
+      updatedAt: isoNow(),
+      activeTab: "tLoad",
+      form: {},
+      mp: deepClone(MP_DEFAULT)
+    };
+    app.currentProjectId = id;
+    resetProjectWorkspace();
+    document.getElementById("projectName").value = app.projects[id].name;
+    saveCurrentProject({silent:true});
+    loadProject(id);
+  }
+
+  function duplicateCurrentProject(){
+    const current = app.projects[app.currentProjectId];
+    if(!current) return;
+    saveCurrentProject({silent:true});
+    const clone = deepClone(app.projects[app.currentProjectId]);
+    clone.id = uid();
+    clone.name = `${clone.name} Copy`;
+    clone.createdAt = isoNow();
+    clone.updatedAt = isoNow();
+    app.projects[clone.id] = clone;
+    app.currentProjectId = clone.id;
+    persistProjects();
+    loadProject(clone.id);
+    setProjectStatus(`Duplicated as "${clone.name}".`, "ok");
+  }
+
+  function deleteCurrentProject(){
+    const ids = Object.keys(app.projects);
+    if(ids.length <= 1){
+      setProjectStatus("At least one project is kept in storage.", "warn");
+      return;
+    }
+    const doomedId = app.currentProjectId;
+    const doomedName = app.projects[doomedId] ? app.projects[doomedId].name : "project";
+    delete app.projects[doomedId];
+    app.currentProjectId = Object.keys(app.projects)[0] || null;
+    persistProjects();
+    if(app.currentProjectId) loadProject(app.currentProjectId);
+    setProjectStatus(`Deleted "${doomedName}".`, "warn");
+  }
+
+  function exportCurrentProject(){
+    const current = app.projects[app.currentProjectId];
+    if(!current) return;
+    saveCurrentProject({silent:true});
+    const payload = {
+      app: "multi-pile-calculator",
+      version: APP_IMPORT_VERSION,
+      exportedAt: isoNow(),
+      project: app.projects[app.currentProjectId]
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeName = (payload.project.name || "project").replace(/[^a-z0-9-_]+/gi, "_");
+    link.href = url;
+    link.download = `${safeName}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setProjectStatus(`Exported "${payload.project.name}".`, "ok");
+  }
+
+  function importProjectPayload(text){
+    const payload = JSON.parse(text);
+    const imported = payload && payload.project ? payload.project : payload;
+    if(!imported || !imported.name || !imported.form || !imported.mp){
+      throw new Error("Unsupported project file.");
+    }
+    const clone = deepClone(imported);
+    clone.id = uid();
+    clone.createdAt = isoNow();
+    clone.updatedAt = isoNow();
+    app.projects[clone.id] = clone;
+    app.currentProjectId = clone.id;
+    persistProjects();
+    loadProject(clone.id);
+    setProjectStatus(`Imported "${clone.name}".`, "ok");
+  }
+
+  function wireProjectUI(){
+    document.getElementById("projectName").addEventListener("input", scheduleAutoSave);
+    document.getElementById("projectSelect").addEventListener("change", (e)=>{
+      saveCurrentProject({silent:true});
+      loadProject(e.target.value);
+    });
+    document.getElementById("btnProjectSave").addEventListener("click", ()=>saveCurrentProject({silent:false}));
+    document.getElementById("btnProjectNew").addEventListener("click", ()=>createProject());
+    document.getElementById("btnProjectDuplicate").addEventListener("click", duplicateCurrentProject);
+    document.getElementById("btnProjectDelete").addEventListener("click", deleteCurrentProject);
+    document.getElementById("btnProjectExport").addEventListener("click", exportCurrentProject);
+    document.getElementById("btnProjectImport").addEventListener("click", ()=>{
+      document.getElementById("projectImportFile").click();
+    });
+    document.getElementById("projectImportFile").addEventListener("change", async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      try{
+        importProjectPayload(await file.text());
+      }catch(err){
+        setProjectStatus(`Import failed: ${err.message || err}`, "warn");
+      } finally {
+        e.target.value = "";
+      }
+    });
+    document.querySelectorAll('.tab-radio[name="tabs"]').forEach((el)=>{
+      el.addEventListener("change", scheduleAutoSave);
+    });
+    window.addEventListener("beforeunload", ()=>{
+      try{ saveCurrentProject({silent:true}); }catch(e){}
+    });
+  }
+
+  function bootProjects(){
+    wireProjectUI();
+    try{
+      const raw = localStorage.getItem(APP_STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        app.projects = parsed && parsed.projects ? parsed.projects : {};
+        app.currentProjectId = parsed && parsed.currentProjectId ? parsed.currentProjectId : null;
+      }
+    }catch(e){
+      app.projects = {};
+      app.currentProjectId = null;
+      setProjectStatus("Stored projects could not be read. Starting fresh.", "warn");
+    }
+    if(!Object.keys(app.projects).length){
+      createProject("Project 1");
+      return;
+    }
+    renderProjectUI();
+    if(!app.currentProjectId || !app.projects[app.currentProjectId]){
+      app.currentProjectId = Object.keys(app.projects)[0];
+    }
+    loadProject(app.currentProjectId);
+  }
+
+
+  // ---------- Geo strength (AS 2159 Section 4.4) ----------
+  function solveLs(quiet){
+    if (st.Nmax==null || st.Nmin==null){
+      document.getElementById("geoMsg").innerHTML = `<span class="warn">Run the LOAD ENGINE first.</span>`;
+      return;
+    }
+    syncGeoPhi();
+    const phi = st.geo.phi;
+
+    const D = currentPileDiameter();
+    const etaC = num("shaftRedComp", 1.0);
+    const etaT = num("shaftRedTen", 0.5);
+
+    const layers = [
+      {H: num("s1H",0), qs: num("s1qs",0)},
+      {H: num("s2H",0), qs: num("s2qs",0)},
+      {H: num("s3H",0), qs: num("s3qs",0)}
+    ];
+    let RsSoil=0;
+    for (const L of layers){
+      if (L.H>0 && L.qs>0) RsSoil += Math.PI*D*L.H*L.qs;
+    }
+
+    const qsR = Math.max(0, num("qsRock",0));
+    if ((qsR<=0) && (Math.abs(Math.min(0, st.Nmin))>0 || st.Nmax>0)) {
+      document.getElementById("geoMsg").innerHTML = `<span class="warn">qsRock must be &gt; 0 to auto-solve socket length.</span>`;
+      return;
+    }
+    const qbR = Math.max(0, num("qbRock",0));
+    const Ab = Math.PI*D*D/4.0;
+    const useBase = (document.getElementById("useBase").value==="YES");
+    const baseUlt = useBase ? (Ab*qbR) : 0;
+
+    // demands
+    const useNnf = document.getElementById("useNnf").checked;
+    const Nnf = useNnf ? Math.max(0, num("Nnf",0)) : 0;
+    const NcompEff = Math.max(0, st.Nmax) + Nnf;
+    const Nten  = Math.max(0, Math.abs(Math.min(0, st.Nmin)));
+
+    // avoid divide-by-zero
+    const perim = Math.PI*D;
+    const denom = perim*qsR;
+
+    // minimum socket embedment
+    const Ls_min = syncLsMin();
+
+    let Ls_req_ten = 0;
+    if (Nten>0){
+      // phi * etaT * (RsSoil + perim*Ls*qsR) >= Nten
+      const need = (Nten/(phi*Math.max(etaT,1e-6))) - RsSoil;
+      Ls_req_ten = (denom>0) ? Math.max(0, need/denom) : 0;
+    }
+
+    let Ls_req_comp = 0;
+    if (NcompEff>0){
+      // phi * ( etaC*(RsSoil + perim*Ls*qsR) + baseUlt ) >= NcompEff
+      const needTotal = (NcompEff/phi) - baseUlt;
+      const need = (needTotal/Math.max(etaC,1e-6)) - RsSoil;
+      Ls_req_comp = (denom>0) ? Math.max(0, need/denom) : 0;
+    }
+
+    const Ls_req = Math.max(Ls_req_ten, Ls_req_comp, Ls_min);
+    const Ls_step = 0.2; // m (round up to construction-friendly increment)
+    const Ls_used = roundUpTo((isFinite(Ls_req) ? Ls_req : 0), Ls_step);
+    document.getElementById("Ls").value = Ls_used.toFixed(1);
+    runGeo();
+  }
+
+  // ---------- Geo check ----------
+  function runGeo(){
+    // require load run
+    if (st.Nmax==null || st.Nmin==null){
+      document.getElementById("geoMsg").innerHTML = `<span class="warn">Run the LOAD ENGINE first.</span>`;
+      return;
+    }
+    syncGeoPhi();
+    const phi = st.geo.phi;
+
+    const D = currentPileDiameter();
+    const etaC = num("shaftRedComp", 1.0);
+    const etaT = num("shaftRedTen", 0.5);
+
+    const layers = [
+      {H: num("s1H",0), qs: num("s1qs",0)},
+      {H: num("s2H",0), qs: num("s2qs",0)},
+      {H: num("s3H",0), qs: num("s3qs",0)}
+    ];
+
+    let RsSoil=0;
+    for (const L of layers){
+      if (L.H>0 && L.qs>0) RsSoil += Math.PI*D*L.H*L.qs; // kN (since kPa * m^2 = kN)
+    }
+
+    const Ls_in = Math.max(0, num("Ls",0));
+    const Ls_min = syncLsMin();
+    const Ls_step = 0.2; // m (round up to construction-friendly increment)
+    const Ls = roundUpTo(Math.max(Ls_in, Ls_min), Ls_step);
+    const qsR = Math.max(0, num("qsRock",0));
+    const qbR = Math.max(0, num("qbRock",0));
+    const Ab = Math.PI*D*D/4.0;
+    const RsRock = Math.PI*D*Ls*qsR;
+    const shaftUltComp = etaC*(RsSoil + RsRock);
+    const shaftUltTen  = etaT*(RsSoil + RsRock);
+    const useBase = (document.getElementById("useBase").value==="YES");
+    const baseUlt = useBase ? (Ab*qbR) : 0;
+
+    const Rug_comp = shaftUltComp + baseUlt;
+    const Rug_ten  = shaftUltTen;
+
+    const phiRcomp = phi*Rug_comp;
+    const phiRten  = phi*Rug_ten;
+
+    const useNnf = document.getElementById("useNnf").checked;
+    const Nnf = useNnf ? Math.max(0, num("Nnf",0)) : 0;
+    const Ncomp = Math.max(0, st.Nmax) + Nnf;
+    const Nten  = Math.max(0, Math.abs(Math.min(0, st.Nmin)));
+
+    const okComp = (phiRcomp >= Ncomp);
+    const lsNote = (Ls_in < Ls_min) ? `Note: Ls increased to minimum embedment ${Ls_min.toFixed(2)} m (1.5D default/override).` : "";
+    const okTen  = (phiRten  >= Nten);
+    const ok = okComp && okTen;
+
+    const utilComp = (Ncomp>0) ? (100*Ncomp/phiRcomp) : 0;
+    const utilTen  = (Nten>0)  ? (100*Nten/phiRten)  : 0;
+
+    st.geo = { ok, phi, phiRcomp, phiRten, utilComp, utilTen };
+
+    const gk = document.getElementById("geoKpis");
+    gk.innerHTML = `
+      <span class="pill">φg = ${phi.toFixed(3)}</span>
+      <span class="pill">Rd,ug,c = ${phiRcomp.toFixed(1)} kN</span>
+      <span class="pill">Rd,ug,t = ${phiRten.toFixed(1)} kN</span>
+      <span class="pill">N*max = ${st.Nmax.toFixed(1)} kN</span>
+      <span class="pill">Nnf = ${Nnf.toFixed(1)} kN</span>
+      <span class="pill">|N*min| = ${Math.abs(st.Nmin).toFixed(1)} kN</span>
+      <span class="pill">${ok ? "PASS" : "FAIL"}</span>
+    `;
+    document.getElementById("geoMsg").innerHTML =
+      `Compression utilisation = ${utilComp.toFixed(1)}% (${okComp?"OK":"NOT OK"}). `+
+      `Uplift utilisation = ${utilTen.toFixed(1)}% (${okTen?"OK":"NOT OK"}). `+
+      (lsNote ? `<br><span class="muted">${lsNote}</span>` : ``);
+  }
+
+  // ---------- Report outputs ----------
+  function genDesignNote(){
+    const Hc = document.getElementById("Hclass").value;
+    const alphaTxt = (Hc==="GT15") ? "α = 0.010 (H > 15 m)" : "α = 0.015 (H ≤ 15 m)";
+    const occTxt = document.getElementById("occ").selectedOptions[0].textContent;
+    const ggw = parseFloat(document.getElementById("ggw").value || "1.5");
+    const gmin = num("gmin",0.7);
+    const gmin09 = (document.getElementById("gmin09").value==="yes") ? "YES" : "NO";
+    const red = document.getElementById("geoRed").value;
+
+    const psi_s = document.getElementById("psi_s").value;
+    const psi_l = document.getElementById("psi_l").value;
+    const psi_c = document.getElementById("psi_c").value;
+    const psi_E = document.getElementById("psi_E").value;
+
+    // ---- STRUCTURAL (AS/NZS 1170 / AS 3600) ----
+    const Nmax = (st.Nmax ?? 0);
+    const Nmin = (st.Nmin ?? 0);
+    const MxD  = (st.MxDESmax ?? 0);
+    const MyD  = (st.MyDESmax ?? 0);
+
+    // ---- GEOTECH (AS 2159) ----
+    const tp = st.test || {type:"NONE",p:0,K:0,phi_tf:null};
+    const phiGbSel = (red==="HIGH") ? (st.phiGbHigh ?? st.phiHigh) : (st.phiGbLow ?? st.phiLow);
+    const phiGSel  = (red==="HIGH") ? (st.phiGHigh ?? st.phiHigh) : (st.phiGLow ?? st.phiLow);
+    const tfTxt = (tp.type==="NONE") ? "φtf = φgb (NO TESTING)" : `φtf = ${tp.phi_tf.toFixed(3)}`;
+
+    const lines = [];
+    lines.push("5.0 STRUCTURAL DESIGN BASIS (ACTIONS + COMBINATIONS)");
+    lines.push("");
+    lines.push("Load combinations have been generated in accordance with AS/NZS 1170.0:2002 Section 4. Wind and earthquake actions are applied with ± reversal. ψ factors are adopted from Table 4.1 for the selected occupancy.");
+    lines.push(`Occupancy adopted: ${occTxt}. ψ factors: ψs=${psi_s}, ψl=${psi_l}, ψc=${psi_c}, ψE=${psi_E}.`);
+    lines.push(`Robustness minimum shear has been applied in accordance with AS/NZS 1170.0 Section 6.2.2 using ${alphaTxt}.`);
+    lines.push(`Groundwater uplift has been applied in accordance with Clause 4.2.3(e) using γgw=${ggw.toFixed(1)}, including 0.9G+γgwFgw and a custom dewatering-stop scenario (Gmin=${gmin.toFixed(2)}, apply 0.9 to stage G: ${gmin09}).`);
+    lines.push("Minimum bending moments have been enforced in accordance with AS 2159 and AS 3600 using M ≥ max(|M* + N*e_oop|, |N*|×0.05D).");
+    lines.push("");
+    lines.push("5.1 GOVERNING ULS ACTION EFFECTS");
+    lines.push(`N*max = ${Nmax.toFixed(1)} kN`);
+    lines.push(`N*min = ${Nmin.toFixed(1)} kN`);
+    lines.push(`Mx,DES,max = ${MxD.toFixed(1)} kNm`);
+    lines.push(`My,DES,max = ${MyD.toFixed(1)} kNm`);
+    lines.push("");
+    
+    // --- Structural basis (AS 2159 Section 5 / AS 3600) ---
+    lines.push("5.0 STRUCTURAL DESIGN BASIS (AS 2159 SECTION 5 / AS 3600)");
+    lines.push("Structural design checks for the pile section have been undertaken in accordance with AS 2159—2009 Section 5 and AS 3600:2018.");
+    lines.push(`Materials: Concrete f'c = ${st.str.fc.toFixed(0)} MPa (AS 3600 Cl 3.1.1); E_c = ${Number(st.Ec||0).toFixed(0)} MPa (AS 3600 Table 3.1.2); Reinforcement fsy = ${st.str.fsy.toFixed(0)} MPa (D500N).`);
+    lines.push(`Capacity reduction factors (AS 3600 Table 2.2.2, Class N): ϕc = ${st.str.phi_c.toFixed(2)} (axial compression), ϕt = ${st.str.phi_t.toFixed(2)} (axial tension).`);
+    lines.push(`Concrete placement factor (AS 2159 Table 5.3.2): k = ${st.str.kPlace.toFixed(2)}; construction method = ${String(st.str.kMethod).toUpperCase()}.`);
+    lines.push(`Axial capacity model (compression): ${String(st.str.axModel).toUpperCase()} (reinforced / partial / plain as selected).`);
+    const reoCutDepth = num("reoCutDepth",0);
+    const reoLd = num("reoLd",0);
+    if (String(st.str.axModel)==="partial"){
+      lines.push(`Partially reinforced pile (AS 2159 Cl 5.3.4): longitudinal reinforcement may be curtailed one development length below the last level where bending actions are significant; adopted reporting inputs: cut-off depth = ${reoCutDepth.toFixed(2)} m below pile head; Ld = ${reoLd.toFixed(2)} m.`);
+    }
+    lines.push(`Longitudinal reinforcement provided: ${st.str.nBars} × N${st.str.dbar} → As = ${st.str.As.toFixed(0)} mm².`);
+    lines.push(`Reinforcement limits (AS 2159 Clause 5.3.3): As,min = ${(st.str.rho_min*100).toFixed(2)}%Ag = ${st.str.As_min.toFixed(0)} mm²; As,max = 4.00%Ag = ${st.str.As_max.toFixed(0)} mm² (${st.str.okAsMax ? "OK" : "NOT OK"}).`);
+    if (st.str.axModel==="partial"){
+      lines.push(`Partially reinforced pile (AS 2159 Clause 5.3.4 concept): verify N*max ≤ 0.5 k f'c Ag = ${st.str.Nlim_partial_kN.toFixed(0)} kN (${st.str.okUnreinforcedLimit ? "OK" : "NOT OK"}).`);
+    } else if (st.str.axModel==="plain"){
+      lines.push(`Unreinforced pile (AS 2159 Clause 5.3.5 concept): verify N*max ≤ 0.45 k f'c Ag = ${st.str.Nlim_plain_kN.toFixed(0)} kN (${st.str.okUnreinforcedLimit ? "OK" : "NOT OK"}).`);
+    }
+    lines.push(`Structural ULS checks (axial): Compression utilisation = ${(st.str.utilC*100).toFixed(1)}%; Tension utilisation = ${(st.str.utilT*100).toFixed(1)}%.`);
+    // Shear design (AS 3600 Section 8.2)
+    if (st.shear){
+      lines.push("5.2 SHEAR DESIGN (AS 3600 SECTION 8.2)");
+      lines.push(`Governing shear action: V* = ${st.shear.Vstar.toFixed(1)} kN (max(|Vx,DES|,|Vy,DES|)). b_v = ${st.shear.bv.toFixed(0)} mm; d_v = ${st.shear.dv.toFixed(0)} mm.`);
+      lines.push(`Concrete shear: k_v = ${st.shear.kv.toFixed(3)}, θ_v = ${st.shear.theta_v_deg.toFixed(0)}°, V_uc = ${st.shear.Vuc.toFixed(1)} kN.`);
+      lines.push(`Shear reinforcement: N${st.shear.tieDia} @ ${st.shear.tieS.toFixed(0)} mm, ${st.shear.tieLegs} legs → A_sv/s = ${(st.shear.Asv_over_s*1000).toFixed(1)} mm²/m; A_sv,min/s = ${(st.shear.Asvmin_over_s*1000).toFixed(1)} mm²/m.`);
+      lines.push(`Total shear: V_us = ${st.shear.Vus.toFixed(1)} kN; V_u = ${st.shear.Vu.toFixed(1)} kN; ϕ_v V_u = ${(st.shear.phi_v*st.shear.Vu).toFixed(1)} kN → ${st.shear.okShear?"PASS":"FAIL"}.`);
+      lines.push(`Web crushing: V_u,max = ${st.shear.Vumax.toFixed(1)} kN; ϕ_v V_u,max = ${(st.shear.phi_v*st.shear.Vumax).toFixed(1)} kN → ${st.shear.okWeb?"PASS":"FAIL"}.`);
+      if (st.shear.shearReoReq) lines.push(`Transverse shear reinforcement REQUIRED by Clause 8.2.1.6 trigger (k_s = ${st.shear.ks.toFixed(3)}).`);
+    }
+    lines.push("");
+lines.push("6.0 GEOTECHNICAL DESIGN BASIS (AS 2159 SECTION 4)");
+    lines.push("Geotechnical design has been undertaken in accordance with AS 2159—2009 Section 4.");
+    lines.push(`6.1 RISK ASSESSMENT AND φg (SECTION 4.3): ARR = ${st.ARR.toFixed(3)} (TABLE 4.3.2 WORKFLOW). φgb = ${phiGbSel.toFixed(3)}. TESTING (CLAUSE 4.3.1): TYPE=${tp.type}, p=${tp.p.toFixed(1)}%, K=${tp.K.toFixed(3)}, ${tfTxt}. ADOPTED φg = ${phiGSel.toFixed(3)} (REDUNDANCY: ${red}).`);
+    // Detailed ARR assessment listing (Table 4.3.2(A))
+    lines.push("6.1A ARR ASSESSMENT (TABLE 4.3.2(A)) — INPUT RATINGS");
+    lines.push("IRR ratings are user selections (1–5). Descriptions shown for 1 / 3 / 5 per Standard; ratings 2/4 represent intermediate judgement.");
+    arrItems.forEach((it, idx)=>{
+      const irr = parseFloat(document.getElementById(`irr_${idx}`).value);
+      const ws  = it.wi * irr;
+      lines.push(`${String(idx+1).padStart(2,'0')}. ${it.cat} — ${it.name} | wi=${it.wi} | IRR=${irr.toFixed(1)} | wi×IRR=${ws.toFixed(2)}`);
+    });
+    lines.push(`Σwi = ${num("arrWtot",0).toFixed(3)}; Σ(wi×IRR) = ${num("arrScore",0).toFixed(3)}; ARR = ${st.ARR.toFixed(3)}; ARR RANGE (TABLE 4.3.2(B)) = ${st.band}`);
+
+    lines.push("6.2 ULTIMATE GEOTECHNICAL STRENGTH (SECTION 4.4): Shaft resistance is based on the average unit shaft resistance fms (compression) / fmst (tension) over the embedded length. Base resistance (if included) is based on ultimate base pressure fb over the pile base area Ab. Design ultimate geotechnical strengths are Rd,ug = φg·Rug.");
+    if (st.geo && st.geo.phiRcomp!=null){
+      lines.push(`Design ultimate geotechnical strengths: Rd,ug,c = ${st.geo.phiRcomp.toFixed(1)} kN; Rd,ug,t = ${st.geo.phiRten.toFixed(1)} kN.`);
+      lines.push(`Utilisation: Compression ${(st.geo.utilComp||0).toFixed(1)}%; Uplift ${(st.geo.utilTen||0).toFixed(1)}%. Result: ${st.geo.ok ? "PASS" : "FAIL"}.`);
+    } else {
+      lines.push("Run GEO CHECK to populate geotechnical capacity results.");
+    }
+    lines.push("");
+    lines.push("7.0 NOTATION (AS 2159 SECTION 1.4) — SELECTED");
+    lines.push("Rug = ultimate geotechnical strength; Rd,ug = design ultimate geotechnical strength; φg = geotechnical strength reduction factor; φgb = basic geotechnical strength reduction factor; φtf = testing factor; K = test benefit factor; fms = average unit shaft resistance (compression); fmst = average unit shaft resistance (tension); fb = ultimate base pressure (compression).");
+
+    document.getElementById("designNote").value = lines.join("\n");
+// HTML preview with subscripts (for report-ready formatting)
+    try {
+      const h = [];
+      const sec = (t)=>`<div class="sec">${t}</div>`;
+      h.push(sec("5.0 STRUCTURAL DESIGN BASIS (ACTIONS + COMBINATIONS)"));
+      h.push(`<div>Load combinations per AS/NZS 1170.0:2002 Section 4. Wind and earthquake actions applied with ± reversal. ψ factors per Table 4.1.</div>`);
+      h.push(`<ul><li><b>Occupancy:</b> ${escapeHtml(occTxt)}</li><li><b>ψ factors:</b> ψ<sub>s</sub>=${psi_s}, ψ<sub>l</sub>=${psi_l}, ψ<sub>c</sub>=${psi_c}, ψ<sub>E</sub>=${psi_E}</li><li><b>Robustness:</b> ${escapeHtml(alphaTxt)}</li><li><b>Groundwater:</b> γ<sub>gw</sub>=${ggw.toFixed(1)}; DWSTOP Gmin=${gmin.toFixed(2)}; Apply 0.9 to stage G? ${gmin09}</li></ul>`);
+      h.push(`<div><b>Governing ULS actions:</b> N*max=${Nmax.toFixed(1)} kN; N*min=${Nmin.toFixed(1)} kN; Mx,DES=${MxD.toFixed(1)} kNm; My,DES=${MyD.toFixed(1)} kNm.</div>`);
+
+      h.push(sec("6.0 GEOTECHNICAL DESIGN BASIS (AS 2159 SECTION 4)"));
+      h.push(`<div><b>Risk Assessment (Section 4.3):</b> ARR=${(st.ARR??0).toFixed(3)}; φ<sub>gb</sub> (selected)=${(phiGbSel??0).toFixed(3)}; Test benefit K=${(tp.K??0).toFixed(3)}; ${escapeHtml(tfTxt)}; Adopted φ<sub>g</sub>=${(phiGSel??0).toFixed(3)} (${escapeHtml(red)} redundancy).</div>`);
+
+      // ARR breakdown (Table 4.3.2(A))
+      if (arrItems && arrItems.length){
+        h.push(`<div class="sec">6.1A ARR ASSESSMENT (TABLE 4.3.2(A)) — INPUT RATINGS</div>`);
+        h.push(`<table><thead><tr><th style="text-align:left">Risk factor</th><th>w<sub>i</sub></th><th>IRR</th><th>w<sub>i</sub>×IRR</th></tr></thead><tbody>`);
+        arrItems.forEach((it, idx)=>{
+          const irr = parseFloat(document.getElementById(`irr_${idx}`).value);
+          const ws = it.wi*irr;
+          h.push(`<tr><td style="text-align:left">${escapeHtml(it.cat)} — ${escapeHtml(it.name)}</td><td>${it.wi}</td><td>${irr.toFixed(1)}</td><td>${ws.toFixed(2)}</td></tr>`);
+        });
+        h.push(`</tbody></table>`);
+        h.push(`<div>Σw<sub>i</sub> = ${num("arrWtot",0).toFixed(3)}; Σ(w<sub>i</sub>×IRR) = ${num("arrScore",0).toFixed(3)}; ARR = ${(st.ARR??0).toFixed(3)}; ARR range (Table 4.3.2(B)) = ${escapeHtml(st.band||"—")}.</div>`);
+      }
+
+      h.push(`<div class="sec">6.2 ULTIMATE GEOTECHNICAL STRENGTH (SECTION 4.4)</div>`);
+      if (st.geo){
+        h.push(`<div>Design ultimate geotechnical strengths: R<sub>d,ug,c</sub> = ${(st.geo.phiRcomp??0).toFixed(1)} kN; R<sub>d,ug,t</sub> = ${(st.geo.phiRten??0).toFixed(1)} kN. Compression utilisation ${(st.geo.utilComp??0).toFixed(1)}%; Uplift utilisation ${(st.geo.utilTen??0).toFixed(1)}%.</div>`);
+      }
+
+      h.push(sec("7.0 NOTATION (AS 2159 SECTION 1.4) — SELECTED"));
+      h.push(`<ul>
+        <li>R<sub>ug</sub> — ultimate geotechnical strength</li>
+        <li>R<sub>d,ug</sub> — design ultimate geotechnical strength</li>
+        <li>φ<sub>g</sub> — geotechnical strength reduction factor</li>
+        <li>φ<sub>gb</sub> — basic geotechnical strength reduction factor</li>
+        <li>φ<sub>tf</sub> — testing factor</li>
+        <li>K — test benefit factor</li>
+        <li>f<sub>m,s</sub> — average unit shaft resistance (compression)</li>
+        <li>f<sub>m,st</sub> — average unit shaft resistance (tension)</li>
+        <li>f<sub>b</sub> — ultimate base pressure (compression)</li>
+      </ul>`);
+
+      document.getElementById("designNotePreview").innerHTML = h.join("");
+    } catch (e) {
+      const fallback = `<pre style="white-space:pre-wrap;margin:0;">${escapeHtml(lines.join("\n"))}</pre><div class="muted" style="margin-top:8px;">Preview fallback (formatting error): ${escapeHtml(e.message||String(e))}</div>`;
+      document.getElementById("designNotePreview").innerHTML = fallback;
+    }
+}
+
+  function genPrompt(){
+    const occTxt = document.getElementById("occ").selectedOptions[0].textContent;
+    const Hc = document.getElementById("Hclass").value;
+    const alpha = (Hc==="GT15") ? 0.010 : 0.015;
+    const ggw = parseFloat(document.getElementById("ggw").value || "1.5");
+    const gmin = num("gmin",0.7);
+    const gmin09 = (document.getElementById("gmin09").value==="yes");
+    const red = document.getElementById("geoRed").value;
+
+    const psi_s = document.getElementById("psi_s").value;
+    const psi_l = document.getElementById("psi_l").value;
+    const psi_c = document.getElementById("psi_c").value;
+    const psi_E = document.getElementById("psi_E").value;
+
+    const out = [];
+    out.push("YOU ARE A SENIOR AUSTRALIAN GEOTECHNICAL/STRUCTURAL ENGINEER.");
+    out.push("DRAFT A DESIGN REPORT NOTE FOR PILE ACTIONS + GEOTECHNICAL ULS CHECK.");
+    out.push("");
+    out.push("STANDARDS:");
+    out.push("- AS/NZS 1170.0:2002 (ACTIONS & COMBINATIONS)");
+    out.push("- AS 2159:2009 (GEOTECHNICAL DESIGN, SECTION 4, ARR/φg TABLE 4.3.2)");
+    out.push("- AS 3600:2018 (MINIMUM MOMENT CONCEPT WHERE RELEVANT)");
+    out.push("");
+    out.push("- AS 2159:2009 (STRUCTURAL DESIGN, SECTION 5; TABLE 5.3.2 k FACTOR; CLAUSES 5.3.3–5.3.5 REINFORCEMENT / UNREINFORCED LIMITS)");
+    out.push("");
+    out.push("STRUCTURAL SETTINGS (AS 2159 SECTION 5 / AS 3600):");
+    out.push(`- Concrete: f'c = ${st.str.fc.toFixed(0)} MPa (AS 3600 Cl 3.1.1); E_c = ${Number(st.Ec||0).toFixed(0)} MPa (AS 3600 Table 3.1.2); Reinforcement: fsy = ${st.str.fsy.toFixed(0)} MPa (D500N)`);
+    out.push(`- ϕ factors (AS 3600 Table 2.2.2, Class N): ϕc=${st.str.phi_c.toFixed(2)}, ϕt=${st.str.phi_t.toFixed(2)}`);
+    out.push(`- Concrete placement factor k (AS 2159 Table 5.3.2): k=${st.str.kPlace.toFixed(2)}; method=${String(st.str.kMethod).toUpperCase()}`);
+    out.push(`- Axial capacity model (compression): ${String(st.str.axModel).toUpperCase()}`);
+    if (st.str.axModel==='partial') out.push(`- Reinforcement curtailment (AS 2159 Cl 5.3.4 reporting): cut-off depth = ${st.str.reoCutDepth.toFixed(2)} m below pile head; Ld = ${st.str.reoLd.toFixed(2)} m.`);
+    out.push(`- Longitudinal reinforcement: ${st.str.nBars} × N${st.str.dbar} → As=${st.str.As.toFixed(0)} mm²`);
+    out.push(`- Limits (AS 2159 Cl 5.3.3): As,min=${st.str.As_min.toFixed(0)} mm²; As,max=${st.str.As_max.toFixed(0)} mm² (${st.str.okAsMax?'OK':'NOT OK'})`);
+    if (st.str.axModel==='partial') out.push(`- Partial pile check (AS 2159 Cl 5.3.4 concept): N*max ≤ 0.5 k f'c Ag = ${st.str.Nlim_partial_kN.toFixed(0)} kN (${st.str.okUnreinforcedLimit?'OK':'NOT OK'})`);
+    if (st.str.axModel==='plain') out.push(`- Unreinforced pile check (AS 2159 Cl 5.3.5 concept): N*max ≤ 0.45 k f'c Ag = ${st.str.Nlim_plain_kN.toFixed(0)} kN (${st.str.okUnreinforcedLimit?'OK':'NOT OK'})`);
+    out.push("");
+out.push("INPUTS (FROM CALCULATOR):");
+    out.push(`- OCCUPANCY: ${occTxt}`);
+    out.push(`- ψ FACTORS: ψs=${psi_s}, ψl=${psi_l}, ψc=${psi_c}, ψE=${psi_E}`);
+    out.push(`- BUILDING HEIGHT CLASS: ${Hc} (α=${alpha.toFixed(3)})`);
+    out.push(`- γgw=${ggw.toFixed(1)}; Gmin=${gmin.toFixed(2)}; apply 0.9 to stage G=${gmin09?"YES":"NO"}`);
+    out.push(`- PILE DIAMETER D=${currentPileDiameter().toFixed(3)} m; e_oop=${(st.eoop??0).toFixed(3)} m`);
+    out.push(`- GOVERNING ULS ACTIONS: N*max=${(st.Nmax??0).toFixed(1)} kN; N*min=${(st.Nmin??0).toFixed(1)} kN; Mx,DES,max=${(st.MxDESmax??0).toFixed(1)} kNm; My,DES,max=${(st.MyDESmax??0).toFixed(1)} kNm`);
+    const tp = st.test || {type:"NONE",p:0,K:0,phi_tf:null};
+    const phiGbLow = (st.phiGbLow ?? st.phiLow);
+    const phiGbHigh = (st.phiGbHigh ?? st.phiHigh);
+    const phiGLow = (st.phiGLow ?? st.phiLow);
+    const phiGHigh = (st.phiGHigh ?? st.phiHigh);
+    out.push(`- ARR=${st.ARR.toFixed(3)}; φgb(LOW/HIGH)=${phiGbLow.toFixed(3)}/${phiGbHigh.toFixed(3)}; TESTING(4.3.1): TYPE=${tp.type}, p=${tp.p.toFixed(1)}%, K=${tp.K.toFixed(3)}, φtf=${(tp.type==="NONE"?"φgb":tp.phi_tf.toFixed(3))}; φg(LOW/HIGH)=${phiGLow.toFixed(3)}/${phiGHigh.toFixed(3)}; REDUNDANCY SELECTED=${red}`);
+    out.push("");
+    out.push("ARR ASSESSMENT (TABLE 4.3.2(A)) — INPUTS:");
+    arrItems.forEach((it, idx)=>{
+      const irr = parseFloat(document.getElementById(`irr_${idx}`).value);
+      const ws  = it.wi * irr;
+      out.push(`- ${String(idx+1).padStart(2,'0')}. ${it.cat}: ${it.name} | wi=${it.wi} | IRR=${irr.toFixed(1)} | wi×IRR=${ws.toFixed(2)}`);
+    });
+    out.push(`- Σwi=${num("arrWtot",0).toFixed(3)}; Σ(wi×IRR)=${num("arrScore",0).toFixed(3)}; ARR=${st.ARR.toFixed(3)}; ARR band=${st.band}`);
+    out.push("");
+    out.push("DEFINITIONS / ABBREVIATIONS (AS 2159 NOTATION):");
+    out.push("- ARR = Assessment Rating Ratio = Σ(wi×IRR)/Σwi");
+    out.push("- IRR = Individual Risk Rating (user-selected, 1–5)");
+    out.push("- wi = weighting factor for each risk factor");
+    out.push("- φgb = basic geotechnical strength reduction factor (from ARR and redundancy)");
+    out.push("- φtf = testing factor; K = test benefit factor; φg = φgb + (φtf−φgb)K ≥ φgb");
+    out.push("- Rug = ultimate geotechnical strength; Rd,ug = design ultimate geotechnical strength (Rd,ug = φg·Rug)");
+    out.push("- fms = average unit shaft resistance (compression); fmst = average unit shaft resistance (tension); fb = ultimate base pressure (compression); Ab = pile base area");
+
+    if (st.geo.phiRcomp!=null){
+      out.push(`- GEO CAPACITIES: Rd,ug,c=${st.geo.phiRcomp.toFixed(1)} kN; Rd,ug,t=${st.geo.phiRten.toFixed(1)} kN`);
+    }
+    out.push("");
+    out.push("REQUIREMENTS:");
+    out.push("- Explain the load combination approach (ULS with W/E reversal, groundwater uplift including 0.9G+GW, and robustness minimum shear).");
+    out.push("- Explain ARR calculation and φg selection (show both LOW/HIGH and justify the selected redundancy).");
+    out.push("- Provide the governing demand vs capacity check for compression and uplift.");
+    out.push("- Use headings in CAPS, body in calm professional tone. Include key equations.");
+    
+    // Include P–M curve points and demand points so the note can recreate the graph (for auditing / external tools)
+    if (st.pmCurve && Array.isArray(st.pmCurve) && st.pmCurve.length){
+      out.push("");
+      out.push("P–M INTERACTION CURVE DATA (ϕN–ϕM) FOR PLOTTING:");
+      // downsample to ~25 points (keep ends)
+      const pts = st.pmCurve;
+      const nKeep = 25;
+      for (let i=0;i<pts.length;i+=Math.max(1, Math.floor(pts.length/(nKeep-1)))){
+        const p=pts[i];
+        out.push(`- ${p.N.toFixed(1)}, ${p.M.toFixed(1)}  // (phiN_kN, phiM_kNm)`);
+      }
+      const plast = pts[pts.length-1];
+      out.push(`- ${plast.N.toFixed(1)}, ${plast.M.toFixed(1)}  // end`);
+      if (st.pmDemands && Array.isArray(st.pmDemands)){
+        out.push("");
+        out.push("PLOTTED DEMAND POINTS:");
+        st.pmDemands.forEach(d=>{
+          out.push(`- ${d.label||"DEMAND"}: N=${(d.N||0).toFixed(1)} kN, M=${Math.abs(d.M||0).toFixed(1)} kNm`);
+        });
+      }
+      // Shear plotting data is not required; provide numeric results for reporting
+      if (st.shear){
+        out.push("");
+        out.push("SHEAR DESIGN (AS 3600:2018 SECTION 8.2) — DATA FOR REPORTING");
+        out.push(`- Governing shear V* = ${st.shear.Vstar.toFixed(2)} kN (max(|Vx,DES|,|Vy,DES|)).`);
+        out.push(`- Section: b_v = ${st.shear.bv.toFixed(0)} mm (solid circular), d_v = ${st.shear.dv.toFixed(0)} mm (Clause 8.2.1.9).`);
+        out.push(`- Concrete shear (simplified method 8.2.4.3): θ_v = ${st.shear.theta_v_deg.toFixed(0)}°, k_v = ${st.shear.kv.toFixed(3)}, V_uc = ${st.shear.Vuc.toFixed(2)} kN.`);
+        out.push(`- Shear reinforcement: N${st.shear.tieDia} @ ${st.shear.tieS.toFixed(0)} mm, legs=${st.shear.tieLegs} → A_sv/s = ${(st.shear.Asv_over_s*1000).toFixed(1)} mm²/m; A_sv,min/s = ${(st.shear.Asvmin_over_s*1000).toFixed(1)} mm²/m.`);
+        out.push(`- V_us = ${st.shear.Vus.toFixed(2)} kN; V_u = ${st.shear.Vu.toFixed(2)} kN; φ_v=0.75 → φV_u = ${(st.shear.phi_v*st.shear.Vu).toFixed(2)} kN.`);
+        out.push(`- Web crushing (8.2.3.3): V_u,max = ${st.shear.Vumax.toFixed(2)} kN → φV_u,max = ${(st.shear.phi_v*st.shear.Vumax).toFixed(2)} kN.`);
+        out.push(`- Checks: φV_u ≥ V* = ${(st.shear.okShear?'PASS':'FAIL')}; φV_u,max ≥ V* = ${(st.shear.okWeb?'PASS':'FAIL')}.`);
+      }
+      out.push("");
+      out.push("IN THE DESIGN NOTE, STATE THAT THE P–M INTERACTION DIAGRAM HAS BEEN GENERATED IN ACCORDANCE WITH AS 3600:2018 CLAUSES 10.6.2 AND 10.6.4, WITH THE DEMAND POINT(S) PLOTTED AS SHOWN.");
+    }
+
+    document.getElementById("aiPrompt").value = out.join("\n");
+  }
+
+  async function copyFrom(id){
+    const ta = document.getElementById(id);
+    ta.focus(); ta.select();
+    try{ await navigator.clipboard.writeText(ta.value); }
+    catch(e){ document.execCommand("copy"); }
+  }
+
+  function applyArrToGeo(){
+    setVal("geoARR", st.ARR.toFixed(3));
+    syncGeoPhi();
+    // switch to GEO tab
+    document.getElementById("tGeo").checked = true;
+  }
+
+  function refreshDerivedOutputs(){
+    try{ calcARR(); }catch(e){}
+    try{
+      const as = document.getElementById("autoSolveLs");
+      if (as && as.checked) solveLs(true);
+      else runGeo();
+    }catch(e){}
+    try{ runStruct(); }catch(e){}
+    try{ genDesignNote(); genPrompt(); }catch(e){}
+  }
+
+
+  // ---------- Live recalculation (ClearCalcs-style) ----------
+  function debounce(fn, ms){
+    let t=null;
+    return function(...args){
+      if (t) clearTimeout(t);
+      t=setTimeout(()=>fn.apply(this,args), ms);
+    };
+  }
+
+  
+  let autoSolveLock = false;
+// Recompute core outputs. Safe to call often; debounced in listeners.
+  const recalcAll = debounce(()=>{
+    // keep globals consistent
+    syncPileD();
+    syncFc();
+    syncAxModelUI();
+    syncPsi();
+    // recompute load envelopes
+    runLoad();
+    // keep ARR/φg up to date (in case occupancy/diameter/test % changed)
+    calcARR();
+    // recompute geo strength (live)
+    try{
+      const as = document.getElementById("autoSolveLs");
+      if (as && as.checked && !autoSolveLock){ autoSolveLock = true; try{ solveLs(true); }catch(e){} autoSolveLock = false; }
+      runGeo();
+      runStruct();
+    }catch(e){}
+    // refresh report outputs to reflect latest state
+    try{ genDesignNote(); genPrompt(); }catch(e){}
+    scheduleAutoSave();
+  }, 120);
+
+  // Lightweight recompute: only load engine (used for load inputs)
+  const recalcLoadOnly = debounce(()=>{
+    syncPileD(); syncPsi();
+    runLoad();
+    try{ genDesignNote(); genPrompt(); }catch(e){}
+    scheduleAutoSave();
+  }, 120);
+
+  // Lightweight recompute: only geo (used for geo inputs)
+  const recalcGeoOnly = debounce(()=>{
+    syncGeoPhi();
+    try{
+      const as = document.getElementById("autoSolveLs");
+      if (as && as.checked && !autoSolveLock){ autoSolveLock = true; try{ solveLs(true); }catch(e){} autoSolveLock = false; }
+      runGeo();
+      runStruct();
+    }catch(e){}
+    try{ genDesignNote(); genPrompt(); }catch(e){}
+    scheduleAutoSave();
+  }, 120);
+
+  // ---------- wire events ----------
+  document.getElementById("useCustomPile").addEventListener("change", ()=>{syncPileD(); recalcAll();});
+  document.getElementById("pileSize").addEventListener("change", ()=>{syncPileD(); recalcAll();});
+  document.getElementById("pileCustomMm").addEventListener("input", ()=>{syncPileD(); recalcAll();});
+  document.getElementById("occ").addEventListener("change", ()=>{syncPsi(); recalcAll();});
+  document.getElementById("geoRed").addEventListener("change", ()=>{syncGeoPhi(); recalcAll();});
+  document.getElementById("useLsMinOverride")?.addEventListener("change", ()=>{try{syncLsMin();}catch(e){} recalcGeoOnly();});
+
+  // Live update listeners (no need to click RUN)
+  [
+    "Hclass","eoop","ggw","gmin","gmin09",
+    // Load vectors
+    "G_N","G_Vx","G_Vy","G_Mx","G_My",
+    "Q_N","Q_Vx","Q_Vy","Q_Mx","Q_My",
+    "W_N","W_Vx","W_Vy","W_Mx","W_My",
+    "E_N","E_Vx","E_Vy","E_Mx","E_My",
+    "GW_N","GW_Vx","GW_Vy","GW_Mx","GW_My"
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", recalcAll);
+    el.addEventListener("change", recalcAll);
+  });
+
+  // ARR testing benefit inputs should update φg live
+  ["testType","testP"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", recalcAll);
+    el.addEventListener("change", recalcAll);
+  });
+
+  // Geo strength inputs (Section 4.4)
+  [
+    "geoRed","shaftRedComp","shaftRedTen","useNnf","Nnf","s1H","s1qs","s2H","s2qs","s3H","s3qs","Ls","useLsMinOverride","LsMinOverride","qsRock","qbRock","useBase"
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", recalcGeoOnly);
+    el.addEventListener("change", recalcGeoOnly);
+  });
+  // Structural inputs (AS 2159 Section 5 / AS 3600) — keep structural tab live
+  [
+    "fcGrade","fcCustom","fc","Ec","fsy","kPlace","kMethod","axModel","minReoRule","reoLoc","allowAsOver","reoCutDepth","reoLd","barDia","nBars","phiOverride","phiC","phiT","cover","Es","useBiax","brace","Le","tieDia","tieS","tieLegs","dg"
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", recalcAll);
+    el.addEventListener("change", recalcAll);
+  });
+
+  // Enable/disable phi override fields
+  (function(){
+    const ov=document.getElementById("phiOverride");
+    const c=document.getElementById("phiC");
+    const t=document.getElementById("phiT");
+    if(!ov || !c || !t) return;
+    function sync(){
+      const on=!!ov.checked;
+      c.disabled=!on;
+      t.disabled=!on;
+    }
+    ov.addEventListener("change", ()=>{ sync(); recalcAll(); });
+    sync();
+  })();
+
+
+
+  document.getElementById("btnRun").addEventListener("click", ()=>{ runLoad(); refreshDerivedOutputs(); scheduleAutoSave(); });
+  document.getElementById("btnReset").addEventListener("click", ()=>{ resetExample(); refreshDerivedOutputs(); scheduleAutoSave(); });
+
+  document.getElementById("btnArrReset").addEventListener("click", ()=>{ resetARR(); scheduleAutoSave(); });
+  document.getElementById("btnApplyArr").addEventListener("click", ()=>{ applyArrToGeo(); scheduleAutoSave(); });
+
+  document.getElementById("btnGeoRun").addEventListener("click", ()=>{ runGeo(); scheduleAutoSave(); });
+  document.getElementById("btnGeoSolve").addEventListener("click", ()=>{ solveLs(); scheduleAutoSave(); });
+
+  document.getElementById("btnGenNote").addEventListener("click", ()=>{ genDesignNote(); scheduleAutoSave(); });
+  document.getElementById("btnCopyNote").addEventListener("click", ()=>copyFrom("designNote"));
+  document.getElementById("btnGenPrompt").addEventListener("click", ()=>{ genPrompt(); scheduleAutoSave(); });
+  document.getElementById("btnCopyPrompt").addEventListener("click", ()=>copyFrom("aiPrompt"));
+
+  // init
+  syncPileD();
+  syncPsi();
+  syncFc();
+  syncAxModelUI();
+  try{ syncLsMin(); }catch(e){}
+  buildArrTable();
+  resetExample();
+  // init multi-pile registers
+  try{ mpRender(); mpHook(); }catch(e){ console.error(e); }
+  // ensure dependent modules show results on first load
+  try{ runGeo(); }catch(e){}
+  bootProjects();
+// ---------- Structural (AS 2159 Section 5 / AS 3600) ----------
+  function alpha1_from_fc(fc){
+    // AS 3600-style approximation (kept simple): alpha1 = 0.85 - 0.0015(f'c-28), min 0.67
+    var a = 0.85 - 0.0015*(fc-28);
+    if (a < 0.67) a = 0.67;
+    if (a > 0.85) a = 0.85;
+    return a;
+  }
+  function barAreaFromDia(d){
+    // mm^2 (standard Australian bar areas)
+    var m = {16:201, 20:314, 24:452, 28:616, 32:804, 36:1018, 40:1257};
+    return m[String(d)] || (Math.PI*d*d/4.0);
+  }
+  function runStruct(){
+    // demands from load engine
+    var Nmax = (st.Nmax!=null)? Number(st.Nmax) : 0;
+    var Nmin = (st.Nmin!=null)? Number(st.Nmin) : 0;
+    var Nten = Math.max(0, -Nmin); // |N*min| only if uplift exists
+
+    // geometry
+    var Dm = Number(currentPileDiameter());
+    var Dmm = Dm*1000.0;
+    var Ag_mm2 = Math.PI*Dmm*Dmm/4.0;
+
+    // materials
+    var fc = num('fc',32);
+    var fsy = num('fsy',500);
+
+    // phi factors (default fixed per AS 3600 Table 2.2.2 for Class N)
+    var phi_c = 0.65;
+    var phi_t = 0.85;
+    var ov = document.getElementById('phiOverride');
+    if (ov && ov.checked){
+      phi_c = num('phiC', phi_c);
+      phi_t = num('phiT', phi_t);
+    }
+
+    // reinforcement (AS 2159 Cl 5.3.3)
+    var rule = (document.getElementById('minReoRule')||{}).value || 'other_embedded';
+    var loc = (document.getElementById('reoLoc')||{}).value || 'below3d';
+    // Minimum longitudinal reinforcement:
+    // (a) Precast reinforced concrete piles: As >= 0.014Ag
+    // (b) Other piles: As >= 0.005Ag if fully embedded; As >= 0.014Ag for portion above ground.
+    // Note: At depth of 3D below ground surface, limit may be reduced to 0.005Ag.
+    var rho_min = 0.005;
+    if (rule==='precast'){
+      rho_min = 0.014;
+    } else if (rule==='other_above'){
+      rho_min = (loc==='below3d') ? 0.005 : 0.014;
+    } else { // other_embedded
+      rho_min = 0.005;
+    }
+    var As_min = rho_min*Ag_mm2;
+    // Maximum longitudinal reinforcement (default): As <= 0.04Ag unless justified
+    var rho_max = 0.04;
+    var As_max = rho_max*Ag_mm2;
+    var allowOver = !!(document.getElementById('allowAsOver') && document.getElementById('allowAsOver').checked);
+
+
+    var dbar = num('barDia',20);
+    var As_bar = barAreaFromDia(dbar);
+    var nBarsUser = Math.max(0, Math.round(num('nBars',0)));
+
+    // tension steel requirement
+    var As_req_ten = (Nten>0) ? (Nten*1000.0)/(phi_t*fsy) : 0;
+    var As_req = Math.max(As_min, As_req_ten);
+
+    var nBars = nBarsUser;
+    if (nBars<=0){
+      nBars = Math.ceil(As_req/As_bar);
+      if (nBars<4) nBars=4; // practical minimum
+    }
+    var As = nBars*As_bar;
+
+    // As,max check (AS 2159 Cl 5.3.3)
+    var okAsMax = allowOver ? true : (As <= As_max + 1e-9);
+
+
+    // capacities (axial only) — includes concrete placement factor k (AS 2159 Table 5.3.2 concept)
+    var alpha1 = alpha1_from_fc(fc);
+    var Ac_mm2 = Math.max(Ag_mm2 - As, 0);
+
+    // k factor applies to the concrete contribution to strength
+    var kPlace = num('kPlace', 1.0);
+    var kMethod = (document.getElementById('kMethod') && document.getElementById('kMethod').value) ? document.getElementById('kMethod').value : 'all';
+    if (!isFinite(kPlace)) kPlace = 1.0;
+    kPlace = Math.max(0.75, Math.min(1.0, kPlace));
+
+    var axModel = (document.getElementById('axModel')||{}).value || 'reinforced';
+
+    // nominal compression capacity model per AS 2159 Section 5 (deep/partial piles may ignore steel in compression)
+    // k factor applies to the concrete contribution to strength (AS 2159 Table 5.3.2)
+    // reinforced: AS 3600-style concrete stress block + steel
+    // partial: concrete-only compression model (steel excluded), use 0.5 f'c A_g k (AS 2159 Cl 5.3.4 intent for unreinforced portion)
+    // plain: concrete-only compression model, use 0.45 f'c A_g k (AS 2159 Cl 5.3.5)
+    var concTerm_N = 0;
+    var steelTerm_N = 0;
+
+    if (axModel === 'reinforced'){
+      concTerm_N = (alpha1*fc*Ac_mm2) * kPlace;
+      steelTerm_N = fsy*As;
+    } else if (axModel === 'partial'){
+      concTerm_N = (0.5*fc*Ag_mm2) * kPlace;
+      steelTerm_N = 0;
+    } else { // 'plain'
+      concTerm_N = (0.45*fc*Ag_mm2) * kPlace;
+      steelTerm_N = 0;
+    }
+
+    var Nu0_kN = (concTerm_N + steelTerm_N)/1000.0; // nominal axial compression capacity
+    var phiNu_comp = phi_c*Nu0_kN;
+
+    // Unreinforced / partially reinforced limits (AS 2159 Cl 5.3.4 and 5.3.5 concepts)
+    // For partially reinforced piles: ensure axial load in unreinforced section does not exceed 0.5 k f'c Ag.
+    // For unreinforced piles: permitted where design action effect does not exceed 0.45 k f'c Ag.
+    var Nlim_partial_kN = 0.5 * kPlace * fc * (Ag_mm2/1000.0); // fc(N/mm2)*Ag(mm2)=N; /1000 => kN
+    var Nlim_plain_kN   = 0.45 * kPlace * fc * (Ag_mm2/1000.0);
+    var okUnreinforcedLimit = true;
+    var unreinforcedNote = '';
+    if (axModel === 'partial'){
+      okUnreinforcedLimit = (Nmax <= Nlim_partial_kN + 1e-9);
+      unreinforcedNote = `Partial reinforcement: check N*max ≤ 0.5 k f'c A_g = ${fmt(Nlim_partial_kN)} kN.`;
+    } else if (axModel === 'plain'){
+      okUnreinforcedLimit = (Nmax <= Nlim_plain_kN + 1e-9);
+      unreinforcedNote = `Unreinforced pile: check N*max ≤ 0.45 k f'c A_g = ${fmt(Nlim_plain_kN)} kN.`;
+    }
+
+
+    // tension capacity is steel-controlled; if 'plain', set to 0
+    var phiNu_ten  = (axModel === 'plain') ? 0 : (phi_t*(fsy*As/1000.0));
+
+    var utilC = (Nmax>0) ? (Nmax/phiNu_comp) : 0;
+    var utilT = (Nten>0) ? (Nten/phiNu_ten) : 0;
+
+    var okC = (Nmax<=phiNu_comp+1e-9);
+    var okT = (Nten<=phiNu_ten+1e-9);
+
+    // --- P–M interaction (AS 3600 Section 10.6) ---
+    // Demand moments from Load Engine (already include minimum moment concept)
+    var MxDES = (st.MxDESmax!=null)? Math.abs(Number(st.MxDESmax)) : 0;
+    var MyDES = (st.MyDESmax!=null)? Math.abs(Number(st.MyDESmax)) : 0;
+
+    // Only meaningful for compression-dominant checks (Nmax >= 0). For uplift, PM not applied here.
+    var phi_b = 0.65; // per AS 3600 Table 2.2.2 for bending with axial compression; conservative and consistent with 10.6.4 note (phi=0.65)
+    var Es = num('Es',200000);
+    if (!(Es>0)) Es = 200000;
+
+    // Stress block parameters per AS 3600 10.6.2.2 and 10.6.2.5
+    var alpha1 = alpha1_from_fc(fc); // already clamps 0.72..0.85
+    var alpha2 = Math.max(0.67, 0.85 - 0.0015*fc);
+    var gam   = Math.max(0.67, 0.97 - 0.0025*fc);
+    var eps_cu = 0.003;
+
+    // Geometry for circular section in mm
+    var R = Dmm/2.0;
+    var cover = num('cover',75);
+    if (!(cover>=0)) cover = 75;
+    var rBar = Math.max(0, R - cover - dbar/2.0);
+    // bar positions equally spaced
+    var bars=[];
+    for (var bi=0; bi<nBars; bi++){
+      var ang = 2*Math.PI*bi/nBars;
+      var x = rBar*Math.cos(ang);
+      var y = R - rBar*Math.sin(ang); // y from top (top=0, center=R); sin positive => bar above center
+      bars.push({x:x,y:y});
+    }
+
+    function segAreaCentroid(h){
+      // circular segment of depth h from top (0..2R), returns {A, ybar} where ybar from top
+      if (h<=0) return {A:0, ybar:0};
+      if (h>=2*R) return {A:Math.PI*R*R, ybar:R};
+      var a = R - h;
+      var theta = 2*Math.acos(a/R); // radians
+      var A = R*R*(theta - Math.sin(theta))/2.0; // mm2
+      // centroid distance from center toward segment
+      var yseg = (4*R*Math.pow(Math.sin(theta/2.0),3)) / (3*(theta - Math.sin(theta)));
+      var ybar = R - yseg; // from top
+      return {A:A, ybar:ybar};
+    }
+
+    // Build interaction points for full axial range (compression and tension)
+    var pts=[];
+    var nSteps=120;
+    for (var si=1; si<=nSteps; si++){
+      var c = (2*R)*si/nSteps; // neutral axis depth from top (mm)
+      var h = Math.min(2*R, gam*c); // stress block depth
+      var seg = segAreaCentroid(h);
+      var Cc = alpha2*fc*seg.A; // N (since fc N/mm2)
+      var N = Cc;
+      var M = Cc*(seg.ybar - R); // N*mm about centroid
+      for (var bj=0; bj<bars.length; bj++){
+        var yb = bars[bj].y;
+        var eps = eps_cu*(c - yb)/c; // linear strain (εcu at extreme comp fibre)
+        var sig = Es*eps;
+        if (sig>fsy) sig=fsy;
+        if (sig<-fsy) sig=-fsy;
+        var Fs = sig*As_bar; // N
+        N += Fs;
+        M += Fs*(yb - R);
+      }
+      var NkN = N/1000.0;
+      var MkNm = Math.abs(M)/1e6;
+      pts.push({N:NkN, M:MkNm});
+    }
+    // sort by N descending (includes negative N)
+    pts.sort(function(a,b){return b.N-a.N;});
+
+    function interpMu(Nd){
+      // Nd in kN >=0; interpolate M capacity at given Nd
+      if (!pts.length) return 0;
+      if (Nd>=pts[0].N) return pts[0].M;
+      if (Nd<=pts[pts.length-1].N) return pts[pts.length-1].M;
+      for (var i=0;i<pts.length-1;i++){
+        var N1=pts[i].N, M1=pts[i].M;
+        var N2=pts[i+1].N, M2=pts[i+1].M;
+        if (Nd<=N1 && Nd>=N2){
+          var t = (Nd-N2)/(N1-N2);
+          return M2 + t*(M1-M2);
+        }
+      }
+      return pts[pts.length-1].M;
+    }
+
+    var Mu_x = interpMu(Nmax);
+    var Mu_y = Mu_x; // circular symmetry
+    var phiMux = phi_b*Mu_x;
+    var phiMuy = phi_b*Mu_y;
+
+    // squash load (10.6.2.2)
+    var Nuo = alpha1*fc*Ag_mm2/1000.0; // kN
+    var phiNuo = phi_b*Nuo;
+
+    // biaxial exponent (10.6.4)
+    var alpha_n = 0;
+    if (phiNuo>0){
+      alpha_n = 0.7 + 1.7*(Nmax/phiNuo);
+      if (alpha_n<1) alpha_n=1;
+      if (alpha_n>2) alpha_n=2;
+    } else alpha_n=2;
+
+    var useBiax = (document.getElementById('useBiax')||{}).value || 'YES';
+    var utilPM = 0;
+    if (useBiax==='YES'){
+      utilPM = Math.pow((MxDES/Math.max(phiMux,1e-9)), alpha_n) + Math.pow((MyDES/Math.max(phiMuy,1e-9)), alpha_n);
+    } else {
+      utilPM = Math.max(MxDES/Math.max(phiMux,1e-9), MyDES/Math.max(phiMuy,1e-9));
+    }
+    var okPM = (utilPM<=1.0+1e-9);
+
+    // confinement trigger (10.7.3.1 simplified flags)
+    var Mu0 = interpMu(0); // pure bending capacity (approx at Nd=0)
+    var phiMu0 = phi_b*Mu0;
+    var confA = (Nmax >= 0.75*phiNuo);
+    var confB = (Nmax >= (phi_b*0.3*(Ag_mm2/1000.0)*fc) && Math.max(MxDES,MyDES) >= 0.6*phiMu0);
+    var needConf = confA || confB;
+
+    // slenderness flag (10.3.1/10.3.2)
+    var brace = (document.getElementById('brace')||{}).value || 'BRACED';
+    var L_e = num('Le', NaN);
+    if (!(isFinite(L_e) && L_e>0)) L_e = NaN;
+    var r = 0.25*Dm; // m
+    var slender = NaN;
+    var isSlender = false;
+    if (isFinite(L_e)){
+      slender = L_e/Math.max(r,1e-9);
+      var lim = (brace==='UNBRACED') ? 22 : 25;
+      isSlender = (slender>lim+1e-9);
+    }
+
+    // PM KPIs render
+    var pmK = document.getElementById('pmKpi');
+    if (pmK){
+      pmK.innerHTML = ''
+        + pill(`M<sub>x,DES</sub> = ${fmt(MxDES)} kNm`)
+        + pill(`M<sub>y,DES</sub> = ${fmt(MyDES)} kNm`)
+        + pill(`ϕM<sub>ux</sub> = ${fmt(phiMux)} kNm`)
+        + pill(`ϕM<sub>uy</sub> = ${fmt(phiMuy)} kNm`)
+        + pill(`α<sub>n</sub> = ${fmt(alpha_n)}`)
+        + pill((okPM?'<span class="ok">P–M OK</span>':'<span class="bad">P–M NOT OK</span>'))
+        + pill((needConf?'<span class="bad">SPECIAL CONFINEMENT REQUIRED</span>':'<span class="ok">Confinement: normal</span>'))
+        + (isFinite(slender)?pill(`L<sub>e</sub>/r = ${fmt(slender)} (${brace})`):pill(`L<sub>e</sub>/r = —`))
+        + (isFinite(slender)?(isSlender?pill('<span class="bad">SLENDER (10.4)</span>'):pill('<span class="ok">SHORT (10.3)</span>')):pill('SLENDERNESS: NOT CHECKED'));
+    }
+    var pmMsg = document.getElementById('pmMsg');
+    if (pmMsg){
+      pmMsg.textContent = (useBiax==='YES')
+        ? `Biaxial check per AS 3600 10.6.4: (Mx*/ϕMux)^αn + (My*/ϕMuy)^αn = ${fmt(utilPM)} ≤ 1.0.`
+        : `Worst-axis uniaxial ratio: max(Mx*/ϕMux, My*/ϕMuy) = ${fmt(utilPM)} ≤ 1.0.`
+        + (isFinite(slender)?(' Slenderness ratio Le/r = '+fmt(slender)+'.'): ' Provide Le to assess slenderness per 10.3/10.4.')
+      ;
+    }
+
+
+    // draw interaction diagram (uniaxial) and plot demand point(s)
+    var Mplot = (useBiax==='YES') ? Math.hypot(MxDES, MyDES) : Math.max(MxDES, MyDES);
+    var demands = [
+      {N:Nmax, M:Mplot, label:"ULS COMP", cls:"pmDot"},
+      {N:Nmin, M:Mplot, label:"ULS TEN", cls:"pmDotTen"}
+    ];
+    drawPMChart(pts, demands, phiNuo, (phi_b*0.3*(Ag_mm2/1000.0)*fc), phiMu0);
+    // store for reporting
+    st.pm = {MxDES:MxDES, MyDES:MyDES, phiMux:phiMux, phiMuy:phiMuy, alpha_n:alpha_n, utilPM:utilPM, okPM:okPM, needConf:needConf, slender:slender, isSlender:isSlender, brace:brace, Le:L_e};
+    st.pmCurve = pts;
+    st.pmDemands = demands;
+
+
+    // KPIs
+    var strK = document.getElementById('strKpi');
+    if (strK){
+      strK.innerHTML = ''
+        + pill(`N*max = ${fmt(Nmax)} kN`)
+        + pill(`|N*min| = ${fmt(Nten)} kN`)
+        + pill(`D = ${fmt(Dm)} m`)
+        + pill(`A<sub>g</sub> = ${fmt(Ag_mm2/1e6)} m²`);
+    }
+    var capK = document.getElementById('capKpi');
+    if (capK){
+      capK.innerHTML = ''
+        + pill(`A<sub>s,min</sub> = ${fmt(As_min)} mm²`)
+        + pill(`A<sub>s</sub> = ${fmt(As)} mm² (${nBars} × N${dbar})`)
+        + pill(`A<sub>s,max</sub> = ${fmt(As_max)} mm² (0.04A<sub>g</sub>)`)
+        + pill(okAsMax ? '<span class="ok">As,max OK</span>' : '<span class="bad">As,max NOT OK</span>')
+        + pill(`ϕN<sub>u,comp</sub> = ${fmt(phiNu_comp)} kN`)
+        + pill(`ϕN<sub>u,ten</sub> = ${fmt(phiNu_ten)} kN`)
+        + pill(`Util<sub>comp</sub> = ${fmt(utilC*100)}%`)
+        + pill(`Util<sub>ten</sub> = ${fmt(utilT*100)}%`)
+        + pill((okC && okT && okAsMax && okUnreinforcedLimit) ? '<span class="ok">PASS</span>' : '<span class="bad">FAIL</span>');
+    }
+    var msg = document.getElementById('strMsg');
+    if (msg){
+      var lines=[];
+      lines.push(`Compression check: ${okC?'PASS':'FAIL'} (N*max / ϕNu,comp = ${(utilC*100).toFixed(1)}%)`);
+      lines.push(`Tension check: ${okT?'PASS':'FAIL'} (|N*min| / ϕNu,ten = ${(utilT*100).toFixed(1)}%)`);
+      lines.push(`Reinforcement (AS 2159 Cl 5.3.3): A_s,min = ${fmt(As_min)} mm² (${(rho_min*100).toFixed(2)}% A_g). A_s,prov = ${fmt(As)} mm². A_s,max = ${fmt(As_max)} mm² (4.00% A_g). ${okAsMax?'OK':'NOT OK'}.`);
+      if (!okUnreinforcedLimit) lines.push(`UNREINFORCED SECTION LIMIT: NOT OK. ${unreinforcedNote}`);
+      else if (unreinforcedNote) lines.push(`UNREINFORCED SECTION LIMIT: OK. ${unreinforcedNote}`);
+      lines.push(`Concrete placement factor k = ${kPlace.toFixed(2)} (AS 2159 Table 5.3.2). Method = ${kMethod}. Axial model = ${axModel.toUpperCase()}.`);
+      lines.push(`ϕ factors per AS 3600 Table 2.2.2 for Class N reinforcement: ϕc=0.65, ϕt=0.85${ov && ov.checked ? ' (overridden)' : ''}.`);
+      msg.innerHTML = lines.join('<br>');
+    }
+
+
+    /* --- AS 3600 SECTION 8.2 SHEAR (PILE) --- */
+    var VxDES = (st.VxDES!=null)? Number(st.VxDES) : 0;
+    var VyDES = (st.VyDES!=null)? Number(st.VyDES) : 0;
+    var Vstar = Math.max(Math.abs(VxDES), Math.abs(VyDES)); // kN
+
+    var cover = num('cover',75); // mm to longitudinal bars (used for d)
+    var tieDia = num('tieDia',12); // mm
+    var tieS = Math.max(50, num('tieS',200)); // mm
+    var tieLegs = Math.max(2, Math.round(num('tieLegs',2)));
+    var dg = Math.max(10, num('dg',20)); // mm
+
+    var bv = Dmm; // Clause 8.2.1.5 note for solid circular
+    var d_eff = Math.max(50, Dmm - cover - tieDia - 0.5*dbar); // mm
+    var dv = Math.max(0.72*Dmm, 0.9*d_eff); // Clause 8.2.1.9
+    var theta_v_deg = 36.0; // simplified method (8.2.4.3)
+    var theta_v = theta_v_deg*Math.PI/180.0;
+    function cot(x){ return 1/Math.tan(x); }
+
+    // Minimum transverse shear reinforcement (8.2.1.7)
+    var Asv_bar = barAreaFromDia(tieDia); // mm2
+    var Asv = tieLegs * Asv_bar; // mm2 within spacing s (closed tie equiv)
+    var Asv_over_s = Asv / tieS; // mm2/mm
+    var fsyf = Math.min(fsy, 800); // fitment yield stress limit (10.7.3 mentions 800 for fitments; conservative cap)
+    var Asvmin_over_s = (0.08*Math.sqrt(fc)*bv) / fsyf; // mm2/mm
+
+    // k_s factor (8.2.1.6)
+    var ks = 1.0;
+    if (Dmm <= 300) ks = 1.0;
+    else if (Dmm < 650) ks = (1000 - Dmm)/700.0;
+    else ks = 0.5;
+
+    // Concrete shear strength (8.2.4 simplified method)
+    var kv = 0.15;
+    var kv_lim = Math.min(0.15, 200.0/(1000.0 + 1.3*dg)); // 8.2.4.3(1)
+    if (Asv_over_s < Asvmin_over_s - 1e-12) kv = kv_lim; // if less than minimum shear steel, reduced kv per simplified rule
+    var Vuc = kv * bv * dv * Math.sqrt(fc) / 1000.0; // kN
+
+    // Shear reinforcement contribution (8.2.5.2 perpendicular)
+    var Vus = (Asv * fsyf * dv / tieS) * cot(theta_v) / 1000.0; // kN
+
+    var Vu = Vuc + Vus; // kN
+    var phi_v = 0.75;
+
+    // Web crushing limit (8.2.3.3) — shear only, αv=90° => cotαv=0
+    var Vumax = 0.55 * 0.9 * fc * bv * dv * (cot(theta_v) / (1 + Math.pow(cot(theta_v),2))) / 1000.0; // kN
+
+    // Reinforcement required trigger (8.2.1.6) with Pv=0
+    var shearReoReq = (Vstar > ks * phi_v * Vuc + 1e-9);
+    var okMinAsv = (Asv_over_s + 1e-12 >= Asvmin_over_s);
+    var okShear = (phi_v * Vu + 1e-9 >= Vstar);
+    var okWeb = (phi_v * Vumax + 1e-9 >= Vstar);
+
+    // Populate shear KPIs
+    var sK = document.getElementById('shearKpi');
+    if (sK){
+      sK.innerHTML = ''
+        + pill(`V* = ${fmt(Vstar)} kN (max(|Vx,DES|,|Vy,DES|))`)
+        + pill(`b<sub>v</sub> = ${fmt(bv)} mm`)
+        + pill(`d<sub>v</sub> = ${fmt(dv)} mm`)
+        + pill(`θ<sub>v</sub> = ${theta_v_deg.toFixed(0)}°`)
+        + pill(`k<sub>s</sub> = ${fmt(ks)}`);
+    }
+    var sC = document.getElementById('shearCapKpi');
+    if (sC){
+      sC.innerHTML = ''
+        + pill(`A<sub>sv</sub>/s = ${fmt(Asv_over_s*1000)} mm²/m`)
+        + pill(`A<sub>sv,min</sub>/s = ${fmt(Asvmin_over_s*1000)} mm²/m`)
+        + pill(okMinAsv ? '<span class="ok">Min shear steel OK</span>' : '<span class="bad">Min shear steel NOT OK</span>')
+        + pill(`V<sub>uc</sub> = ${fmt(Vuc)} kN`)
+        + pill(`V<sub>us</sub> = ${fmt(Vus)} kN`)
+        + pill(`V<sub>u</sub> = ${fmt(Vu)} kN`)
+        + pill(`ϕV<sub>u</sub> = ${fmt(phi_v*Vu)} kN`)
+        + pill(`V<sub>u,max</sub> = ${fmt(Vumax)} kN`)
+        + pill(`ϕV<sub>u,max</sub> = ${fmt(phi_v*Vumax)} kN`)
+        + pill((okShear && okWeb && (!shearReoReq || okMinAsv)) ? '<span class="ok">PASS</span>' : '<span class="bad">FAIL</span>');
+    }
+    var sMsg = document.getElementById('shearMsg');
+    if (sMsg){
+      var L=[];
+      L.push(`Clause 8.2: V* = ${fmt(Vstar)} kN. b_v = D (solid circular). d_v = max(0.72D, 0.9d) with d = D − cover − tie − 0.5bar.`);
+      L.push(`Clause 8.2.4 (simplified): θ_v = 36°. k_v = ${(kv).toFixed(3)}. V_uc = ${fmt(Vuc)} kN.`);
+      if (shearReoReq) L.push(`Clause 8.2.1.6: Shear reinforcement REQUIRED (V* > k_s ϕ V_uc). Check A_sv/s ≥ A_sv,min/s → ${okMinAsv?'OK':'NOT OK'}.`);
+      else L.push(`Clause 8.2.1.6: Shear reinforcement NOT required by trigger (V* ≤ k_s ϕ V_uc).`);
+      L.push(`Clause 8.2.5.2: V_us = ${fmt(Vus)} kN. Total V_u = V_uc + V_us = ${fmt(Vu)} kN.`);
+      L.push(`Strength check: ϕV_u = ${fmt(phi_v*Vu)} kN ${okShear?'>=':'<'} V* → ${okShear?'PASS':'FAIL'}.`);
+      L.push(`Web crushing (8.2.3.3): ϕV_u,max = ${fmt(phi_v*Vumax)} kN ${okWeb?'>=':'<'} V* → ${okWeb?'PASS':'FAIL'}.`);
+      sMsg.innerHTML = L.join('<br>');
+    }
+
+    // store for reporting
+    st.shear = {
+      VxDES:VxDES, VyDES:VyDES, Vstar:Vstar,
+      bv:bv, dv:dv, d_eff:d_eff, cover:cover, tieDia:tieDia, tieS:tieS, tieLegs:tieLegs, dg:dg,
+      theta_v_deg:theta_v_deg, kv:kv, ks:ks,
+      Asv:Asv, Asv_over_s:Asv_over_s, Asvmin_over_s:Asvmin_over_s, okMinAsv:okMinAsv, shearReoReq:shearReoReq,
+      Vuc:Vuc, Vus:Vus, Vu:Vu, phi_v:phi_v, okShear:okShear, Vumax:Vumax, okWeb:okWeb
+    };
+
+    // store for reporting
+    st.str = {
+      fc:fc, fsy:fsy,
+      // factors
+      kPlace:kPlace, kMethod:kMethod, axModel:axModel, reoCutDepth:num('reoCutDepth',0), reoLd:num('reoLd',0),
+      phi_c:phi_c, phi_t:phi_t,
+      // reinforcement limits (AS 2159 Cl 5.3.3)
+      rho_min:rho_min, rho_max:rho_max, As_min:As_min, As_max:As_max, As:As, okAsMax:okAsMax, allowAsOver:allowOver,
+      nBars:nBars, dbar:dbar,
+      // capacities and checks
+      phiNu_comp:phiNu_comp, phiNu_ten:phiNu_ten,
+      Nlim_partial_kN:Nlim_partial_kN, Nlim_plain_kN:Nlim_plain_kN, okUnreinforcedLimit:okUnreinforcedLimit,
+      utilC:utilC, utilT:utilT, okC:okC, okT:okT
+    };
+  }
+
+  // Ensure structural results render even if init executed before runStruct was defined.
+  // Also refresh when the Structural tab is selected.
+  setTimeout(function(){ try{ runStruct(); }catch(e){} }, 0);
+  document.addEventListener('change', function(ev){
+    var t = ev && ev.target;
+    if (t && t.name==='tabs' && t.id==='tStr' && t.checked){
+      try{ runStruct(); }catch(e){}
+    }
+  });
+
+
+
+
+// Render structural once after definitions are loaded
+try{ runStruct(); }catch(e){}
+
+})();
+
+  </script>
+
+</body>
+</html>

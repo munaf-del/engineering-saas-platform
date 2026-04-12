@@ -184,7 +184,7 @@ export class RulePackIngestionService {
       orderBy: { activatedAt: 'desc' },
     });
 
-    return activations.map((a) => ({
+    return activations.map((a: (typeof activations)[number]) => ({
       rulePackId: a.rulePackId,
       standardCode: a.rulePack.standardCode,
       version: a.rulePack.version,

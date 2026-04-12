@@ -23,6 +23,11 @@ import { CalculationsModule } from './modules/calculations/calculations.module';
 import { PileGroupsModule } from './modules/pile-groups/pile-groups.module';
 import { PileCapacityModule } from './modules/pile-capacity/pile-capacity.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { AiModule } from './modules/ai/ai.module';
+import { ProjectCnvmpModule } from './modules/cnvmp/cnvmp.module';
+import { ProjectEnvironmentalMonitoringModule } from './modules/environmental-monitoring/environmental-monitoring.module';
+import { ProjectWasteClassificationModule } from './modules/waste-classification/waste-classification.module';
+import { ProjectSpatialModule } from './modules/project-spatial/project-spatial.module';
 
 @Module({
   imports: [
@@ -49,6 +54,11 @@ import { ReportsModule } from './modules/reports/reports.module';
     PileGroupsModule,
     PileCapacityModule,
     ReportsModule,
+    AiModule,
+    ProjectCnvmpModule,
+    ProjectEnvironmentalMonitoringModule,
+    ProjectWasteClassificationModule,
+    ProjectSpatialModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },

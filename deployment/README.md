@@ -34,7 +34,7 @@
 
 | Environment | Project ID | Region | Purpose |
 |-------------|-----------|--------|---------|
-| dev | `engplatform-dev` | `australia-southeast1` | Development / feature testing |
+| dev | `engine-dev-487802` | `australia-southeast1` | Development / feature testing |
 | staging | `engplatform-staging` | `australia-southeast2` | Pre-production validation |
 | prod | `engplatform-prod` | `australia-southeast1` | Production |
 
@@ -74,17 +74,17 @@ DB_PASSWORD=$(terraform output -raw db_password 2>/dev/null || echo "check-secre
 DB_IP=$(terraform output -raw db_private_ip 2>/dev/null || echo "check-cloud-sql")
 
 echo -n "postgresql://engplatform-app:${DB_PASSWORD}@${DB_IP}:5432/engplatform" | \
-  gcloud secrets versions add engplatform-dev-database-url --data-file=-
+  gcloud secrets versions add engine-dev-487802-database-url --data-file=-
 
 # JWT secret is auto-generated; rotate if needed:
-openssl rand -hex 32 | gcloud secrets versions add engplatform-dev-jwt-secret --data-file=-
+openssl rand -hex 32 | gcloud secrets versions add engine-dev-487802-jwt-secret --data-file=-
 ```
 
 ### 3. Build and push initial images
 
 ```bash
 REGION=australia-southeast1
-PROJECT_ID=engplatform-dev
+PROJECT_ID=engine-dev-487802
 REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/engplatform"
 
 # Authenticate Docker
@@ -113,8 +113,8 @@ Required repository secrets:
 | Secret | Description |
 |--------|-------------|
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>` |
-| `GCP_SERVICE_ACCOUNT` | `github-actions@engplatform-dev.iam.gserviceaccount.com` |
-| `GCP_PROJECT_ID` | `engplatform-dev` (or per-environment) |
+| `GCP_SERVICE_ACCOUNT` | `github-actions@engine-dev-487802.iam.gserviceaccount.com` |
+| `GCP_PROJECT_ID` | `engine-dev-487802` (or per-environment) |
 
 #### Workload Identity Federation setup
 

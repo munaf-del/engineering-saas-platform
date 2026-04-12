@@ -107,7 +107,7 @@ export class RebarService {
     });
 
     const hash = createHash('sha256')
-      .update(JSON.stringify(sizes.map((s) => ({
+      .update(JSON.stringify(sizes.map((s: (typeof sizes)[number]) => ({
         d: s.designation,
         dia: s.barDiameter,
         a: s.nominalArea,

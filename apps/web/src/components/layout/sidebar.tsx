@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Bot,
   Building2,
   Calculator,
   ClipboardList,
@@ -40,6 +41,7 @@ const catalogueNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
+  { label: 'AI Settings', href: '/settings/ai', icon: Bot },
   { label: 'Standards', href: '/standards', icon: ClipboardList },
   { label: 'Imports', href: '/imports', icon: Import },
   { label: 'Rule Packs', href: '/rule-packs', icon: Package },
@@ -89,7 +91,7 @@ export function Sidebar() {
       <Separator />
       <div className="p-3">
         <Link
-          href="/settings/members"
+          href="/settings/ai"
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
           <Settings className="h-4 w-4" />

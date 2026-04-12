@@ -1,6 +1,6 @@
 # Dev Deployment Checklist
 
-> Single-page checklist for the **first `engplatform-dev` deployment**.
+> Single-page checklist for the **first `engine-dev-487802` deployment**.
 > Print or copy this file and tick boxes as you go.
 
 ---
@@ -13,23 +13,23 @@
 - [ ] **Node.js** 20.x and **pnpm** (or npm) available (`node -v`)
 - [ ] **Python** 3.12+ available for calc-engine builds (`python3 --version`)
 - [ ] Repository cloned and on the latest `main` branch
-- [ ] You have Owner or Editor IAM role on the `engplatform-dev` GCP project
+- [ ] You have Owner or Editor IAM role on the `engine-dev-487802` GCP project
 
 ## Phase 1 — GCP Project Bootstrap
 
 > These are **one-time** manual steps before Terraform runs.
 
-- [ ] GCP project `engplatform-dev` exists (create via Console or `gcloud projects create engplatform-dev`)
+- [ ] GCP project `engine-dev-487802` exists (create via Console or `gcloud projects create engine-dev-487802`)
 - [ ] Billing account linked to the project
 - [ ] Authenticate locally:
   ```bash
   gcloud auth login
   gcloud auth application-default login
-  gcloud config set project engplatform-dev
+  gcloud config set project engine-dev-487802
   ```
 - [ ] Create the Terraform state bucket:
   ```bash
-  gsutil mb -p engplatform-dev -l australia-southeast1 gs://engplatform-terraform-state
+  gsutil mb -p engine-dev-487802 -l australia-southeast1 gs://engplatform-terraform-state
   gsutil versioning set on gs://engplatform-terraform-state
   ```
 
@@ -78,17 +78,17 @@
 
 - [ ] Confirm secrets exist:
   ```bash
-  gcloud secrets list --project=engplatform-dev --filter="labels.project=engplatform"
+  gcloud secrets list --project=engine-dev-487802 --filter="labels.project=engplatform"
   ```
-  Expected: `engplatform-dev-db-password`, `engplatform-dev-database-url`, `engplatform-dev-jwt-secret`
+  Expected: `engine-dev-487802-db-password`, `engine-dev-487802-database-url`, `engine-dev-487802-jwt-secret`
 - [ ] Verify `database-url` secret contains correct connection string:
   ```bash
-  gcloud secrets versions access latest --secret=engplatform-dev-database-url
+  gcloud secrets versions access latest --secret=engine-dev-487802-database-url
   ```
   Expected format: `postgresql://engplatform-app:<password>@<private-ip>:5432/engplatform`
 - [ ] (Optional) Rotate JWT secret with a strong random value:
   ```bash
-  openssl rand -hex 32 | gcloud secrets versions add engplatform-dev-jwt-secret --data-file=-
+  openssl rand -hex 32 | gcloud secrets versions add engine-dev-487802-jwt-secret --data-file=-
   ```
 - [ ] **NEVER** commit secret values to the repository.
 
@@ -100,7 +100,7 @@
   ```
 - [ ] Build images from the repo root:
   ```bash
-  REPO="australia-southeast1-docker.pkg.dev/engplatform-dev/engplatform"
+  REPO="australia-southeast1-docker.pkg.dev/engine-dev-487802/engplatform"
 
   docker build -f apps/api/Dockerfile -t ${REPO}/api:initial .
   docker build -f apps/web/Dockerfile -t ${REPO}/web:initial .
@@ -115,7 +115,7 @@
 - [ ] Verify images in registry:
   ```bash
   gcloud artifacts docker images list \
-    australia-southeast1-docker.pkg.dev/engplatform-dev/engplatform
+    australia-southeast1-docker.pkg.dev/engine-dev-487802/engplatform
   ```
 
 ## Phase 6 — Redeploy Cloud Run with Real Images

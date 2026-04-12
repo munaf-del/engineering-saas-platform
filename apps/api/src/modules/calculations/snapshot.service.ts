@@ -7,6 +7,7 @@ export interface SnapshotInput {
   standardsRefs: unknown[];
   rulePack: unknown;
   loadCombinations: unknown[];
+  payload?: Record<string, unknown>;
 }
 
 export interface SnapshotData {
@@ -40,6 +41,7 @@ export class SnapshotService {
     const inputSnapshot = {
       inputs: input.inputs,
       loadCombinations: input.loadCombinations,
+      ...(input.payload ? { payload: input.payload } : {}),
     };
     const inputHash = this.computeHash(inputSnapshot);
 

@@ -8,7 +8,6 @@ import { useProject } from '@/hooks/use-projects';
 import { useCalculators, useCalculatorVersions } from '@/hooks/use-calculators';
 import { useSubmitCalculation, useCalculation } from '@/hooks/use-calculations';
 import { usePileGroups } from '@/hooks/use-pile-groups';
-import { useLoadCombinationSets } from '@/hooks/use-load-combinations';
 import { useProjectStandardAssignments, useCurrentEditions } from '@/hooks/use-standards';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/loading';
 import { ApiError } from '@/lib/api-client';
+import { extractProjectLoadDefinition } from '@/features/projects/project-load-definition-adapter';
 import { toast } from 'sonner';
 import type { CalculatorDefinition, CalculatorVersion, InputValue } from '@eng/shared';
 import { CALC_TYPES } from '@eng/shared';
@@ -55,7 +55,6 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
   const { data: assignments } = useProjectStandardAssignments(projectId);
   const { data: editions } = useCurrentEditions();
   const { data: pileGroups } = usePileGroups(projectId);
-  const { data: loadCombSets } = useLoadCombinationSets(projectId);
   const { data: cloneSource } = useCalculation(projectId, cloneFromId ?? '');
   const submitCalc = useSubmitCalculation(projectId);
 
@@ -97,6 +96,10 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
   }, [assignments, editions]);
 
   const hasRulePacks = assignedEditions.some((e) => e.rulePackId);
+  const availableProjectLoadCombinations = useMemo(
+    () => extractProjectLoadDefinition(project).loadCombinations.filter((row) => row.enabled),
+    [project],
+  );
 
   const prefillFromClone = useCallback(() => {
     if (!cloneSource?.requestSnapshot || isCloned) return;
@@ -327,15 +330,17 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
               </div>
 
               <div className="space-y-2">
-                <Label>Load Combination Set</Label>
+                <Label>Project Load Combination</Label>
                 <Select value={selectedLoadCombSetId} onValueChange={setSelectedLoadCombSetId}>
                   <SelectTrigger>
                     <SelectValue placeholder="None (optional)" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">None</SelectItem>
-                    {loadCombSets?.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    {availableProjectLoadCombinations.map((combination) => (
+                      <SelectItem key={combination.id} value={combination.id}>
+                        {combination.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

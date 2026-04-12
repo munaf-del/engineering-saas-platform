@@ -13,6 +13,6 @@ import { CalcEngineClient } from './calc-engine.client';
     SnapshotService,
     CalcEngineClient,
   ],
-  exports: [CalculationsService, OrchestrationService, SnapshotService],
+  exports: [CalculationsService, OrchestrationService, SnapshotService, CalcEngineClient],
 })
 export class CalculationsModule {}

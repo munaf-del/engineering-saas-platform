@@ -1,0 +1,463 @@
+@page {
+  size: A4 landscape;
+  margin: 12mm;
+}
+
+.document {
+  margin: 0 auto;
+  max-width: 1520px;
+  border: 1px solid #dbe3f0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+  padding: 24px;
+  color: #0f172a;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.titleBlock {
+  min-width: 280px;
+  flex: 1 1 420px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.summaryStrip {
+  display: flex;
+  flex: 0 1 720px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  align-content: flex-start;
+}
+
+.summaryChip {
+  min-width: 160px;
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.summaryChipLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.summaryChipValue {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.section {
+  margin-top: 18px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.sectionHeading {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryField {
+  min-height: 76px;
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.summaryFieldLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.summaryFieldValue {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.card {
+  min-height: 120px;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 14px 16px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.cardLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.cardValue {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.cardDetail {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
+  overflow-wrap: anywhere;
+}
+
+.tableSection {
+  margin-top: 16px;
+}
+
+.tableHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tableTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.tableNote {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.tableShell {
+  overflow: hidden;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.table th,
+.table td {
+  padding: 8px 9px;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.table th:last-child,
+.table td:last-child {
+  border-right: 0;
+}
+
+.table thead th {
+  background: #f8fafc;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: #fcfdff;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr {
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.identifierCell {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cellMeta {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.modeNote,
+.hiddenNote,
+.appendixIntro {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.issueList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.structCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.structCard {
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 16px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.structCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.structCardLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.structCardTitle {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.structMiniGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.miniField {
+  border: 1px solid #dbe3f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.miniFieldLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.miniFieldValue {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.structTraceBlock {
+  margin-top: 12px;
+  border-top: 1px solid #dbe3f0;
+  padding-top: 12px;
+}
+
+.structTraceLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.structTraceValue {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+.structTraceMeta {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emptyState {
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 18px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.appendixSection {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 6px;
+}
+
+.toneSuccess {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.toneWarning {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.toneDanger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.toneMuted {
+  background: #f8fafc;
+  border-color: #dbe3f0;
+  color: #64748b;
+}
+
+@media (max-width: 1100px) {
+  .metaGrid,
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .document {
+    padding: 18px;
+  }
+
+  .metaGrid,
+  .cardGrid,
+  .structMiniGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryStrip {
+    justify-content: flex-start;
+  }
+}
+
+@media print {
+  .document {
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+}

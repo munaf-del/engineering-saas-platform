@@ -8,6 +8,7 @@ export interface CalcEngineRequest {
   rulePack: unknown;
   standardsRefs: unknown[];
   options?: { includeIntermediateSteps?: boolean; precisionDigits?: number };
+  payload?: Record<string, unknown>;
 }
 
 export interface CalcEngineDesignCheck {
@@ -34,6 +35,7 @@ export interface CalcEngineResult {
   standardRefsUsed: unknown[];
   designChecks?: CalcEngineDesignCheck[];
   assumptions?: string[];
+  artifacts?: Record<string, unknown>;
   durationMs: number;
 }
 

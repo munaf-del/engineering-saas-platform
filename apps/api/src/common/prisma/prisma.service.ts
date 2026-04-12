@@ -1,13 +1,31 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { getCurrentTenant } from '../tenant/tenant.context';
 
-const TENANT_SCOPED_MODELS = new Set<Prisma.ModelName>([
+type TenantScopedModel =
+  | 'Project'
+  | 'StandardsProfile'
+  | 'AuditLog'
+  | 'ImportJob'
+  | 'Document'
+  | 'AiDocument';
+
+type PrismaExtensionArgs = Record<string, unknown>;
+
+interface AllOperationsParams {
+  model?: string;
+  operation: string;
+  args: unknown;
+  query: (args: unknown) => Promise<unknown>;
+}
+
+const TENANT_SCOPED_MODELS = new Set<TenantScopedModel>([
   'Project',
   'StandardsProfile',
   'AuditLog',
   'ImportJob',
   'Document',
+  'AiDocument',
 ]);
 
 const READ_ACTIONS = new Set([
@@ -20,32 +38,48 @@ const READ_ACTIONS = new Set([
 
 const WRITE_MANY_ACTIONS = new Set(['updateMany', 'deleteMany']);
 
+function asRecord(value: unknown): PrismaExtensionArgs {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as PrismaExtensionArgs)
+    : {};
+}
+
 function createPrismaClient() {
   return new PrismaClient().$extends({
     query: {
-      $allOperations({ model, operation, args, query }) {
+      $allOperations({ model, operation, args, query }: AllOperationsParams) {
         const tenant = getCurrentTenant();
 
         if (!tenant?.organisationId || !model) {
           return query(args);
         }
 
-        if (!TENANT_SCOPED_MODELS.has(model as Prisma.ModelName)) {
+        if (!TENANT_SCOPED_MODELS.has(model as TenantScopedModel)) {
           return query(args);
         }
 
         const orgId = tenant.organisationId;
+        const argsRecord = asRecord(args);
 
         if (READ_ACTIONS.has(operation)) {
-          args = { ...args, where: { ...(args as any).where, organisationId: orgId } };
+          args = {
+            ...argsRecord,
+            where: { ...asRecord(argsRecord.where), organisationId: orgId },
+          };
         }
 
         if (operation === 'create') {
-          args = { ...args, data: { ...(args as any).data, organisationId: orgId } };
+          args = {
+            ...argsRecord,
+            data: { ...asRecord(argsRecord.data), organisationId: orgId },
+          };
         }
 
         if (WRITE_MANY_ACTIONS.has(operation)) {
-          args = { ...args, where: { ...(args as any).where, organisationId: orgId } };
+          args = {
+            ...argsRecord,
+            where: { ...asRecord(argsRecord.where), organisationId: orgId },
+          };
         }
 
         return query(args);

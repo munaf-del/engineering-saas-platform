@@ -95,7 +95,7 @@ gcloud run services update-traffic engplatform-api \
 
 | Symptom | Fix |
 |---------|-----|
-| Cloud Build fails | Check build logs: `gcloud builds log $(gcloud builds list --project=engplatform-dev --limit=1 --format='value(id)')` |
+| Cloud Build fails | Check build logs: `gcloud builds log $(gcloud builds list --project=engine-dev-487802 --limit=1 --format='value(id)')` |
 | Migration SQL error | Fix the Prisma schema/migration locally, rebuild the API image, push, then re-run `./deployment/jobs/migrate.sh dev` |
 | Can't connect to DB | Verify Cloud SQL has a private IP and the VPC connector is healthy. Check: `gcloud sql instances describe engplatform-db-dev --format="value(ipAddresses)"` |
 

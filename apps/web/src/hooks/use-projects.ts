@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { ApiError, api } from '@/lib/api-client';
 import type { Project, ProjectMember } from '@eng/shared';
 import type { PaginatedResponse } from '@/lib/api-client';
 
@@ -15,14 +15,24 @@ export function useProject(id: string) {
     queryKey: ['projects', id],
     queryFn: () => api<Project>(`/projects/${id}`),
     enabled: !!id,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 }
 
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; code: string; description?: string; standardsProfileId?: string }) =>
-      api<Project>('/projects', { method: 'POST', body: data }),
+    mutationFn: (data: {
+      name: string;
+      code: string;
+      description?: string;
+      standardsProfileId?: string;
+    }) => api<Project>('/projects', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
   });
 }
@@ -39,11 +49,20 @@ export function useUpdateProject(id: string) {
   });
 }
 
-export function useDeleteProject() {
+type UseDeleteProjectOptions = {
+  invalidateProjects?: boolean;
+};
+
+export function useDeleteProject(options: UseDeleteProjectOptions = {}) {
   const qc = useQueryClient();
+  const invalidateProjects = options.invalidateProjects ?? true;
   return useMutation({
     mutationFn: (id: string) => api(`/projects/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+    onSuccess: async () => {
+      if (invalidateProjects) {
+        await qc.invalidateQueries({ queryKey: ['projects'] });
+      }
+    },
   });
 }
 

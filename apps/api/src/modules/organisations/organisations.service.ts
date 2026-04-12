@@ -2,16 +2,73 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
+import { normalizeAiModelSelection, type AiModelId } from '@eng/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { UpdateOrganisationAiSettingsDto } from './dto/update-organisation-ai-settings.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
+import {
+  buildOrganisationAiSettingsPayload,
+  getOrganisationAiSettingsFromMetadata,
+  isMissingOrganisationMetadataColumnError,
+  mergeOrganisationMetadataWithAiSettings,
+} from './organisation-ai-settings';
+
+const ORGANISATION_BASE_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  abn: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.OrganisationSelect;
+
+const ORGANISATION_MEMBER_SELECT = {
+  id: true,
+  organisationId: true,
+  userId: true,
+  role: true,
+  createdAt: true,
+} satisfies Prisma.OrganisationMemberSelect;
+
+const ORGANISATION_WITH_MEMBERS_SELECT = {
+  ...ORGANISATION_BASE_SELECT,
+  members: {
+    select: ORGANISATION_MEMBER_SELECT,
+  },
+} satisfies Prisma.OrganisationSelect;
+
+const ORGANISATION_DETAIL_SELECT = {
+  ...ORGANISATION_BASE_SELECT,
+  members: {
+    select: {
+      ...ORGANISATION_MEMBER_SELECT,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.OrganisationSelect;
 
 @Injectable()
 export class OrganisationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(OrganisationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async findByUser(userId: string, pagination: PaginationDto) {
     const { page, limit } = pagination;
@@ -21,7 +78,7 @@ export class OrganisationsService {
     const [memberships, total] = await Promise.all([
       this.prisma.organisationMember.findMany({
         where,
-        include: { organisation: true },
+        include: { organisation: { select: ORGANISATION_BASE_SELECT } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -29,7 +86,7 @@ export class OrganisationsService {
       this.prisma.organisationMember.count({ where }),
     ]);
 
-    const data = memberships.map((m) => ({
+    const data = memberships.map((m: (typeof memberships)[number]) => ({
       ...m.organisation,
       role: m.role,
     }));
@@ -41,15 +98,7 @@ export class OrganisationsService {
     const membership = await this.prisma.organisationMember.findFirst({
       where: { organisationId: id, userId },
       include: {
-        organisation: {
-          include: {
-            members: {
-              include: {
-                user: { select: { id: true, email: true, name: true } },
-              },
-            },
-          },
-        },
+        organisation: { select: ORGANISATION_DETAIL_SELECT },
       },
     });
     if (!membership) {
@@ -75,7 +124,7 @@ export class OrganisationsService {
           create: { userId, role: 'owner' },
         },
       },
-      include: { members: true },
+      select: ORGANISATION_WITH_MEMBERS_SELECT,
     });
   }
 
@@ -88,7 +137,64 @@ export class OrganisationsService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.abn !== undefined && { abn: dto.abn }),
       },
+      select: ORGANISATION_BASE_SELECT,
     });
+  }
+
+  async getAiSettings(id: string, userId: string) {
+    await this.assertMembership(id, userId);
+
+    const fallback = this.resolveAiSettingsFallbacks();
+    const metadataState = await this.readOrganisationMetadata(id);
+
+    if (!metadataState.exists) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    return buildOrganisationAiSettingsPayload(metadataState.metadata, fallback);
+  }
+
+  async updateAiSettings(
+    id: string,
+    userId: string,
+    dto: UpdateOrganisationAiSettingsDto,
+  ) {
+    await this.assertRole(id, userId, ['owner', 'admin']);
+
+    const fallback = this.resolveAiSettingsFallbacks();
+    const metadataState = await this.readOrganisationMetadata(id);
+
+    if (!metadataState.exists) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    if (!metadataState.persistenceAvailable) {
+      throw new ServiceUnavailableException(
+        'Organisation AI settings persistence is unavailable until the database schema is updated',
+      );
+    }
+
+    const currentSettings = getOrganisationAiSettingsFromMetadata(
+      metadataState.metadata,
+      fallback,
+    );
+    const nextSettings = {
+      assistantModel: dto.assistantModel ?? currentSettings.assistantModel,
+      agentModel: dto.agentModel ?? currentSettings.agentModel,
+    };
+
+    const updated = await this.prisma.organisation.update({
+      where: { id },
+      data: {
+        metadata: mergeOrganisationMetadataWithAiSettings(
+          metadataState.metadata,
+          nextSettings,
+        ),
+      },
+      select: { metadata: true },
+    });
+
+    return buildOrganisationAiSettingsPayload(updated.metadata, fallback);
   }
 
   async remove(id: string, userId: string) {
@@ -205,6 +311,72 @@ export class OrganisationsService {
       throw new NotFoundException('Organisation not found');
     }
     return membership;
+  }
+
+  private async readOrganisationMetadata(organisationId: string): Promise<{
+    exists: boolean;
+    metadata: unknown;
+    persistenceAvailable: boolean;
+  }> {
+    try {
+      const organisation = await this.prisma.organisation.findUnique({
+        where: { id: organisationId },
+        select: { id: true, metadata: true },
+      });
+
+      if (!organisation) {
+        return {
+          exists: false,
+          metadata: null,
+          persistenceAvailable: true,
+        };
+      }
+
+      return {
+        exists: true,
+        metadata: organisation.metadata,
+        persistenceAvailable: true,
+      };
+    } catch (error) {
+      if (!isMissingOrganisationMetadataColumnError(error)) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `Organisation metadata column is unavailable; falling back to default AI settings for organisation ${organisationId}`,
+      );
+
+      const organisation = await this.prisma.organisation.findUnique({
+        where: { id: organisationId },
+        select: { id: true },
+      });
+
+      return {
+        exists: Boolean(organisation),
+        metadata: null,
+        persistenceAvailable: false,
+      };
+    }
+  }
+
+  private resolveAiSettingsFallbacks(): {
+    assistantModel: AiModelId;
+    agentModel: AiModelId;
+  } {
+    const assistantModel = normalizeAiModelSelection(
+      this.configService.get<string>('AI_OPENAI_MODEL'),
+      'gpt-4.1',
+    );
+    const agentModel = normalizeAiModelSelection(
+      this.configService.get<string>('AI_OPENAI_AGENT_MODEL') ??
+        this.configService.get<string>('AI_OPENAI_MODEL'),
+      'gpt-4.1-mini',
+    );
+
+    return {
+      assistantModel,
+      agentModel,
+    };
   }
 
   private async assertRole(
