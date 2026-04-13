@@ -1,4 +1,7 @@
-import { buildDeterministicFieldSuggestions } from './assistant-field-suggestions';
+import {
+  buildAssistantDraftActionsForCurrentPage,
+  buildDeterministicFieldSuggestions,
+} from './assistant-field-suggestions';
 
 jest.mock('@eng/shared', () => ({
   buildMultiPileEnvelopeInputSignature: jest.fn(() => ''),
@@ -157,6 +160,47 @@ describe('assistant project geotechnical material suggestions', () => {
     });
 
     expect(collectCandidateValues(result.suggestedFields, 'displayName')).toEqual([]);
+  });
+
+  it('builds draft actions only for approved Foundations scalar fields on /pile-groups', () => {
+    const draftActions = buildAssistantDraftActionsForCurrentPage(
+      {
+        route: '/projects/project-1/pile-groups',
+        pageTitle: 'Foundations',
+        pageKind: 'project_detail',
+      },
+      [
+        {
+          fieldPath: 'geotechnicalBasis.foundingNotes',
+          label: 'Project geotechnical founding notes',
+          suggestedValue: 'Found piles within weathered schist.',
+          sourceType: 'report_derived',
+          sourceSummary: 'Grounded report',
+          rationale: 'Grounded in the extracted report.',
+          confidence: 0.9,
+          applyMode: 'fill-if-empty',
+        },
+        {
+          fieldPath: 'geotechnicalMaterials.candidates[0].displayName',
+          label: 'Candidate material',
+          suggestedValue: 'Dense silty sand',
+          sourceType: 'report_derived',
+          sourceSummary: 'Grounded report',
+          rationale: 'Out of scope.',
+          confidence: 0.9,
+          applyMode: 'replace',
+        },
+      ],
+    );
+
+    expect(draftActions).toEqual([
+      expect.objectContaining({
+        fieldKey: 'geotechnicalBasis.foundingNotes',
+        actionType: 'set_textarea',
+        proposedValue: 'Found piles within weathered schist.',
+        status: 'ready',
+      }),
+    ]);
   });
 });
 

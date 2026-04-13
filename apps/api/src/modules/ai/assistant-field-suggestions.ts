@@ -38,6 +38,12 @@ const PROJECT_DETAIL_DRAFT_ACTION_TYPE_BY_FIELD = {
   'reportMeta.preparedBy': 'set_text',
   'reportMeta.checkedBy': 'set_text',
   'reportMeta.purpose': 'set_text',
+  'geotechnicalBasis.groundwaterDesignNotes': 'set_textarea',
+  'geotechnicalBasis.cfaUpliftMode': 'set_select',
+  'geotechnicalBasis.cfaUpliftFactor': 'set_text',
+  'geotechnicalBasis.defaultSocketAssumptions': 'set_textarea',
+  'geotechnicalBasis.foundingNotes': 'set_textarea',
+  'geotechnicalBasis.commentary': 'set_textarea',
 } as const;
 
 export type AssistantFieldSuggestionBuildResult = {
@@ -499,11 +505,16 @@ export function buildAssistantDraftActionsForCurrentPage(
   pageContext: RespondAiAssistantDto['pageContext'],
   suggestedFields: AssistantSuggestedField[],
 ): AiAssistantDraftAction[] {
-  if (!/^\/projects\/[^/]+$/.test(pageContext.route)) {
+  const scope = resolveProjectDetailSuggestionScope(pageContext.route);
+  if (scope !== 'project-page' && scope !== 'project-foundations') {
     return [];
   }
 
   return suggestedFields.flatMap((suggestion) => {
+    if (!isProjectDetailSuggestionFieldInScope(suggestion.fieldPath, scope)) {
+      return [];
+    }
+
     const actionType = resolveProjectDetailDraftActionType(suggestion.fieldPath);
     if (!actionType) {
       return [];

@@ -116,7 +116,10 @@ export function ProjectAiSuggestionsContent({
   const shouldShowAiReportsAction =
     Boolean(draftActionAdapter.aiReportsHref) && shouldOfferAiReportsAction(response);
 
-  if (draftActionAdapter.scope === 'project-page') {
+  if (
+    draftActionAdapter.scope === 'project-page' ||
+    draftActionAdapter.scope === 'project-foundations'
+  ) {
     const hasSuggestedContent = scopedSuggestions.length > 0;
 
     return (
@@ -129,6 +132,7 @@ export function ProjectAiSuggestionsContent({
             suggestions={scopedSuggestions}
             draftActions={response.draftActions}
             suggestionAdapter={suggestionAdapter}
+            scope={draftActionAdapter.scope}
           />
         ) : null}
 
@@ -155,20 +159,23 @@ export function ProjectAiSuggestionsContent({
 
         {!hasSuggestedContent && !response.limitationNote ? (
           <Alert>
-            <AlertTitle>No visible Project Details draft actions</AlertTitle>
+            <AlertTitle>
+              No visible {resolveScalarDraftActionScopeTitle(draftActionAdapter.scope)} draft
+              actions
+            </AlertTitle>
             <AlertDescription>
-              The current assistant response did not include any safely actionable Project Details
-              fields for this page.
+              The current assistant response did not include any safely actionable{' '}
+              {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)} fields for this page.
             </AlertDescription>
           </Alert>
         ) : null}
 
         {hasSuggestedContent || shouldShowAiReportsAction ? (
           <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
-            The floating assistant only changes the current Project Details draft. It never
-            auto-saves, never auto-runs, and the page keeps showing unsaved changes until you click
-            {' '}
-            Save Project Details.
+            The floating assistant only changes the current{' '}
+            {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)} draft. It never
+            auto-saves, never auto-runs, and the page keeps showing unsaved changes until you click{' '}
+            {resolveSaveButtonLabel(draftActionAdapter.scope)}.
           </div>
         ) : null}
       </div>
@@ -864,6 +871,26 @@ function resolveDraftScopeLabel(scope: ProjectDraftActionAdapter['scope']) {
     return 'foundations';
   }
   return 'project';
+}
+
+function resolveScalarDraftActionScopeTitle(
+  scope: Extract<ProjectDraftActionAdapter['scope'], 'project-page' | 'project-foundations'>,
+) {
+  if (scope === 'project-foundations') {
+    return 'Foundation / Global GEO Controls';
+  }
+
+  return 'Project Details';
+}
+
+function resolveScalarDraftActionScopeLabel(
+  scope: Extract<ProjectDraftActionAdapter['scope'], 'project-page' | 'project-foundations'>,
+) {
+  if (scope === 'project-foundations') {
+    return 'foundation / global GEO controls';
+  }
+
+  return 'Project Details';
 }
 
 function resolveSaveButtonLabel(scope: ProjectDraftActionAdapter['scope']) {

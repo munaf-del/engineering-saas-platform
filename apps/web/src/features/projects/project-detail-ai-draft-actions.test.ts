@@ -102,4 +102,51 @@ describe('project detail AI draft actions', () => {
     });
     expect(action?.message).toContain('already has a value');
   });
+
+  it('maps approved Foundations scalar fields into draft actions', () => {
+    const [action] = buildProjectDetailDraftActions({
+      suggestions: [
+        buildSuggestion({
+          fieldPath: 'geotechnicalBasis.cfaUpliftMode',
+          label: 'Project geotechnical default CFA uplift logic',
+          suggestedValue: 'ratio-to-compression',
+          applyMode: 'replace',
+        }),
+      ],
+      suggestionAdapter: buildSuggestionAdapter({
+        currentValues: {
+          'geotechnicalBasis.cfaUpliftMode': 'manual-entry',
+        },
+      }),
+      scope: 'project-foundations',
+    });
+
+    expect(action).toMatchObject({
+      fieldKey: 'geotechnicalBasis.cfaUpliftMode',
+      actionType: 'set_select',
+      status: 'requires_manual_selection',
+      selectable: true,
+    });
+  });
+
+  it('marks non-Foundations page fields as unresolved in the Foundations draft-action preview', () => {
+    const [action] = buildProjectDetailDraftActions({
+      suggestions: [
+        buildSuggestion({
+          fieldPath: 'references[0].title',
+          label: 'Reference title',
+          suggestedValue: 'Out-of-scope reference title',
+        }),
+      ],
+      suggestionAdapter: buildSuggestionAdapter({}),
+      scope: 'project-foundations',
+    });
+
+    expect(action).toMatchObject({
+      fieldKey: 'references[0].title',
+      status: 'skipped_unresolved',
+      selectable: false,
+    });
+    expect(action?.message).toContain('foundation / global GEO controls');
+  });
 });

@@ -3,6 +3,7 @@ import type { MultiPileProjectSpecifics } from '@eng/shared';
 import type { AiAssistantSuggestedField } from '@/features/ai/assistant-page-context';
 import {
   createProjectSuggestionApplyAdapter,
+  isProjectFoundationsSuggestionFieldPath,
   isProjectPageSuggestionFieldPath,
 } from './project-ai-suggestion-adapter';
 import { filterSuggestionsForScope } from './project-ai-suggestions-content';
@@ -200,6 +201,31 @@ describe('project AI suggestion adapter', () => {
     expect(appliedDraft).toBeNull();
   });
 
+  it('does not overwrite an already-filled Foundations field by default', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const projectSpecifics = buildProjectSpecifics();
+    projectSpecifics.geotechnicalBasis.foundingNotes = 'Existing founding note';
+    const adapter = createProjectSuggestionApplyAdapter({
+      projectSpecifics,
+      canApplyField: isProjectFoundationsSuggestionFieldPath,
+      onApply: (nextValue) => {
+        appliedDraft = nextValue;
+      },
+    });
+
+    const result = adapter.applySuggestions([
+      buildSuggestion({
+        fieldPath: 'geotechnicalBasis.foundingNotes',
+        label: 'Project geotechnical founding notes',
+        suggestedValue: 'Replacement founding note that should be skipped',
+        applyMode: 'fill-if-empty',
+      }),
+    ]);
+
+    expect(result).toEqual({ appliedCount: 0, skippedCount: 1 });
+    expect(appliedDraft).toBeNull();
+  });
+
   it('can scope direct field apply to main Project-owned suggestions only', () => {
     let appliedDraft: MultiPileProjectSpecifics | null = null;
     const adapter = createProjectSuggestionApplyAdapter({
@@ -236,6 +262,47 @@ describe('project AI suggestion adapter', () => {
     const nextDraft = appliedDraft as MultiPileProjectSpecifics;
     expect(nextDraft.reportMeta.reportTitle).toBe('Geotechnical Investigation Report');
     expect(nextDraft.geotechnicalBasis.foundingNotes).toBe('');
+  });
+
+  it('can scope direct field apply to Foundations-owned scalar suggestions only', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const adapter = createProjectSuggestionApplyAdapter({
+      projectSpecifics: buildProjectSpecifics(),
+      canApplyField: isProjectFoundationsSuggestionFieldPath,
+      onApply: (nextValue) => {
+        appliedDraft = nextValue;
+      },
+    });
+
+    const result = adapter.applySuggestions([
+      buildSuggestion({
+        fieldPath: 'geotechnicalBasis.foundingNotes',
+        label: 'Project geotechnical founding notes',
+        suggestedValue: 'Found piles within weathered schist.',
+      }),
+      buildSuggestion({
+        fieldPath: 'reportMeta.reportTitle',
+        label: 'Report metadata title',
+        suggestedValue: 'Out-of-scope report title',
+      }),
+      buildSuggestion({
+        fieldPath: 'geotechnicalMaterials.candidates[0].displayName',
+        label: 'Candidate material',
+        suggestedValue: 'Out-of-scope material candidate',
+        applyMode: 'replace',
+      }),
+    ]);
+
+    expect(result).toEqual({ appliedCount: 1, skippedCount: 2 });
+    expect(appliedDraft).not.toBeNull();
+    if (!appliedDraft) {
+      throw new Error('Expected scoped foundations draft to be applied');
+    }
+    const nextDraft = appliedDraft as MultiPileProjectSpecifics;
+    expect(nextDraft.geotechnicalBasis.foundingNotes).toBe(
+      'Found piles within weathered schist.',
+    );
+    expect(nextDraft.reportMeta.reportTitle).toBe('');
   });
 
   it('keeps project geotechnical scope draft-safe by showing only material candidates', () => {

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   AI_ASSISTANT_DRAFT_ACTION_TYPES,
+  MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
   MULTI_PILE_PROJECT_MAP_SOURCES,
   MULTI_PILE_PROJECT_STATUSES,
   type AiAssistantDraftAction,
@@ -45,11 +46,18 @@ const PROJECT_DETAIL_ACTION_TYPE_BY_FIELD = {
   'reportMeta.preparedBy': 'set_text',
   'reportMeta.checkedBy': 'set_text',
   'reportMeta.purpose': 'set_text',
+  'geotechnicalBasis.groundwaterDesignNotes': 'set_textarea',
+  'geotechnicalBasis.cfaUpliftMode': 'set_select',
+  'geotechnicalBasis.cfaUpliftFactor': 'set_text',
+  'geotechnicalBasis.defaultSocketAssumptions': 'set_textarea',
+  'geotechnicalBasis.foundingNotes': 'set_textarea',
+  'geotechnicalBasis.commentary': 'set_textarea',
 } as const satisfies Partial<Record<string, AiAssistantDraftActionType>>;
 
 const PROJECT_DETAIL_SELECT_OPTIONS = {
   'identity.status': MULTI_PILE_PROJECT_STATUSES,
   'identity.mapSource': MULTI_PILE_PROJECT_MAP_SOURCES,
+  'geotechnicalBasis.cfaUpliftMode': MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
 } as const satisfies Partial<Record<string, readonly string[]>>;
 
 const ACTION_STATUS_ORDER: Record<AiAssistantDraftActionStatus, number> = {
@@ -69,14 +77,18 @@ type ProjectDetailDraftActionItem = AiAssistantDraftAction & {
   sourceSummary: string;
 };
 
+type ProjectScalarDraftActionScope = 'project-page' | 'project-foundations';
+
 export function ProjectDetailAiDraftActions({
   suggestions,
   draftActions,
   suggestionAdapter,
+  scope = 'project-page',
 }: {
   suggestions: AiAssistantSuggestedField[];
   draftActions?: AiAssistantDraftAction[];
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
+  scope?: ProjectScalarDraftActionScope;
 }) {
   const actions = useMemo(
     () =>
@@ -84,8 +96,9 @@ export function ProjectDetailAiDraftActions({
         suggestions,
         draftActions,
         suggestionAdapter,
+        scope,
       }),
-    [draftActions, suggestionAdapter, suggestions],
+    [draftActions, scope, suggestionAdapter, suggestions],
   );
   const applicableActionIds = useMemo(
     () => actions.filter((action) => action.status === 'ready').map((action) => action.id),
@@ -139,7 +152,9 @@ export function ProjectDetailAiDraftActions({
 
   function applyActionIds(actionIds: string[]) {
     if (!suggestionAdapter) {
-      toast.error('Applying Project Details draft actions is not available on this page yet.');
+      toast.error(
+        `Applying ${resolveDraftActionScopeLabel(scope)} draft actions is not available on this page yet.`,
+      );
       return;
     }
 
@@ -147,7 +162,7 @@ export function ProjectDetailAiDraftActions({
       (action) => actionIds.includes(action.id) && action.selectable,
     );
     if (selectedActions.length === 0) {
-      toast.error('Select at least one Project Details draft action to apply.');
+      toast.error(`Select at least one ${resolveDraftActionScopeLabel(scope)} draft action to apply.`);
       return;
     }
 
@@ -156,10 +171,10 @@ export function ProjectDetailAiDraftActions({
     );
     if (result.appliedCount > 0) {
       toast.success(
-        `${result.appliedCount} Project Details draft action${result.appliedCount === 1 ? '' : 's'} applied. Save remains manual.`,
+        `${result.appliedCount} ${resolveDraftActionScopeLabel(scope)} draft action${result.appliedCount === 1 ? '' : 's'} applied. Save remains manual.`,
       );
     } else {
-      toast.message('No selected Project Details draft actions were applied.');
+      toast.message(`No selected ${resolveDraftActionScopeLabel(scope)} draft actions were applied.`);
     }
 
     if (result.appliedCount > 0) {
@@ -181,7 +196,7 @@ export function ProjectDetailAiDraftActions({
         className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground"
         data-testid="project-detail-ai-draft-actions-dismissed"
       >
-        Project Details draft actions dismissed for this response.
+        {resolveDraftActionScopeTitle(scope)} draft actions dismissed for this response.
       </div>
     );
   }
@@ -192,11 +207,11 @@ export function ProjectDetailAiDraftActions({
         <div className="flex flex-col gap-3 border-b pb-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Project Details Draft Actions
+              {resolveDraftActionScopeTitle(scope)} Draft Actions
             </div>
             <p className="text-sm text-muted-foreground">
-              Review suggested changes first. Applying only updates the live Project Details draft on
-              this page, and Save stays manual.
+              Review suggested changes first. Applying only updates the live{' '}
+              {resolveDraftActionScopeLabel(scope)} draft on this page, and Save stays manual.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -307,7 +322,7 @@ export function ProjectDetailAiDraftActions({
                     </ReviewCell>
                   </div>
 
-                  <StatusIndicator status={action.status} message={action.message} />
+                  <StatusIndicator status={action.status} message={action.message} scope={scope} />
                 </div>
               </div>
             </div>
@@ -322,10 +337,12 @@ export function buildProjectDetailDraftActions({
   suggestions,
   draftActions = [],
   suggestionAdapter,
+  scope = 'project-page',
 }: {
   suggestions: AiAssistantSuggestedField[];
   draftActions?: AiAssistantDraftAction[];
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
+  scope?: ProjectScalarDraftActionScope;
 }): ProjectDetailDraftActionItem[] {
   const draftActionBySuggestionKey = new Map(
     draftActions.map((draftAction) => [
@@ -339,6 +356,7 @@ export function buildProjectDetailDraftActions({
       createProjectDetailDraftAction(
         suggestion,
         suggestionAdapter,
+        scope,
         draftActionBySuggestionKey.get(
           draftActionKey(suggestion.fieldPath, suggestion.suggestedValue),
         ) ?? null,
@@ -358,6 +376,7 @@ export function buildProjectDetailDraftActions({
 function createProjectDetailDraftAction(
   suggestion: AiAssistantSuggestedField,
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null,
+  scope: ProjectScalarDraftActionScope,
   draftAction: AiAssistantDraftAction | null,
 ): ProjectDetailDraftActionItem {
   const actionType =
@@ -379,31 +398,31 @@ function createProjectDetailDraftAction(
         : true;
 
   let status: AiAssistantDraftActionStatus = 'ready';
-  let message: string | null = 'Ready to apply to the current Project Details draft.';
+  let message: string | null = `Ready to apply to the current ${resolveDraftActionScopeLabel(scope)} draft.`;
 
   if (actionType == null) {
     status = 'skipped_unresolved';
-    message = 'This field is not wired to the Project Details draft in Phase 1.';
+    message = `This field is not wired to the current ${resolveDraftActionScopeLabel(scope)} draft in Phase 1.5.`;
   } else if (!AI_ASSISTANT_DRAFT_ACTION_TYPES.includes(actionType)) {
     status = 'skipped_unresolved';
     message = 'This suggested action type is not supported in Phase 1.';
   } else if (suggestionAdapter == null) {
     status = 'skipped_unresolved';
-    message = 'Project Details apply is not available on this page right now.';
+    message = `${resolveDraftActionScopeTitle(scope)} apply is not available on this page right now.`;
   } else if (!canApplyField) {
     status = 'skipped_unresolved';
-    message = 'This field is outside the current Project Details integration scope.';
+    message = `This field is outside the current ${resolveDraftActionScopeLabel(scope)} integration scope.`;
   } else if (normalizedProposedValue == null) {
     status = 'skipped_unresolved';
-    message = 'The proposed value could not be safely mapped into the current Project Details form state.';
+    message = `The proposed value could not be safely mapped into the current ${resolveDraftActionScopeLabel(scope)} form state.`;
   } else if (areDraftActionValuesEqual(actionType, normalizedCurrentValue, normalizedProposedValue)) {
     status = 'skipped_existing_value';
-    message = 'The current Project Details draft already matches this value.';
+    message = `The current ${resolveDraftActionScopeLabel(scope)} draft already matches this value.`;
   } else if (hasExistingDraftActionValue(actionType, normalizedCurrentValue)) {
     if (suggestion.applyMode === 'replace') {
       status = 'requires_manual_selection';
       message =
-        'This would overwrite an existing Project Details value. Select it manually if you want to apply it.';
+        `This would overwrite an existing ${resolveDraftActionScopeLabel(scope)} value. Select it manually if you want to apply it.`;
     } else {
       status = 'skipped_existing_value';
       message = 'This field already has a value, so overwrite is blocked by default.';
@@ -549,23 +568,6 @@ function labelForStatus(status: AiAssistantDraftActionStatus) {
   }
 }
 
-function statusMessageForStatus(status: AiAssistantDraftActionStatus) {
-  switch (status) {
-    case 'ready':
-      return 'Ready to apply to the current Project Details draft.';
-    case 'requires_manual_selection':
-      return 'This action needs explicit manual selection before it can overwrite a current value.';
-    case 'skipped_unresolved':
-      return 'This action could not be resolved safely against the current page form state.';
-    case 'skipped_readonly':
-      return 'This field is currently read only and cannot be changed from the assistant.';
-    case 'skipped_existing_value':
-      return 'Field already has a value, so overwrite is blocked by default.';
-    default:
-      return '';
-  }
-}
-
 function labelForActionType(actionType: AiAssistantDraftActionType) {
   switch (actionType) {
     case 'set_text':
@@ -625,6 +627,22 @@ function resolveProjectDetailSelectOptions(fieldKey: string) {
   ];
 }
 
+function resolveDraftActionScopeTitle(scope: ProjectScalarDraftActionScope) {
+  if (scope === 'project-foundations') {
+    return 'Foundation / Global GEO Controls';
+  }
+
+  return 'Project Details';
+}
+
+function resolveDraftActionScopeLabel(scope: ProjectScalarDraftActionScope) {
+  if (scope === 'project-foundations') {
+    return 'foundation / global GEO controls';
+  }
+
+  return 'Project Details';
+}
+
 function ReviewCell({ title, children }: { title: string; children: string }) {
   return (
     <div className="rounded-lg border bg-background px-3 py-2">
@@ -639,9 +657,11 @@ function ReviewCell({ title, children }: { title: string; children: string }) {
 function StatusIndicator({
   status,
   message,
+  scope,
 }: {
   status: AiAssistantDraftActionStatus;
   message: string | null | undefined;
+  scope: ProjectScalarDraftActionScope;
 }) {
   const meta = statusMeta(status);
   const Icon = meta.icon;
@@ -657,9 +677,31 @@ function StatusIndicator({
         <Icon className={cn('h-4 w-4 shrink-0', meta.iconClassName)} />
         <span>{meta.label}</span>
       </div>
-      <div className="mt-1 leading-relaxed">{message ?? statusMessageForStatus(status)}</div>
+      <div className="mt-1 leading-relaxed">
+        {message ?? statusMessageForStatus(status, scope)}
+      </div>
     </div>
   );
+}
+
+function statusMessageForStatus(
+  status: AiAssistantDraftActionStatus,
+  scope: ProjectScalarDraftActionScope,
+) {
+  switch (status) {
+    case 'ready':
+      return `Ready to apply to the current ${resolveDraftActionScopeLabel(scope)} draft.`;
+    case 'requires_manual_selection':
+      return `This action needs explicit manual selection before it can overwrite a current ${resolveDraftActionScopeLabel(scope)} value.`;
+    case 'skipped_unresolved':
+      return `This action could not be resolved safely against the current ${resolveDraftActionScopeLabel(scope)} form state.`;
+    case 'skipped_readonly':
+      return 'This field is currently read only and cannot be changed from the assistant.';
+    case 'skipped_existing_value':
+      return 'Field already has a value, so overwrite is blocked by default.';
+    default:
+      return '';
+  }
 }
 
 function statusMeta(status: AiAssistantDraftActionStatus): {
