@@ -122,7 +122,8 @@ export class AiController {
 
   @Post('assistant/respond')
   @ApiOperation({
-    summary: 'Return a read-only, context-aware assistant response for the current app page',
+    summary:
+      'Return a context-aware assistant response for the current app page, with draft-only guidance on supported pages',
   })
   async respondToAssistant(@CurrentUser() user: RequestUser, @Body() dto: RespondAiAssistantDto) {
     this.requireOrgContext(user);

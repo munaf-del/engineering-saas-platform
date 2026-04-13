@@ -41,6 +41,7 @@ import {
 } from '@/features/projects/project-specifics-utils';
 import {
   buildProjectDetailAssistantPageContext,
+  useRegisterAssistantCurrentPageActionExecutor,
   useRegisterAssistantDraftActionAdapter,
   useRegisterAssistantPageContext,
   useRegisterAssistantSuggestionAdapter,
@@ -52,6 +53,7 @@ import {
   createProjectSuggestionApplyAdapter,
   isProjectPageSuggestionFieldPath,
 } from '@/features/projects/project-ai-suggestion-adapter';
+import { createProjectCurrentPageActionExecutor } from '@/features/projects/project-current-page-action-executor';
 import { ProjectReferencesEditor } from '@/features/projects/project-references-editor';
 import { toast } from 'sonner';
 
@@ -330,6 +332,20 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
         : null,
     [draft],
   );
+  const currentPageActionExecutor = useMemo(
+    () =>
+      draft
+        ? createProjectCurrentPageActionExecutor({
+            projectSpecifics: draft,
+            scope: 'project-page',
+            onApply: (nextValue) => {
+              setDraft(nextValue);
+              setIsDirty(true);
+            },
+          })
+        : null,
+    [draft],
+  );
   const assistantDraftActionAdapter = useMemo(
     () =>
       draft
@@ -345,6 +361,7 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
 
   useRegisterAssistantPageContext(assistantPageContext);
   useRegisterAssistantSuggestionAdapter(assistantSuggestionAdapter);
+  useRegisterAssistantCurrentPageActionExecutor(currentPageActionExecutor);
   useRegisterAssistantDraftActionAdapter(assistantDraftActionAdapter);
 
   if (!draft) return <PageLoading />;
@@ -570,6 +587,7 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
             pageContext={assistantPageContext}
             projectSpecifics={draft}
             suggestionAdapter={assistantSuggestionAdapter}
+            currentPageActionExecutor={currentPageActionExecutor}
             scope="project-page"
           />
         </section>

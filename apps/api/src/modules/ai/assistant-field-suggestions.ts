@@ -632,7 +632,7 @@ function buildMultiPileSuggestions({
       suggestedFields: [],
       toolFindings: [],
       limitationNote:
-        'Multi-Pile assistant draft apply is intentionally read-only for now. I can still give guidance from the current page context.',
+        'This Multi-Pile page does not yet support assistant draft actions. I can still give guidance from the current page context.',
     };
   }
 

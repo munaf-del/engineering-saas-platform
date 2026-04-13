@@ -26,9 +26,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { useAiAssistantRespond, useAiRuntimeSettings } from '@/hooks/use-ai';
 import { useAuth } from '@/lib/auth';
+import type { CurrentPageActionExecutor } from './current-page-action-executor';
 import {
   type AiAssistantDraftActionAdapter,
   useAssistantDraftActionAdapter,
+  useAssistantCurrentPageActionExecutor,
   useAssistantPageContext,
   useAssistantSuggestionAdapter,
   type AiAssistantSuggestedField,
@@ -51,6 +53,7 @@ export function GlobalAiAssistant() {
   const { user } = useAuth();
   const pageContext = useAssistantPageContext();
   const suggestionAdapter = useAssistantSuggestionAdapter();
+  const currentPageActionExecutor = useAssistantCurrentPageActionExecutor();
   const draftActionAdapter = useAssistantDraftActionAdapter();
   const respond = useAiAssistantRespond();
   const aiRuntimeSettings = useAiRuntimeSettings(user?.organisationId ?? '');
@@ -150,6 +153,8 @@ export function GlobalAiAssistant() {
     mode === 'assistant' ? routeScopedDraftActionAdapter : null;
   const routeScopedSuggestionAdapter =
     assistantActionDraftAdapter != null ? suggestionAdapter : null;
+  const routeScopedCurrentPageActionExecutor =
+    assistantActionDraftAdapter != null ? currentPageActionExecutor : null;
   const supportsProjectDraftActions =
     assistantActionDraftAdapter?.kind === 'project';
   const supportsFieldDraftActions = false;
@@ -268,11 +273,11 @@ export function GlobalAiAssistant() {
                 <p className="mt-1 text-xs text-slate-300">
                   {mode === 'assistant'
                     ? supportsProjectDraftActions
-                      ? 'Guidance-first support for the current page with controlled draft apply and add actions. Draft only.'
+                      ? 'Guided current-page draft actions on supported pages. You review and apply changes manually, and Save stays manual.'
                       : supportsFieldDraftActions
-                        ? 'Guidance-first support for the current page with controlled draft apply actions where supported. Draft only.'
-                        : 'Guidance-first support for the current page. Read-only.'
-                    : `Beta read-only mode that gathers extra internal context before answering and stays on ${AI_ASSISTANT_PROVIDER_LABELS[AI_AGENT_PROVIDER]} in this phase.`}
+                        ? 'Guided current-page draft apply where supported. You stay in control, and Save stays manual.'
+                        : 'Guidance-first support for the current page. This page does not yet support draft actions.'
+                    : `Separate OpenAI-only beta mode that stays read-only while gathering extra internal context before answering.`}
                 </p>
                 {activeModel ? (
                   <p className="mt-1 text-[11px] text-slate-300">
@@ -390,6 +395,8 @@ export function GlobalAiAssistant() {
               {messages.length === 0 ? (
                 <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
                   Ask about what this page is showing, what looks incomplete, or what to do next.
+                  On supported pages, I can also suggest current-page draft changes for you to
+                  review and apply manually.
                 </div>
               ) : null}
 
@@ -406,6 +413,7 @@ export function GlobalAiAssistant() {
                     key={message.id}
                     message={message}
                     suggestionAdapter={routeScopedSuggestionAdapter}
+                    currentPageActionExecutor={routeScopedCurrentPageActionExecutor}
                     draftActionAdapter={assistantActionDraftAdapter}
                     onClearSuggestions={clearSuggestions}
                   />
@@ -437,7 +445,7 @@ export function GlobalAiAssistant() {
               }}
               placeholder={
                 mode === 'assistant'
-                  ? 'Ask about this page, warnings, missing inputs, or next steps...'
+                  ? 'Ask about this page, or ask for draft suggestions you can review and apply manually...'
                   : 'Ask for a read-only review using project, workspace, and report context...'
               }
               className="min-h-[104px] resize-none"
@@ -489,11 +497,13 @@ export function GlobalAiAssistant() {
 function AssistantMessageCard({
   message,
   suggestionAdapter,
+  currentPageActionExecutor,
   draftActionAdapter,
   onClearSuggestions,
 }: {
   message: AiAssistantConversationMessage;
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
+  currentPageActionExecutor: CurrentPageActionExecutor | null;
   draftActionAdapter: AiAssistantDraftActionAdapter | null;
   onClearSuggestions: (messageId: string) => void;
 }) {
@@ -556,7 +566,7 @@ function AssistantMessageCard({
 
   function handleApplySelected() {
     if (!suggestionAdapter) {
-      toast.error('Applying suggestions is not supported on this page yet.');
+      toast.error('This page does not yet support draft apply.');
       return;
     }
 
@@ -630,6 +640,7 @@ function AssistantMessageCard({
         <ProjectAiSuggestionsContent
           response={structured}
           suggestionAdapter={suggestionAdapter}
+          currentPageActionExecutor={currentPageActionExecutor}
           draftActionAdapter={draftActionAdapter}
           presentation="assistant"
         />

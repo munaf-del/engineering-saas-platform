@@ -179,8 +179,11 @@ const GEOTECHNICAL_FOCUSED_REFINEMENT_PROMPT = [
 
 const AI_ASSISTANT_SYSTEM_PROMPT = [
   'You are the floating assistant for an engineering SaaS application.',
-  'The assistant is guidance-first and strictly read-only.',
-  'Never claim that you saved data, applied values, updated a form, ran calculations, or changed project state.',
+  'The assistant is guidance-first with user-controlled draft-only apply on supported current pages.',
+  'On supported project authoring pages, you can suggest grounded current-page draft changes that the user previews and applies manually.',
+  'Those draft changes affect only the current page draft, do not auto-save, do not cross pages, and still require the normal Save action.',
+  'If the user asks whether you are read-only, can edit, or can save, answer generally: on supported pages you can suggest draft changes that they preview and apply manually; you cannot auto-save, cannot edit unsupported pages, and cannot act across pages.',
+  'Never claim that you saved data, auto-applied values, updated a form without user action, ran calculations, or changed persisted project state.',
   'Use only the supplied pageContext, conversation, project snapshot, pile group snapshot, and recent AI report summaries.',
   'If context is limited, say so clearly and briefly.',
   'If pageContext.pageSpecificData includes assistantGuidance, activeTabContext, incompleteAreas, or route-specific summaries, treat those as curated UI-grounded facts and prioritize them over weaker inference.',
@@ -915,7 +918,8 @@ export class AiService {
       promptContext,
       messages: dto.messages,
       responseFormatName: 'engineering_app_assistant_response',
-      responseFormatDescription: 'Read-only page guidance for the engineering app assistant',
+      responseFormatDescription:
+        'Current-page guidance for the engineering app assistant, with draft-only apply on supported pages',
       noPayloadErrorMessage:
         selectedProvider === 'anthropic'
           ? 'Anthropic returned no assistant payload'
@@ -2453,9 +2457,9 @@ function buildSuggestedFieldAssistantResponse(
   const visibleFacts = getPreferredAssistantPageFacts(pageContext).slice(0, 4);
   const answer = result.supported
     ? result.suggestedFields.length > 0
-      ? `I found ${result.suggestedFields.length} grounded suggestion${result.suggestedFields.length === 1 ? '' : 's'} for this page. Review them below and apply only the ones you want. Applying updates the current form draft only and does not save or run anything.`
+      ? `I found ${result.suggestedFields.length} grounded suggestion${result.suggestedFields.length === 1 ? '' : 's'} for this page. Review them below and apply only the ones you want. Any applied changes affect only the current page draft, do not save or run anything, and still require the normal Save action.`
       : 'I could not find any grounded field suggestions for this page from the current project state, extracted reports, or internal read-only tools, so I am not inventing values.'
-    : 'Structured Suggest + Apply is not supported on this page yet. I can still answer questions from the current page context.';
+    : 'This page does not yet support guided draft actions. I can still answer questions from the current page context.';
 
   return {
     answer,
@@ -2478,7 +2482,7 @@ function buildSuggestedFieldAssistantResponse(
                 'Use the assistant for guidance only on Multi-Pile for now; make calculator-owned changes manually.',
               ]
             : [
-                'Use a supported project authoring page, or keep using the assistant in read-only question mode.',
+                'Use a supported project authoring page for guided draft apply, or keep using the assistant for guidance on this page.',
               ],
     suggestedFields: result.suggestedFields.slice(0, 160),
     draftActions: buildAssistantDraftActionsForCurrentPage(
@@ -2642,7 +2646,7 @@ function describeAssistantQuickAction(quickAction: AiAssistantQuickAction) {
     case 'suggest_fields':
       return 'Suggest grounded field values for the current page only when they come directly from current context, reports, or internal read-only tools.';
     default:
-      return 'Provide read-only help grounded in the current page context.';
+      return 'Provide grounded help about the current page and explain draft-apply limits truthfully.';
   }
 }
 

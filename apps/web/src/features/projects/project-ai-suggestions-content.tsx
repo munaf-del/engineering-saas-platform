@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { CurrentPageActionExecutor } from '@/features/ai/current-page-action-executor';
 import type {
   AiAssistantDraftActionAdapter,
   AiAssistantSuggestedField,
@@ -39,6 +40,7 @@ type ProjectDraftActionAdapter = Extract<AiAssistantDraftActionAdapter, { kind: 
 type ProjectAiSuggestionsContentProps = {
   response: AiAssistantStructuredResponse;
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
+  currentPageActionExecutor: CurrentPageActionExecutor | null;
   draftActionAdapter: ProjectDraftActionAdapter;
   presentation?: 'card' | 'assistant';
 };
@@ -59,6 +61,7 @@ type AppliedDraftAction = {
 export function ProjectAiSuggestionsContent({
   response,
   suggestionAdapter,
+  currentPageActionExecutor,
   draftActionAdapter,
   presentation = 'card',
 }: ProjectAiSuggestionsContentProps) {
@@ -131,7 +134,7 @@ export function ProjectAiSuggestionsContent({
           <ProjectDetailAiDraftActions
             suggestions={scopedSuggestions}
             draftActions={response.draftActions}
-            suggestionAdapter={suggestionAdapter}
+            currentPageActionExecutor={currentPageActionExecutor}
             scope={draftActionAdapter.scope}
           />
         ) : null}
@@ -172,10 +175,10 @@ export function ProjectAiSuggestionsContent({
 
         {hasSuggestedContent || shouldShowAiReportsAction ? (
           <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
-            The floating assistant only changes the current{' '}
-            {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)} draft. It never
-            auto-saves, never auto-runs, and the page keeps showing unsaved changes until you click{' '}
-            {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+            On supported current pages, you review and apply these draft actions manually. They
+            only affect the current {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)}{' '}
+            draft on this page, never auto-save, never auto-run, and never change other pages.
+            Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
           </div>
         ) : null}
       </div>
@@ -308,7 +311,7 @@ export function ProjectAiSuggestionsContent({
       {hasSuggestedContent ? (
         <SuggestionBlock
           title="Suggested"
-          description="Safe draft-only actions you can apply now. Nothing saves or runs automatically."
+          description="Guided draft-only actions you can review and apply manually. Nothing saves, runs, or crosses pages automatically."
         >
           {suggestionSections.length > 0 ? (
             <div className="space-y-4" data-testid="project-ai-section-suggested">
@@ -686,7 +689,7 @@ export function ProjectAiSuggestionsContent({
       {appliedActions.length > 0 ? (
         <SuggestionBlock
           title="Applied to draft"
-          description={`Changes are staged in the current ${resolveDraftScopeLabel(draftActionAdapter.scope)} draft only. Save stays manual.`}
+          description={`Changes are staged only in the current ${resolveDraftScopeLabel(draftActionAdapter.scope)} draft on this page. Save stays manual, and nothing crosses pages.`}
         >
           <div className="space-y-3" data-testid="project-ai-section-applied-to-draft">
             {appliedActions.map((action) => (
@@ -735,9 +738,9 @@ export function ProjectAiSuggestionsContent({
 
       {hasSuggestedContent || appliedActions.length > 0 || shouldShowAiReportsAction ? (
         <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
-          The floating assistant only changes the current draft. It never auto-saves, never
-          auto-runs, and the page keeps showing unsaved changes until you click{' '}
-          {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+          On supported current pages, you review and apply draft changes manually. They only stage
+          the current draft on this page, never auto-save, never auto-run, and never change other
+          pages. Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
         </div>
       ) : null}
     </div>

@@ -1,9 +1,70 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  AiAssistantSuggestedField,
-  AiAssistantSuggestionApplyAdapter,
-} from '@/features/ai/assistant-page-context';
+import type { MultiPileProjectSpecifics } from '@eng/shared';
+import type { AiAssistantSuggestedField } from '@/features/ai/assistant-page-context';
 import { buildProjectDetailDraftActions } from './project-detail-ai-draft-actions';
+import { createProjectCurrentPageActionExecutor } from './project-current-page-action-executor';
+
+function buildProjectSpecifics(): MultiPileProjectSpecifics {
+  return {
+    identity: {
+      projectNumber: '221715.00',
+      projectName: 'Clinical Services Building, Albury Hospital',
+      client: 'Health Infrastructure',
+      status: 'In Progress',
+      address: 'Albury Hospital, 201 Borella Rd, Albury NSW',
+      latitude: '',
+      longitude: '',
+      mapAddress: '',
+      notes: '',
+      archived: false,
+      projectLogo: '',
+      mapSource: 'auto',
+    },
+    reportMeta: {
+      reportTitle: '',
+      reportRevision: '',
+      issueDate: '',
+      preparedBy: '',
+      checkedBy: '',
+      purpose: '',
+    },
+    references: [],
+    structuralDefaults: {
+      concreteClasses: [],
+      reinforcementGrades: [],
+      tendonGrades: [],
+      coverDurabilityClasses: [],
+    },
+    geotechnicalMaterials: {
+      activeReferenceId: 'geo-ref-1',
+      templateState: 'manual',
+      materials: [],
+    },
+    geotechnicalBasis: {
+      groundwaterDesignNotes: '',
+      cfaUpliftMode: 'manual-entry',
+      cfaUpliftFactor: 1,
+      defaultSocketAssumptions: '',
+      foundingNotes: '',
+      commentary: '',
+      arrAssessment: {
+        irrValues: [],
+        testType: 'NONE',
+        testPilePercentage: 0,
+        weightTotal: 0,
+        weightedScore: 0,
+        arrValue: 0,
+        arrBand: 'Not assessed',
+        phiTf: null,
+        testBenefitK: 1,
+        phiGbLow: 0,
+        phiGbHigh: 0,
+        phiGLow: 0,
+        phiGHigh: 0,
+      },
+    },
+  };
+}
 
 function buildSuggestion(
   overrides: Partial<AiAssistantSuggestedField> &
@@ -21,22 +82,8 @@ function buildSuggestion(
   };
 }
 
-function buildSuggestionAdapter({
-  currentValues = {},
-  blockedFields = [],
-}: {
-  currentValues?: Record<string, string | null>;
-  blockedFields?: string[];
-}): AiAssistantSuggestionApplyAdapter {
-  return {
-    getCurrentValue: (fieldPath) => currentValues[fieldPath] ?? null,
-    canApplyField: (fieldPath) => !blockedFields.includes(fieldPath),
-    applySuggestions: () => ({ appliedCount: 0, skippedCount: 0 }),
-  };
-}
-
 describe('project detail AI draft actions', () => {
-  it('marks unresolved fields clearly when no Project Details field mapping exists', () => {
+  it('marks unresolved fields clearly when no current-page allowlist entry exists', () => {
     const [action] = buildProjectDetailDraftActions({
       suggestions: [
         buildSuggestion({
@@ -45,7 +92,11 @@ describe('project detail AI draft actions', () => {
           suggestedValue: 'Report reference',
         }),
       ],
-      suggestionAdapter: buildSuggestionAdapter({}),
+      currentPageActionExecutor: createProjectCurrentPageActionExecutor({
+        projectSpecifics: buildProjectSpecifics(),
+        scope: 'project-page',
+        onApply: () => undefined,
+      }),
     });
 
     expect(action).toMatchObject({
@@ -53,32 +104,37 @@ describe('project detail AI draft actions', () => {
       status: 'skipped_unresolved',
       selectable: false,
     });
-    expect(action?.message).toContain('not wired');
+    expect(action?.message).toContain('outside the current Project Details allowlist');
   });
 
-  it('marks mapped fields as unresolved when current-page apply is not allowed', () => {
+  it('marks foundations-owned fields as unresolved on the project page preview', () => {
     const [action] = buildProjectDetailDraftActions({
       suggestions: [
         buildSuggestion({
-          fieldPath: 'identity.address',
-          label: 'Project address',
-          suggestedValue: '75-85 Mary Street, St Peters',
+          fieldPath: 'geotechnicalBasis.foundingNotes',
+          label: 'Founding notes',
+          suggestedValue: 'Found within weathered schist.',
         }),
       ],
-      suggestionAdapter: buildSuggestionAdapter({
-        blockedFields: ['identity.address'],
+      currentPageActionExecutor: createProjectCurrentPageActionExecutor({
+        projectSpecifics: buildProjectSpecifics(),
+        scope: 'project-page',
+        onApply: () => undefined,
       }),
     });
 
     expect(action).toMatchObject({
-      fieldKey: 'identity.address',
+      fieldKey: 'geotechnicalBasis.foundingNotes',
       status: 'skipped_unresolved',
       selectable: false,
     });
-    expect(action?.message).toContain('outside the current Project Details integration scope');
+    expect(action?.message).toContain('outside the current Project Details allowlist');
   });
 
   it('marks already-filled fields as skipped by default for fill-if-empty actions', () => {
+    const projectSpecifics = buildProjectSpecifics();
+    projectSpecifics.identity.address = 'Existing project address';
+
     const [action] = buildProjectDetailDraftActions({
       suggestions: [
         buildSuggestion({
@@ -88,10 +144,10 @@ describe('project detail AI draft actions', () => {
           applyMode: 'fill-if-empty',
         }),
       ],
-      suggestionAdapter: buildSuggestionAdapter({
-        currentValues: {
-          'identity.address': 'Existing project address',
-        },
+      currentPageActionExecutor: createProjectCurrentPageActionExecutor({
+        projectSpecifics,
+        scope: 'project-page',
+        onApply: () => undefined,
       }),
     });
 
@@ -103,7 +159,7 @@ describe('project detail AI draft actions', () => {
     expect(action?.message).toContain('already has a value');
   });
 
-  it('maps approved Foundations scalar fields into draft actions', () => {
+  it('maps approved foundations scalar fields into draft actions', () => {
     const [action] = buildProjectDetailDraftActions({
       suggestions: [
         buildSuggestion({
@@ -113,10 +169,10 @@ describe('project detail AI draft actions', () => {
           applyMode: 'replace',
         }),
       ],
-      suggestionAdapter: buildSuggestionAdapter({
-        currentValues: {
-          'geotechnicalBasis.cfaUpliftMode': 'manual-entry',
-        },
+      currentPageActionExecutor: createProjectCurrentPageActionExecutor({
+        projectSpecifics: buildProjectSpecifics(),
+        scope: 'project-foundations',
+        onApply: () => undefined,
       }),
       scope: 'project-foundations',
     });
@@ -129,7 +185,7 @@ describe('project detail AI draft actions', () => {
     });
   });
 
-  it('marks non-Foundations page fields as unresolved in the Foundations draft-action preview', () => {
+  it('marks non-foundations page fields as unresolved in the foundations draft-action preview', () => {
     const [action] = buildProjectDetailDraftActions({
       suggestions: [
         buildSuggestion({
@@ -138,7 +194,11 @@ describe('project detail AI draft actions', () => {
           suggestedValue: 'Out-of-scope reference title',
         }),
       ],
-      suggestionAdapter: buildSuggestionAdapter({}),
+      currentPageActionExecutor: createProjectCurrentPageActionExecutor({
+        projectSpecifics: buildProjectSpecifics(),
+        scope: 'project-foundations',
+        onApply: () => undefined,
+      }),
       scope: 'project-foundations',
     });
 
@@ -147,6 +207,6 @@ describe('project detail AI draft actions', () => {
       status: 'skipped_unresolved',
       selectable: false,
     });
-    expect(action?.message).toContain('foundation / global GEO controls');
+    expect(action?.message).toContain('foundation / global GEO controls allowlist');
   });
 });

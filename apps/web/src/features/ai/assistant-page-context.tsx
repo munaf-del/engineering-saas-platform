@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { usePathname } from 'next/navigation';
+import type { CurrentPageActionExecutor } from './current-page-action-executor';
 
 export type AiAssistantSaveState = 'saved' | 'unsaved' | 'saving' | 'readonly' | 'unknown';
 
@@ -109,6 +110,8 @@ type AiAssistantPageContextValue = {
   registerPageContext: (pageContext: AiAssistantPageContext | null) => void;
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
   registerSuggestionAdapter: (adapter: AiAssistantSuggestionApplyAdapter | null) => void;
+  currentPageActionExecutor: CurrentPageActionExecutor | null;
+  registerCurrentPageActionExecutor: (executor: CurrentPageActionExecutor | null) => void;
   draftActionAdapter: AiAssistantDraftActionAdapter | null;
   registerDraftActionAdapter: (adapter: AiAssistantDraftActionAdapter | null) => void;
 };
@@ -122,12 +125,15 @@ export function AiAssistantPageContextProvider({ children }: { children: ReactNo
   );
   const [registeredSuggestionAdapter, setRegisteredSuggestionAdapter] =
     useState<AiAssistantSuggestionApplyAdapter | null>(null);
+  const [registeredCurrentPageActionExecutor, setRegisteredCurrentPageActionExecutor] =
+    useState<CurrentPageActionExecutor | null>(null);
   const [registeredDraftActionAdapter, setRegisteredDraftActionAdapter] =
     useState<AiAssistantDraftActionAdapter | null>(null);
 
   useEffect(() => {
     setRegisteredPageContext((current) => (current === null ? current : null));
     setRegisteredSuggestionAdapter((current) => (current === null ? current : null));
+    setRegisteredCurrentPageActionExecutor((current) => (current === null ? current : null));
     setRegisteredDraftActionAdapter((current) => (current === null ? current : null));
   }, [pathname]);
 
@@ -143,6 +149,14 @@ export function AiAssistantPageContextProvider({ children }: { children: ReactNo
   const registerSuggestionAdapter = useCallback(
     (adapter: AiAssistantSuggestionApplyAdapter | null) => {
       setRegisteredSuggestionAdapter((current) => (current === adapter ? current : adapter));
+    },
+    [],
+  );
+  const registerCurrentPageActionExecutor = useCallback(
+    (executor: CurrentPageActionExecutor | null) => {
+      setRegisteredCurrentPageActionExecutor((current) =>
+        current === executor ? current : executor,
+      );
     },
     [],
   );
@@ -164,14 +178,18 @@ export function AiAssistantPageContextProvider({ children }: { children: ReactNo
       registerPageContext,
       suggestionAdapter: registeredSuggestionAdapter,
       registerSuggestionAdapter,
+      currentPageActionExecutor: registeredCurrentPageActionExecutor,
+      registerCurrentPageActionExecutor,
       draftActionAdapter: registeredDraftActionAdapter,
       registerDraftActionAdapter,
     }),
     [
       pageContext,
+      registerCurrentPageActionExecutor,
       registerDraftActionAdapter,
       registerPageContext,
       registerSuggestionAdapter,
+      registeredCurrentPageActionExecutor,
       registeredDraftActionAdapter,
       registeredSuggestionAdapter,
     ],
@@ -248,6 +266,41 @@ export function useRegisterAssistantSuggestionAdapter(
       registerSuggestionAdapter(null);
     },
     [registerSuggestionAdapter],
+  );
+}
+
+export function useAssistantCurrentPageActionExecutor() {
+  const context = useContext(AiAssistantPageContextRegistry);
+  if (!context) {
+    throw new Error(
+      'useAssistantCurrentPageActionExecutor must be used within AiAssistantPageContextProvider',
+    );
+  }
+
+  return context.currentPageActionExecutor;
+}
+
+export function useRegisterAssistantCurrentPageActionExecutor(
+  executor: CurrentPageActionExecutor | null,
+) {
+  const context = useContext(AiAssistantPageContextRegistry);
+  if (!context) {
+    throw new Error(
+      'useRegisterAssistantCurrentPageActionExecutor must be used within AiAssistantPageContextProvider',
+    );
+  }
+
+  const registerCurrentPageActionExecutor = context.registerCurrentPageActionExecutor;
+
+  useEffect(() => {
+    registerCurrentPageActionExecutor(executor);
+  }, [executor, registerCurrentPageActionExecutor]);
+
+  useEffect(
+    () => () => {
+      registerCurrentPageActionExecutor(null);
+    },
+    [registerCurrentPageActionExecutor],
   );
 }
 

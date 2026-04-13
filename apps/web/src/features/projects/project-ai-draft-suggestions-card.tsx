@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAiAssistantRespond } from '@/hooks/use-ai';
+import type { CurrentPageActionExecutor } from '@/features/ai/current-page-action-executor';
 import type {
   AiAssistantDraftActionAdapter,
   AiAssistantPageContext,
@@ -27,6 +28,7 @@ type ProjectAiDraftSuggestionsCardProps = {
   pageContext: AiAssistantPageContext;
   projectSpecifics: MultiPileProjectSpecifics;
   suggestionAdapter: AiAssistantSuggestionApplyAdapter | null;
+  currentPageActionExecutor?: CurrentPageActionExecutor | null;
   scope?: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'];
   onAddMaterialCandidate?: (
     candidate: ProjectGeotechnicalMaterialCandidate,
@@ -42,6 +44,7 @@ export function ProjectAiDraftSuggestionsCard({
   pageContext,
   projectSpecifics,
   suggestionAdapter,
+  currentPageActionExecutor = null,
   scope = 'project-page',
   onAddMaterialCandidate,
   onApplyMaterialCandidateToExisting,
@@ -206,6 +209,7 @@ export function ProjectAiDraftSuggestionsCard({
           <ProjectAiSuggestionsContent
             response={response}
             suggestionAdapter={suggestionAdapter}
+            currentPageActionExecutor={currentPageActionExecutor}
             draftActionAdapter={draftActionAdapter}
             presentation="card"
           />
@@ -231,12 +235,12 @@ function resolveProjectAiDraftSuggestionsDescription(
   scope: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'],
 ) {
   if (scope === 'project-geotechnical') {
-    return 'This keeps shared Project Geotechnical material-candidate review on the materials workspace. Applying updates the current draft only.';
+    return 'This keeps shared Project Geotechnical material-candidate review on the materials workspace. You review and apply changes manually, and they only affect the current draft until you save.';
   }
   if (scope === 'project-foundations') {
-    return 'This keeps report-grounded foundation/global GEO-control suggestions on the Foundations page. Applying updates the current draft only.';
+    return 'This keeps report-grounded foundation/global GEO-control suggestions on the Foundations page. You review and apply changes manually, and they only affect this page draft until you save.';
   }
-  return 'This uses the same grounded suggestion payload as the floating assistant, but keeps the Project Details review list visible on the page. Applying updates the current draft only.';
+  return 'This uses the same grounded suggestion payload as the floating assistant, but keeps the Project Details review list visible on the page. You review and apply changes manually, and they only affect this page draft until you save.';
 }
 
 function resolveProjectAiDraftSuggestionsButtonLabel(

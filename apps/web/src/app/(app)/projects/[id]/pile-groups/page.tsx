@@ -24,6 +24,7 @@ import {
 } from '@/features/projects/project-specifics-adapter';
 import {
   buildProjectDetailAssistantPageContext,
+  useRegisterAssistantCurrentPageActionExecutor,
   useRegisterAssistantDraftActionAdapter,
   useRegisterAssistantPageContext,
   useRegisterAssistantSuggestionAdapter,
@@ -33,6 +34,7 @@ import {
   createProjectSuggestionApplyAdapter,
   isProjectFoundationsSuggestionFieldPath,
 } from '@/features/projects/project-ai-suggestion-adapter';
+import { createProjectCurrentPageActionExecutor } from '@/features/projects/project-current-page-action-executor';
 import { ProjectGeotechnicalBasisEditor } from '@/features/projects/project-geotechnical-editors';
 import { summarizeProjectGeotechnical } from '@/features/projects/project-specifics-utils';
 import { toast } from 'sonner';
@@ -108,6 +110,20 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
         : null,
     [draft],
   );
+  const currentPageActionExecutor = useMemo(
+    () =>
+      draft
+        ? createProjectCurrentPageActionExecutor({
+            projectSpecifics: draft,
+            scope: 'project-foundations',
+            onApply: (nextValue) => {
+              setDraft(nextValue);
+              setIsDirty(true);
+            },
+          })
+        : null,
+    [draft],
+  );
   const assistantDraftActionAdapter = useMemo(
     () =>
       draft
@@ -123,6 +139,7 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
 
   useRegisterAssistantPageContext(assistantPageContext);
   useRegisterAssistantSuggestionAdapter(assistantSuggestionAdapter);
+  useRegisterAssistantCurrentPageActionExecutor(currentPageActionExecutor);
   useRegisterAssistantDraftActionAdapter(assistantDraftActionAdapter);
 
   if (isLoading || !project || !draft) return <PageLoading />;
@@ -218,6 +235,7 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
             pageContext={assistantPageContext}
             projectSpecifics={draft}
             suggestionAdapter={assistantSuggestionAdapter}
+            currentPageActionExecutor={currentPageActionExecutor}
             scope="project-foundations"
           />
         ) : null}
