@@ -143,6 +143,63 @@ describe('project AI suggestion adapter', () => {
     expect(nextDraft.reportMeta.reportTitle).toBe('Geotechnical Investigation Report');
   });
 
+  it('applies Project Details text and select suggestions into the project draft', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const projectSpecifics = buildProjectSpecifics();
+    const adapter = createProjectSuggestionApplyAdapter({
+      projectSpecifics,
+      onApply: (nextValue) => {
+        appliedDraft = nextValue;
+      },
+    });
+
+    const result = adapter.applySuggestions([
+      buildSuggestion({
+        fieldPath: 'identity.address',
+        label: 'Project address',
+        suggestedValue: '75-85 Mary Street, St Peters NSW 2044',
+        applyMode: 'replace',
+      }),
+      buildSuggestion({
+        fieldPath: 'identity.status',
+        label: 'Project status',
+        suggestedValue: 'For Review',
+        applyMode: 'replace',
+      }),
+    ]);
+
+    expect(result).toEqual({ appliedCount: 2, skippedCount: 0 });
+    expect(appliedDraft).not.toBeNull();
+    if (!appliedDraft) {
+      throw new Error('Expected project draft to be applied');
+    }
+    const nextDraft = appliedDraft as MultiPileProjectSpecifics;
+    expect(nextDraft.identity.address).toBe('75-85 Mary Street, St Peters NSW 2044');
+    expect(nextDraft.identity.status).toBe('For Review');
+  });
+
+  it('does not overwrite an already-filled Project Details field by default', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const adapter = createProjectSuggestionApplyAdapter({
+      projectSpecifics: buildProjectSpecifics(),
+      onApply: (nextValue) => {
+        appliedDraft = nextValue;
+      },
+    });
+
+    const result = adapter.applySuggestions([
+      buildSuggestion({
+        fieldPath: 'identity.address',
+        label: 'Project address',
+        suggestedValue: 'Replacement address that should be skipped',
+        applyMode: 'fill-if-empty',
+      }),
+    ]);
+
+    expect(result).toEqual({ appliedCount: 0, skippedCount: 1 });
+    expect(appliedDraft).toBeNull();
+  });
+
   it('can scope direct field apply to main Project-owned suggestions only', () => {
     let appliedDraft: MultiPileProjectSpecifics | null = null;
     const adapter = createProjectSuggestionApplyAdapter({
@@ -164,9 +221,14 @@ describe('project AI suggestion adapter', () => {
         label: 'Project geotechnical founding notes',
         suggestedValue: 'Found piles within weathered schist.',
       }),
+      buildSuggestion({
+        fieldPath: 'references[0].title',
+        label: 'Reference title',
+        suggestedValue: 'Cross-page reference value',
+      }),
     ]);
 
-    expect(result).toEqual({ appliedCount: 1, skippedCount: 1 });
+    expect(result).toEqual({ appliedCount: 1, skippedCount: 2 });
     expect(appliedDraft).not.toBeNull();
     if (!appliedDraft) {
       throw new Error('Expected scoped project draft to be applied');
@@ -225,9 +287,14 @@ describe('project AI suggestion adapter', () => {
     expect(foundationsFiltered).not.toContain('references[0].title');
   });
 
-  it('keeps project page scope limited to project-level metadata, notes, and references', () => {
+  it('keeps project page scope limited to Project Details and report metadata fields', () => {
     const filtered = filterSuggestionsForScope(
       [
+        buildSuggestion({
+          fieldPath: 'identity.address',
+          label: 'Project address',
+          suggestedValue: '75-85 Mary Street, St Peters',
+        }),
         buildSuggestion({
           fieldPath: 'geotechnicalBasis.foundingNotes',
           label: 'Founding notes',
@@ -257,7 +324,8 @@ describe('project AI suggestion adapter', () => {
     expect(filtered).not.toContain('geotechnicalBasis.foundingNotes');
     expect(filtered).not.toContain('geotechnicalMaterials.candidates[0].displayName');
     expect(filtered).not.toContain('geotechnicalMaterials.materials[0].displayName');
-    expect(filtered).toContain('references[0].title');
+    expect(filtered).toContain('identity.address');
+    expect(filtered).not.toContain('references[0].title');
   });
 
   it('applies a geotechnical note suggestion into the current draft without saving', () => {

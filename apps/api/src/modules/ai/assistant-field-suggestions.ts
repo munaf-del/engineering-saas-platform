@@ -1,6 +1,7 @@
 import {
   buildMultiPileEnvelopeInputSignature,
   MULTI_PILE_UNASSIGNED_PILE_TYPE_ID,
+  type AiAssistantDraftAction,
   type MultiPileEnvelopeRunSummary,
   type MultiPilePileTypeDefinition,
   type MultiPileProjectReference,
@@ -19,6 +20,25 @@ type AssistantDocumentSuggestionSource = {
 
 const MULTI_PILE_ASSISTANT_SUGGESTIONS_ENABLED = false;
 const PROJECT_GEOTECHNICAL_MATERIAL_CANDIDATE_LIMIT = 8;
+const PROJECT_DETAIL_DRAFT_ACTION_TYPE_BY_FIELD = {
+  'identity.projectNumber': 'set_text',
+  'identity.projectName': 'set_text',
+  'identity.client': 'set_text',
+  'identity.status': 'set_select',
+  'identity.address': 'set_text',
+  'identity.latitude': 'set_text',
+  'identity.longitude': 'set_text',
+  'identity.mapAddress': 'set_text',
+  'identity.notes': 'set_textarea',
+  'identity.archived': 'set_checkbox',
+  'identity.mapSource': 'set_select',
+  'reportMeta.reportTitle': 'set_text',
+  'reportMeta.reportRevision': 'set_text',
+  'reportMeta.issueDate': 'set_text',
+  'reportMeta.preparedBy': 'set_text',
+  'reportMeta.checkedBy': 'set_text',
+  'reportMeta.purpose': 'set_text',
+} as const;
 
 export type AssistantFieldSuggestionBuildResult = {
   supported: boolean;
@@ -148,9 +168,28 @@ function buildProjectDetailSuggestions({
         getNestedString(bestReportResult, ['documentFamily', 'value']),
       )
     : null;
+  const siteAddressCandidate = selectBestSiteAddressCandidate([
+    bestReportDocument,
+    bestGeotechnicalDocument,
+  ]);
   const reportMetaReference = selectBestReportMetadataReference(projectSpecifics);
   const reportPurposeReference = selectBestReportPurposeReference(projectSpecifics);
   const referenceTargetIndex = resolveReferenceTargetIndex(projectSpecifics);
+
+  if (siteAddressCandidate && isBlank(projectSpecifics.identity.address)) {
+    toolFindings.add(`Using extracted site address from ${siteAddressCandidate.filename}.`);
+    pushSuggestion(suggestedFields, {
+      fieldPath: 'identity.address',
+      label: 'Project address',
+      suggestedValue: siteAddressCandidate.value,
+      sourceType: 'report_derived',
+      sourceSummary: `${siteAddressCandidate.filename} · extracted site address`,
+      rationale:
+        'Copies the extracted site address into the editable Project Details address field.',
+      confidence: 0.91,
+      applyMode: 'fill-if-empty',
+    });
+  }
 
   if (projectSummaryCandidate && isBlank(projectSpecifics.identity.notes)) {
     toolFindings.add(
@@ -456,6 +495,34 @@ function buildProjectDetailSuggestions({
   };
 }
 
+export function buildAssistantDraftActionsForCurrentPage(
+  pageContext: RespondAiAssistantDto['pageContext'],
+  suggestedFields: AssistantSuggestedField[],
+): AiAssistantDraftAction[] {
+  if (!/^\/projects\/[^/]+$/.test(pageContext.route)) {
+    return [];
+  }
+
+  return suggestedFields.flatMap((suggestion) => {
+    const actionType = resolveProjectDetailDraftActionType(suggestion.fieldPath);
+    if (!actionType) {
+      return [];
+    }
+
+    return [
+      {
+        fieldKey: suggestion.fieldPath,
+        actionType,
+        proposedValue: suggestion.suggestedValue,
+        label: suggestion.label,
+        reason: suggestion.rationale,
+        status: 'ready',
+        message: null,
+      } satisfies AiAssistantDraftAction,
+    ];
+  });
+}
+
 type ProjectDetailSuggestionScope = 'project-page' | 'project-geotechnical' | 'project-foundations';
 
 function filterProjectDetailSuggestionResultForRoute(
@@ -508,11 +575,12 @@ function isProjectDetailSuggestionFieldInScope(
   switch (scope) {
     case 'project-page':
       return (
-        /^identity\.notes$/.test(fieldPath) ||
-        /^reportMeta\.(reportTitle|reportRevision|issueDate|preparedBy|checkedBy|purpose)$/.test(
+        /^identity\.(projectNumber|projectName|client|status|address|latitude|longitude|mapAddress|notes|archived|mapSource)$/.test(
           fieldPath,
         ) ||
-        /^references\[\d+\]\.(title|documentNumber|documentType|notes)$/.test(fieldPath)
+        /^reportMeta\.(reportTitle|reportRevision|issueDate|preparedBy|checkedBy|purpose)$/.test(
+          fieldPath,
+        )
       );
     case 'project-geotechnical':
       return /^geotechnicalMaterials\.candidates\[\d+\]\./.test(fieldPath);
@@ -528,7 +596,7 @@ function isProjectDetailSuggestionFieldInScope(
 function resolveProjectDetailSuggestionScopeLimitation(scope: ProjectDetailSuggestionScope) {
   switch (scope) {
     case 'project-page':
-      return 'No grounded report metadata, project notes, or project reference suggestions were available for this page.';
+      return 'No grounded Project Details or report metadata suggestions were available for this page.';
     case 'project-geotechnical':
       return 'No grounded project geotechnical material candidates were available for this page.';
     case 'project-foundations':
@@ -1408,6 +1476,40 @@ function selectBestProjectSummaryCandidate(
   }
 
   return null;
+}
+
+function selectBestSiteAddressCandidate(
+  documents: Array<AssistantDocumentSuggestionSource | null>,
+) {
+  for (const document of documents) {
+    if (!document) {
+      continue;
+    }
+
+    const value = getNestedString(objectValue(document.resultJson), [
+      'reportMetadata',
+      'siteAddress',
+      'value',
+    ]);
+    if (value) {
+      return {
+        filename: document.filename,
+        value,
+      };
+    }
+  }
+
+  return null;
+}
+
+function resolveProjectDetailDraftActionType(fieldKey: string) {
+  if (!Object.hasOwn(PROJECT_DETAIL_DRAFT_ACTION_TYPE_BY_FIELD, fieldKey)) {
+    return null;
+  }
+
+  return PROJECT_DETAIL_DRAFT_ACTION_TYPE_BY_FIELD[
+    fieldKey as keyof typeof PROJECT_DETAIL_DRAFT_ACTION_TYPE_BY_FIELD
+  ];
 }
 
 function getFindingValues(record: Record<string, unknown>, path: [string, string]) {

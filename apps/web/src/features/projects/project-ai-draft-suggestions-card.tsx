@@ -167,8 +167,8 @@ export function ProjectAiDraftSuggestionsCard({
             ) : (
               <>
                 Click <span className="font-medium text-foreground">Show AI Suggestions</span> to
-                load visible report-derived draft suggestions for report metadata, project notes,
-                and shared project references.
+                load visible report-derived draft suggestions for Project Details and report
+                metadata on this page.
               </>
             )}
           </div>
@@ -224,7 +224,7 @@ function resolveProjectAiDraftSuggestionsTitle(
   if (scope === 'project-foundations') {
     return 'Foundation AI Suggestions';
   }
-  return 'AI Report Draft Suggestions';
+  return 'Project Details AI Suggestions';
 }
 
 function resolveProjectAiDraftSuggestionsDescription(
@@ -236,7 +236,7 @@ function resolveProjectAiDraftSuggestionsDescription(
   if (scope === 'project-foundations') {
     return 'This keeps report-grounded foundation/global GEO-control suggestions on the Foundations page. Applying updates the current draft only.';
   }
-  return 'This uses the same report-grounded suggestion payload as the floating assistant, but keeps the review list visible on the Project page. Applying updates the current draft only.';
+  return 'This uses the same grounded suggestion payload as the floating assistant, but keeps the Project Details review list visible on the page. Applying updates the current draft only.';
 }
 
 function resolveProjectAiDraftSuggestionsButtonLabel(

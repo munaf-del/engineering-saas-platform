@@ -154,8 +154,17 @@ export function useUpdateAiRuntimeSettings(orgId: string) {
 
   return useMutation({
     mutationFn: (payload: {
-      assistantModel: OrganisationAiSettingsResponse['assistantModel'];
-      agentModel: OrganisationAiSettingsResponse['agentModel'];
+      assistantProvider?: OrganisationAiSettingsResponse['assistantProvider'];
+      assistantModel?: OrganisationAiSettingsResponse['assistantModel'];
+      agentModel?: OrganisationAiSettingsResponse['agentModel'];
+      openaiApiKey?: string;
+      removeOpenaiApiKey?: boolean;
+      anthropicApiKey?: string;
+      removeAnthropicApiKey?: boolean;
+      geminiApiKey?: string;
+      removeGeminiApiKey?: boolean;
+      deepseekApiKey?: string;
+      removeDeepseekApiKey?: boolean;
     }) =>
       api<OrganisationAiSettingsResponse>(`/organisations/${orgId}/ai-settings`, {
         method: 'PATCH',

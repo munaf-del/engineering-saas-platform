@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,7 +9,19 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { normalizeAiModelSelection, type AiModelId } from '@eng/shared';
+import {
+  AI_ASSISTANT_PROVIDER_LABELS,
+  AI_AGENT_PROVIDER,
+  buildDefaultOrganisationAiSettings,
+  getDefaultAssistantModelForProvider,
+  isAiAssistantModelSupportedByProvider,
+  normalizeAiModelSelection,
+  resolveAiAssistantConnectionState,
+  resolveAiAssistantCredentialSource,
+  type AiAssistantProvider,
+  type AiAssistantProviderStatusMap,
+  type OrganisationAiSettings,
+} from '@eng/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
@@ -17,9 +30,22 @@ import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import {
   buildOrganisationAiSettingsPayload,
   getOrganisationAiSettingsFromMetadata,
+  getStoredOrganisationAiProviderCredentialRecordsFromMetadata,
   isMissingOrganisationMetadataColumnError,
   mergeOrganisationMetadataWithAiSettings,
+  removeOrganisationAiProviderApiKey,
+  toSafeAiAssistantProviderCredentialIssueReason,
 } from './organisation-ai-settings';
+import { AssistantProviderRegistry } from '../ai/providers/assistant-provider.registry';
+import {
+  OrganisationAiAssistantCredentialStoreService,
+  type OrganisationAiAssistantCredentialStoreClient,
+} from './organisation-ai-assistant-credential-store.service';
+
+type OrganisationAiSettingsTransactionClient =
+  OrganisationAiAssistantCredentialStoreClient & {
+    organisation: Pick<PrismaService['organisation'], 'update'>;
+  };
 
 const ORGANISATION_BASE_SELECT = {
   id: true,
@@ -68,6 +94,8 @@ export class OrganisationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly assistantProviderRegistry: AssistantProviderRegistry,
+    private readonly organisationAiAssistantCredentialStore: OrganisationAiAssistantCredentialStoreService,
   ) {}
 
   async findByUser(userId: string, pagination: PaginationDto) {
@@ -151,7 +179,11 @@ export class OrganisationsService {
       throw new NotFoundException('Organisation not found');
     }
 
-    return buildOrganisationAiSettingsPayload(metadataState.metadata, fallback);
+    const providerStatus = await this.resolveAssistantProviderStatus(
+      id,
+      metadataState.metadata,
+    );
+    return buildOrganisationAiSettingsPayload(metadataState.metadata, fallback, providerStatus);
   }
 
   async updateAiSettings(
@@ -178,23 +210,86 @@ export class OrganisationsService {
       metadataState.metadata,
       fallback,
     );
-    const nextSettings = {
-      assistantModel: dto.assistantModel ?? currentSettings.assistantModel,
-      agentModel: dto.agentModel ?? currentSettings.agentModel,
-    };
+    await this.verifyAssistantProviderCredentialUpdates(dto);
+    const hasCredentialUpdates = this.hasAssistantProviderCredentialUpdates(dto);
+    const nextLegacyCredentialRecords =
+      this.applyAssistantProviderCredentialCompatibilityUpdates(
+        metadataState.metadata,
+        dto,
+      );
+    const currentMetadataWithCompatibility = mergeOrganisationMetadataWithAiSettings(
+      metadataState.metadata,
+      currentSettings,
+      nextLegacyCredentialRecords,
+    );
 
-    const updated = await this.prisma.organisation.update({
-      where: { id },
-      data: {
-        metadata: mergeOrganisationMetadataWithAiSettings(
-          metadataState.metadata,
-          nextSettings,
-        ),
-      },
-      select: { metadata: true },
+    if (!hasCredentialUpdates) {
+      const nextProviderStatus = await this.resolveAssistantProviderStatus(
+        id,
+        currentMetadataWithCompatibility,
+      );
+      const nextSettings = this.buildNextOrganisationAiSettings(
+        dto,
+        currentSettings,
+        nextProviderStatus,
+      );
+      const updated = await this.prisma.organisation.update({
+        where: { id },
+        data: {
+          metadata: mergeOrganisationMetadataWithAiSettings(
+            metadataState.metadata,
+            nextSettings,
+            nextLegacyCredentialRecords,
+          ),
+        },
+        select: { metadata: true },
+      });
+
+      return buildOrganisationAiSettingsPayload(
+        updated.metadata,
+        fallback,
+        nextProviderStatus,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const transactionClient = tx as unknown as OrganisationAiSettingsTransactionClient;
+
+      await this.applyAssistantProviderCredentialUpdates(
+        id,
+        dto,
+        transactionClient,
+      );
+
+      const nextProviderStatus = await this.resolveAssistantProviderStatus(
+        id,
+        currentMetadataWithCompatibility,
+        transactionClient,
+      );
+      const nextSettings = this.buildNextOrganisationAiSettings(
+        dto,
+        currentSettings,
+        nextProviderStatus,
+      );
+
+      const updated = await transactionClient.organisation.update({
+        where: { id },
+        data: {
+          metadata: mergeOrganisationMetadataWithAiSettings(
+            metadataState.metadata,
+            nextSettings,
+            nextLegacyCredentialRecords,
+          ),
+        },
+        select: { metadata: true },
+      });
+
+      return buildOrganisationAiSettingsPayload(
+        updated.metadata,
+        fallback,
+        nextProviderStatus,
+      );
     });
-
-    return buildOrganisationAiSettingsPayload(updated.metadata, fallback);
   }
 
   async remove(id: string, userId: string) {
@@ -359,10 +454,8 @@ export class OrganisationsService {
     }
   }
 
-  private resolveAiSettingsFallbacks(): {
-    assistantModel: AiModelId;
-    agentModel: AiModelId;
-  } {
+  private resolveAiSettingsFallbacks(): OrganisationAiSettings {
+    const assistantProvider: AiAssistantProvider = AI_AGENT_PROVIDER;
     const assistantModel = normalizeAiModelSelection(
       this.configService.get<string>('AI_OPENAI_MODEL'),
       'gpt-4.1',
@@ -373,10 +466,247 @@ export class OrganisationsService {
       'gpt-4.1-mini',
     );
 
-    return {
+    return buildDefaultOrganisationAiSettings({
+      assistantProvider,
       assistantModel,
       agentModel,
+    });
+  }
+
+  private async resolveAssistantProviderStatus(
+    organisationId: string,
+    metadata: unknown,
+    client?: OrganisationAiAssistantCredentialStoreClient,
+  ): Promise<AiAssistantProviderStatusMap> {
+    const credentialState = await this.organisationAiAssistantCredentialStore.getCredentialState(
+      organisationId,
+      {
+        legacyMetadata: metadata,
+        client,
+      },
+    );
+
+    const providerStatus = this.assistantProviderRegistry.getProviderStatusMap(credentialState);
+
+    return Object.fromEntries(
+      Object.entries(providerStatus).map(([provider, status]) => {
+        const credentialSource = resolveAiAssistantCredentialSource(status);
+
+        return [
+          provider,
+          {
+            ...status,
+            credentialIssueReason: toSafeAiAssistantProviderCredentialIssueReason(
+              credentialState[provider as AiAssistantProvider]?.credentialIssue,
+            ),
+            credentialSource,
+            connectionState: resolveAiAssistantConnectionState({
+              ...status,
+              credentialSource,
+            }),
+          },
+        ];
+      }),
+    ) as AiAssistantProviderStatusMap;
+  }
+
+  private applyAssistantProviderCredentialCompatibilityUpdates(
+    metadata: unknown,
+    dto: UpdateOrganisationAiSettingsDto,
+  ) {
+    this.assertCredentialUpdateFlagsAreValid(dto);
+
+    let nextRecords = getStoredOrganisationAiProviderCredentialRecordsFromMetadata(metadata);
+
+    if (dto.removeOpenaiApiKey || dto.openaiApiKey) {
+      nextRecords = removeOrganisationAiProviderApiKey(nextRecords, 'openai');
+    }
+    if (dto.removeAnthropicApiKey || dto.anthropicApiKey) {
+      nextRecords = removeOrganisationAiProviderApiKey(nextRecords, 'anthropic');
+    }
+
+    return nextRecords;
+  }
+
+  private async applyAssistantProviderCredentialUpdates(
+    organisationId: string,
+    dto: UpdateOrganisationAiSettingsDto,
+    client: OrganisationAiSettingsTransactionClient,
+  ) {
+    this.assertCredentialUpdateFlagsAreValid(dto);
+
+    if (dto.removeOpenaiApiKey) {
+      await this.organisationAiAssistantCredentialStore.removeProviderApiKey(
+        organisationId,
+        'openai',
+        client,
+      );
+    }
+
+    if (dto.removeAnthropicApiKey) {
+      await this.organisationAiAssistantCredentialStore.removeProviderApiKey(
+        organisationId,
+        'anthropic',
+        client,
+      );
+    }
+
+    if (dto.openaiApiKey) {
+      await this.organisationAiAssistantCredentialStore.setProviderApiKey(
+        organisationId,
+        'openai',
+        dto.openaiApiKey,
+        client,
+      );
+    }
+
+    if (dto.anthropicApiKey) {
+      await this.organisationAiAssistantCredentialStore.setProviderApiKey(
+        organisationId,
+        'anthropic',
+        dto.anthropicApiKey,
+        client,
+      );
+    }
+
+    if (dto.removeGeminiApiKey) {
+      await this.organisationAiAssistantCredentialStore.removeProviderApiKey(
+        organisationId,
+        'gemini',
+        client,
+      );
+    }
+
+    if (dto.geminiApiKey) {
+      await this.organisationAiAssistantCredentialStore.setProviderApiKey(
+        organisationId,
+        'gemini',
+        dto.geminiApiKey,
+        client,
+      );
+    }
+
+    if (dto.removeDeepseekApiKey) {
+      await this.organisationAiAssistantCredentialStore.removeProviderApiKey(
+        organisationId,
+        'deepseek',
+        client,
+      );
+    }
+
+    if (dto.deepseekApiKey) {
+      await this.organisationAiAssistantCredentialStore.setProviderApiKey(
+        organisationId,
+        'deepseek',
+        dto.deepseekApiKey,
+        client,
+      );
+    }
+  }
+
+  private assertCredentialUpdateFlagsAreValid(dto: UpdateOrganisationAiSettingsDto) {
+    if (dto.openaiApiKey && dto.removeOpenaiApiKey) {
+      throw new BadRequestException('openaiApiKey cannot be saved and removed in the same request');
+    }
+
+    if (dto.anthropicApiKey && dto.removeAnthropicApiKey) {
+      throw new BadRequestException(
+        'anthropicApiKey cannot be saved and removed in the same request',
+      );
+    }
+
+    if (dto.geminiApiKey && dto.removeGeminiApiKey) {
+      throw new BadRequestException('geminiApiKey cannot be saved and removed in the same request');
+    }
+
+    if (dto.deepseekApiKey && dto.removeDeepseekApiKey) {
+      throw new BadRequestException(
+        'deepseekApiKey cannot be saved and removed in the same request',
+      );
+    }
+  }
+
+  private hasAssistantProviderCredentialUpdates(dto: UpdateOrganisationAiSettingsDto) {
+    return Boolean(
+      dto.openaiApiKey ||
+        dto.removeOpenaiApiKey ||
+        dto.anthropicApiKey ||
+        dto.removeAnthropicApiKey ||
+        dto.geminiApiKey ||
+        dto.removeGeminiApiKey ||
+        dto.deepseekApiKey ||
+        dto.removeDeepseekApiKey,
+    );
+  }
+
+  private buildNextOrganisationAiSettings(
+    dto: UpdateOrganisationAiSettingsDto,
+    currentSettings: OrganisationAiSettings,
+    nextProviderStatus: AiAssistantProviderStatusMap,
+  ) {
+    const nextAssistantProvider =
+      dto.assistantProvider ?? currentSettings.assistantProvider;
+
+    if (
+      dto.assistantModel &&
+      !isAiAssistantModelSupportedByProvider(dto.assistantModel, nextAssistantProvider)
+    ) {
+      throw new BadRequestException(
+        'assistantModel is not supported for the selected assistantProvider',
+      );
+    }
+
+    if (dto.assistantProvider && !nextProviderStatus[nextAssistantProvider].available) {
+      throw new BadRequestException(
+        `Assistant provider "${nextAssistantProvider}" is not currently available for this organisation`,
+      );
+    }
+
+    return {
+      assistantProvider: nextAssistantProvider,
+      assistantModel:
+        dto.assistantModel ??
+        (dto.assistantProvider &&
+        !isAiAssistantModelSupportedByProvider(
+          currentSettings.assistantModel,
+          nextAssistantProvider,
+        )
+          ? getDefaultAssistantModelForProvider(nextAssistantProvider)
+          : currentSettings.assistantModel),
+      agentModel: dto.agentModel ?? currentSettings.agentModel,
     };
+  }
+
+  private async verifyAssistantProviderCredentialUpdates(
+    dto: UpdateOrganisationAiSettingsDto,
+  ) {
+    this.assertCredentialUpdateFlagsAreValid(dto);
+
+    if (dto.geminiApiKey) {
+      await this.verifyAssistantProviderCredential('gemini', dto.geminiApiKey);
+    }
+
+    if (dto.deepseekApiKey) {
+      await this.verifyAssistantProviderCredential('deepseek', dto.deepseekApiKey);
+    }
+  }
+
+  private async verifyAssistantProviderCredential(
+    provider: AiAssistantProvider,
+    apiKey: string,
+  ) {
+    const adapter = this.assistantProviderRegistry.getProvider(provider);
+    if (!adapter.verifyCredential) {
+      return;
+    }
+
+    try {
+      await adapter.verifyCredential(apiKey.trim());
+    } catch {
+      throw new BadRequestException(
+        `${AI_ASSISTANT_PROVIDER_LABELS[provider]} assistant API key could not be verified. Check that the key is valid and enabled for this provider.`,
+      );
+    }
   }
 
   private async assertRole(

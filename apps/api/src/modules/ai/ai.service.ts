@@ -14,7 +14,17 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { normalizeAiModelSelection, type AiModelId } from '@eng/shared';
+import {
+  AI_AGENT_PROVIDER,
+  buildDefaultOrganisationAiSettings,
+  normalizeAiModelSelection,
+  resolveAiAgentRuntimeSelection,
+  resolveAiAssistantRuntimeSelection,
+  type AiAssistantModelId,
+  type AiAssistantProvider,
+  type AiModelId,
+  type OrganisationAiSettings,
+} from '@eng/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RequestUser } from '../auth/decorators/current-user.decorator';
 import OpenAI from 'openai';
@@ -31,15 +41,23 @@ import {
 } from './dto/respond-ai-assistant.dto';
 import { AiAgentOrchestrationService } from './agent/ai-agent-orchestration.service';
 import {
+  buildAssistantDraftActionsForCurrentPage,
   buildDeterministicFieldSuggestions,
   type AssistantFieldSuggestionBuildResult,
 } from './assistant-field-suggestions';
-import { isMissingOrganisationMetadataColumnError } from '../organisations/organisation-ai-settings';
+import {
+  getOrganisationAiSettingsFromMetadata,
+  isMissingOrganisationMetadataColumnError,
+} from '../organisations/organisation-ai-settings';
+import { OrganisationAiAssistantCredentialStoreService } from '../organisations/organisation-ai-assistant-credential-store.service';
 import { CreateAiDocumentDto } from './dto/create-ai-document.dto';
 import { DeleteAiDocumentsDto } from './dto/delete-ai-documents.dto';
 import { ExtractAiDocumentDto } from './dto/extract-ai-document.dto';
 import { ListAiDocumentsDto } from './dto/list-ai-documents.dto';
-import { assistantResponseSchema, type AssistantResponse } from './assistant-response.schema';
+import {
+  assistantResponseSchema,
+  type AssistantResponse,
+} from './assistant-response.schema';
 import {
   AI_REPORT_DOCUMENT_FAMILIES,
   AI_REPORT_OWNER_WORKSPACES,
@@ -54,6 +72,8 @@ import { AiDocumentStorageService } from './documents/ai-document-storage.servic
 import { buildAs2159StandardsMapping } from './extraction/as2159-standards-mapping';
 import { normalizeProjectSpecifics } from '../projects/project-specifics.adapter';
 import { MultiPileService } from '../pile-groups/multi-pile.service';
+import { AssistantProviderRegistry } from './providers/assistant-provider.registry';
+import type { AssistantProviderCredentialInput } from './providers/assistant-provider.interface';
 import {
   type BatterSlopeTable,
   type EarthquakeSiteFactorExtraction,
@@ -395,6 +415,8 @@ export class AiService {
     private readonly aiAgentOrchestrationService: AiAgentOrchestrationService,
     private readonly storageService: AiDocumentStorageService,
     private readonly multiPileService: MultiPileService,
+    private readonly assistantProviderRegistry: AssistantProviderRegistry,
+    private readonly organisationAiAssistantCredentialStore: OrganisationAiAssistantCredentialStoreService,
   ) {}
 
   async listDocuments(user: RequestUser & { organisationId: string }, query: ListAiDocumentsDto) {
@@ -766,9 +788,6 @@ export class AiService {
     this.assertAiFeatureEnabled();
 
     const mode: AiAssistantMode = dto.mode ?? 'assistant';
-    const runtimeModels = await this.getOrganisationAiSettings(user.organisationId);
-    const selectedModel =
-      mode === 'agent' ? runtimeModels.agentModel : runtimeModels.assistantModel;
     const projectId = resolveAssistantScopeId(dto.projectId, dto.pageContext.projectId);
     const pileGroupId = resolveAssistantScopeId(dto.pileGroupId, dto.pageContext.pileGroupId);
 
@@ -786,30 +805,11 @@ export class AiService {
         ? await this.assertPileGroupAccess(projectId, pileGroupId)
         : null;
 
-    this.logger.log(
-      `AI respond mode=${mode} model=${selectedModel} organisationId=${user.organisationId} route=${dto.pageContext.route}`,
-    );
-
-    const recentDocuments =
-      projectId != null
-        ? await this.prisma.aiDocument.findMany({
-            where: {
-              organisationId: user.organisationId,
-              projectId,
-            },
-            include: {
-              pileGroup: { select: { id: true, name: true } },
-              extractionRuns: {
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-              },
-            },
-            orderBy: { updatedAt: 'desc' },
-            take: 5,
-          })
-        : [];
-
     if (dto.quickAction === 'suggest_fields') {
+      const recentDocuments =
+        projectId != null
+          ? await this.listRecentAssistantDocuments(user.organisationId, projectId)
+          : [];
       const fallback = {
         projectName: project?.name ?? '',
         projectNumber: project?.code ?? '',
@@ -849,18 +849,41 @@ export class AiService {
     }
 
     if (mode === 'agent') {
+      const runtimeSelection = await this.getOrganisationAiAgentRuntimeSelection(
+        user.organisationId,
+      );
+
+      this.logger.log(
+        `AI respond mode=${mode} provider=${runtimeSelection.provider} model=${runtimeSelection.model} organisationId=${user.organisationId} route=${dto.pageContext.route}`,
+      );
+
       return this.respondWithAgentMode({
         user,
         dto,
         projectId,
         pileGroupId,
-        model: selectedModel,
+        model: runtimeSelection.model,
         project,
         pileGroup,
       });
     }
 
-    const openai = this.getOpenAiClient();
+    const runtimeState = await this.getOrganisationAiAssistantRuntimeState(user.organisationId);
+    const runtimeSelection = resolveAiAssistantRuntimeSelection(
+      runtimeState.settings,
+      runtimeState.providerStatus,
+    );
+    const selectedModel = runtimeSelection.model;
+    const selectedProvider = runtimeSelection.provider;
+    const recentDocuments =
+      projectId != null
+        ? await this.listRecentAssistantDocuments(user.organisationId, projectId)
+        : [];
+
+    this.logger.log(
+      `AI respond mode=${mode} provider=${selectedProvider} model=${selectedModel} organisationId=${user.organisationId} route=${dto.pageContext.route}`,
+    );
+
     const quickAction = dto.quickAction ?? 'review_page';
     const promptContext = buildAssistantPromptContext({
       quickAction,
@@ -884,45 +907,21 @@ export class AiService {
       recentAiDocuments: recentDocuments.map((document) => summarizeAssistantDocument(document)),
     });
 
-    try {
-      const response = await openai.responses.parse({
-        model: selectedModel,
-        input: [
-          {
-            role: 'system',
-            content: AI_ASSISTANT_SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: promptContext,
-          },
-          ...dto.messages
-            .filter((message) => message.content.trim().length > 0)
-            .slice(-12)
-            .map((message) => ({
-              role: message.role,
-              content: message.content.trim(),
-            })),
-        ],
-        text: {
-          format: zodTextFormat(assistantResponseSchema, 'engineering_app_assistant_response', {
-            description: 'Read-only page guidance for the engineering app assistant',
-          }),
-          verbosity: 'medium',
-        },
-      });
-
-      const parsed = response.output_parsed;
-      if (!parsed) {
-        throw new Error('OpenAI returned no assistant payload');
-      }
-
-      return parsed;
-    } catch (error) {
-      const message = getErrorMessage(error);
-      this.logger.error(`Failed to respond with AI assistant guidance: ${message}`);
-      throw new BadRequestException(message);
-    }
+    return this.respondWithProviderModel({
+      provider: selectedProvider,
+      model: selectedModel,
+      credential: runtimeState.providerCredentials[selectedProvider],
+      systemPrompt: AI_ASSISTANT_SYSTEM_PROMPT,
+      promptContext,
+      messages: dto.messages,
+      responseFormatName: 'engineering_app_assistant_response',
+      responseFormatDescription: 'Read-only page guidance for the engineering app assistant',
+      noPayloadErrorMessage:
+        selectedProvider === 'anthropic'
+          ? 'Anthropic returned no assistant payload'
+          : 'OpenAI returned no assistant payload',
+      logContext: 'AI assistant guidance',
+    });
   }
 
   private async respondWithAgentMode({
@@ -938,7 +937,7 @@ export class AiService {
     dto: RespondAiAssistantDto;
     projectId: string | null;
     pileGroupId: string | null;
-    model: string;
+    model: AiModelId;
     project: {
       id: string;
       name: string;
@@ -952,7 +951,6 @@ export class AiService {
       description: string | null;
     } | null;
   }) {
-    const openai = this.getOpenAiClient();
     const promptContext = await this.aiAgentOrchestrationService.buildPromptContext({
       user,
       dto,
@@ -976,29 +974,56 @@ export class AiService {
         : null,
     });
 
+    return this.respondWithOpenAiModel({
+      model,
+      systemPrompt: AI_AGENT_SYSTEM_PROMPT,
+      promptContext,
+      messages: dto.messages,
+      responseFormatName: 'engineering_app_agent_response',
+      responseFormatDescription:
+        'Structured read-only response for the engineering app beta agent mode',
+      noPayloadErrorMessage: 'OpenAI returned no agent payload',
+      logContext: 'AI agent guidance',
+    });
+  }
+
+  private async respondWithOpenAiModel({
+    model,
+    systemPrompt,
+    promptContext,
+    messages,
+    responseFormatName,
+    responseFormatDescription,
+    noPayloadErrorMessage,
+    logContext,
+  }: {
+    model: AiModelId;
+    systemPrompt: string;
+    promptContext: string;
+    messages: RespondAiAssistantDto['messages'];
+    responseFormatName: string;
+    responseFormatDescription: string;
+    noPayloadErrorMessage: string;
+    logContext: string;
+  }) {
     try {
+      const openai = this.getOpenAiClient();
       const response = await openai.responses.parse({
         model,
         input: [
           {
             role: 'system',
-            content: AI_AGENT_SYSTEM_PROMPT,
+            content: systemPrompt,
           },
           {
             role: 'user',
             content: promptContext,
           },
-          ...dto.messages
-            .filter((message) => message.content.trim().length > 0)
-            .slice(-12)
-            .map((message) => ({
-              role: message.role,
-              content: message.content.trim(),
-            })),
+          ...this.buildAssistantProviderConversation(messages),
         ],
         text: {
-          format: zodTextFormat(assistantResponseSchema, 'engineering_app_agent_response', {
-            description: 'Structured read-only response for the engineering app beta agent mode',
+          format: zodTextFormat(assistantResponseSchema, responseFormatName, {
+            description: responseFormatDescription,
           }),
           verbosity: 'medium',
         },
@@ -1006,13 +1031,63 @@ export class AiService {
 
       const parsed = response.output_parsed;
       if (!parsed) {
-        throw new Error('OpenAI returned no agent payload');
+        throw new Error(noPayloadErrorMessage);
       }
 
       return parsed;
     } catch (error) {
       const message = getErrorMessage(error);
-      this.logger.error(`Failed to respond with AI agent guidance: ${message}`);
+      this.logger.error(`Failed to respond with ${logContext}: ${message}`);
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+
+      throw new BadRequestException(message);
+    }
+  }
+
+  private async respondWithProviderModel({
+    provider,
+    model,
+    credential,
+    systemPrompt,
+    promptContext,
+    messages,
+    responseFormatName,
+    responseFormatDescription,
+    noPayloadErrorMessage,
+    logContext,
+  }: {
+    provider: AiAssistantProvider;
+    model: AiAssistantModelId;
+    credential?: AssistantProviderCredentialInput;
+    systemPrompt: string;
+    promptContext: string;
+    messages: RespondAiAssistantDto['messages'];
+    responseFormatName: string;
+    responseFormatDescription: string;
+    noPayloadErrorMessage: string;
+    logContext: string;
+  }) {
+    try {
+      const adapter = this.assistantProviderRegistry.getProvider(provider, model);
+
+      return await adapter.respondToAssistant({
+        model,
+        systemPrompt,
+        promptContext,
+        conversation: this.buildAssistantProviderConversation(messages),
+        responseFormatName,
+        responseFormatDescription,
+        noPayloadErrorMessage,
+      }, credential);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      this.logger.error(`Failed to respond with ${logContext}: ${message}`);
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+
       throw new BadRequestException(message);
     }
   }
@@ -2248,54 +2323,99 @@ export class AiService {
     return model?.trim() || this.configService.get<string>('AI_OPENAI_MODEL')?.trim() || 'gpt-4.1';
   }
 
-  private async getOrganisationAiSettings(organisationId: string) {
-    const fallbackAssistantModel = this.resolveAssistantFallbackModel();
-    const fallbackAgentModel = this.resolveAgentFallbackModel();
+  private buildAssistantProviderConversation(messages: RespondAiAssistantDto['messages']) {
+    return messages
+      .filter((message) => message.content.trim().length > 0)
+      .slice(-12)
+      .map((message) => ({
+        role: message.role,
+        content: message.content.trim(),
+      }));
+  }
 
-    let organisation: { metadata: unknown } | null = null;
+  private listRecentAssistantDocuments(organisationId: string, projectId: string) {
+    return this.prisma.aiDocument.findMany({
+      where: {
+        organisationId,
+        projectId,
+      },
+      include: {
+        pileGroup: { select: { id: true, name: true } },
+        extractionRuns: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+    });
+  }
+
+  private async getOrganisationAiAgentRuntimeSelection(organisationId: string) {
+    const { fallbackSettings, metadata } =
+      await this.readOrganisationAiSettingsMetadataForRuntime(organisationId);
+
+    return resolveAiAgentRuntimeSelection(
+      metadata
+        ? getOrganisationAiSettingsFromMetadata(metadata, fallbackSettings)
+        : fallbackSettings,
+    );
+  }
+
+  private async getOrganisationAiAssistantRuntimeState(organisationId: string) {
+    const { fallbackSettings, metadata } =
+      await this.readOrganisationAiSettingsMetadataForRuntime(organisationId);
+    const providerCredentials =
+      await this.organisationAiAssistantCredentialStore.getCredentialState(
+        organisationId,
+        {
+          legacyMetadata: metadata,
+        },
+      );
+
+    return {
+      settings: metadata
+        ? getOrganisationAiSettingsFromMetadata(metadata, fallbackSettings)
+        : fallbackSettings,
+      providerStatus: this.assistantProviderRegistry.getProviderStatusMap(providerCredentials),
+      providerCredentials,
+    };
+  }
+
+  private async readOrganisationAiSettingsMetadataForRuntime(organisationId: string): Promise<{
+    fallbackSettings: OrganisationAiSettings;
+    metadata: unknown | null;
+  }> {
+    const fallbackSettings = buildDefaultOrganisationAiSettings({
+      assistantProvider: AI_AGENT_PROVIDER,
+      assistantModel: this.resolveAssistantFallbackModel(),
+      agentModel: this.resolveAgentFallbackModel(),
+    });
 
     try {
-      organisation = await this.prisma.organisation.findUnique({
+      const organisation = await this.prisma.organisation.findUnique({
         where: { id: organisationId },
         select: { metadata: true },
       });
+
+      return {
+        fallbackSettings,
+        metadata: organisation?.metadata ?? null,
+      };
     } catch (error) {
       if (!isMissingOrganisationMetadataColumnError(error)) {
         throw error;
       }
 
       this.logger.warn(
-        `Organisation metadata column is unavailable; using fallback AI models for organisation ${organisationId}`,
+        `Organisation metadata column is unavailable; using fallback AI settings for organisation ${organisationId}`,
       );
-    }
 
-    if (!organisation) {
       return {
-        assistantModel: fallbackAssistantModel,
-        agentModel: fallbackAgentModel,
+        fallbackSettings,
+        metadata: null,
       };
     }
-
-    const metadata =
-      organisation.metadata &&
-      typeof organisation.metadata === 'object' &&
-      !Array.isArray(organisation.metadata)
-        ? (organisation.metadata as Record<string, unknown>)
-        : {};
-    const rawAiSettings =
-      metadata.aiSettings &&
-      typeof metadata.aiSettings === 'object' &&
-      !Array.isArray(metadata.aiSettings)
-        ? (metadata.aiSettings as Record<string, unknown>)
-        : {};
-
-    return {
-      assistantModel: normalizeAiModelSelection(
-        rawAiSettings.assistantModel,
-        fallbackAssistantModel,
-      ),
-      agentModel: normalizeAiModelSelection(rawAiSettings.agentModel, fallbackAgentModel),
-    };
   }
 
   private resolveAssistantFallbackModel(): AiModelId {
@@ -2312,6 +2432,7 @@ export class AiService {
       'gpt-4.1-mini',
     );
   }
+
 }
 
 function resolveAssistantScopeId(
@@ -2360,6 +2481,10 @@ function buildSuggestedFieldAssistantResponse(
                 'Use a supported project authoring page, or keep using the assistant in read-only question mode.',
               ],
     suggestedFields: result.suggestedFields.slice(0, 160),
+    draftActions: buildAssistantDraftActionsForCurrentPage(
+      pageContext,
+      result.suggestedFields.slice(0, 160),
+    ),
     limitationNote: result.limitationNote,
   };
 }
@@ -2453,6 +2578,7 @@ function buildProjectDetailQuickActionAssistantResponse(
         standardsReferenceNotes: [],
         suggestedNextSteps: nextActions.slice(0, 6),
         suggestedFields: [],
+        draftActions: [],
         limitationNote: null,
       };
     case 'explain_page':
@@ -2465,6 +2591,7 @@ function buildProjectDetailQuickActionAssistantResponse(
         standardsReferenceNotes: [],
         suggestedNextSteps: nextActions.slice(0, 5),
         suggestedFields: [],
+        draftActions: [],
         limitationNote: null,
       };
     case 'find_missing_inputs':
@@ -2479,6 +2606,7 @@ function buildProjectDetailQuickActionAssistantResponse(
         standardsReferenceNotes: [],
         suggestedNextSteps: nextActions.slice(0, 5),
         suggestedFields: [],
+        draftActions: [],
         limitationNote: null,
       };
     case 'suggest_next_steps':
@@ -2493,6 +2621,7 @@ function buildProjectDetailQuickActionAssistantResponse(
         standardsReferenceNotes: [],
         suggestedNextSteps: nextActions.slice(0, 8),
         suggestedFields: [],
+        draftActions: [],
         limitationNote: null,
       };
     default:

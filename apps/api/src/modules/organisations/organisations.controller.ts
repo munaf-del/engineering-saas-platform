@@ -69,7 +69,10 @@ export class OrganisationsController {
   }
 
   @Get(':id/ai-settings')
-  @ApiOperation({ summary: 'Get organisation AI assistant model settings' })
+  @ApiOperation({
+    summary:
+      'Get organisation assistant runtime settings, provider availability, and credential status',
+  })
   async getAiSettings(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: RequestUser,
@@ -78,7 +81,10 @@ export class OrganisationsController {
   }
 
   @Patch(':id/ai-settings')
-  @ApiOperation({ summary: 'Update organisation AI assistant model settings (owner/admin only)' })
+  @ApiOperation({
+    summary:
+      'Update organisation assistant runtime settings and assistant provider credentials (owner/admin only)',
+  })
   async updateAiSettings(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrganisationAiSettingsDto,

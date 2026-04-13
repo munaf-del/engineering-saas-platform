@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { buildOrganisationAiSettingsResponse } from '@eng/shared';
+import {
+  AI_AGENT_PROVIDER,
+  AI_ASSISTANT_PROVIDER_LABELS,
+  buildOrganisationAiSettingsResponse,
+  resolveAiAgentRuntimeSelection,
+  resolveAiAssistantRuntimeSelection,
+} from '@eng/shared';
 import {
   AlertTriangle,
   Bot,
@@ -116,10 +122,26 @@ export function GlobalAiAssistant() {
   const hasLimitedContext =
     pageContext.pageKind === 'generic' || pageContext.pageSpecificData.supportLevel === 'limited';
   const effectiveRuntimeSettings = aiRuntimeSettings.data ?? fallbackRuntimeSettings;
-  const activeModel =
-    mode === 'agent'
-      ? effectiveRuntimeSettings.agentModel
-      : effectiveRuntimeSettings.assistantModel;
+  const assistantRuntime = resolveAiAssistantRuntimeSelection(
+    effectiveRuntimeSettings,
+    effectiveRuntimeSettings.assistantProviderStatus,
+  );
+  const agentRuntime = resolveAiAgentRuntimeSelection(effectiveRuntimeSettings);
+  const activeRuntime = mode === 'assistant' ? assistantRuntime : agentRuntime;
+  const activeProvider = activeRuntime.provider;
+  const activeModel = activeRuntime.model;
+  const selectedAssistantProvider = effectiveRuntimeSettings.assistantProvider;
+  const selectedAssistantProviderStatus =
+    effectiveRuntimeSettings.assistantProviderStatus[selectedAssistantProvider];
+  const assistantRuntimeNotice =
+    mode === 'assistant' && aiRuntimeSettings.data
+      ? buildAssistantRuntimeNotice({
+          selectedProvider: selectedAssistantProvider,
+          selectedProviderStatus: selectedAssistantProviderStatus,
+          activeProvider: assistantRuntime.provider,
+          activeModel: assistantRuntime.model,
+        })
+      : null;
   const routeScopedDraftActionAdapter = resolveAssistantDraftActionAdapterForRoute(
     pathname,
     draftActionAdapter,
@@ -185,6 +207,7 @@ export function GlobalAiAssistant() {
             standardsReferenceNotes: [],
             suggestedNextSteps: [],
             suggestedFields: [],
+            draftActions: [],
             limitationNote: message,
           },
           mode,
@@ -210,6 +233,7 @@ export function GlobalAiAssistant() {
               structured: {
                 ...message.structured,
                 suggestedFields: [],
+                draftActions: [],
               },
             }
           : message,
@@ -248,10 +272,16 @@ export function GlobalAiAssistant() {
                       : supportsFieldDraftActions
                         ? 'Guidance-first support for the current page with controlled draft apply actions where supported. Draft only.'
                         : 'Guidance-first support for the current page. Read-only.'
-                    : 'Beta read-only mode that gathers extra internal context before answering.'}
+                    : `Beta read-only mode that gathers extra internal context before answering and stays on ${AI_ASSISTANT_PROVIDER_LABELS[AI_AGENT_PROVIDER]} in this phase.`}
                 </p>
                 {activeModel ? (
-                  <p className="mt-1 text-[11px] text-slate-300">Model: {activeModel}</p>
+                  <p className="mt-1 text-[11px] text-slate-300">
+                    Provider: {AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} | Model:{' '}
+                    {activeModel}
+                  </p>
+                ) : null}
+                {assistantRuntimeNotice ? (
+                  <p className="mt-1 text-[11px] text-amber-200">{assistantRuntimeNotice}</p>
                 ) : null}
               </div>
 
@@ -282,7 +312,9 @@ export function GlobalAiAssistant() {
                   >
                     <span>{getAssistantModeLabel(candidateMode)}</span>
                     {candidateMode === 'agent' ? (
-                      <span className="text-[10px] uppercase tracking-[0.16em]">Read-only</span>
+                      <span className="text-[10px] uppercase tracking-[0.16em]">
+                        OpenAI-only
+                      </span>
                     ) : null}
                   </Button>
                 ))}
@@ -728,6 +760,88 @@ function AssistantMessageCard({
       ) : null}
     </div>
   );
+}
+
+function buildAssistantRuntimeNotice({
+  selectedProvider,
+  selectedProviderStatus,
+  activeProvider,
+  activeModel,
+}: {
+  selectedProvider: keyof typeof AI_ASSISTANT_PROVIDER_LABELS;
+  selectedProviderStatus: {
+    available: boolean;
+    statusReason: string;
+    credentialIssueReason?: string | null;
+  };
+  activeProvider: keyof typeof AI_ASSISTANT_PROVIDER_LABELS;
+  activeModel: string;
+}) {
+  if (selectedProvider !== activeProvider) {
+    if (
+      selectedProviderStatus.statusReason === 'credential_unusable' &&
+      selectedProviderStatus.credentialIssueReason ===
+        'stored_credential_cannot_be_decrypted'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, so chat is falling back to ${AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} with ${activeModel} right now.`;
+    }
+
+    if (
+      selectedProviderStatus.statusReason === 'credential_unusable' &&
+      selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable, so chat is falling back to ${AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} with ${activeModel} right now.`;
+    }
+
+    return `The saved assistant provider is unavailable, so chat is falling back to ${AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} with ${activeModel} right now.`;
+  }
+
+  if (
+    selectedProviderStatus.statusReason === 'credential_unusable' &&
+    selectedProviderStatus.available
+  ) {
+    if (
+      selectedProviderStatus.credentialIssueReason ===
+      'stored_credential_cannot_be_decrypted'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, so assistant chat is using environment fallback right now.`;
+    }
+
+    if (
+      selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable, so assistant chat is using environment fallback right now.`;
+    }
+
+    return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that is not currently usable, so assistant chat is using environment fallback right now.`;
+  }
+
+  if (selectedProviderStatus.statusReason === 'environment_fallback') {
+    return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} is currently using environment fallback because this organisation does not have a stored assistant credential.`;
+  }
+
+  if (selectedProviderStatus.statusReason === 'credential_unusable') {
+    if (
+      selectedProviderStatus.credentialIssueReason ===
+      'stored_credential_cannot_be_decrypted'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, and no environment fallback is available right now.`;
+    }
+
+    if (
+      selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
+    ) {
+      return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable, and no environment fallback is available right now.`;
+    }
+
+    return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that is not currently usable, and no environment fallback is available right now.`;
+  }
+
+  if (!selectedProviderStatus.available) {
+    return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} is currently unavailable until assistant credentials are configured or environment fallback is restored.`;
+  }
+
+  return null;
 }
 
 function StructuredList({ title, items }: { title: string; items: string[] }) {

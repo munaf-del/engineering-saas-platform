@@ -32,6 +32,7 @@ import {
   resolveProjectGeotechnicalMaterialTargetLabel,
   type ProjectGeotechnicalMaterialCandidate,
 } from './project-ai-geotechnical-material-candidates';
+import { ProjectDetailAiDraftActions } from './project-detail-ai-draft-actions';
 
 type ProjectDraftActionAdapter = Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>;
 
@@ -112,6 +113,67 @@ export function ProjectAiSuggestionsContent({
         : [],
     [appliedCandidateIds, draftActionAdapter.scope, scopedSuggestions],
   );
+  const shouldShowAiReportsAction =
+    Boolean(draftActionAdapter.aiReportsHref) && shouldOfferAiReportsAction(response);
+
+  if (draftActionAdapter.scope === 'project-page') {
+    const hasSuggestedContent = scopedSuggestions.length > 0;
+
+    return (
+      <div
+        className={presentation === 'assistant' ? 'mt-3 space-y-4' : 'space-y-4'}
+        data-testid="project-ai-suggestions-content"
+      >
+        {hasSuggestedContent ? (
+          <ProjectDetailAiDraftActions
+            suggestions={scopedSuggestions}
+            draftActions={response.draftActions}
+            suggestionAdapter={suggestionAdapter}
+          />
+        ) : null}
+
+        {response.limitationNote ? (
+          <Alert>
+            <AlertTitle>Use caution</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <div>{response.limitationNote}</div>
+              {shouldShowAiReportsAction && draftActionAdapter.aiReportsHref ? (
+                <div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(draftActionAdapter.aiReportsHref ?? '')}
+                  >
+                    Open AI Reports upload
+                  </Button>
+                </div>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {!hasSuggestedContent && !response.limitationNote ? (
+          <Alert>
+            <AlertTitle>No visible Project Details draft actions</AlertTitle>
+            <AlertDescription>
+              The current assistant response did not include any safely actionable Project Details
+              fields for this page.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {hasSuggestedContent || shouldShowAiReportsAction ? (
+          <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
+            The floating assistant only changes the current Project Details draft. It never
+            auto-saves, never auto-runs, and the page keeps showing unsaved changes until you click
+            {' '}
+            Save Project Details.
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   const hasSuggestedContent = suggestionSections.length > 0 || materialCandidates.length > 0;
   const needsSelection =
@@ -119,8 +181,6 @@ export function ProjectAiSuggestionsContent({
     typeof draftActionAdapter.onApplyMaterialCandidateToExisting === 'function' &&
     materialCandidates.length > 0 &&
     draftActionAdapter.projectSpecifics.geotechnicalMaterials.materials.length > 0;
-  const shouldShowAiReportsAction =
-    Boolean(draftActionAdapter.aiReportsHref) && shouldOfferAiReportsAction(response);
 
   function recordAppliedActions(nextActions: AppliedDraftAction[]) {
     setAppliedActions((current) => {
@@ -734,9 +794,6 @@ function buildSuggestionSections(
     field.fieldPath.startsWith('geotechnicalBasis.'),
   );
   const projectNotes = suggestions.filter((field) => field.fieldPath.startsWith('identity.'));
-  const projectReferences = suggestions.filter((field) =>
-    field.fieldPath.startsWith('references['),
-  );
 
   const sections: SuggestionSection[] = [];
   if (reportMetadata.length > 0) {
@@ -751,18 +808,10 @@ function buildSuggestionSections(
   if (projectNotes.length > 0) {
     sections.push({
       id: 'project-notes',
-      title: 'Project Notes',
-      description: 'Project-level summary text suggested from extracted report context.',
-      suggestions: projectNotes,
-    });
-  }
-  if (projectReferences.length > 0) {
-    sections.push({
-      id: 'project-references',
-      title: 'Project References',
+      title: 'Project Details',
       description:
-        'Reference metadata that can be copied into the current Project References draft.',
-      suggestions: projectReferences,
+        'Project identity, address, and notes values suggested from grounded current-page context.',
+      suggestions: projectNotes,
     });
   }
   if (scope === 'project-foundations' && projectGeotechnicalNotes.length > 0) {

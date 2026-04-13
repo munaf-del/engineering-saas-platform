@@ -1,3 +1,4 @@
+import type { AiAssistantDraftAction } from '@eng/shared';
 import type {
   AiAssistantPageContext,
   AiAssistantSuggestedField,
@@ -23,6 +24,7 @@ export type AiAssistantStructuredResponse = {
   standardsReferenceNotes: string[];
   suggestedNextSteps: string[];
   suggestedFields: AiAssistantSuggestedField[];
+  draftActions: AiAssistantDraftAction[];
   limitationNote: string | null;
 };
 

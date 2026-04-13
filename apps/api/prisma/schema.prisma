@@ -29,8 +29,23 @@ model Organisation {
   importJobs           ImportJob[]
   documents            Document[]
   aiDocuments          AiDocument[]
+  assistantProviderCredentials OrganisationAiAssistantProviderCredential[]
 
   @@map("organisations")
+}
+
+model OrganisationAiAssistantProviderCredential {
+  id             String   @id @default(uuid()) @db.Uuid
+  organisationId String   @map("organisation_id") @db.Uuid
+  provider       String   @db.VarChar(32)
+  encryptedSecret Json    @map("encrypted_secret")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, provider])
+  @@map("organisation_ai_assistant_provider_credentials")
 }
 
 model User {

@@ -6,6 +6,38 @@ jest.mock('@eng/shared', () => ({
 }));
 
 describe('assistant project geotechnical material suggestions', () => {
+  it('surfaces an extracted site address on the Project Details page and keeps references out of scope', () => {
+    const result = buildDeterministicFieldSuggestions({
+      pageContext: {
+        route: '/projects/project-1',
+        pageTitle: 'Project Details',
+        pageKind: 'project_detail',
+      },
+      projectSpecifics: buildProjectSpecifics({ address: '' }),
+      recentDocuments: [
+        {
+          id: 'doc-1',
+          filename: 'GE-DA-0002.pdf',
+          latestRunStatus: 'completed',
+          resultJson: buildStPetersExtractionResult(),
+        },
+      ],
+      multiPileState: null,
+      latestEnvelopeRun: null,
+    });
+
+    expect(
+      result.suggestedFields.some(
+        (suggestion) =>
+          suggestion.fieldPath === 'identity.address' &&
+          suggestion.suggestedValue === '75-85 Mary Street, St Peters',
+      ),
+    ).toBe(true);
+    expect(result.suggestedFields.some((suggestion) => suggestion.fieldPath.startsWith('references['))).toBe(
+      false,
+    );
+  });
+
   it('surfaces all St Peters foundation rows and combined shoring parameter rows', () => {
     const result = buildDeterministicFieldSuggestions({
       pageContext: {
@@ -128,7 +160,7 @@ describe('assistant project geotechnical material suggestions', () => {
   });
 });
 
-function buildProjectSpecifics(): any {
+function buildProjectSpecifics(identityOverrides: Partial<any> = {}): any {
   return {
     identity: {
       projectNumber: '221715.00',
@@ -143,6 +175,7 @@ function buildProjectSpecifics(): any {
       archived: false,
       projectLogo: '',
       mapSource: 'auto',
+      ...identityOverrides,
     },
     reportMeta: {
       reportTitle: '',
