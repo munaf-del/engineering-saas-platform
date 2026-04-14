@@ -3,9 +3,11 @@ import {
   MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
   MULTI_PILE_PROJECT_MAP_SOURCES,
   MULTI_PILE_PROJECT_STATUSES,
+  resolveProjectAssistantPageCapabilityByScope,
   type AiAssistantDraftActionType,
   type AiAssistantDraftActionValue,
   type MultiPileProjectSpecifics,
+  type SupportedProjectCurrentPageActionScope,
 } from '@eng/shared';
 import type {
   CurrentPageActionCandidate,
@@ -17,7 +19,12 @@ import type {
 } from '@/features/ai/current-page-action-executor';
 import { summarizeCurrentPageActionResults } from '@/features/ai/current-page-action-executor';
 
-export type ProjectCurrentPageActionScope = 'project-page' | 'project-foundations';
+export type ProjectCurrentPageActionScope = SupportedProjectCurrentPageActionScope;
+
+type ProjectSpecificsCurrentPageActionScope = Exclude<
+  SupportedProjectCurrentPageActionScope,
+  'project-settings'
+>;
 
 type ProjectCurrentPageActionFieldConfig = {
   actionTypes: readonly AiAssistantDraftActionType[];
@@ -32,10 +39,9 @@ type ProjectCurrentPageActionFieldConfig = {
   isReadonly?: (projectSpecifics: MultiPileProjectSpecifics) => boolean;
 };
 
-type ProjectCurrentPageActionAllowlist = Record<
-  string,
-  ProjectCurrentPageActionFieldConfig
->;
+type ProjectCurrentPageActionAllowlist = Record<string, ProjectCurrentPageActionFieldConfig>;
+
+const PROJECT_ARCHIVED_FIELD_KEY = 'identity.archived';
 
 export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActionAllowlist = {
   'identity.projectNumber': createTextFieldConfig({
@@ -63,8 +69,7 @@ export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActio
     allowedValues: MULTI_PILE_PROJECT_STATUSES,
     getValue: (projectSpecifics) => projectSpecifics.identity.status,
     applyValue: (projectSpecifics, value) => {
-      projectSpecifics.identity.status =
-        value as MultiPileProjectSpecifics['identity']['status'];
+      projectSpecifics.identity.status = value as MultiPileProjectSpecifics['identity']['status'];
     },
   }),
   'identity.address': createTextFieldConfig({
@@ -162,49 +167,79 @@ export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActio
 
 export const PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActionAllowlist =
   {
-  'geotechnicalBasis.groundwaterDesignNotes': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.groundwaterDesignNotes,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.groundwaterDesignNotes = value;
-    },
-  }),
-  'geotechnicalBasis.cfaUpliftMode': createSelectFieldConfig({
-    allowedValues: MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftMode,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.cfaUpliftMode =
-        value as MultiPileProjectSpecifics['geotechnicalBasis']['cfaUpliftMode'];
-    },
-  }),
-  'geotechnicalBasis.cfaUpliftFactor': createNumericTextFieldConfig({
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftFactor,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.cfaUpliftFactor = value;
-    },
-  }),
-  'geotechnicalBasis.defaultSocketAssumptions': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.defaultSocketAssumptions,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.defaultSocketAssumptions = value;
-    },
-  }),
-  'geotechnicalBasis.foundingNotes': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.foundingNotes,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.foundingNotes = value;
-    },
-  }),
-  'geotechnicalBasis.commentary': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.commentary,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.commentary = value;
-    },
-  }),
+    'geotechnicalBasis.groundwaterDesignNotes': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.groundwaterDesignNotes,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.groundwaterDesignNotes = value;
+      },
+    }),
+    'geotechnicalBasis.cfaUpliftMode': createSelectFieldConfig({
+      allowedValues: MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftMode,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.cfaUpliftMode =
+          value as MultiPileProjectSpecifics['geotechnicalBasis']['cfaUpliftMode'];
+      },
+    }),
+    'geotechnicalBasis.cfaUpliftFactor': createNumericTextFieldConfig({
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftFactor,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.cfaUpliftFactor = value;
+      },
+    }),
+    'geotechnicalBasis.defaultSocketAssumptions': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.defaultSocketAssumptions,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.defaultSocketAssumptions = value;
+      },
+    }),
+    'geotechnicalBasis.foundingNotes': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.foundingNotes,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.foundingNotes = value;
+      },
+    }),
+    'geotechnicalBasis.commentary': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.commentary,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.commentary = value;
+      },
+    }),
   };
+
+export const PROJECT_SETTINGS_CURRENT_PAGE_ACTION_TYPE_ALLOWLIST: Record<
+  string,
+  readonly AiAssistantDraftActionType[]
+> = {
+  'projectSettings.name': ['set_text'],
+  'projectSettings.description': ['set_textarea'],
+  'projectSettings.status': ['set_select'],
+};
+
+const PROJECT_CURRENT_PAGE_ACTION_ALLOWLISTS: Record<
+  ProjectSpecificsCurrentPageActionScope,
+  ProjectCurrentPageActionAllowlist
+> = {
+  'project-page': PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST,
+  'project-foundations': PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST,
+};
+
+const PROJECT_CURRENT_PAGE_ACTION_TYPE_ALLOWLISTS: Record<
+  ProjectCurrentPageActionScope,
+  Record<string, readonly AiAssistantDraftActionType[]>
+> = {
+  'project-page': mapProjectCurrentPageActionTypeAllowlist(
+    PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST,
+  ),
+  'project-foundations': mapProjectCurrentPageActionTypeAllowlist(
+    PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST,
+  ),
+  'project-settings': PROJECT_SETTINGS_CURRENT_PAGE_ACTION_TYPE_ALLOWLIST,
+};
 
 export function createProjectCurrentPageActionExecutor({
   projectSpecifics,
@@ -212,7 +247,7 @@ export function createProjectCurrentPageActionExecutor({
   onApply,
 }: {
   projectSpecifics: MultiPileProjectSpecifics;
-  scope: ProjectCurrentPageActionScope;
+  scope: ProjectSpecificsCurrentPageActionScope;
   onApply: (value: MultiPileProjectSpecifics) => void;
 }): CurrentPageActionExecutor {
   return {
@@ -230,7 +265,12 @@ export function createProjectCurrentPageActionExecutor({
         const evaluation = evaluateProjectCurrentPageActionCandidate(nextDraft, scope, candidate);
         if (evaluation.executionStatus !== 'ready') {
           results.push(
-            createExecutionResult(candidate, evaluation, evaluation.executionStatus, evaluation.message),
+            createExecutionResult(
+              candidate,
+              evaluation,
+              evaluation.executionStatus,
+              evaluation.message,
+            ),
           );
           return;
         }
@@ -260,7 +300,7 @@ export function createProjectCurrentPageActionExecutor({
               evaluation,
               didApply ? 'applied' : 'failed_apply',
               didApply
-                ? `Applied to the current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft. Save remains manual.`
+                ? resolveProjectCurrentPageAppliedMessage(scope, candidate.draftAction.fieldKey)
                 : `The ${resolveProjectCurrentPageActionScopeLabel(scope)} action could not be applied through the current form state.`,
             ),
           );
@@ -294,42 +334,32 @@ export function resolveProjectCurrentPageActionType(
   scope: ProjectCurrentPageActionScope,
   fieldKey: string,
 ) {
-  const fieldConfig = resolveProjectCurrentPageActionFieldConfig(scope, fieldKey);
-  return fieldConfig?.actionTypes[0] ?? null;
+  const actionTypeAllowlist = PROJECT_CURRENT_PAGE_ACTION_TYPE_ALLOWLISTS[scope];
+  const actionTypes = actionTypeAllowlist ? actionTypeAllowlist[fieldKey] : null;
+  return actionTypes?.[0] ?? null;
 }
 
-export function resolveProjectCurrentPageActionScopeTitle(
-  scope: ProjectCurrentPageActionScope,
-) {
-  if (scope === 'project-foundations') {
-    return 'Foundation / Global GEO Controls';
-  }
-
-  return 'Project Details';
+export function resolveProjectCurrentPageActionScopeTitle(scope: ProjectCurrentPageActionScope) {
+  return resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.draftScopeTitle;
 }
 
-export function resolveProjectCurrentPageActionScopeLabel(
-  scope: ProjectCurrentPageActionScope,
-) {
-  if (scope === 'project-foundations') {
-    return 'foundation / global GEO controls';
-  }
-
-  return 'Project Details';
+export function resolveProjectCurrentPageActionScopeLabel(scope: ProjectCurrentPageActionScope) {
+  return resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.draftScopeLabel;
 }
 
-function resolveProjectCurrentPageActionAllowlist(
-  scope: ProjectCurrentPageActionScope,
+export function resolveProjectCurrentPageActionAllowlist(
+  scope: ProjectSpecificsCurrentPageActionScope,
 ): ProjectCurrentPageActionAllowlist {
-  if (scope === 'project-foundations') {
-    return PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST;
+  const allowlist = PROJECT_CURRENT_PAGE_ACTION_ALLOWLISTS[scope];
+  if (!allowlist) {
+    throw new Error(`Missing current-page allowlist for scope "${scope}".`);
   }
 
-  return PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST;
+  return allowlist;
 }
 
 function resolveProjectCurrentPageActionFieldConfig(
-  scope: ProjectCurrentPageActionScope,
+  scope: ProjectSpecificsCurrentPageActionScope,
   fieldKey: string,
 ) {
   const allowlist = resolveProjectCurrentPageActionAllowlist(scope);
@@ -338,7 +368,7 @@ function resolveProjectCurrentPageActionFieldConfig(
 
 function evaluateProjectCurrentPageActionCandidate(
   projectSpecifics: MultiPileProjectSpecifics,
-  scope: ProjectCurrentPageActionScope,
+  scope: ProjectSpecificsCurrentPageActionScope,
   candidate: CurrentPageActionCandidate,
 ): CurrentPageActionEvaluation {
   const { draftAction, overwriteMode } = candidate;
@@ -387,7 +417,7 @@ function evaluateProjectCurrentPageActionCandidate(
       currentValue,
       proposedValue: null,
       executionStatus: 'skipped_unresolved',
-      message: `The proposed value could not be safely mapped into the current ${resolveProjectCurrentPageActionScopeLabel(scope)} form state.`,
+      message: resolveProjectCurrentPageUnresolvedMessage(scope, draftAction.fieldKey),
     });
   }
 
@@ -398,7 +428,7 @@ function evaluateProjectCurrentPageActionCandidate(
       currentValue,
       proposedValue,
       executionStatus: 'skipped_existing_value',
-      message: `The current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft already matches this value.`,
+      message: resolveProjectCurrentPageAlreadyMatchesMessage(scope, draftAction.fieldKey),
     });
   }
 
@@ -410,8 +440,7 @@ function evaluateProjectCurrentPageActionCandidate(
         currentValue,
         proposedValue,
         status: 'requires_manual_selection',
-        message:
-          `This would overwrite an existing ${resolveProjectCurrentPageActionScopeLabel(scope)} value. Select it manually if you want to apply it.`,
+        message: resolveProjectCurrentPageOverwriteMessage(scope, draftAction.fieldKey),
         selectable: true,
         selectedByDefault: false,
         executionStatus: 'ready',
@@ -434,7 +463,7 @@ function evaluateProjectCurrentPageActionCandidate(
     currentValue,
     proposedValue,
     status: 'ready',
-    message: `Ready to apply to the current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft.`,
+    message: resolveProjectCurrentPageReadyMessage(scope, draftAction.fieldKey),
     selectable: true,
     selectedByDefault: true,
     executionStatus: 'ready',
@@ -492,6 +521,14 @@ function createExecutionResult(
     status,
     message: message ?? 'No result message was recorded.',
   };
+}
+
+function mapProjectCurrentPageActionTypeAllowlist(
+  allowlist: ProjectCurrentPageActionAllowlist,
+): Record<string, readonly AiAssistantDraftActionType[]> {
+  return Object.fromEntries(
+    Object.entries(allowlist).map(([fieldKey, fieldConfig]) => [fieldKey, fieldConfig.actionTypes]),
+  );
 }
 
 function createTextFieldConfig({
@@ -652,4 +689,63 @@ function areDraftActionValuesEqual(
     typeof proposedValue === 'string' &&
     currentValue.trim() === proposedValue.trim()
   );
+}
+
+function isProjectArchivedFieldKey(fieldKey: string) {
+  return fieldKey === PROJECT_ARCHIVED_FIELD_KEY;
+}
+
+function resolveProjectCurrentPageReadyMessage(
+  scope: ProjectCurrentPageActionScope,
+  fieldKey: string,
+) {
+  if (isProjectArchivedFieldKey(fieldKey)) {
+    return `Ready to update only the Archived project checkbox in the current ${resolveProjectCurrentPageActionScopeTitle(scope)} draft. This does not save the project or change any other page.`;
+  }
+
+  return `Ready to apply to the current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft.`;
+}
+
+function resolveProjectCurrentPageOverwriteMessage(
+  scope: ProjectCurrentPageActionScope,
+  fieldKey: string,
+) {
+  if (isProjectArchivedFieldKey(fieldKey)) {
+    return `This would change only the Archived project checkbox in the current ${resolveProjectCurrentPageActionScopeTitle(scope)} draft. Select it manually to confirm this sensitive draft-only change. Save remains manual.`;
+  }
+
+  return `This would overwrite an existing ${resolveProjectCurrentPageActionScopeLabel(scope)} value. Select it manually if you want to apply it.`;
+}
+
+function resolveProjectCurrentPageUnresolvedMessage(
+  scope: ProjectCurrentPageActionScope,
+  fieldKey: string,
+) {
+  if (isProjectArchivedFieldKey(fieldKey)) {
+    return `The proposed Archived project checkbox value could not be safely mapped into the current ${resolveProjectCurrentPageActionScopeTitle(scope)} draft.`;
+  }
+
+  return `The proposed value could not be safely mapped into the current ${resolveProjectCurrentPageActionScopeLabel(scope)} form state.`;
+}
+
+function resolveProjectCurrentPageAlreadyMatchesMessage(
+  scope: ProjectCurrentPageActionScope,
+  fieldKey: string,
+) {
+  if (isProjectArchivedFieldKey(fieldKey)) {
+    return `The current ${resolveProjectCurrentPageActionScopeTitle(scope)} draft already matches the Archived project checkbox value.`;
+  }
+
+  return `The current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft already matches this value.`;
+}
+
+function resolveProjectCurrentPageAppliedMessage(
+  scope: ProjectCurrentPageActionScope,
+  fieldKey: string,
+) {
+  if (isProjectArchivedFieldKey(fieldKey)) {
+    return `Applied only to the Archived project checkbox in the current ${resolveProjectCurrentPageActionScopeTitle(scope)} draft. Save remains manual.`;
+  }
+
+  return `Applied to the current ${resolveProjectCurrentPageActionScopeLabel(scope)} draft. Save remains manual.`;
 }

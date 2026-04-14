@@ -19,10 +19,11 @@ import {
   collectProjectGeotechnicalMaterialCandidates,
   type ProjectGeotechnicalMaterialCandidate,
 } from './project-ai-geotechnical-material-candidates';
+import { ProjectAiSuggestionsContent } from './project-ai-suggestions-content';
 import {
-  ProjectAiSuggestionsContent,
-  filterSuggestionsForScope,
-} from './project-ai-suggestions-content';
+  filterProjectAssistantSuggestionsForScope,
+  resolveProjectAssistantPageCapabilityByScope,
+} from './project-assistant-page-capabilities';
 
 type ProjectAiDraftSuggestionsCardProps = {
   pageContext: AiAssistantPageContext;
@@ -51,9 +52,10 @@ export function ProjectAiDraftSuggestionsCard({
 }: ProjectAiDraftSuggestionsCardProps) {
   const respond = useAiAssistantRespond();
   const [response, setResponse] = useState<AiAssistantStructuredResponse | null>(null);
+  const capability = resolveProjectAssistantPageCapabilityByScope(scope);
 
   const scopedSuggestions = useMemo(
-    () => filterSuggestionsForScope(response?.suggestedFields ?? [], scope),
+    () => filterProjectAssistantSuggestionsForScope(response?.suggestedFields ?? [], scope),
     [response?.suggestedFields, scope],
   );
   const visibleRegularSuggestionCount = useMemo(
@@ -71,6 +73,12 @@ export function ProjectAiDraftSuggestionsCard({
     [scope, scopedSuggestions],
   );
   const visibleItemCount = visibleRegularSuggestionCount + visibleMaterialCandidateCount;
+  const previewItemCount =
+    response == null
+      ? 0
+      : capability.supported
+        ? response.suggestedFields.length
+        : visibleItemCount;
 
   async function handleLoadSuggestions() {
     try {
@@ -120,15 +128,13 @@ export function ProjectAiDraftSuggestionsCard({
           <CardTitle className="text-base">
             {resolveProjectAiDraftSuggestionsTitle(scope)}
           </CardTitle>
-          <CardDescription>
-            {resolveProjectAiDraftSuggestionsDescription(scope)}
-          </CardDescription>
+          <CardDescription>{resolveProjectAiDraftSuggestionsDescription(scope)}</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">Draft-only</Badge>
           {response ? (
             <Badge variant="secondary">
-              {visibleItemCount} visible item{visibleItemCount === 1 ? '' : 's'}
+              {previewItemCount} visible item{previewItemCount === 1 ? '' : 's'}
             </Badge>
           ) : null}
           <Button
@@ -143,37 +149,14 @@ export function ProjectAiDraftSuggestionsCard({
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            {response
-              ? 'Refresh Suggestions'
-              : resolveProjectAiDraftSuggestionsButtonLabel(scope)}
+            {response ? 'Refresh Suggestions' : resolveProjectAiDraftSuggestionsButtonLabel(scope)}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {!response ? (
           <div className="rounded-lg border border-dashed px-4 py-4 text-sm text-muted-foreground">
-            {scope === 'project-geotechnical' ? (
-              <>
-                Click{' '}
-                <span className="font-medium text-foreground">
-                  Show Geotechnical AI Suggestions
-                </span>{' '}
-                to load visible report-derived candidate materials for the shared project
-                geotechnical workspace.
-              </>
-            ) : scope === 'project-foundations' ? (
-              <>
-                Click <span className="font-medium text-foreground">Show Foundation AI Suggestions</span>{' '}
-                to load visible report-derived draft suggestions for groundwater, CFA uplift,
-                socket assumptions, founding notes, and project-level geotechnical commentary.
-              </>
-            ) : (
-              <>
-                Click <span className="font-medium text-foreground">Show AI Suggestions</span> to
-                load visible report-derived draft suggestions for Project Details and report
-                metadata on this page.
-              </>
-            )}
+            {resolveProjectAiDraftSuggestionsEmptyState(scope)}
           </div>
         ) : null}
 
@@ -222,35 +205,31 @@ export function ProjectAiDraftSuggestionsCard({
 function resolveProjectAiDraftSuggestionsTitle(
   scope: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'],
 ) {
-  if (scope === 'project-geotechnical') {
-    return 'Geotechnical AI Suggestions';
-  }
-  if (scope === 'project-foundations') {
-    return 'Foundation AI Suggestions';
-  }
-  return 'Project Details AI Suggestions';
+  return (
+    resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.cardTitle ?? 'AI Suggestions'
+  );
 }
 
 function resolveProjectAiDraftSuggestionsDescription(
   scope: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'],
 ) {
-  if (scope === 'project-geotechnical') {
-    return 'This keeps shared Project Geotechnical material-candidate review on the materials workspace. You review and apply changes manually, and they only affect the current draft until you save.';
-  }
-  if (scope === 'project-foundations') {
-    return 'This keeps report-grounded foundation/global GEO-control suggestions on the Foundations page. You review and apply changes manually, and they only affect this page draft until you save.';
-  }
-  return 'This uses the same grounded suggestion payload as the floating assistant, but keeps the Project Details review list visible on the page. You review and apply changes manually, and they only affect this page draft until you save.';
+  return (
+    resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.cardDescription ??
+    'AI suggestions are not available on this page.'
+  );
 }
 
 function resolveProjectAiDraftSuggestionsButtonLabel(
   scope: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'],
 ) {
-  if (scope === 'project-geotechnical') {
-    return 'Show Geotechnical AI Suggestions';
-  }
-  if (scope === 'project-foundations') {
-    return 'Show Foundation AI Suggestions';
-  }
-  return 'Show AI Suggestions';
+  return (
+    resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.loadButtonLabel ??
+    'Show AI Suggestions'
+  );
+}
+
+function resolveProjectAiDraftSuggestionsEmptyState(
+  scope: Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>['scope'],
+) {
+  return resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.emptyState;
 }

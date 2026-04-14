@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import type { SupportedProjectCurrentPageActionScope } from '@eng/shared';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +22,6 @@ import type {
 } from '@/features/ai/assistant-page-context';
 import type { AiAssistantStructuredResponse } from '@/features/ai/assistant-types';
 import {
-  isProjectGeotechnicalBasisSuggestionFieldPath,
-  isProjectFoundationsSuggestionFieldPath,
-  isProjectPageSuggestionFieldPath,
-} from './project-ai-suggestion-adapter';
-import {
   collectProjectGeotechnicalMaterialCandidates,
   findStrongProjectGeotechnicalMaterialCandidateMatchIndex,
   isProjectGeotechnicalMaterialCandidateSuggestion,
@@ -33,9 +29,26 @@ import {
   resolveProjectGeotechnicalMaterialTargetLabel,
   type ProjectGeotechnicalMaterialCandidate,
 } from './project-ai-geotechnical-material-candidates';
-import { ProjectDetailAiDraftActions } from './project-detail-ai-draft-actions';
+import {
+  ProjectDetailAiDraftActions,
+  ProjectDetailDraftActionHistoryPanel,
+  useProjectDetailDraftActionController,
+} from './project-detail-ai-draft-actions';
+import {
+  filterProjectAssistantSuggestionsForScope,
+  resolveProjectAssistantPageCapabilityByScope,
+} from './project-assistant-page-capabilities';
+import {
+  resolveProjectCurrentPageActionScopeLabel,
+  resolveProjectCurrentPageActionScopeTitle,
+} from './project-current-page-action-executor';
 
 type ProjectDraftActionAdapter = Extract<AiAssistantDraftActionAdapter, { kind: 'project' }>;
+type ScalarProjectDraftActionAdapter = ProjectDraftActionAdapter & {
+  scope: SupportedProjectCurrentPageActionScope;
+};
+
+const PROJECT_ARCHIVED_FIELD_KEY = 'identity.archived';
 
 type ProjectAiSuggestionsContentProps = {
   response: AiAssistantStructuredResponse;
@@ -88,7 +101,8 @@ export function ProjectAiSuggestionsContent({
   }, [responseSignature]);
 
   const scopedSuggestions = useMemo(
-    () => filterSuggestionsForScope(response.suggestedFields, draftActionAdapter.scope),
+    () =>
+      filterProjectAssistantSuggestionsForScope(response.suggestedFields, draftActionAdapter.scope),
     [draftActionAdapter.scope, response.suggestedFields],
   );
 
@@ -119,69 +133,15 @@ export function ProjectAiSuggestionsContent({
   const shouldShowAiReportsAction =
     Boolean(draftActionAdapter.aiReportsHref) && shouldOfferAiReportsAction(response);
 
-  if (
-    draftActionAdapter.scope === 'project-page' ||
-    draftActionAdapter.scope === 'project-foundations'
-  ) {
-    const hasSuggestedContent = scopedSuggestions.length > 0;
-
+  if (resolveProjectAssistantPageCapabilityByScope(draftActionAdapter.scope).supported) {
     return (
-      <div
-        className={presentation === 'assistant' ? 'mt-3 space-y-4' : 'space-y-4'}
-        data-testid="project-ai-suggestions-content"
-      >
-        {hasSuggestedContent ? (
-          <ProjectDetailAiDraftActions
-            suggestions={scopedSuggestions}
-            draftActions={response.draftActions}
-            currentPageActionExecutor={currentPageActionExecutor}
-            scope={draftActionAdapter.scope}
-          />
-        ) : null}
-
-        {response.limitationNote ? (
-          <Alert>
-            <AlertTitle>Use caution</AlertTitle>
-            <AlertDescription className="space-y-3">
-              <div>{response.limitationNote}</div>
-              {shouldShowAiReportsAction && draftActionAdapter.aiReportsHref ? (
-                <div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push(draftActionAdapter.aiReportsHref ?? '')}
-                  >
-                    Open AI Reports upload
-                  </Button>
-                </div>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {!hasSuggestedContent && !response.limitationNote ? (
-          <Alert>
-            <AlertTitle>
-              No visible {resolveScalarDraftActionScopeTitle(draftActionAdapter.scope)} draft
-              actions
-            </AlertTitle>
-            <AlertDescription>
-              The current assistant response did not include any safely actionable{' '}
-              {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)} fields for this page.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {hasSuggestedContent || shouldShowAiReportsAction ? (
-          <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
-            On supported current pages, you review and apply these draft actions manually. They
-            only affect the current {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)}{' '}
-            draft on this page, never auto-save, never auto-run, and never change other pages.
-            Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
-          </div>
-        ) : null}
-      </div>
+      <ScalarDraftActionSuggestionsPanel
+        response={response}
+        currentPageActionExecutor={currentPageActionExecutor}
+        draftActionAdapter={draftActionAdapter as ScalarProjectDraftActionAdapter}
+        presentation={presentation}
+        shouldShowAiReportsAction={shouldShowAiReportsAction}
+      />
     );
   }
 
@@ -740,7 +700,149 @@ export function ProjectAiSuggestionsContent({
         <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
           On supported current pages, you review and apply draft changes manually. They only stage
           the current draft on this page, never auto-save, never auto-run, and never change other
-          pages. Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+          pages. Unsaved changes remain until you click{' '}
+          {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ScalarDraftActionSuggestionsPanel({
+  response,
+  currentPageActionExecutor,
+  draftActionAdapter,
+  presentation,
+  shouldShowAiReportsAction,
+}: {
+  response: AiAssistantStructuredResponse;
+  currentPageActionExecutor: CurrentPageActionExecutor | null;
+  draftActionAdapter: ScalarProjectDraftActionAdapter;
+  presentation: 'card' | 'assistant';
+  shouldShowAiReportsAction: boolean;
+}) {
+  const router = useRouter();
+  const controller = useProjectDetailDraftActionController({
+    suggestions: response.suggestedFields,
+    draftActions: response.draftActions,
+    currentPageActionExecutor,
+    scope: draftActionAdapter.scope,
+  });
+  const hasSuggestedContent = controller.actions.length > 0;
+  const hasArchivedProjectAction = controller.actions.some(
+    (action) => action.fieldKey === PROJECT_ARCHIVED_FIELD_KEY,
+  );
+  const shouldShowAssistantActionBar =
+    presentation === 'assistant' && (hasSuggestedContent || controller.latestOperation != null);
+
+  return (
+    <div
+      className={presentation === 'assistant' ? 'mt-3 space-y-4' : 'space-y-4'}
+      data-testid="project-ai-suggestions-content"
+    >
+      {shouldShowAssistantActionBar ? (
+        <div className="rounded-xl border bg-muted/20 p-3" data-testid="assistant-draft-action-bar">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Assistant Actions
+              </div>
+              <p className="text-sm text-muted-foreground">
+                I can apply these draft changes to the current page draft if you confirm by clicking
+                a button below. This only affects the current draft on this page, and Save stays
+                manual.
+              </p>
+              {hasArchivedProjectAction ? (
+                <p className="text-xs text-muted-foreground">
+                  Archived project is sensitive. Confirming it here only stages the Archived
+                  project checkbox on this page, does not archive anything on other pages, and
+                  still requires {resolveSaveButtonLabel(draftActionAdapter.scope)} afterward.
+                </p>
+              ) : null}
+            </div>
+            {!controller.isDismissed ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={controller.selectedSelectableCount === 0}
+                  onClick={controller.applySelected}
+                >
+                  Apply selected
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={controller.applicableActionIds.length === 0}
+                  onClick={controller.applyAllApplicable}
+                >
+                  Apply all applicable
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={controller.dismissAll}>
+                  Dismiss draft actions
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          {controller.latestOperation ? (
+            <ProjectDetailDraftActionHistoryPanel
+              operationHistory={controller.operationHistory}
+              className="mt-3 bg-background"
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasSuggestedContent ? (
+        <ProjectDetailAiDraftActions
+          controller={controller}
+          showActionBar={presentation !== 'assistant'}
+          showExecutionLog={presentation !== 'assistant'}
+        />
+      ) : null}
+
+      {response.limitationNote ? (
+        <Alert>
+          <AlertTitle>Use caution</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <div>{response.limitationNote}</div>
+            {shouldShowAiReportsAction && draftActionAdapter.aiReportsHref ? (
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push(draftActionAdapter.aiReportsHref ?? '')}
+                >
+                  Open AI Reports upload
+                </Button>
+              </div>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {!hasSuggestedContent && !response.limitationNote ? (
+        <Alert>
+          <AlertTitle>
+            No visible {resolveProjectCurrentPageActionScopeTitle(draftActionAdapter.scope)} draft
+            actions
+          </AlertTitle>
+          <AlertDescription>
+            The current assistant response did not include any safely actionable{' '}
+            {resolveProjectCurrentPageActionScopeLabel(draftActionAdapter.scope)} fields for this
+            page.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {hasSuggestedContent || shouldShowAiReportsAction ? (
+        <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
+          On supported current pages, you review and apply these draft actions manually. They only
+          affect the current {resolveProjectCurrentPageActionScopeLabel(draftActionAdapter.scope)}{' '}
+          draft on this page, never auto-save, never auto-run, and never change other pages. Unsaved
+          changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
         </div>
       ) : null}
     </div>
@@ -780,21 +882,6 @@ function ReviewCell({ title, children }: { title: string; children: string }) {
   );
 }
 
-export function filterSuggestionsForScope(
-  suggestions: AiAssistantSuggestedField[],
-  scope: ProjectDraftActionAdapter['scope'],
-) {
-  if (scope === 'project-geotechnical') {
-    return suggestions.filter((field) => isProjectGeotechnicalMaterialCandidateSuggestion(field));
-  }
-
-  if (scope === 'project-foundations') {
-    return suggestions.filter((field) => isProjectFoundationsSuggestionFieldPath(field.fieldPath));
-  }
-
-  return suggestions.filter((field) => isProjectPageSuggestionFieldPath(field.fieldPath));
-}
-
 function buildSuggestionSections(
   suggestions: AiAssistantSuggestedField[],
   scope: ProjectDraftActionAdapter['scope'],
@@ -804,6 +891,9 @@ function buildSuggestionSections(
     field.fieldPath.startsWith('geotechnicalBasis.'),
   );
   const projectNotes = suggestions.filter((field) => field.fieldPath.startsWith('identity.'));
+  const projectSettings = suggestions.filter((field) =>
+    field.fieldPath.startsWith('projectSettings.'),
+  );
 
   const sections: SuggestionSection[] = [];
   if (reportMetadata.length > 0) {
@@ -831,6 +921,15 @@ function buildSuggestionSections(
       description:
         'Draft-only groundwater, socket, founding, commentary, and uplift settings suggested from the current AI report extraction.',
       suggestions: projectGeotechnicalNotes,
+    });
+  }
+  if (scope === 'project-settings' && projectSettings.length > 0) {
+    sections.push({
+      id: 'project-settings',
+      title: 'Project Settings',
+      description:
+        'Draft-only safe scalar project settings suggested from grounded current-page context.',
+      suggestions: projectSettings,
     });
   }
 
@@ -867,43 +966,14 @@ function shouldOfferAiReportsAction(response: AiAssistantStructuredResponse) {
 }
 
 function resolveDraftScopeLabel(scope: ProjectDraftActionAdapter['scope']) {
-  if (scope === 'project-geotechnical') {
-    return 'project geotechnical';
-  }
-  if (scope === 'project-foundations') {
-    return 'foundations';
-  }
-  return 'project';
-}
-
-function resolveScalarDraftActionScopeTitle(
-  scope: Extract<ProjectDraftActionAdapter['scope'], 'project-page' | 'project-foundations'>,
-) {
-  if (scope === 'project-foundations') {
-    return 'Foundation / Global GEO Controls';
-  }
-
-  return 'Project Details';
-}
-
-function resolveScalarDraftActionScopeLabel(
-  scope: Extract<ProjectDraftActionAdapter['scope'], 'project-page' | 'project-foundations'>,
-) {
-  if (scope === 'project-foundations') {
-    return 'foundation / global GEO controls';
-  }
-
-  return 'Project Details';
+  return resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.draftScopeLabel;
 }
 
 function resolveSaveButtonLabel(scope: ProjectDraftActionAdapter['scope']) {
-  if (scope === 'project-geotechnical') {
-    return 'Save Project Geotechnical';
-  }
-  if (scope === 'project-foundations') {
-    return 'Save Foundations Settings';
-  }
-  return 'Save Project Details';
+  return (
+    resolveProjectAssistantPageCapabilityByScope(scope).capabilityCopy.saveButtonLabel ??
+    'Save Changes'
+  );
 }
 
 function formatSuggestionSourceType(sourceType: AiAssistantSuggestedField['sourceType']) {
@@ -971,6 +1041,9 @@ function formatCandidateParameterValues(candidate: ProjectGeotechnicalMaterialCa
 }
 
 function formatSuggestionSection(fieldPath: string) {
+  if (fieldPath.startsWith('projectSettings.')) {
+    return 'project settings';
+  }
   if (fieldPath.startsWith('identity.')) {
     return 'project notes';
   }

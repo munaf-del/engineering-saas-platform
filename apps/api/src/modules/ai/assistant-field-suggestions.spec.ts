@@ -3,10 +3,102 @@ import {
   buildDeterministicFieldSuggestions,
 } from './assistant-field-suggestions';
 
-jest.mock('@eng/shared', () => ({
-  buildMultiPileEnvelopeInputSignature: jest.fn(() => ''),
-  MULTI_PILE_UNASSIGNED_PILE_TYPE_ID: 'UNASSIGNED',
-}));
+jest.mock('@eng/shared', () => {
+  const projectCapabilities = {
+    'project-page': {
+      scope: 'project-page',
+      routePattern: '/projects/[id]',
+      supported: true,
+      allowedActionTypes: ['set_text', 'set_textarea', 'set_select', 'set_checkbox'],
+      allowlistRef: 'PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST',
+      assistantTriggeredApplyEnabled: true,
+      auditHistoryEnabled: true,
+      capabilityCopy: {
+        assistantHeader:
+          'Guided current-page draft actions on supported pages. You review and apply changes manually, and Save stays manual.',
+      },
+    },
+    'project-geotechnical': {
+      scope: 'project-geotechnical',
+      routePattern: '/projects/[id]/project-geotechnical',
+      supported: false,
+      allowedActionTypes: [],
+      allowlistRef: null,
+      assistantTriggeredApplyEnabled: false,
+      auditHistoryEnabled: false,
+      capabilityCopy: {
+        assistantHeader:
+          'Draft actions are not available on this page. I can still surface candidate project geotechnical materials for manual review from the current page context.',
+      },
+    },
+    'project-foundations': {
+      scope: 'project-foundations',
+      routePattern: '/projects/[id]/pile-groups',
+      supported: true,
+      allowedActionTypes: ['set_text', 'set_textarea', 'set_select'],
+      allowlistRef: 'PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST',
+      assistantTriggeredApplyEnabled: true,
+      auditHistoryEnabled: true,
+      capabilityCopy: {
+        assistantHeader:
+          'Guided current-page draft actions on supported pages. You review and apply changes manually, and Save stays manual.',
+      },
+    },
+    'project-settings': {
+      scope: 'project-settings',
+      routePattern: '/projects/[id]/settings',
+      supported: true,
+      allowedActionTypes: ['set_text', 'set_textarea', 'set_select'],
+      allowlistRef: 'PROJECT_SETTINGS_CURRENT_PAGE_ACTION_ALLOWLIST',
+      assistantTriggeredApplyEnabled: true,
+      auditHistoryEnabled: true,
+      capabilityCopy: {
+        assistantHeader:
+          'Guided current-page draft actions on supported pages. You review and apply changes manually, and Save stays manual.',
+      },
+    },
+  } as const;
+
+  function matchesRoute(pathname: string, routePattern: string) {
+    const pathnameSegments = pathname.split('/').filter(Boolean);
+    const routeSegments = routePattern.split('/').filter(Boolean);
+    if (pathnameSegments.length !== routeSegments.length) {
+      return false;
+    }
+
+    return routeSegments.every((segment, index) => {
+      const pathnameSegment = pathnameSegments[index] ?? '';
+      return /^\[[^\]]+\]$/.test(segment)
+        ? pathnameSegment.length > 0
+        : pathnameSegment === segment;
+    });
+  }
+
+  const resolveProjectAssistantPageCapabilityByRoute = (pathname: string) =>
+    Object.values(projectCapabilities).find((entry) =>
+      matchesRoute(pathname, entry.routePattern),
+    ) ?? null;
+
+  return {
+    buildMultiPileEnvelopeInputSignature: jest.fn(() => ''),
+    MULTI_PILE_UNASSIGNED_PILE_TYPE_ID: 'UNASSIGNED',
+    resolveProjectAssistantPageCapabilityByRoute,
+    resolveProjectAssistantPageCapabilityStateByRoute: (pathname: string) =>
+      resolveProjectAssistantPageCapabilityByRoute(pathname) ?? {
+        scope: null,
+        routePattern: null,
+        supported: false,
+        allowedActionTypes: [],
+        allowlistRef: null,
+        assistantTriggeredApplyEnabled: false,
+        auditHistoryEnabled: false,
+        capabilityCopy: {
+          assistantHeader:
+            'Draft actions are not available on this page. I can still answer questions from the current page context.',
+        },
+      },
+  };
+});
 
 describe('assistant project geotechnical material suggestions', () => {
   it('surfaces an extracted site address on the Project Details page and keeps references out of scope', () => {
@@ -36,9 +128,9 @@ describe('assistant project geotechnical material suggestions', () => {
           suggestion.suggestedValue === '75-85 Mary Street, St Peters',
       ),
     ).toBe(true);
-    expect(result.suggestedFields.some((suggestion) => suggestion.fieldPath.startsWith('references['))).toBe(
-      false,
-    );
+    expect(
+      result.suggestedFields.some((suggestion) => suggestion.fieldPath.startsWith('references[')),
+    ).toBe(false);
   });
 
   it('surfaces all St Peters foundation rows and combined shoring parameter rows', () => {
@@ -198,6 +290,126 @@ describe('assistant project geotechnical material suggestions', () => {
         fieldKey: 'geotechnicalBasis.foundingNotes',
         actionType: 'set_textarea',
         proposedValue: 'Found piles within weathered schist.',
+        status: 'ready',
+      }),
+    ]);
+  });
+
+  it('builds an archived project checkbox draft action only on /projects/[id]', () => {
+    const draftActions = buildAssistantDraftActionsForCurrentPage(
+      {
+        route: '/projects/project-1',
+        pageTitle: 'Project Details',
+        pageKind: 'project_detail',
+      },
+      [
+        {
+          fieldPath: 'identity.archived',
+          label: 'Archived project',
+          suggestedValue: 'Yes',
+          sourceType: 'page_context_inference',
+          sourceSummary: 'Current page request',
+          rationale: 'The user explicitly asked to archive the current project draft.',
+          confidence: 0.94,
+          applyMode: 'fill-if-empty',
+        },
+        {
+          fieldPath: 'geotechnicalBasis.foundingNotes',
+          label: 'Founding notes',
+          suggestedValue: 'Out of scope',
+          sourceType: 'report_derived',
+          sourceSummary: 'Grounded report',
+          rationale: 'This should stay out of the project page scope.',
+          confidence: 0.9,
+          applyMode: 'replace',
+        },
+      ],
+    );
+
+    expect(draftActions).toEqual([
+      expect.objectContaining({
+        fieldKey: 'identity.archived',
+        actionType: 'set_checkbox',
+        proposedValue: 'Yes',
+        status: 'ready',
+      }),
+    ]);
+  });
+
+  it('surfaces project settings suggestions only on the settings page scope', () => {
+    const result = buildDeterministicFieldSuggestions({
+      pageContext: {
+        route: '/projects/project-1/settings',
+        pageTitle: 'Project Settings',
+        pageKind: 'project_detail',
+        pageSpecificData: {
+          projectSettings: {
+            name: '',
+            description: 'Existing authored description',
+            status: 'active',
+          },
+        },
+      },
+      projectSpecifics: buildProjectSpecifics(),
+      recentDocuments: [
+        {
+          id: 'doc-1',
+          filename: 'GE-DA-0002.pdf',
+          latestRunStatus: 'completed',
+          resultJson: buildStPetersExtractionResult(),
+        },
+      ],
+      multiPileState: null,
+      latestEnvelopeRun: null,
+    });
+
+    expect(
+      result.suggestedFields.some(
+        (suggestion) =>
+          suggestion.fieldPath === 'projectSettings.name' && suggestion.suggestedValue.length > 0,
+      ),
+    ).toBe(true);
+    expect(
+      result.suggestedFields.some((suggestion) => suggestion.fieldPath === 'identity.address'),
+    ).toBe(false);
+  });
+
+  it('builds draft actions only for approved Project Settings scalar fields on /settings', () => {
+    const draftActions = buildAssistantDraftActionsForCurrentPage(
+      {
+        route: '/projects/project-1/settings',
+        pageTitle: 'Project Settings',
+        pageKind: 'project_detail',
+      },
+      [
+        {
+          fieldPath: 'projectSettings.description',
+          label: 'Project description',
+          suggestedValue: 'New healthcare building delivery project.',
+          sourceType: 'report_derived',
+          sourceSummary: 'Grounded report',
+          rationale: 'Grounded in the extracted report.',
+          confidence: 0.9,
+          applyMode: 'fill-if-empty',
+        },
+        {
+          fieldPath: 'projectSettings.standardsProfileId',
+          label: 'Standards profile',
+          suggestedValue: 'profile-1',
+          sourceType: 'project_state',
+          sourceSummary: 'Current project state',
+          rationale: 'Out of scope.',
+          confidence: 0.9,
+          applyMode: 'replace',
+        },
+      ],
+    );
+
+    expect(draftActions).toEqual([
+      expect.objectContaining({
+        fieldKey: 'projectSettings.description',
+        actionType: 'set_textarea',
+        proposedValue: 'New healthcare building delivery project.',
         status: 'ready',
       }),
     ]);

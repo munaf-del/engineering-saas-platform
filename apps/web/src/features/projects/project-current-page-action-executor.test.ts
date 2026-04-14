@@ -106,6 +106,41 @@ describe('project current-page action executor', () => {
     expect(nextDraft.identity.status).toBe('For Review');
   });
 
+  it('applies the archived project toggle through the same governed draft-only executor path', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const executor = createProjectCurrentPageActionExecutor({
+      projectSpecifics: buildProjectSpecifics(),
+      scope: 'project-page',
+      onApply: (value) => {
+        appliedDraft = value;
+      },
+    });
+
+    const result = executor.executeDraftActions([
+      {
+        id: 'archived',
+        label: 'Archived project',
+        overwriteMode: 'replace',
+        draftAction: {
+          fieldKey: 'identity.archived',
+          actionType: 'set_checkbox',
+          proposedValue: 'archived',
+          status: 'ready',
+        },
+      },
+    ]);
+
+    expect(result.summary.applied).toBe(1);
+    expect(result.results[0]).toMatchObject({
+      fieldKey: 'identity.archived',
+      status: 'applied',
+      message:
+        'Applied only to the Archived project checkbox in the current Project Details draft. Save remains manual.',
+    });
+    const nextDraft = requireAppliedDraft(appliedDraft);
+    expect(nextDraft.identity.archived).toBe(true);
+  });
+
   it('rejects unsupported fields that are outside the page allowlist', () => {
     const executor = createProjectCurrentPageActionExecutor({
       projectSpecifics: buildProjectSpecifics(),
@@ -212,11 +247,148 @@ describe('project current-page action executor', () => {
     const nextDraft = requireAppliedDraft(appliedDraft);
     expect(nextDraft.geotechnicalBasis.cfaUpliftFactor).toBe(0.75);
   });
+
+  it('rejects mismatched field/action pairs even when the field is allowlisted', () => {
+    const executor = createProjectCurrentPageActionExecutor({
+      projectSpecifics: buildProjectSpecifics(),
+      scope: 'project-page',
+      onApply: () => undefined,
+    });
+
+    const result = executor.executeDraftActions([
+      {
+        id: 'status',
+        label: 'Project status',
+        overwriteMode: 'replace',
+        draftAction: {
+          fieldKey: 'identity.status',
+          actionType: 'set_text',
+          proposedValue: 'For Review',
+          status: 'ready',
+        },
+      },
+    ]);
+
+    expect(result.results[0]).toMatchObject({
+      fieldKey: 'identity.status',
+      status: 'rejected_not_allowlisted',
+    });
+    expect(result.results[0]?.message).toContain('field/action pair is outside the current');
+  });
+
+  it('enforces current-page-only scope and does not apply project-detail fields on foundations pages', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const executor = createProjectCurrentPageActionExecutor({
+      projectSpecifics: buildProjectSpecifics(),
+      scope: 'project-foundations',
+      onApply: (value) => {
+        appliedDraft = value;
+      },
+    });
+
+    const result = executor.executeDraftActions([
+      {
+        id: 'address',
+        label: 'Project address',
+        overwriteMode: 'replace',
+        draftAction: {
+          fieldKey: 'identity.address',
+          actionType: 'set_text',
+          proposedValue: '75-85 Mary Street, St Peters NSW 2044',
+          status: 'ready',
+        },
+      },
+    ]);
+
+    expect(result.results[0]).toMatchObject({
+      fieldKey: 'identity.address',
+      status: 'rejected_not_allowlisted',
+    });
+    expect(result.summary.applied).toBe(0);
+    expect(appliedDraft).toBeNull();
+  });
+
+  it('keeps the archived project toggle current-page-only by rejecting it on foundations pages', () => {
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const executor = createProjectCurrentPageActionExecutor({
+      projectSpecifics: buildProjectSpecifics(),
+      scope: 'project-foundations',
+      onApply: (value) => {
+        appliedDraft = value;
+      },
+    });
+
+    const result = executor.executeDraftActions([
+      {
+        id: 'archived',
+        label: 'Archived project',
+        overwriteMode: 'replace',
+        draftAction: {
+          fieldKey: 'identity.archived',
+          actionType: 'set_checkbox',
+          proposedValue: true,
+          status: 'ready',
+        },
+      },
+    ]);
+
+    expect(result.results[0]).toMatchObject({
+      fieldKey: 'identity.archived',
+      status: 'rejected_not_allowlisted',
+    });
+    expect(result.summary.applied).toBe(0);
+    expect(appliedDraft).toBeNull();
+  });
+
+  it('does not call onApply or mutate the source draft when nothing in the batch applies', () => {
+    const projectSpecifics = buildProjectSpecifics();
+    projectSpecifics.identity.address = 'Existing project address';
+    let appliedDraft: MultiPileProjectSpecifics | null = null;
+    const executor = createProjectCurrentPageActionExecutor({
+      projectSpecifics,
+      scope: 'project-page',
+      onApply: (value) => {
+        appliedDraft = value;
+      },
+    });
+
+    const result = executor.executeDraftActions([
+      {
+        id: 'address',
+        label: 'Project address',
+        overwriteMode: 'fill-if-empty',
+        draftAction: {
+          fieldKey: 'identity.address',
+          actionType: 'set_text',
+          proposedValue: 'Replacement address',
+          status: 'ready',
+        },
+      },
+      {
+        id: 'founding',
+        label: 'Founding notes',
+        overwriteMode: 'replace',
+        draftAction: {
+          fieldKey: 'geotechnicalBasis.foundingNotes',
+          actionType: 'set_textarea',
+          proposedValue: 'Out-of-scope',
+          status: 'ready',
+        },
+      },
+    ]);
+
+    expect(result.summary).toMatchObject({
+      applied: 0,
+      skipped_existing_value: 1,
+      rejected_not_allowlisted: 1,
+    });
+    expect(appliedDraft).toBeNull();
+    expect(projectSpecifics.identity.address).toBe('Existing project address');
+    expect(projectSpecifics.geotechnicalBasis.foundingNotes).toBe('');
+  });
 });
 
-function requireAppliedDraft(
-  value: MultiPileProjectSpecifics | null,
-): MultiPileProjectSpecifics {
+function requireAppliedDraft(value: MultiPileProjectSpecifics | null): MultiPileProjectSpecifics {
   if (!value) {
     throw new Error('Expected applied draft');
   }
