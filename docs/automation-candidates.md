@@ -1,6 +1,6 @@
 # Automation Candidates
 
-These are intentionally small, read-mostly automation ideas for the agent operating layer. Each one should stay lane-aware, surface unknowns, and avoid making product changes automatically.
+These are intentionally small, read-mostly automation ideas for the agent operating layer. They are candidates only in this PR, not configured automations. Each one should stay lane-aware, surface unknowns, and avoid making product changes automatically.
 
 ## 1. Daily Engineering Brief
 
@@ -24,7 +24,7 @@ These are intentionally small, read-mostly automation ideas for the agent operat
 ## 2. CI And PR Triage
 
 - Goal: classify failing PRs or CI runs by lane and propose the smallest next verification step
-- Trigger:
+- Suggested trigger if configured:
   - PR opened or synchronized
   - CI failure on `main`
 - Read scope:
@@ -87,7 +87,7 @@ These are intentionally small, read-mostly automation ideas for the agent operat
 ## 5. Golden Calculation Regression Check
 
 - Goal: watch for changes that can break deterministic calc behavior or calc support claims
-- Trigger:
+- Suggested trigger if configured:
   - changes under `packages/shared/src/schemas/**`
   - changes under `packages/shared/src/types/calculations.ts`
   - changes under `apps/api/src/modules/calculations/**`
@@ -109,7 +109,7 @@ These are intentionally small, read-mostly automation ideas for the agent operat
 ## 6. Report Export QA
 
 - Goal: catch report/export regressions before users see broken evidence bundles or print layouts
-- Trigger:
+- Suggested trigger if configured:
   - changes under `apps/web/src/app/(print)/**`
   - changes under `apps/web/src/features/environmental/**`
   - changes under `apps/web/src/features/templates/**`

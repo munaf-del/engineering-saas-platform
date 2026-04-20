@@ -2,7 +2,7 @@
 
 This repository is a multi-tenant SaaS platform for Australian structural and geotechnical engineering. It combines a Next.js web app, a NestJS API, a Python calc engine, and shared TypeScript contracts. Agent work here is only safe when tenancy, deterministic calculations, and reporting traceability stay intact.
 
-Use this file with [docs/architecture/repo-map.md](docs/architecture/repo-map.md), [docs/agent-lanes.md](docs/agent-lanes.md), and the repo-local skill specs under `.codex/skills/`.
+Use this file with [docs/architecture/repo-map.md](docs/architecture/repo-map.md), [docs/agent-lanes.md](docs/agent-lanes.md), and the repo-local skill specs under `.agents/skills/`.
 
 ## Repo Purpose
 
@@ -119,11 +119,14 @@ Use this file with [docs/architecture/repo-map.md](docs/architecture/repo-map.md
 ## Tenancy Rules
 
 - Do not assume tenant scoping is automatic across the entire API
-- Verified code today shows the Prisma query extension only auto-scopes these models: `Project`, `StandardsProfile`, `AuditLog`, `ImportJob`, `Document`, `AiDocument`
+- Verified code today shows:
+  - `TenantInterceptor` writes `organisationId` and `userId` into tenant context for authenticated requests that have an `organisationId`
+  - the Prisma query extension only auto-scopes these models: `Project`, `StandardsProfile`, `AuditLog`, `ImportJob`, `Document`, `AiDocument`
 - For other tenant-owned models, preserve explicit `organisationId` and `projectId` filters or the existing access-check pattern before querying
-- Never weaken `TenantInterceptor`, membership checks, or project read/write assertions
+- Never weaken `TenantInterceptor`, tenant context wiring, membership checks, or project read/write assertions
 - Prefer scoped `findFirst` or parent-scoped lookups over unscoped tenant reads
 - Treat auth, organisations, projects, documents, AI documents, reporting, and environmental modules as tenancy-sensitive even when the Prisma extension does not enforce them centrally
+- Do not describe tenancy as being protected by repo-wide automatic Prisma coverage, PostgreSQL RLS, or `SET LOCAL app.current_org_id` unless that behavior is verified in code first
 - Mark any uncertainty about tenant scoping in the PR instead of guessing
 
 ## Deterministic Calculation Rules
@@ -178,6 +181,6 @@ Use this file with [docs/architecture/repo-map.md](docs/architecture/repo-map.md
 
 ## Known Unknowns
 
-- ADR-002 describes broader tenancy enforcement, Prisma middleware, and RLS; verified repo code for this PR only confirms `TenantInterceptor` plus a limited Prisma query extension
-- ADR-006 documents only `pile_group`; live calc-engine code also dispatches `multi_pile_envelope`
+- ADR-002 previously described broader tenancy enforcement than the currently verified code proves; this PR softens that ADR to current verified behavior and treats broader Prisma/RLS enforcement as future hardening
+- ADR-006 now notes that the live calc-engine dispatcher maps `pile_group` and `multi_pile_envelope`, but only the `pile_group` algorithm is documented in detail
 - No dedicated markdown lint command was found beyond `pnpm format:check`

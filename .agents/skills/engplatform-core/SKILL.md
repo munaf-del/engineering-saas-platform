@@ -19,7 +19,7 @@ Repo-local skill spec for Codex/OpenClaw work in EngPlatform.
 ## Workflow
 
 1. Classify the task into one lane before editing.
-2. Verify every command against `package.json`, app manifests, `pyproject.toml`, or `.github/workflows/ci.yml`.
+2. Verify every command and claimed repo behavior against `package.json`, app manifests, `pyproject.toml`, `.github/workflows/ci.yml`, and the current repo code/tests.
 3. Keep the PR single-lane unless the task explicitly requires more.
 4. Mark unknowns and ADR drift explicitly instead of normalizing them away.
 5. Run the smallest verified check that fits the touched files.
@@ -28,7 +28,7 @@ Repo-local skill spec for Codex/OpenClaw work in EngPlatform.
 
 - `AGENTS.md`
 - `docs/**`
-- `.codex/skills/**`
+- `.agents/skills/**`
 - `README.md`
 - `deployment/**`
 - `.github/workflows/**`

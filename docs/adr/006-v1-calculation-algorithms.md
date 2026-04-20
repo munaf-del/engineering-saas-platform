@@ -14,12 +14,19 @@ registered against that boundary.
 
 ### Supported v1 Calculators
 
-| CalcType     | Calculator         | Status      |
-|--------------|--------------------|-------------|
-| `pile_group` | Pile Group v1      | Implemented |
+| CalcType              | Calculator          | Status                                                               |
+| --------------------- | ------------------- | -------------------------------------------------------------------- |
+| `pile_group`          | Pile Group v1       | Implemented                                                          |
+| `multi_pile_envelope` | Multi-Pile Envelope | Implemented in the live dispatcher; detailed ADR notes still pending |
 
 Other CalcType values (`pile_capacity`, `pile_settlement`, etc.) remain in
 the dispatcher as `CALC_TYPE_NOT_IMPLEMENTED` until future prompts add them.
+
+This ADR is partially stale: the live dispatcher in
+`apps/calc-engine/app/engine/dispatcher.py` maps both `pile_group` and
+`multi_pile_envelope`, but the detailed algorithm sections below currently
+document only `pile_group`. TODO: add a dedicated ADR section for
+`multi_pile_envelope` behavior in a follow-up doc update if needed.
 
 ### Load Combination Engine
 
@@ -54,6 +61,7 @@ Vyi = Vy/n + T·xi/Σri²
 ```
 
 Layout modes:
+
 - **Grid:** `grid_nx`, `grid_ny`, `grid_spacing_x`, `grid_spacing_y`
 - **Explicit:** `pile_count`, `pile_{i}_x`, `pile_{i}_y`
 
@@ -62,15 +70,16 @@ Layout modes:
 Lives in `app/engine/pile_design_check.py`. Checks run against envelope
 reactions. All reduction factors come from the rule pack.
 
-| Check Type                 | Demand          | Capacity              | Rule Pack Key       |
-|----------------------------|-----------------|-----------------------|---------------------|
-| `geotechnical_compression` | Max compression | φ_g,c · R_ug,c        | `phi_g_compression` |
-| `geotechnical_tension`     | Max tension     | φ_g,t · R_ug,t        | `phi_g_tension`     |
-| `geotechnical_lateral`     | Max shear       | φ_g,l · R_ug,l        | `phi_g_lateral`     |
-| `structural_rc`            | Max compression | φ_s,rc · N_u          | `phi_s_rc`          |
-| `structural_steel`         | Max compression | φ_s,steel · N_u       | `phi_s_steel`       |
+| Check Type                 | Demand          | Capacity        | Rule Pack Key       |
+| -------------------------- | --------------- | --------------- | ------------------- |
+| `geotechnical_compression` | Max compression | φ_g,c · R_ug,c  | `phi_g_compression` |
+| `geotechnical_tension`     | Max tension     | φ_g,t · R_ug,t  | `phi_g_tension`     |
+| `geotechnical_lateral`     | Max shear       | φ_g,l · R_ug,l  | `phi_g_lateral`     |
+| `structural_rc`            | Max compression | φ_s,rc · N_u    | `phi_s_rc`          |
+| `structural_steel`         | Max compression | φ_s,steel · N_u | `phi_s_steel`       |
 
 Output per check:
+
 - `utilisationRatio` = demand / capacity
 - `reserveCapacity` = capacity − demand
 - `status`: `pass` (≤0.9), `warning` (0.9–1.0), `fail` (>1.0)
@@ -93,8 +102,8 @@ calculator definition and version if they don't already exist. Endpoint:
 
 ## Consequences
 
-- Only `pile_group` is implemented; other calc types return
-  `CALC_TYPE_NOT_IMPLEMENTED`.
+- The live dispatcher currently implements `pile_group` and
+  `multi_pile_envelope`; other calc types return `CALC_TYPE_NOT_IMPLEMENTED`.
 - Structural checks are axial-only in v1; combined N-M interaction diagrams
   are a v2 item.
 - Raked piles, variable pile stiffness, and flexible cap analysis are

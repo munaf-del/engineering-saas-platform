@@ -20,7 +20,7 @@ Repo-local skill spec for standards, imports, catalogue metadata, and source-bac
 
 1. Confirm whether the repo should contain metadata only or a workflow description, not licensed raw content.
 2. Preserve source metadata such as standard code, edition, source dataset identifier, effective date, and explicit URLs or notes.
-3. If a source cannot be verified, mark it as unknown instead of synthesizing a replacement.
+3. Verify provenance behavior against current repo code and tests where available; if a source cannot be verified, mark it as unknown instead of synthesizing a replacement.
 4. Route numeric rule or formula changes through `engplatform-calc-guard` when they affect calculations.
 
 ## Allowed Edits

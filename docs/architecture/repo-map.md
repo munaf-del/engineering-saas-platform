@@ -2,6 +2,8 @@
 
 This map is intentionally concise. It is meant to tell an agent where to work, who owns the lane, and which areas are safe to change in a small PR.
 
+It is operating guidance, not a runtime enforcement mechanism.
+
 Primary operating rules live in [../../AGENTS.md](../../AGENTS.md). Parallel lane rules live in [../agent-lanes.md](../agent-lanes.md).
 
 ## Apps, Packages, And Modules
@@ -30,7 +32,7 @@ Primary operating rules live in [../../AGENTS.md](../../AGENTS.md). Parallel lan
 - `AGENTS.md`
 - `docs/**`
 - `.github/workflows/**` documentation updates only
-- repo-local skill specs under `.codex/skills/**`
+- repo-local skill specs under `.agents/skills/**`
 - tests that clarify existing behavior without changing product logic
 
 ### Risky zones that deserve a dedicated PR and human review

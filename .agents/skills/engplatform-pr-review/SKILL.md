@@ -13,7 +13,7 @@ Repo-local skill spec for reviewing EngPlatform PRs and diffs.
 - [AGENTS.md](../../../AGENTS.md)
 - [docs/architecture/repo-map.md](../../../docs/architecture/repo-map.md)
 - [docs/agent-lanes.md](../../../docs/agent-lanes.md)
-- touched ADRs and module docs for the diff under review
+- touched ADRs, module docs, and the current repo code/tests for the diff under review
 
 ## Review Order
 

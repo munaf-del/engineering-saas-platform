@@ -18,7 +18,7 @@ Repo-local skill spec for web verification, preview QA, and print/export checks.
 
 ## Workflow
 
-1. Identify whether the change is app UI, print/export, or auth/transport related.
+1. Identify whether the change is app UI, print/export, or auth/transport related, and verify expected behavior against the current code and existing tests before adding assertions.
 2. Prefer tests and reproducible QA notes over subjective descriptions.
 3. Flag missing environment prerequisites instead of pretending E2E coverage ran.
 4. If a bug points to backend, calc, or provenance logic, hand it back to the owning lane.

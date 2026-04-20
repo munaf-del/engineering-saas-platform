@@ -2,6 +2,8 @@
 
 Prefer one implementation lane per PR, with optional support from `ui-qa` or `pr-review`. The goal is parallel progress without cross-lane drift.
 
+These lanes are recommended operating guidance for humans and agents. This PR does not add tooling that enforces them automatically.
+
 ## Recommended Lanes
 
 | Lane             | May edit                                                                                                                                                                                                                                                                                                                                                                            | Must not edit                                                                                                               | Required review gates                                                                                                                                                                                                                     |

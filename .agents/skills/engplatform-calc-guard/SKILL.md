@@ -22,7 +22,7 @@ Repo-local skill spec for deterministic calculation and contract safety in EngPl
 
 ## Workflow
 
-1. Confirm whether the change is contract-only, engine-only, or cross-layer.
+1. Confirm whether the change is contract-only, engine-only, or cross-layer, and verify the current behavior against shared types, API code, Python models, and tests before editing.
 2. Align shared TS, Nest DTO/orchestration, and Python models/dispatcher together when contract fields move.
 3. Preserve canonical hashing behavior and SI normalization rules unless the task explicitly changes them.
 4. Treat unsupported calc types as explicit failures, never silent partial implementations.

@@ -19,7 +19,7 @@ Repo-local skill spec for reports, templates, print/export flows, and source-tra
 
 ## Workflow
 
-1. Preserve version binding and snapshot fields before changing any serializer or authoring flow.
+1. Verify current snapshot, version-binding, and provenance behavior against repo code and tests before changing any serializer or authoring flow.
 2. Preserve source labels, source references, source URLs, AI-document links, and clause references.
 3. Treat report package issues, annexures, and template snapshots as frozen evidence unless the task explicitly changes versioning behavior.
 4. Keep UI polish changes separate from report data model changes whenever possible.
