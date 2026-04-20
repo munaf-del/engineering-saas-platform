@@ -27,6 +27,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm build --filter @eng/shared
+      - run: cd apps/api && npx prisma generate
+        env:
+          DATABASE_URL: postgresql://engplatform:engplatform@localhost:5432/engplatform
       - run: pnpm typecheck
       - run: pnpm lint
 
