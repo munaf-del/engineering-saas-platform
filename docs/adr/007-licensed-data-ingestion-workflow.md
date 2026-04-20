@@ -36,6 +36,7 @@ Local File → Admin Upload (UI or API) → Parse → Validate → Dry-run/Diff
 ### Validation Requirements
 
 Every import must include:
+
 - **Standard code** (which standard the data comes from)
 - **Edition** (which edition/year)
 - **Source dataset identifier** (traceability to the licensed source)
@@ -73,24 +74,24 @@ Missing metadata fails the import loudly — no silent corrections.
 
 ## API Endpoints
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/imports/upload` | Upload and validate file |
-| POST | `/imports/:id/submit-for-approval` | Submit for admin review |
-| POST | `/imports/:id/approve` | Approve import |
-| POST | `/imports/:id/reject` | Reject import |
-| POST | `/imports/:id/activate` | Activate approved import |
-| POST | `/imports/:id/apply` | Apply (for non-rule-pack types) |
-| POST | `/imports/:id/rollback` | Rollback applied import |
-| GET | `/imports/:id/approvals` | Get approval history |
-| GET | `/imports/rule-packs/active` | List active rule packs |
-| POST | `/imports/rule-packs/:id/activate` | Activate a rule pack |
-| POST | `/imports/rule-packs/:id/deactivate` | Deactivate a rule pack |
+| Method | Path                                 | Purpose                         |
+| ------ | ------------------------------------ | ------------------------------- |
+| POST   | `/imports/upload`                    | Upload and validate file        |
+| POST   | `/imports/:id/submit-for-approval`   | Submit for admin review         |
+| POST   | `/imports/:id/approve`               | Approve import                  |
+| POST   | `/imports/:id/reject`                | Reject import                   |
+| POST   | `/imports/:id/activate`              | Activate approved import        |
+| POST   | `/imports/:id/apply`                 | Apply (for non-rule-pack types) |
+| POST   | `/imports/:id/rollback`              | Rollback applied import         |
+| GET    | `/imports/:id/approvals`             | Get approval history            |
+| GET    | `/imports/rule-packs/active`         | List active rule packs          |
+| POST   | `/imports/rule-packs/:id/activate`   | Activate a rule pack            |
+| POST   | `/imports/rule-packs/:id/deactivate` | Deactivate a rule pack          |
 
 ## Frontend Routes
 
-| Route | Purpose |
-|-------|---------|
-| `/imports` | Import history with upload dialog |
+| Route          | Purpose                                     |
+| -------------- | ------------------------------------------- |
+| `/imports`     | Import history with upload dialog           |
 | `/imports/:id` | Import detail with approval/reject/activate |
-| `/rule-packs` | Active rule-pack management |
+| `/rule-packs`  | Active rule-pack management                 |

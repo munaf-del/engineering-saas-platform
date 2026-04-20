@@ -32,11 +32,11 @@
 
 ## Environments
 
-| Environment | Project ID | Region | Purpose |
-|-------------|-----------|--------|---------|
-| dev | `engine-dev-487802` | `australia-southeast1` | Development / feature testing |
-| staging | `engplatform-staging` | `australia-southeast2` | Pre-production validation |
-| prod | `engplatform-prod` | `australia-southeast1` | Production |
+| Environment | Project ID            | Region                 | Purpose                       |
+| ----------- | --------------------- | ---------------------- | ----------------------------- |
+| dev         | `engine-dev-487802`   | `australia-southeast1` | Development / feature testing |
+| staging     | `engplatform-staging` | `australia-southeast2` | Pre-production validation     |
+| prod        | `engplatform-prod`    | `australia-southeast1` | Production                    |
 
 ## Prerequisites
 
@@ -110,11 +110,11 @@ docker push ${REPO}/calc-engine:initial
 
 Required repository secrets:
 
-| Secret | Description |
-|--------|-------------|
+| Secret                           | Description                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>` |
-| `GCP_SERVICE_ACCOUNT` | `github-actions@engine-dev-487802.iam.gserviceaccount.com` |
-| `GCP_PROJECT_ID` | `engine-dev-487802` (or per-environment) |
+| `GCP_SERVICE_ACCOUNT`            | `github-actions@engine-dev-487802.iam.gserviceaccount.com`                          |
+| `GCP_PROJECT_ID`                 | `engine-dev-487802` (or per-environment)                                            |
 
 #### Workload Identity Federation setup
 
@@ -221,6 +221,7 @@ infra/terraform/
 ### Automated backups
 
 Cloud SQL is configured with:
+
 - Daily automated backups at 03:00 AEST
 - Point-in-time recovery (PITR) enabled
 - Retention: 7 days (dev) / 30 days (prod)
@@ -251,15 +252,15 @@ gcloud sql instances clone engplatform-db-prod engplatform-db-prod-restore \
 
 ## Cost Estimates (Early Stage)
 
-| Resource | Dev | Staging | Prod |
-|----------|-----|---------|------|
-| Cloud Run (3 services) | ~$15/mo | ~$30/mo | ~$80/mo |
-| Cloud SQL (db-custom-1-3840) | ~$40/mo | ~$40/mo | ~$120/mo (HA) |
-| Cloud Storage | < $1/mo | < $1/mo | ~$5/mo |
-| Secret Manager | < $1/mo | < $1/mo | < $1/mo |
-| Cloud Tasks | < $1/mo | < $1/mo | < $5/mo |
-| Networking | ~$5/mo | ~$5/mo | ~$10/mo |
-| **Total** | **~$65/mo** | **~$80/mo** | **~$220/mo** |
+| Resource                     | Dev         | Staging     | Prod          |
+| ---------------------------- | ----------- | ----------- | ------------- |
+| Cloud Run (3 services)       | ~$15/mo     | ~$30/mo     | ~$80/mo       |
+| Cloud SQL (db-custom-1-3840) | ~$40/mo     | ~$40/mo     | ~$120/mo (HA) |
+| Cloud Storage                | < $1/mo     | < $1/mo     | ~$5/mo        |
+| Secret Manager               | < $1/mo     | < $1/mo     | < $1/mo       |
+| Cloud Tasks                  | < $1/mo     | < $1/mo     | < $5/mo       |
+| Networking                   | ~$5/mo      | ~$5/mo      | ~$10/mo       |
+| **Total**                    | **~$65/mo** | **~$80/mo** | **~$220/mo**  |
 
 Scale-to-zero on dev keeps costs minimal. Production estimates assume moderate traffic.
 

@@ -22,14 +22,14 @@ Swagger UI is available at **http://localhost:4000/api/docs**.
 
 ## Auth Flow
 
-| Endpoint | Method | Auth | Description |
-|---|---|---|---|
-| `/api/v1/auth/register` | POST | — | Register user; returns access + refresh tokens |
-| `/api/v1/auth/login` | POST | — | Login; optional `organisationId` to scope session |
-| `/api/v1/auth/refresh` | POST | — | Rotate refresh token; returns new access + refresh tokens |
-| `/api/v1/auth/logout` | POST | — | Revoke a refresh token |
-| `/api/v1/auth/switch-org` | POST | Bearer | Switch org context; verifies membership server-side |
-| `/api/v1/auth/me` | GET | Bearer | Current user profile + org memberships |
+| Endpoint                  | Method | Auth   | Description                                               |
+| ------------------------- | ------ | ------ | --------------------------------------------------------- |
+| `/api/v1/auth/register`   | POST   | —      | Register user; returns access + refresh tokens            |
+| `/api/v1/auth/login`      | POST   | —      | Login; optional `organisationId` to scope session         |
+| `/api/v1/auth/refresh`    | POST   | —      | Rotate refresh token; returns new access + refresh tokens |
+| `/api/v1/auth/logout`     | POST   | —      | Revoke a refresh token                                    |
+| `/api/v1/auth/switch-org` | POST   | Bearer | Switch org context; verifies membership server-side       |
+| `/api/v1/auth/me`         | GET    | Bearer | Current user profile + org memberships                    |
 
 - **Access tokens** expire in 15 minutes (JWT).
 - **Refresh tokens** expire in 7 days (opaque, SHA-256 hashed in DB, rotated on use).
@@ -39,21 +39,21 @@ Swagger UI is available at **http://localhost:4000/api/docs**.
 
 ### Organisation Roles (enum `OrgRole`)
 
-| Role | Permissions |
-|---|---|
-| `owner` | Full control; delete org; manage members |
-| `admin` | Update org; manage members; bypass project role checks |
+| Role       | Permissions                                             |
+| ---------- | ------------------------------------------------------- |
+| `owner`    | Full control; delete org; manage members                |
+| `admin`    | Update org; manage members; bypass project role checks  |
 | `engineer` | Create projects; standard CRUD within assigned projects |
-| `viewer` | Read-only access |
+| `viewer`   | Read-only access                                        |
 
 ### Project Roles (enum `ProjectRole`)
 
-| Role | Permissions |
-|---|---|
-| `lead` | Full project control; manage members; delete project |
-| `engineer` | Update project |
-| `reviewer` | Read-only (future: approve calculations) |
-| `viewer` | Read-only |
+| Role       | Permissions                                          |
+| ---------- | ---------------------------------------------------- |
+| `lead`     | Full project control; manage members; delete project |
+| `engineer` | Update project                                       |
+| `reviewer` | Read-only (future: approve calculations)             |
+| `viewer`   | Read-only                                            |
 
 Org `owner`/`admin` roles bypass project-level role checks.
 
@@ -63,44 +63,44 @@ Org `owner`/`admin` roles bypass project-level role checks.
 
 All require Bearer auth.
 
-| Endpoint | Method | Roles | Description |
-|---|---|---|---|
-| `/api/v1/organisations` | GET | any | List user's orgs (paginated) |
-| `/api/v1/organisations/:id` | GET | member | Get org detail |
-| `/api/v1/organisations` | POST | any | Create org (caller = owner) |
-| `/api/v1/organisations/:id` | PATCH | owner, admin | Update org |
-| `/api/v1/organisations/:id` | DELETE | owner | Delete org |
+| Endpoint                    | Method | Roles        | Description                  |
+| --------------------------- | ------ | ------------ | ---------------------------- |
+| `/api/v1/organisations`     | GET    | any          | List user's orgs (paginated) |
+| `/api/v1/organisations/:id` | GET    | member       | Get org detail               |
+| `/api/v1/organisations`     | POST   | any          | Create org (caller = owner)  |
+| `/api/v1/organisations/:id` | PATCH  | owner, admin | Update org                   |
+| `/api/v1/organisations/:id` | DELETE | owner        | Delete org                   |
 
 ### Projects
 
 All require Bearer auth + org context.
 
-| Endpoint | Method | Org Roles | Project Roles | Description |
-|---|---|---|---|---|
-| `/api/v1/projects` | GET | any | — | List projects (paginated) |
-| `/api/v1/projects/:id` | GET | any | — | Get project detail |
-| `/api/v1/projects` | POST | owner, admin, engineer | — | Create project |
-| `/api/v1/projects/:id` | PATCH | owner, admin | lead, engineer | Update project |
-| `/api/v1/projects/:id` | DELETE | owner, admin | lead | Delete project |
-| `/api/v1/projects/:id/members` | GET | any | — | List members |
-| `/api/v1/projects/:id/members` | POST | owner, admin | lead | Add member |
-| `/api/v1/projects/:id/members/:userId` | DELETE | owner, admin | lead | Remove member |
+| Endpoint                               | Method | Org Roles              | Project Roles  | Description               |
+| -------------------------------------- | ------ | ---------------------- | -------------- | ------------------------- |
+| `/api/v1/projects`                     | GET    | any                    | —              | List projects (paginated) |
+| `/api/v1/projects/:id`                 | GET    | any                    | —              | Get project detail        |
+| `/api/v1/projects`                     | POST   | owner, admin, engineer | —              | Create project            |
+| `/api/v1/projects/:id`                 | PATCH  | owner, admin           | lead, engineer | Update project            |
+| `/api/v1/projects/:id`                 | DELETE | owner, admin           | lead           | Delete project            |
+| `/api/v1/projects/:id/members`         | GET    | any                    | —              | List members              |
+| `/api/v1/projects/:id/members`         | POST   | owner, admin           | lead           | Add member                |
+| `/api/v1/projects/:id/members/:userId` | DELETE | owner, admin           | lead           | Remove member             |
 
 ### Standards
 
 All require Bearer auth.
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/v1/standards` | GET | List all editions (paginated) |
-| `/api/v1/standards/current` | GET | List current editions (paginated) |
-| `/api/v1/standards/:code` | GET | Get editions by code |
+| Endpoint                    | Method | Description                       |
+| --------------------------- | ------ | --------------------------------- |
+| `/api/v1/standards`         | GET    | List all editions (paginated)     |
+| `/api/v1/standards/current` | GET    | List current editions (paginated) |
+| `/api/v1/standards/:code`   | GET    | Get editions by code              |
 
 ### Health
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/v1/health` | GET | Health check (no auth) |
+| Endpoint         | Method | Description            |
+| ---------------- | ------ | ---------------------- |
+| `/api/v1/health` | GET    | Health check (no auth) |
 
 ## Pagination
 
@@ -134,9 +134,9 @@ pnpm test:e2e
 
 Run `pnpm prisma:seed` to create:
 
-| Entity | Value |
-|---|---|
-| User | `admin@demo.eng` / `DemoPassword1!` |
-| Organisation | Demo Engineering Pty Ltd (`demo-engineering`) |
-| Project | Demo Bridge Assessment (`DEMO-001`) |
-| Standards Profile | Default Profile (empty) |
+| Entity            | Value                                         |
+| ----------------- | --------------------------------------------- |
+| User              | `admin@demo.eng` / `DemoPassword1!`           |
+| Organisation      | Demo Engineering Pty Ltd (`demo-engineering`) |
+| Project           | Demo Bridge Assessment (`DEMO-001`)           |
+| Standards Profile | Default Profile (empty)                       |

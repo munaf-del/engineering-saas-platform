@@ -4,12 +4,12 @@ Multi-tenant SaaS platform for Australian structural and geotechnical engineerin
 
 ## Architecture
 
-| Service | Stack | Port | Purpose |
-|---------|-------|------|---------|
-| `apps/web` | Next.js 15, Tailwind, shadcn/ui | 3000 | Tenant-facing UI |
-| `apps/api` | NestJS, Prisma, PostgreSQL | 4000 | REST API, auth, orchestration |
+| Service            | Stack                                 | Port | Purpose                          |
+| ------------------ | ------------------------------------- | ---- | -------------------------------- |
+| `apps/web`         | Next.js 15, Tailwind, shadcn/ui       | 3000 | Tenant-facing UI                 |
+| `apps/api`         | NestJS, Prisma, PostgreSQL            | 4000 | REST API, auth, orchestration    |
 | `apps/calc-engine` | Python 3.12, FastAPI, Pydantic, NumPy | 8000 | Deterministic calculation engine |
-| `packages/shared` | TypeScript | — | Shared types, units, schemas |
+| `packages/shared`  | TypeScript                            | —    | Shared types, units, schemas     |
 
 See `docs/adr/` for architecture decision records.
 

@@ -8,15 +8,15 @@ This directory is for staging licensed/internal data files before importing them
 
 Place your licensed data files here before uploading via the admin UI:
 
-| File | Entity Type | Format |
-|------|-------------|--------|
-| `structural_materials.csv` | `material` | CSV |
-| `geotechnical_materials.csv` | `geotech_parameter` | CSV |
-| `steel_sections.csv` | `steel_section` | CSV |
-| `rebar_sizes.csv` | `rebar_size` | CSV |
-| `standards_registry.csv` | `standards_registry` | CSV |
-| `load_combination_rules.yaml` | `load_combination_rules` | YAML |
-| `pile_design_rules.yaml` | `pile_design_rules` | YAML |
+| File                          | Entity Type              | Format |
+| ----------------------------- | ------------------------ | ------ |
+| `structural_materials.csv`    | `material`               | CSV    |
+| `geotechnical_materials.csv`  | `geotech_parameter`      | CSV    |
+| `steel_sections.csv`          | `steel_section`          | CSV    |
+| `rebar_sizes.csv`             | `rebar_size`             | CSV    |
+| `standards_registry.csv`      | `standards_registry`     | CSV    |
+| `load_combination_rules.yaml` | `load_combination_rules` | YAML   |
+| `pile_design_rules.yaml`      | `pile_design_rules`      | YAML   |
 
 ## Workflow
 
