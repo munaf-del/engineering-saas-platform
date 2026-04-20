@@ -230,8 +230,18 @@ def _envelope_joint_row() -> dict:
         "pileTypeId": "BP1",
         "representativePileId": "J1-P1",
         "activePatternIds": ["G1"],
-        "nMax": {"value": 1000, "combinationId": "C1", "combinationName": "1.0G", "source": "custom"},
-        "nMin": {"value": -150, "combinationId": "C1", "combinationName": "1.0G", "source": "custom"},
+        "nMax": {
+            "value": 1000,
+            "combinationId": "C1",
+            "combinationName": "1.0G",
+            "source": "custom",
+        },
+        "nMin": {
+            "value": -150,
+            "combinationId": "C1",
+            "combinationName": "1.0G",
+            "source": "custom",
+        },
         "vx": {"value": 120, "combinationId": "C1", "combinationName": "1.0G", "source": "custom"},
         "vy": {"value": 80, "combinationId": "C1", "combinationName": "1.0G", "source": "custom"},
         "mx": {"value": 200, "combinationId": "C1", "combinationName": "1.0G", "source": "custom"},
@@ -284,7 +294,10 @@ def test_compute_struct_results_exposes_warning_reinforcement_compliance_when_as
     assert compliance["checks"]["okAsMax"] is True
     assert compliance["checks"]["asMaxExceeded"] is False
     assert compliance["minimumStatusText"] == "As,min NOT MET"
-    assert "minimum longitudinal reinforcement required by AS 2159 Clause 5.3.3" in compliance["detailText"]
+    assert (
+        "minimum longitudinal reinforcement required by AS 2159 Clause 5.3.3"
+        in compliance["detailText"]
+    )
     assert compliance["context"]["minReoRuleLabel"] == "OTHER PILES - FULLY EMBEDDED"
     assert compliance["context"]["reoLocDetailLabel"] == "BELOW 3D"
 

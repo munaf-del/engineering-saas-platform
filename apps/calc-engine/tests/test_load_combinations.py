@@ -9,7 +9,6 @@ from app.engine.load_combinations import (
 )
 from app.models.calculation import (
     InputValue,
-    LimitState,
     LoadCombination,
     LoadCombinationFactor,
     RuleEntry,

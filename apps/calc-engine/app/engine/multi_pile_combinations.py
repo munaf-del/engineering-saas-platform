@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 PATTERN_TYPES = (
     "Permanent",
     "Imposed",
@@ -22,7 +21,7 @@ class ActionVector:
     My: float = 0.0
     Mz: float = 0.0
 
-    def add_scaled(self, other: "ActionVector", factor: float) -> None:
+    def add_scaled(self, other: ActionVector, factor: float) -> None:
         self.N += other.N * factor
         self.Vx += other.Vx * factor
         self.Vy += other.Vy * factor
@@ -30,7 +29,7 @@ class ActionVector:
         self.My += other.My * factor
         self.Mz += other.Mz * factor
 
-    def scaled(self, factor: float) -> "ActionVector":
+    def scaled(self, factor: float) -> ActionVector:
         result = ActionVector()
         result.add_scaled(self, factor)
         return result
@@ -143,7 +142,9 @@ def build_built_in_specs(settings: dict) -> list[BuiltInSpec]:
             family="strength",
             terms=[
                 BuiltInSpecTerm(mode="typeSum", pattern_type="Permanent", factor=1.2),
-                BuiltInSpecTerm(mode="typeEach", pattern_type="Wind", factor=1.0, allow_reverse=True),
+                BuiltInSpecTerm(
+                    mode="typeEach", pattern_type="Wind", factor=1.0, allow_reverse=True
+                ),
                 BuiltInSpecTerm(mode="typeSum", pattern_type="Imposed", factor=psi_c),
             ],
         ),
@@ -154,7 +155,9 @@ def build_built_in_specs(settings: dict) -> list[BuiltInSpec]:
             family="strength",
             terms=[
                 BuiltInSpecTerm(mode="typeSum", pattern_type="Permanent", factor=0.9),
-                BuiltInSpecTerm(mode="typeEach", pattern_type="Wind", factor=1.0, allow_reverse=True),
+                BuiltInSpecTerm(
+                    mode="typeEach", pattern_type="Wind", factor=1.0, allow_reverse=True
+                ),
             ],
         ),
         BuiltInSpec(
@@ -164,7 +167,9 @@ def build_built_in_specs(settings: dict) -> list[BuiltInSpec]:
             family="strength",
             terms=[
                 BuiltInSpecTerm(mode="typeSum", pattern_type="Permanent", factor=1.0),
-                BuiltInSpecTerm(mode="typeEach", pattern_type="Earthquake", factor=1.0, allow_reverse=True),
+                BuiltInSpecTerm(
+                    mode="typeEach", pattern_type="Earthquake", factor=1.0, allow_reverse=True
+                ),
                 BuiltInSpecTerm(mode="typeSum", pattern_type="Imposed", factor=psi_e),
             ],
         ),
@@ -242,11 +247,13 @@ def evaluate_built_in_for_joint(
         if library_entry.get("enabled", True) is False:
             continue
 
-        variants = [{
-            "actions": zero_vector(),
-            "parts": [],
-            "tags": [],
-        }]
+        variants = [
+            {
+                "actions": zero_vector(),
+                "parts": [],
+                "tags": [],
+            }
+        ]
 
         skip_spec = False
         for term in spec.terms:
@@ -255,7 +262,9 @@ def evaluate_built_in_for_joint(
                 continue
 
             if term.mode == "typeSum":
-                summed, refs = sum_pattern_type_for_joint(joint, term.pattern_type, patterns_by_type, joint_load_map)
+                summed, refs = sum_pattern_type_for_joint(
+                    joint, term.pattern_type, patterns_by_type, joint_load_map
+                )
                 if refs:
                     label = refs[0] if len(refs) == 1 else "(" + " + ".join(refs) + ")"
                 else:
@@ -266,11 +275,13 @@ def evaluate_built_in_for_joint(
                     next_actions = zero_vector()
                     next_actions.add_scaled(variant["actions"], 1.0)
                     next_actions.add_scaled(summed, factor)
-                    next_variants.append({
-                        "actions": next_actions,
-                        "parts": [*variant["parts"], part],
-                        "tags": list(variant["tags"]),
-                    })
+                    next_variants.append(
+                        {
+                            "actions": next_actions,
+                            "parts": [*variant["parts"], part],
+                            "tags": list(variant["tags"]),
+                        }
+                    )
                 variants = next_variants
                 continue
 
@@ -288,20 +299,30 @@ def evaluate_built_in_for_joint(
                             next_actions = zero_vector()
                             next_actions.add_scaled(variant["actions"], 1.0)
                             next_actions.add_scaled(base, factor * sign)
-                            expanded.append({
-                                "actions": next_actions,
-                                "parts": [*variant["parts"], f"{_format_factor(factor * sign)}{pattern['id']}"],
-                                "tags": [*variant["tags"], f"{pattern['id']}{tag}"],
-                            })
+                            expanded.append(
+                                {
+                                    "actions": next_actions,
+                                    "parts": [
+                                        *variant["parts"],
+                                        f"{_format_factor(factor * sign)}{pattern['id']}",
+                                    ],
+                                    "tags": [*variant["tags"], f"{pattern['id']}{tag}"],
+                                }
+                            )
                     else:
                         next_actions = zero_vector()
                         next_actions.add_scaled(variant["actions"], 1.0)
                         next_actions.add_scaled(base, factor)
-                        expanded.append({
-                            "actions": next_actions,
-                            "parts": [*variant["parts"], f"{_format_factor(factor)}{pattern['id']}"],
-                            "tags": [*variant["tags"], str(pattern["id"])],
-                        })
+                        expanded.append(
+                            {
+                                "actions": next_actions,
+                                "parts": [
+                                    *variant["parts"],
+                                    f"{_format_factor(factor)}{pattern['id']}",
+                                ],
+                                "tags": [*variant["tags"], str(pattern["id"])],
+                            }
+                        )
             variants = expanded
 
         if skip_spec:
@@ -330,7 +351,9 @@ def evaluate_built_in_for_joint(
                     combination_name=name,
                     source="built-in",
                     include_in_envelope=include_in_envelope,
-                    expression_summary=" + ".join(variant["parts"]) if variant["parts"] else spec.reference,
+                    expression_summary=" + ".join(variant["parts"])
+                    if variant["parts"]
+                    else spec.reference,
                     actions=variant["actions"],
                     reference=reference,
                     family=family,
@@ -347,9 +370,7 @@ def evaluate_custom_linear_for_joint(
     combination_library: list[dict],
 ) -> list[CandidateCombination]:
     active_patterns = {
-        str(pattern["id"]): pattern
-        for pattern in load_patterns
-        if pattern.get("enabled", True)
+        str(pattern["id"]): pattern for pattern in load_patterns if pattern.get("enabled", True)
     }
 
     combinations: list[CandidateCombination] = []
@@ -380,7 +401,12 @@ def evaluate_custom_linear_for_joint(
                 combination_name=str(row.get("displayName") or row.get("id") or "Custom"),
                 source="custom",
                 include_in_envelope=row.get("includeInEnvelope", True) is not False,
-                expression_summary=str(row.get("expressionSummary") or " + ".join(parts) or row.get("displayName") or "Custom"),
+                expression_summary=str(
+                    row.get("expressionSummary")
+                    or " + ".join(parts)
+                    or row.get("displayName")
+                    or "Custom"
+                ),
                 actions=actions,
                 reference=str(row.get("reference") or "") or None,
                 family=str(row.get("family") or "custom"),

@@ -49,10 +49,10 @@ from app.engine.pile_design_check import run_design_checks
 from app.models.calculation import (
     ACTIONS,
     CalcError,
-    CalcWarning,
     CalculationRequest,
     CalculationResult,
     CalculationStep,
+    CalcWarning,
     ClauseReference,
     DesignCheckResult,
     InputValue,
@@ -171,9 +171,7 @@ def parse_pile_positions(
     elif pile_count is not None:
         n = int(pile_count)
         if n < 1:
-            errors.append(
-                CalcError(code="INVALID_PILE_COUNT", message="pile_count must be >= 1.")
-            )
+            errors.append(CalcError(code="INVALID_PILE_COUNT", message="pile_count must be >= 1."))
             return positions, errors, warnings
 
         for i in range(1, n + 1):
@@ -221,12 +219,12 @@ def compute_reactions(
     n = len(piles)
     a = combined_actions.actions
 
-    N_total = a.get("N", 0.0)
-    Vx_total = a.get("Vx", 0.0)
-    Vy_total = a.get("Vy", 0.0)
-    Mx_total = a.get("Mx", 0.0)
-    My_total = a.get("My", 0.0)
-    T_total = a.get("T", 0.0)
+    n_total = a.get("N", 0.0)
+    vx_total = a.get("Vx", 0.0)
+    vy_total = a.get("Vy", 0.0)
+    mx_total = a.get("Mx", 0.0)
+    my_total = a.get("My", 0.0)
+    t_total = a.get("T", 0.0)
 
     xs = np.array([p.x for p in piles])
     ys = np.array([p.y for p in piles])
@@ -237,18 +235,18 @@ def compute_reactions(
 
     reactions: list[PileReactions] = []
     for p in piles:
-        axial = N_total / n
+        axial = n_total / n
         if sum_yi2 > 0:
-            axial += Mx_total * p.y / sum_yi2
+            axial += mx_total * p.y / sum_yi2
         if sum_xi2 > 0:
-            axial += My_total * p.x / sum_xi2
+            axial += my_total * p.x / sum_xi2
 
-        vx = Vx_total / n
-        vy = Vy_total / n
+        vx = vx_total / n
+        vy = vy_total / n
 
         if sum_ri2 > 0:
-            vx -= T_total * p.y / sum_ri2
-            vy += T_total * p.x / sum_ri2
+            vx -= t_total * p.y / sum_ri2
+            vy += t_total * p.x / sum_ri2
 
         reactions.append(PileReactions(pile_index=p.index, N=axial, Vx=vx, Vy=vy))
 
@@ -268,7 +266,7 @@ def compute_envelopes(
                     continue
                 shear = math.sqrt(pr.Vx**2 + pr.Vy**2)
 
-                if pr.N > env.max_compression:
+                if env.max_compression < pr.N:
                     env.max_compression = pr.N
                     env.governing_compression_combo = cr.combination_name
                 if pr.N < 0 and abs(pr.N) > env.max_tension:
@@ -345,7 +343,7 @@ def run(request: CalculationRequest) -> CalculationResult:
                 ),
                 formula="Ni=N/n+Mx·yi/Σyi²+My·xi/Σxi²; Vxi=Vx/n−T·yi/Σri²; Vyi=Vy/n+T·xi/Σri²",
                 inputs={
-                    "combined_actions": {d: ca.actions.get(d, 0.0) for d in ACTIONS},  # type: ignore[dict-item]
+                    "combined_actions": {d: float(ca.actions.get(d, 0.0)) for d in ACTIONS},
                 },
                 result=step_result,
                 clauseRef=ca.clause_ref,

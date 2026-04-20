@@ -26,7 +26,6 @@ Output:
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 from app.models.calculation import (
@@ -82,7 +81,6 @@ def run_design_checks(
     )
 
     structural_axial_capacity = _get(inputs, "structural_axial_capacity")
-    structural_moment_capacity = _get(inputs, "structural_moment_capacity")
     pile_material = _get(inputs, "pile_material_type")
 
     if not has_any_capacity and structural_axial_capacity is None:
@@ -100,9 +98,7 @@ def run_design_checks(
     for env in envelopes:
         # ── Geotechnical compression ──────────────────────────
         if compression_capacity is not None:
-            dc, w, cr = _geotech_compression(
-                env, compression_capacity, rule_pack
-            )
+            dc, w, cr = _geotech_compression(env, compression_capacity, rule_pack)
             if dc:
                 results.append(dc)
             warnings.extend(w)
@@ -125,7 +121,11 @@ def run_design_checks(
             clause_refs.extend(cr)
 
         # ── Structural: RC pile ───────────────────────────────
-        if pile_material is not None and pile_material == 1.0 and structural_axial_capacity is not None:
+        if (
+            pile_material is not None
+            and pile_material == 1.0
+            and structural_axial_capacity is not None
+        ):
             dc, w, cr = _structural_rc(env, structural_axial_capacity, rule_pack)
             if dc:
                 results.append(dc)
@@ -133,7 +133,11 @@ def run_design_checks(
             clause_refs.extend(cr)
 
         # ── Structural: Steel pile ────────────────────────────
-        if pile_material is not None and pile_material == 2.0 and structural_axial_capacity is not None:
+        if (
+            pile_material is not None
+            and pile_material == 2.0
+            and structural_axial_capacity is not None
+        ):
             dc, w, cr = _structural_steel(env, structural_axial_capacity, rule_pack)
             if dc:
                 results.append(dc)
@@ -180,7 +184,9 @@ def _geotech_compression(
         warnings.append(
             CalcWarning(
                 code="ZERO_CAPACITY",
-                message=f"Design compression capacity is zero or negative for pile {env.pile_index}.",
+                message=(
+                    f"Design compression capacity is zero or negative for pile {env.pile_index}."
+                ),
             )
         )
         return None, warnings, clause_refs
@@ -370,7 +376,9 @@ def _structural_rc(
         warnings.append(
             CalcWarning(
                 code="ZERO_CAPACITY",
-                message=f"Structural RC design capacity is zero or negative for pile {env.pile_index}.",
+                message=(
+                    f"Structural RC design capacity is zero or negative for pile {env.pile_index}."
+                ),
             )
         )
         return None, warnings, clause_refs

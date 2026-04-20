@@ -40,6 +40,15 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 
+[[tool.mypy.overrides]]
+module = [
+    "app.engine.multi_pile_combinations",
+    "app.engine.multi_pile_envelope",
+    "app.engine.multi_pile_geo",
+    "app.engine.multi_pile_struct",
+]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import time
 
-
 ARR_ITEMS = (
     {"weighting": 2.0},
     {"weighting": 2.0},
@@ -26,7 +25,9 @@ def _string(value, fallback: str = "") -> str:
     return candidate or fallback
 
 
-def _float(value, fallback: float = 0.0, minimum: float | None = None, maximum: float | None = None) -> float:
+def _float(
+    value, fallback: float = 0.0, minimum: float | None = None, maximum: float | None = None
+) -> float:
     try:
         candidate = float(value)
     except (TypeError, ValueError):
@@ -40,7 +41,9 @@ def _float(value, fallback: float = 0.0, minimum: float | None = None, maximum: 
     return candidate
 
 
-def _nullable_float(value, minimum: float | None = None, maximum: float | None = None) -> float | None:
+def _nullable_float(
+    value, minimum: float | None = None, maximum: float | None = None
+) -> float | None:
     if value in (None, ""):
         return None
     try:
@@ -83,7 +86,9 @@ def _project_geo_reference_label(reference_id: str, project_specifics: dict) -> 
         parts = [
             _string(reference.get("referenceId")),
             _string(reference.get("title")),
-            f"Rev {_string(reference.get('revision'))}" if _string(reference.get("revision")) else "",
+            f"Rev {_string(reference.get('revision'))}"
+            if _string(reference.get("revision"))
+            else "",
         ]
         label = " — ".join(part for part in parts if part)
         return label or reference_id
@@ -209,8 +214,12 @@ def normalize_geo_arr_settings(raw: dict | None) -> dict:
     band = _band_from_arr(arr_value)
     phi_gb = _phi_from_arr(arr_value)
     testing = _testing_benefit(test_type, settings.get("testPilePercentage"))
-    phi_g_low = round(_phi_with_testing(phi_gb["low"], testing["phiTf"], testing["testBenefitK"]), 3)
-    phi_g_high = round(_phi_with_testing(phi_gb["high"], testing["phiTf"], testing["testBenefitK"]), 3)
+    phi_g_low = round(
+        _phi_with_testing(phi_gb["low"], testing["phiTf"], testing["testBenefitK"]), 3
+    )
+    phi_g_high = round(
+        _phi_with_testing(phi_gb["high"], testing["phiTf"], testing["testBenefitK"]), 3
+    )
     return {
         "irrValues": irr_values,
         "testType": test_type,
@@ -230,8 +239,12 @@ def normalize_geo_arr_settings(raw: dict | None) -> dict:
 
 def adopted_phi_for_redundancy(arr_settings: dict, redundancy: str) -> float:
     if _string(redundancy).upper() == "HIGH":
-        return _float(arr_settings.get("phiGHigh"), _float(arr_settings.get("phiGbHigh"), 0.47), minimum=0.0)
-    return _float(arr_settings.get("phiGLow"), _float(arr_settings.get("phiGbLow"), 0.40), minimum=0.0)
+        return _float(
+            arr_settings.get("phiGHigh"), _float(arr_settings.get("phiGbHigh"), 0.47), minimum=0.0
+        )
+    return _float(
+        arr_settings.get("phiGLow"), _float(arr_settings.get("phiGbLow"), 0.40), minimum=0.0
+    )
 
 
 def _project_arr_settings(project_specifics: dict | None, state: dict) -> dict:
@@ -260,7 +273,9 @@ def _geo_socket_mode_label(mode: str) -> str:
     return "Pending"
 
 
-def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, project_specifics: dict) -> dict:
+def _resolve_type_geo_inputs(
+    type_id: str, pile_type: dict, geo_settings: dict, project_specifics: dict
+) -> dict:
     materials = [
         _record(material)
         for material in project_specifics.get("geotechnicalMaterials", {}).get("materials", [])
@@ -273,13 +288,21 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
     ]
     geotechnical_materials = _record(project_specifics.get("geotechnicalMaterials"))
     active_reference_id = _string(geotechnical_materials.get("activeReferenceId"))
-    active_reference_label = _project_geo_reference_label(active_reference_id, {"references": references})
-    materials_by_id = {_string(material.get("id")): material for material in materials if _string(material.get("id"))}
+    active_reference_label = _project_geo_reference_label(
+        active_reference_id, {"references": references}
+    )
+    materials_by_id = {
+        _string(material.get("id")): material
+        for material in materials
+        if _string(material.get("id"))
+    }
     has_project_geo_library = len(materials) > 0
     basis = _basis_defaults(project_specifics)
 
     def resolve_source_label(material: dict | None) -> str:
-        reference_id = _string(material.get("sourceReferenceId")) if material else active_reference_id
+        reference_id = (
+            _string(material.get("sourceReferenceId")) if material else active_reference_id
+        )
         return _project_geo_source_summary(
             material,
             _project_geo_reference_label(reference_id, {"references": references}),
@@ -292,8 +315,12 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
         material_id = _string(geo_settings.get(f"s{slot}MaterialId"))
         material = materials_by_id.get(material_id)
         use_legacy_fallback = (not has_project_geo_library) and material is None and legacy_qs > 0
-        fms_comp = _nullable_float(material.get("pile_fms_comp_kPa"), minimum=0.0) if material else None
-        fms_comp_value = fms_comp if fms_comp is not None else (legacy_qs if use_legacy_fallback else 0.0)
+        fms_comp = (
+            _nullable_float(material.get("pile_fms_comp_kPa"), minimum=0.0) if material else None
+        )
+        fms_comp_value = (
+            fms_comp if fms_comp is not None else (legacy_qs if use_legacy_fallback else 0.0)
+        )
         fms_ten_value = (
             _material_tension_value(material, basis)
             if material
@@ -315,10 +342,16 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
                     else (
                         f"Migration fallback f_m,s={legacy_qs:.0f} kPa"
                         if use_legacy_fallback
-                        else ("No project geo material selected" if missing_selection else "No project geo material resolved")
+                        else (
+                            "No project geo material selected"
+                            if missing_selection
+                            else "No project geo material resolved"
+                        )
                     )
                 ),
-                "sourceReferenceId": _string(material.get("sourceReferenceId")) if material else active_reference_id,
+                "sourceReferenceId": _string(material.get("sourceReferenceId"))
+                if material
+                else active_reference_id,
                 "sourceReferenceLabel": (
                     resolve_source_label(material)
                     if material
@@ -330,7 +363,9 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
                 ),
                 "fmsComp": max(0.0, fms_comp_value),
                 "fmsTen": max(0.0, fms_ten_value),
-                "fmsAllow": _nullable_float(material.get("pile_fms_allow_kPa"), minimum=0.0) if material else None,
+                "fmsAllow": _nullable_float(material.get("pile_fms_allow_kPa"), minimum=0.0)
+                if material
+                else None,
                 "usedLegacyFallback": use_legacy_fallback,
                 "missingSelection": missing_selection,
                 "missingCapacity": missing_capacity,
@@ -347,7 +382,10 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
     founding_use_legacy_fallback = (
         (not has_project_geo_library)
         and founding_material is None
-        and (_float(geo_settings.get("qsRock"), 0.0, minimum=0.0) > 0 or _float(geo_settings.get("qbRock"), 0.0, minimum=0.0) > 0)
+        and (
+            _float(geo_settings.get("qsRock"), 0.0, minimum=0.0) > 0
+            or _float(geo_settings.get("qbRock"), 0.0, minimum=0.0) > 0
+        )
     )
     founding_fms_comp = (
         _nullable_float(founding_material.get("pile_fms_comp_kPa"), minimum=0.0)
@@ -357,17 +395,29 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
     founding_fms_comp_value = (
         founding_fms_comp
         if founding_fms_comp is not None
-        else (_float(geo_settings.get("qsRock"), 0.0, minimum=0.0) if founding_use_legacy_fallback else 0.0)
+        else (
+            _float(geo_settings.get("qsRock"), 0.0, minimum=0.0)
+            if founding_use_legacy_fallback
+            else 0.0
+        )
     )
     founding_fms_ten_value = (
         _material_tension_value(founding_material, basis)
         if founding_material
-        else (_float(geo_settings.get("qsRock"), 0.0, minimum=0.0) if founding_use_legacy_fallback else 0.0)
+        else (
+            _float(geo_settings.get("qsRock"), 0.0, minimum=0.0)
+            if founding_use_legacy_fallback
+            else 0.0
+        )
     )
     founding_fb_ult_value = (
         _nullable_float(founding_material.get("pile_fb_ult_kPa"), minimum=0.0)
         if founding_material
-        else (_float(geo_settings.get("qbRock"), 0.0, minimum=0.0) if founding_use_legacy_fallback else 0.0)
+        else (
+            _float(geo_settings.get("qbRock"), 0.0, minimum=0.0)
+            if founding_use_legacy_fallback
+            else 0.0
+        )
     )
     founding_missing_selection = not founding_material_id
     founding_missing_capacity = founding_material is None and not founding_use_legacy_fallback
@@ -381,15 +431,19 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
         )
     for layer in missing_layer_capacities:
         input_warnings.append(
-            f"Layer {layer['slot']} has no project geo material resolved and no migration fallback value is available."
+            f"Layer {layer['slot']} has no project geo material resolved "
+            "and no migration fallback value is available."
         )
     if founding_missing_capacity:
         input_warnings.append(
-            "Founding / socket material is not selected and no migration fallback founding capacity is available."
+            "Founding / socket material is not selected and no migration "
+            "fallback founding capacity is available."
         )
     elif founding_missing_selection and founding_use_legacy_fallback:
         input_warnings.append(
-            "Founding resistance is still using a migration fallback value because this imported project has not yet been mapped to a project founding material row."
+            "Founding resistance is still using a migration fallback value "
+            "because this imported project has not yet been mapped to a "
+            "project founding material row."
         )
 
     return {
@@ -422,7 +476,9 @@ def _resolve_type_geo_inputs(type_id: str, pile_type: dict, geo_settings: dict, 
         "foundingFmsComp": max(0.0, founding_fms_comp_value),
         "foundingFmsTen": max(0.0, founding_fms_ten_value),
         "foundingFbUlt": max(0.0, founding_fb_ult_value or 0.0),
-        "foundingFmsAllow": _nullable_float(founding_material.get("pile_fms_allow_kPa"), minimum=0.0)
+        "foundingFmsAllow": _nullable_float(
+            founding_material.get("pile_fms_allow_kPa"), minimum=0.0
+        )
         if founding_material
         else None,
         "foundingFbAllow": _nullable_float(founding_material.get("pile_fb_allow_kPa"), minimum=0.0)
@@ -523,7 +579,9 @@ def compute_geo_results(
         geo_settings = _record(geo_type_settings.get(type_id))
         resolved_geo = _resolve_type_geo_inputs(type_id, pile_type, geo_settings, project)
         input_warnings = list(resolved_geo.get("inputWarnings", []))
-        phi = adopted_phi_for_redundancy(geo_arr_settings, _string(geo_settings.get("redundancy"), "LOW"))
+        phi = adopted_phi_for_redundancy(
+            geo_arr_settings, _string(geo_settings.get("redundancy"), "LOW")
+        )
         diameter = _float(pile_type.get("nominalDiameterMm"), 750.0, minimum=0.0) / 1000.0
         eta_c = _float(geo_settings.get("shaftRedComp"), 1.0, minimum=0.0)
         eta_t = _float(geo_settings.get("shaftRedTen"), 0.5, minimum=0.0)
@@ -560,7 +618,9 @@ def compute_geo_results(
         n_max = _float(_record(envelope_row.get("nMax")).get("value"), 0.0)
         n_min = _float(_record(envelope_row.get("nMin")).get("value"), 0.0)
         uplift_abs = max(0.0, -n_min)
-        nnf = _float(geo_settings.get("Nnf"), 0.0, minimum=0.0) if geo_settings.get("useNnf") else 0.0
+        nnf = (
+            _float(geo_settings.get("Nnf"), 0.0, minimum=0.0) if geo_settings.get("useNnf") else 0.0
+        )
         n_comp_eff = max(0.0, n_max) + nnf
         n_ten = max(0.0, uplift_abs)
         qs_rock_comp = _float(resolved_geo.get("foundingFmsComp"), 0.0, minimum=0.0)
@@ -575,11 +635,19 @@ def compute_geo_results(
 
         pending_reason = ""
         if resolved_geo.get("missingLayerMappings") or resolved_geo.get("missingLayerCapacities"):
-            pending_reason = "Resolve all layer material selections and capacities before running GEO."
+            pending_reason = (
+                "Resolve all layer material selections and capacities before running GEO."
+            )
         elif resolved_geo.get("foundingMissingCapacity"):
             pending_reason = "Resolve the founding / socket material before running GEO."
-        elif qs_rock_comp <= 0 and qs_rock_ten <= 0 and not (manual_override_enabled and manual_length > 0):
-            pending_reason = "Resolved founding shaft resistance must be > 0 to auto-solve socket length."
+        elif (
+            qs_rock_comp <= 0
+            and qs_rock_ten <= 0
+            and not (manual_override_enabled and manual_length > 0)
+        ):
+            pending_reason = (
+                "Resolved founding shaft resistance must be > 0 to auto-solve socket length."
+            )
 
         if pending_reason:
             ls_solved = 0.0
@@ -615,7 +683,9 @@ def compute_geo_results(
 
         if ls_mode == "manual":
             socket_adoption_note = (
-                f"Manual override active. Auto-solved Ls = {ls_solved:.2f} m; adopted Ls = {ls_adopted:.2f} m."
+                "Manual override active. "
+                f"Auto-solved Ls = {ls_solved:.2f} m; "
+                f"adopted Ls = {ls_adopted:.2f} m."
             )
         elif ls_mode == "auto":
             ls_note = (
@@ -624,15 +694,24 @@ def compute_geo_results(
                 else ""
             )
             socket_adoption_note = (
-                f"Auto adoption active. Auto-solved Ls = {ls_solved:.2f} m; adopted Ls = {ls_adopted:.2f} m.{ls_note}"
+                "Auto adoption active. "
+                f"Auto-solved Ls = {ls_solved:.2f} m; "
+                f"adopted Ls = {ls_adopted:.2f} m.{ls_note}"
             )
         else:
-            socket_adoption_note = "Socket adoption is pending. No solved or manual adopted socket length is currently stored for this type."
+            socket_adoption_note = (
+                "Socket adoption is pending. No solved or manual adopted "
+                "socket length is currently stored for this type."
+            )
 
         founding_resolution_mode = (
             "project-library"
             if resolved_geo.get("foundingMaterial")
-            else ("migration-fallback" if resolved_geo.get("foundingUsesLegacyFallback") else "missing")
+            else (
+                "migration-fallback"
+                if resolved_geo.get("foundingUsesLegacyFallback")
+                else "missing"
+            )
         )
         socket_breakdown = _geo_socket_breakdown_rows(
             [
@@ -655,7 +734,9 @@ def compute_geo_results(
         if pending_reason:
             row = {
                 "jointId": joint_id,
-                "jointDisplayName": _string(envelope_row.get("jointDisplayName") or joint.get("displayName")),
+                "jointDisplayName": _string(
+                    envelope_row.get("jointDisplayName") or joint.get("displayName")
+                ),
                 "pileId": _string(representative_pile.get("id"), f"{joint_id}-P1"),
                 "typeId": type_id,
                 "activePatternIds": [
@@ -663,7 +744,9 @@ def compute_geo_results(
                     for pattern_id in envelope_row.get("activePatternIds", [])
                     if _string(pattern_id)
                 ],
-                "redundancy": "HIGH" if _string(geo_settings.get("redundancy")).upper() == "HIGH" else "LOW",
+                "redundancy": "HIGH"
+                if _string(geo_settings.get("redundancy")).upper() == "HIGH"
+                else "LOW",
                 "status": "pending",
                 "pendingReason": pending_reason,
                 "Nmax": round(n_max, 4),
@@ -694,7 +777,9 @@ def compute_geo_results(
                 "foundingMaterialId": _string(resolved_geo.get("foundingMaterialId")),
                 "foundingMaterialLabel": _string(resolved_geo.get("foundingLabel")),
                 "foundingLabel": _string(resolved_geo.get("foundingLabel")),
-                "foundingSourceReferenceLabel": _string(resolved_geo.get("foundingSourceReferenceLabel"), "—"),
+                "foundingSourceReferenceLabel": _string(
+                    resolved_geo.get("foundingSourceReferenceLabel"), "—"
+                ),
                 "foundingResolutionMode": founding_resolution_mode,
                 "foundingUsesLegacyFallback": bool(resolved_geo.get("foundingUsesLegacyFallback")),
                 "foundingMissingSelection": bool(resolved_geo.get("foundingMissingSelection")),
@@ -702,12 +787,18 @@ def compute_geo_results(
                 "foundingFmsComp": round(qs_rock_comp, 4),
                 "foundingFmsTen": round(qs_rock_ten, 4),
                 "foundingFbUlt": round(qb_rock, 4),
-                "foundingFmsAllow": _nullable_float(resolved_geo.get("foundingFmsAllow"), minimum=0.0),
-                "foundingFbAllow": _nullable_float(resolved_geo.get("foundingFbAllow"), minimum=0.0),
+                "foundingFmsAllow": _nullable_float(
+                    resolved_geo.get("foundingFmsAllow"), minimum=0.0
+                ),
+                "foundingFbAllow": _nullable_float(
+                    resolved_geo.get("foundingFbAllow"), minimum=0.0
+                ),
                 "resolvedFmSComp": round(qs_rock_comp, 4),
                 "resolvedFmSTen": round(qs_rock_ten, 4),
                 "resolvedFbUlt": round(qb_rock, 4),
-                "resolvedFbAllow": _nullable_float(resolved_geo.get("foundingFbAllow"), minimum=0.0),
+                "resolvedFbAllow": _nullable_float(
+                    resolved_geo.get("foundingFbAllow"), minimum=0.0
+                ),
                 "inputWarnings": input_warnings,
                 "socketAdoptionNote": socket_adoption_note,
                 "layerRows": layer_rows,
@@ -723,13 +814,23 @@ def compute_geo_results(
             rug_ten = shaft_ult_ten
             phi_r_comp = phi * rug_comp
             phi_r_ten = phi * rug_ten
-            util_comp = (100.0 * n_comp_eff / phi_r_comp) if n_comp_eff > 0 and phi_r_comp > 0 else (0.0 if n_comp_eff <= 0 else float("inf"))
-            util_ten = (100.0 * n_ten / phi_r_ten) if n_ten > 0 and phi_r_ten > 0 else (0.0 if n_ten <= 0 else float("inf"))
+            util_comp = (
+                (100.0 * n_comp_eff / phi_r_comp)
+                if n_comp_eff > 0 and phi_r_comp > 0
+                else (0.0 if n_comp_eff <= 0 else float("inf"))
+            )
+            util_ten = (
+                (100.0 * n_ten / phi_r_ten)
+                if n_ten > 0 and phi_r_ten > 0
+                else (0.0 if n_ten <= 0 else float("inf"))
+            )
             ok_comp = phi_r_comp >= n_comp_eff
             ok_ten = phi_r_ten >= n_ten
             row = {
                 "jointId": joint_id,
-                "jointDisplayName": _string(envelope_row.get("jointDisplayName") or joint.get("displayName")),
+                "jointDisplayName": _string(
+                    envelope_row.get("jointDisplayName") or joint.get("displayName")
+                ),
                 "pileId": _string(representative_pile.get("id"), f"{joint_id}-P1"),
                 "typeId": type_id,
                 "activePatternIds": [
@@ -737,7 +838,9 @@ def compute_geo_results(
                     for pattern_id in envelope_row.get("activePatternIds", [])
                     if _string(pattern_id)
                 ],
-                "redundancy": "HIGH" if _string(geo_settings.get("redundancy")).upper() == "HIGH" else "LOW",
+                "redundancy": "HIGH"
+                if _string(geo_settings.get("redundancy")).upper() == "HIGH"
+                else "LOW",
                 "status": "resolved",
                 "pendingReason": "",
                 "Nmax": round(n_max, 4),
@@ -768,7 +871,9 @@ def compute_geo_results(
                 "foundingMaterialId": _string(resolved_geo.get("foundingMaterialId")),
                 "foundingMaterialLabel": _string(resolved_geo.get("foundingLabel")),
                 "foundingLabel": _string(resolved_geo.get("foundingLabel")),
-                "foundingSourceReferenceLabel": _string(resolved_geo.get("foundingSourceReferenceLabel"), "—"),
+                "foundingSourceReferenceLabel": _string(
+                    resolved_geo.get("foundingSourceReferenceLabel"), "—"
+                ),
                 "foundingResolutionMode": founding_resolution_mode,
                 "foundingUsesLegacyFallback": bool(resolved_geo.get("foundingUsesLegacyFallback")),
                 "foundingMissingSelection": bool(resolved_geo.get("foundingMissingSelection")),
@@ -776,12 +881,18 @@ def compute_geo_results(
                 "foundingFmsComp": round(qs_rock_comp, 4),
                 "foundingFmsTen": round(qs_rock_ten, 4),
                 "foundingFbUlt": round(qb_rock, 4),
-                "foundingFmsAllow": _nullable_float(resolved_geo.get("foundingFmsAllow"), minimum=0.0),
-                "foundingFbAllow": _nullable_float(resolved_geo.get("foundingFbAllow"), minimum=0.0),
+                "foundingFmsAllow": _nullable_float(
+                    resolved_geo.get("foundingFmsAllow"), minimum=0.0
+                ),
+                "foundingFbAllow": _nullable_float(
+                    resolved_geo.get("foundingFbAllow"), minimum=0.0
+                ),
                 "resolvedFmSComp": round(qs_rock_comp, 4),
                 "resolvedFmSTen": round(qs_rock_ten, 4),
                 "resolvedFbUlt": round(qb_rock, 4),
-                "resolvedFbAllow": _nullable_float(resolved_geo.get("foundingFbAllow"), minimum=0.0),
+                "resolvedFbAllow": _nullable_float(
+                    resolved_geo.get("foundingFbAllow"), minimum=0.0
+                ),
                 "inputWarnings": input_warnings,
                 "socketAdoptionNote": socket_adoption_note,
                 "layerRows": layer_rows,

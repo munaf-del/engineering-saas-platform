@@ -88,7 +88,7 @@ class TestGolden2x2PureAxial:
         expected = fix["expected_pile_reactions"]
         for r in reactions:
             exp = expected[str(r.pile_index)]
-            assert r.N == pytest.approx(exp["N"], abs=0.1)
+            assert pytest.approx(exp["N"], abs=0.1) == r.N
             assert r.Vx == pytest.approx(exp["Vx"], abs=0.1)
             assert r.Vy == pytest.approx(exp["Vy"], abs=0.1)
 
@@ -117,7 +117,7 @@ class TestGolden2x2AxialPlusMoment:
         expected = fix["expected_pile_reactions"]
         for r in reactions:
             exp = expected[str(r.pile_index)]
-            assert r.N == pytest.approx(exp["N"], abs=0.1)
+            assert pytest.approx(exp["N"], abs=0.1) == r.N
 
 
 class TestGolden2x2Biaxial:
@@ -144,7 +144,7 @@ class TestGolden2x2Biaxial:
         expected = fix["expected_pile_reactions"]
         for r in reactions:
             exp = expected[str(r.pile_index)]
-            assert r.N == pytest.approx(exp["N"], abs=0.5)
+            assert pytest.approx(exp["N"], abs=0.5) == r.N
 
 
 class TestGoldenTriangularTorsion:
@@ -170,7 +170,7 @@ class TestGoldenTriangularTorsion:
         reactions = compute_reactions(piles, ca)
 
         for r in reactions:
-            assert r.N == pytest.approx(0.0, abs=0.01)
+            assert pytest.approx(0.0, abs=0.01) == r.N
 
     def test_shear_magnitudes_equal(self):
         data = _load_golden()

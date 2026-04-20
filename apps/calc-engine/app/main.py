@@ -1,6 +1,7 @@
 from fastapi import FastAPI
-from app.routers import health, calculations
+
 from app.config import settings
+from app.routers import calculations, health
 
 app = FastAPI(
     title="EngPlatform Calc Engine",

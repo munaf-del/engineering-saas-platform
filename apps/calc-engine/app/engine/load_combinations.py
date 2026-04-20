@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from app.models.calculation import (
     ACTIONS,
     CalcError,
-    CalcWarning,
     CalculationStep,
+    CalcWarning,
     InputValue,
     LoadCombination,
     RulePack,
@@ -132,7 +132,9 @@ def generate_combined_actions(
             warnings.append(
                 CalcWarning(
                     code="EMPTY_COMBINATION",
-                    message=f"Load combination '{combo.name}' has no factors; all actions will be zero.",
+                    message=(
+                        f"Load combination '{combo.name}' has no factors; all actions will be zero."
+                    ),
                 )
             )
 
@@ -174,6 +176,4 @@ def generate_combined_actions(
             )
         )
 
-    return LoadCombinationResult(
-        combined=combined, steps=steps, warnings=warnings, errors=errors
-    )
+    return LoadCombinationResult(combined=combined, steps=steps, warnings=warnings, errors=errors)
