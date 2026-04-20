@@ -78,45 +78,53 @@ export const ProjectLoadCombinationSchema = z.object({
 
 export const ProjectLoadCombinationSettingsSchema = MultiPileCombinationSettingsSchema;
 
-export const ProjectLoadDefinitionSchema = z.object({
-  version: z.literal(1),
-  standardSet: z.enum(PROJECT_LOAD_STANDARD_SETS),
-  combinationSettings: ProjectLoadCombinationSettingsSchema,
-  loadCases: z.array(ProjectLoadCaseSchema).optional(),
-  loadCombinations: z.array(ProjectLoadCombinationSchema).optional(),
-  patterns: z.array(LegacyProjectLoadPatternSchema).optional(),
-  combinations: z.array(LegacyProjectLoadCombinationSchema).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-}).transform((value) => ({
-  version: value.version,
-  standardSet: value.standardSet,
-  combinationSettings: value.combinationSettings,
-  loadCases: value.loadCases ?? value.patterns?.map((pattern) => ({
-    id: pattern.id,
-    name: pattern.displayName,
-    type: pattern.patternType,
-    reversible: pattern.reversible,
-    enabled: pattern.enabled,
-    order: pattern.order,
-  })) ?? [],
-  loadCombinations: value.loadCombinations ?? value.combinations?.map((combination) => ({
-    id: combination.id,
-    builtinKey: combination.builtinKey,
-    name: combination.displayName,
-    source: combination.source,
-    kind: combination.kind,
-    enabled: combination.enabled,
-    includeInEnvelope: combination.includeInEnvelope,
-    reference: combination.reference,
-    family: combination.family,
-    reversibleAware: combination.reversibleAware,
-    factors: combination.terms?.map((term) => ({
-      loadCaseId: term.patternId,
-      factor: term.factor,
-    })),
-    childCombinationIds: combination.childCombinationIds,
-    expressionSummary: combination.expressionSummary,
-    order: combination.order,
-  })) ?? [],
-  metadata: value.metadata,
-}));
+export const ProjectLoadDefinitionSchema = z
+  .object({
+    version: z.literal(1),
+    standardSet: z.enum(PROJECT_LOAD_STANDARD_SETS),
+    combinationSettings: ProjectLoadCombinationSettingsSchema,
+    loadCases: z.array(ProjectLoadCaseSchema).optional(),
+    loadCombinations: z.array(ProjectLoadCombinationSchema).optional(),
+    patterns: z.array(LegacyProjectLoadPatternSchema).optional(),
+    combinations: z.array(LegacyProjectLoadCombinationSchema).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .transform((value) => ({
+    version: value.version,
+    standardSet: value.standardSet,
+    combinationSettings: value.combinationSettings,
+    loadCases:
+      value.loadCases ??
+      value.patterns?.map((pattern) => ({
+        id: pattern.id,
+        name: pattern.displayName,
+        type: pattern.patternType,
+        reversible: pattern.reversible,
+        enabled: pattern.enabled,
+        order: pattern.order,
+      })) ??
+      [],
+    loadCombinations:
+      value.loadCombinations ??
+      value.combinations?.map((combination) => ({
+        id: combination.id,
+        builtinKey: combination.builtinKey,
+        name: combination.displayName,
+        source: combination.source,
+        kind: combination.kind,
+        enabled: combination.enabled,
+        includeInEnvelope: combination.includeInEnvelope,
+        reference: combination.reference,
+        family: combination.family,
+        reversibleAware: combination.reversibleAware,
+        factors: combination.terms?.map((term) => ({
+          loadCaseId: term.patternId,
+          factor: term.factor,
+        })),
+        childCombinationIds: combination.childCombinationIds,
+        expressionSummary: combination.expressionSummary,
+        order: combination.order,
+      })) ??
+      [],
+    metadata: value.metadata,
+  }));

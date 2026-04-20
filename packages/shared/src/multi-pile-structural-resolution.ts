@@ -47,9 +47,8 @@ export function resolveMultiPileStructProjectAssignmentIds(
 ): MultiPileStructProjectAssignmentIds {
   const source = objectValue(rawSettings);
   const structuralDefaults = objectValue(projectSpecifics?.structuralDefaults);
-  const concreteRows = (Array.isArray(structuralDefaults.concreteClasses)
-    ? structuralDefaults.concreteClasses
-    : []
+  const concreteRows = (
+    Array.isArray(structuralDefaults.concreteClasses) ? structuralDefaults.concreteClasses : []
   ).map((row) => {
     const resolved = resolveProjectConcreteClass(row).row;
     return {
@@ -58,9 +57,10 @@ export function resolveMultiPileStructProjectAssignmentIds(
         stringValue(resolved.standardProfileId) || projectConcretePresetMatchId(resolved) || '',
     };
   });
-  const reinforcementRows = (Array.isArray(structuralDefaults.reinforcementGrades)
-    ? structuralDefaults.reinforcementGrades
-    : []
+  const reinforcementRows = (
+    Array.isArray(structuralDefaults.reinforcementGrades)
+      ? structuralDefaults.reinforcementGrades
+      : []
   ).map((row) => {
     const resolved = normalizeProjectReinforcementGrade(row);
     return {
@@ -68,9 +68,8 @@ export function resolveMultiPileStructProjectAssignmentIds(
       canonicalId: projectReinforcementGradeMatchId(resolved) || '',
     };
   });
-  const tendonRows = (Array.isArray(structuralDefaults.tendonGrades)
-    ? structuralDefaults.tendonGrades
-    : []
+  const tendonRows = (
+    Array.isArray(structuralDefaults.tendonGrades) ? structuralDefaults.tendonGrades : []
   ).map((row) => {
     const resolved = resolveProjectTendonGrade(row).row;
     return {
@@ -79,9 +78,10 @@ export function resolveMultiPileStructProjectAssignmentIds(
         stringValue(resolved.standardProfileId) || projectTendonPresetMatchId(resolved) || '',
     };
   });
-  const coverRows = (Array.isArray(structuralDefaults.coverDurabilityClasses)
-    ? structuralDefaults.coverDurabilityClasses
-    : []
+  const coverRows = (
+    Array.isArray(structuralDefaults.coverDurabilityClasses)
+      ? structuralDefaults.coverDurabilityClasses
+      : []
   ).map((row) => {
     const resolved = normalizeProjectCoverClass(row);
     return {
@@ -180,7 +180,11 @@ function matchConcreteClassId(
   }
 
   for (const hint of displayHints) {
-    const displayMatch = uniqueMatch(rows, hint, (row, value) => normalizedText(row.displayName) === normalizedText(value));
+    const displayMatch = uniqueMatch(
+      rows,
+      hint,
+      (row, value) => normalizedText(row.displayName) === normalizedText(value),
+    );
     if (displayMatch) {
       return displayMatch.id;
     }
@@ -276,8 +280,7 @@ function matchReinforcementGradeId(
     const canonicalMatch = uniqueMatch(
       rows,
       canonicalHint,
-      (row, value, candidate) =>
-        row.id === value || candidate.canonicalId === value,
+      (row, value, candidate) => row.id === value || candidate.canonicalId === value,
     );
     if (canonicalMatch) {
       return canonicalMatch.id;
@@ -305,7 +308,11 @@ function matchTendonGradeId(
     return selectedIdMatch.id;
   }
 
-  const exactHints = uniqueStrings([source.tendonGradeId, source.displayName, source.standardProfileId]);
+  const exactHints = uniqueStrings([
+    source.tendonGradeId,
+    source.displayName,
+    source.standardProfileId,
+  ]);
   const canonicalHint =
     projectTendonPresetMatchId({
       id: source.tendonGradeId,
@@ -362,15 +369,13 @@ function matchCoverClassId(
   }
 
   const selectedIdMatch =
-    exactRowIdMatch(rows, source.coverDurabilityClassId) ?? exactRowIdMatch(rows, source.coverClassId);
+    exactRowIdMatch(rows, source.coverDurabilityClassId) ??
+    exactRowIdMatch(rows, source.coverClassId);
   if (selectedIdMatch) {
     return selectedIdMatch.id;
   }
 
-  const explicitIdHints = uniqueStrings([
-    source.coverDurabilityClassId,
-    source.coverClassId,
-  ]);
+  const explicitIdHints = uniqueStrings([source.coverDurabilityClassId, source.coverClassId]);
   const legacyIdHints = uniqueStrings([
     source.standardProfileId,
     source.profileId,
@@ -394,10 +399,7 @@ function matchCoverClassId(
         source.designClassId ??
         source.projectStructuralMaterialId,
       displayName:
-        source.displayName ??
-        source.coverClassLabel ??
-        source.defaultCoverClass ??
-        source.label,
+        source.displayName ?? source.coverClassLabel ?? source.defaultCoverClass ?? source.label,
       designLifeYears: source.designLifeYears,
       exposureClass: source.exposureClass ?? source.exposureClassification,
       minCoverCastInPlace_mm: source.minCoverCastInPlace_mm ?? source.nominalCover_mm ?? cover,
@@ -417,9 +419,7 @@ function matchCoverClassId(
       rows,
       hint,
       (row, value, candidate) =>
-        row.id === value ||
-        row.id === `cover_${value}` ||
-        candidate.canonicalId === value,
+        row.id === value || row.id === `cover_${value}` || candidate.canonicalId === value,
       { allowInactive: true },
     );
     if (exactMatch) {
@@ -432,9 +432,7 @@ function matchCoverClassId(
       rows,
       hint,
       (row, value, candidate) =>
-        row.id === value ||
-        row.id === `cover_${value}` ||
-        candidate.canonicalId === value,
+        row.id === value || row.id === `cover_${value}` || candidate.canonicalId === value,
       { allowInactive: true },
     );
     if (legacyMatch) {
@@ -475,11 +473,8 @@ function matchCoverClassId(
     rows,
     '',
     (row) =>
-      approxEqual(
-        row.minCoverCastInPlace_mm ?? row.nominalCover_mm,
-        cover,
-        1e-3,
-      ) || approxEqual(row.nominalCover_mm, cover, 1e-3),
+      approxEqual(row.minCoverCastInPlace_mm ?? row.nominalCover_mm, cover, 1e-3) ||
+      approxEqual(row.nominalCover_mm, cover, 1e-3),
   );
   return coverMatch?.id ?? '';
 }
@@ -502,9 +497,7 @@ function coverClassMatchesSourceFields(
   const nominalCover = numericCandidate(
     source.minCoverCastInPlace_mm ?? source.nominalCover_mm ?? source.nominalCoverMm,
   );
-  const crackWidthLimit = numericCandidate(
-    source.crackWidthLimit_mm ?? source.crackWidthLimitMm,
-  );
+  const crackWidthLimit = numericCandidate(source.crackWidthLimit_mm ?? source.crackWidthLimitMm);
 
   const hasFieldComboHint =
     designLifeYears != null ||
@@ -519,10 +512,7 @@ function coverClassMatchesSourceFields(
     return false;
   }
 
-  if (
-    designLifeYears != null &&
-    !approxEqual(row.designLifeYears, designLifeYears, 1e-3)
-  ) {
+  if (designLifeYears != null && !approxEqual(row.designLifeYears, designLifeYears, 1e-3)) {
     return false;
   }
 
@@ -549,10 +539,7 @@ function coverClassMatchesSourceFields(
     return false;
   }
 
-  if (
-    minCoverPrecast != null &&
-    !approxEqual(row.minCoverPrecast_mm, minCoverPrecast, 1e-3)
-  ) {
+  if (minCoverPrecast != null && !approxEqual(row.minCoverPrecast_mm, minCoverPrecast, 1e-3)) {
     return false;
   }
 
@@ -564,10 +551,7 @@ function coverClassMatchesSourceFields(
     return false;
   }
 
-  if (
-    crackWidthLimit != null &&
-    !approxEqual(row.crackWidthLimit_mm, crackWidthLimit, 1e-3)
-  ) {
+  if (crackWidthLimit != null && !approxEqual(row.crackWidthLimit_mm, crackWidthLimit, 1e-3)) {
     return false;
   }
 
@@ -584,10 +568,7 @@ function uniqueMatch<T extends { id: string; active: boolean; displayName: strin
   predicate: (row: T, hint: string, candidate: ResolvedRow<T>) => boolean,
   options?: { allowInactive?: boolean },
 ) {
-  const sourceRows =
-    options?.allowInactive
-      ? rows
-      : activeRows(rows);
+  const sourceRows = options?.allowInactive ? rows : activeRows(rows);
   const matches = sourceRows.filter((candidate) => predicate(candidate.row, hint, candidate));
   return matches.length === 1 ? (matches[0]?.row ?? null) : null;
 }
@@ -653,7 +634,9 @@ function reinforcementDesignationFromHint(value: unknown) {
 }
 
 function designationKey(value: unknown) {
-  return stringValue(value).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return stringValue(value)
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
 }
 
 function uniqueStrings(values: unknown[]) {

@@ -164,4 +164,3 @@ export interface ProjectSpatialFeatureFilters {
   linkedDeliverableType?: ProjectSpatialLinkedDeliverableType;
   q?: string;
 }
-

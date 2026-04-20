@@ -1,30 +1,14 @@
-export const AI_MODEL_OPTIONS = [
-  'gpt-4.1-mini',
-  'gpt-4.1',
-  'gpt-5-mini',
-  'gpt-5.2',
-] as const;
+export const AI_MODEL_OPTIONS = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5-mini', 'gpt-5.2'] as const;
 
 export type AiModelId = (typeof AI_MODEL_OPTIONS)[number];
-export const AI_ASSISTANT_PROVIDER_OPTIONS = [
-  'openai',
-  'anthropic',
-  'gemini',
-  'deepseek',
-] as const;
+export const AI_ASSISTANT_PROVIDER_OPTIONS = ['openai', 'anthropic', 'gemini', 'deepseek'] as const;
 export const ANTHROPIC_ASSISTANT_MODEL_OPTIONS = [
   'claude-sonnet-4-0',
   'claude-sonnet-4-6',
   'claude-3-7-sonnet-latest',
 ] as const;
-export const GEMINI_ASSISTANT_MODEL_OPTIONS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-pro',
-] as const;
-export const DEEPSEEK_ASSISTANT_MODEL_OPTIONS = [
-  'deepseek-chat',
-  'deepseek-reasoner',
-] as const;
+export const GEMINI_ASSISTANT_MODEL_OPTIONS = ['gemini-2.0-flash', 'gemini-2.0-pro'] as const;
+export const DEEPSEEK_ASSISTANT_MODEL_OPTIONS = ['deepseek-chat', 'deepseek-reasoner'] as const;
 export const AI_ASSISTANT_MODEL_OPTIONS = [
   ...AI_MODEL_OPTIONS,
   ...ANTHROPIC_ASSISTANT_MODEL_OPTIONS,
@@ -64,14 +48,11 @@ export const AI_ASSISTANT_CONNECTION_STATES = [
 ] as const;
 export type AiAssistantProviderAvailabilitySource =
   (typeof AI_ASSISTANT_PROVIDER_AVAILABILITY_SOURCES)[number];
-export type AiAssistantProviderStatusReason =
-  (typeof AI_ASSISTANT_PROVIDER_STATUS_REASONS)[number];
+export type AiAssistantProviderStatusReason = (typeof AI_ASSISTANT_PROVIDER_STATUS_REASONS)[number];
 export type AiAssistantProviderCredentialIssueReason =
   (typeof AI_ASSISTANT_PROVIDER_CREDENTIAL_ISSUE_REASONS)[number];
-export type AssistantCredentialSource =
-  (typeof AI_ASSISTANT_CREDENTIAL_SOURCES)[number];
-export type AssistantConnectionState =
-  (typeof AI_ASSISTANT_CONNECTION_STATES)[number];
+export type AssistantCredentialSource = (typeof AI_ASSISTANT_CREDENTIAL_SOURCES)[number];
+export type AssistantConnectionState = (typeof AI_ASSISTANT_CONNECTION_STATES)[number];
 export type AiAssistantRuntimeSettings = {
   assistantProvider: AiAssistantProvider;
   assistantModel: AiAssistantModelId;
@@ -85,10 +66,7 @@ export type AiAssistantProviderStatus = {
   credentialSource?: AssistantCredentialSource;
   connectionState?: AssistantConnectionState;
 };
-export type AiAssistantProviderStatusMap = Record<
-  AiAssistantProvider,
-  AiAssistantProviderStatus
->;
+export type AiAssistantProviderStatusMap = Record<AiAssistantProvider, AiAssistantProviderStatus>;
 export type AiAssistantRuntimeSelection = {
   provider: AiAssistantProvider;
   model: AiAssistantModelId;
@@ -168,10 +146,7 @@ export interface OrganisationAiSettingsResponse extends OrganisationAiSettings {
 }
 
 export function isAiModelId(value: unknown): value is AiModelId {
-  return (
-    typeof value === 'string' &&
-    (AI_MODEL_OPTIONS as readonly string[]).includes(value)
-  );
+  return typeof value === 'string' && (AI_MODEL_OPTIONS as readonly string[]).includes(value);
 }
 
 export function isAiAssistantProvider(value: unknown): value is AiAssistantProvider {
@@ -183,15 +158,11 @@ export function isAiAssistantProvider(value: unknown): value is AiAssistantProvi
 
 export function isAiAssistantModelId(value: unknown): value is AiAssistantModelId {
   return (
-    typeof value === 'string' &&
-    (AI_ASSISTANT_MODEL_OPTIONS as readonly string[]).includes(value)
+    typeof value === 'string' && (AI_ASSISTANT_MODEL_OPTIONS as readonly string[]).includes(value)
   );
 }
 
-export function normalizeAiModelSelection(
-  value: unknown,
-  fallback: AiModelId,
-): AiModelId {
+export function normalizeAiModelSelection(value: unknown, fallback: AiModelId): AiModelId {
   return isAiModelId(value) ? value : fallback;
 }
 
@@ -214,9 +185,7 @@ export function getAiAssistantModelsForProvider(
   return [...AI_ASSISTANT_MODEL_OPTIONS_BY_PROVIDER[provider]];
 }
 
-export function getAiAssistantProviderCapability(
-  provider: AiAssistantProvider,
-) {
+export function getAiAssistantProviderCapability(provider: AiAssistantProvider) {
   return AI_ASSISTANT_PROVIDER_CAPABILITIES[provider];
 }
 
@@ -398,7 +367,9 @@ export function resolveAiAssistantRuntimeSelection(
 ): AiAssistantRuntimeSelection {
   const normalizedSettings = normalizeOrganisationAiSettings(settings);
   const assistantProviderStatus = providerStatus ?? buildAiAssistantProviderStatusMap();
-  if (isAiAssistantProviderAvailable(normalizedSettings.assistantProvider, assistantProviderStatus)) {
+  if (
+    isAiAssistantProviderAvailable(normalizedSettings.assistantProvider, assistantProviderStatus)
+  ) {
     return {
       provider: normalizedSettings.assistantProvider,
       model: normalizedSettings.assistantModel,
