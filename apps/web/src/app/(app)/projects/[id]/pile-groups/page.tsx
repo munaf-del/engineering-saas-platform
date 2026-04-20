@@ -12,7 +12,14 @@ import { StandardsBadge } from '@/components/standards-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -95,7 +102,15 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
         },
       },
     });
-  }, [draft, geotechnicalSummary, groups?.length, isDirty, project, projectId, updateProject.isPending]);
+  }, [
+    draft,
+    geotechnicalSummary,
+    groups?.length,
+    isDirty,
+    project,
+    projectId,
+    updateProject.isPending,
+  ]);
   const assistantSuggestionAdapter = useMemo(
     () =>
       draft
@@ -178,7 +193,10 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${projectId}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to project
         </Link>
       </div>
@@ -215,10 +233,12 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
 
       <section id="project-geotechnical-basis" className="mt-8 space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Project Geotechnical Basis / Global GEO Controls</h2>
+          <h2 className="text-lg font-semibold">
+            Project Geotechnical Basis / Global GEO Controls
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Foundations owns the ARR / phi_g assessment, groundwater notes, uplift settings,
-            socket assumptions, founding notes, and project-level geotechnical commentary.
+            Foundations owns the ARR / phi_g assessment, groundwater notes, uplift settings, socket
+            assumptions, founding notes, and project-level geotechnical commentary.
           </p>
         </div>
 
@@ -249,34 +269,40 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
 
-      {!groups?.length ? (
-        <EmptyState
-          icon={<Layers className="h-12 w-12" />}
-          title="No foundation workspaces"
-          description="Create a foundation workspace to define the pile-group arrangement and run analysis."
-        />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((g) => (
-            <Card key={g.id} className="transition-colors hover:border-primary/50">
-              <CardHeader className="space-y-4">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{g.name}</CardTitle>
-                  {g.description && <CardDescription>{g.description}</CardDescription>}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/projects/${projectId}/pile-groups/${g.id}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    Setup
-                  </Link>
-                  <Link href={`/projects/${projectId}/pile-groups/${g.id}/multi-pile`} className={buttonVariants({ size: 'sm' })}>
-                    Open Multi-Pile
-                  </Link>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      )}
+        {!groups?.length ? (
+          <EmptyState
+            icon={<Layers className="h-12 w-12" />}
+            title="No foundation workspaces"
+            description="Create a foundation workspace to define the pile-group arrangement and run analysis."
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {groups.map((g) => (
+              <Card key={g.id} className="transition-colors hover:border-primary/50">
+                <CardHeader className="space-y-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">{g.name}</CardTitle>
+                    {g.description && <CardDescription>{g.description}</CardDescription>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/projects/${projectId}/pile-groups/${g.id}`}
+                      className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                    >
+                      Setup
+                    </Link>
+                    <Link
+                      href={`/projects/${projectId}/pile-groups/${g.id}/multi-pile`}
+                      className={buttonVariants({ size: 'sm' })}
+                    >
+                      Open Multi-Pile
+                    </Link>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -290,15 +316,27 @@ export default function PileGroupsPage({ params }: { params: Promise<{ id: strin
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
               <Label>Name</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g. Pile Cap PC-01" />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+                placeholder="e.g. Pile Cap PC-01"
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={createGroup.isPending}>Create</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createGroup.isPending}>
+                Create
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

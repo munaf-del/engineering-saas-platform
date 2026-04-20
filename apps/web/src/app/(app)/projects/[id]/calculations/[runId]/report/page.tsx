@@ -29,18 +29,18 @@ export default function CalculationReportPage({
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <Link href={`/projects/${projectId}/calculations/${runId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${projectId}/calculations/${runId}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to calculation
         </Link>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="PDF export not yet available"
-          >
+          <Button variant="outline" size="sm" disabled title="PDF export not yet available">
             <Download className="mr-2 h-4 w-4" /> Export PDF
-            <Badge variant="secondary" className="ml-2 text-[10px]">Coming soon</Badge>
+            <Badge variant="secondary" className="ml-2 text-[10px]">
+              Coming soon
+            </Badge>
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Print Report
@@ -53,7 +53,9 @@ export default function CalculationReportPage({
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold">Engineering Calculation Report</h1>
-              <p className="text-sm text-muted-foreground">EngPlatform — Automated Engineering Computation</p>
+              <p className="text-sm text-muted-foreground">
+                EngPlatform — Automated Engineering Computation
+              </p>
             </div>
             <div className="text-right text-sm">
               <p className="font-medium">{project?.code}</p>
@@ -74,7 +76,8 @@ export default function CalculationReportPage({
                     : 'This calculation contains design check warnings. Results require review by a qualified engineer before use.'}
                 </p>
                 <p className="mt-2 text-xs text-amber-600">
-                  Reviewer: _____________________________ &nbsp;&nbsp; Date: _____________ &nbsp;&nbsp; Signature: _____________
+                  Reviewer: _____________________________ &nbsp;&nbsp; Date: _____________
+                  &nbsp;&nbsp; Signature: _____________
                 </p>
               </div>
             </div>
@@ -85,12 +88,32 @@ export default function CalculationReportPage({
           <h2 className="mb-2 text-lg font-semibold">1. Calculation Details</h2>
           <table className="w-full text-sm">
             <tbody>
-              <tr className="border-b"><td className="py-1.5 font-medium w-40">Calc Type</td><td>{run.calcType.replace(/_/g, ' ')}</td></tr>
-              <tr className="border-b"><td className="py-1.5 font-medium">Status</td><td>{run.status}</td></tr>
-              <tr className="border-b"><td className="py-1.5 font-medium">Run Date</td><td>{new Date(run.createdAt).toLocaleString()}</td></tr>
-              <tr className="border-b"><td className="py-1.5 font-medium">Duration</td><td>{run.durationMs ? `${run.durationMs} ms` : 'N/A'}</td></tr>
-              <tr className="border-b"><td className="py-1.5 font-medium">Request Hash</td><td className="font-mono text-xs">{run.requestHash}</td></tr>
-              {run.notes && <tr className="border-b"><td className="py-1.5 font-medium">Notes</td><td>{run.notes}</td></tr>}
+              <tr className="border-b">
+                <td className="py-1.5 font-medium w-40">Calc Type</td>
+                <td>{run.calcType.replace(/_/g, ' ')}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-1.5 font-medium">Status</td>
+                <td>{run.status}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-1.5 font-medium">Run Date</td>
+                <td>{new Date(run.createdAt).toLocaleString()}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-1.5 font-medium">Duration</td>
+                <td>{run.durationMs ? `${run.durationMs} ms` : 'N/A'}</td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-1.5 font-medium">Request Hash</td>
+                <td className="font-mono text-xs">{run.requestHash}</td>
+              </tr>
+              {run.notes && (
+                <tr className="border-b">
+                  <td className="py-1.5 font-medium">Notes</td>
+                  <td>{run.notes}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </section>
@@ -100,7 +123,11 @@ export default function CalculationReportPage({
             <h2 className="mb-2 text-lg font-semibold">2. Input Parameters</h2>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b"><th className="py-1.5 text-left font-medium">Parameter</th><th className="py-1.5 text-right font-medium">Value</th><th className="py-1.5 text-left pl-4 font-medium">Unit</th></tr>
+                <tr className="border-b">
+                  <th className="py-1.5 text-left font-medium">Parameter</th>
+                  <th className="py-1.5 text-right font-medium">Value</th>
+                  <th className="py-1.5 text-left pl-4 font-medium">Unit</th>
+                </tr>
               </thead>
               <tbody>
                 {Object.entries(run.requestSnapshot.inputs).map(([key, val]) => (
@@ -120,7 +147,12 @@ export default function CalculationReportPage({
             <h2 className="mb-2 text-lg font-semibold">3. Results</h2>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b"><th className="py-1.5 text-left font-medium">Output</th><th className="py-1.5 text-right font-medium">Value</th><th className="py-1.5 text-left pl-4 font-medium">Unit</th><th className="py-1.5 text-left pl-4 font-medium">Clause</th></tr>
+                <tr className="border-b">
+                  <th className="py-1.5 text-left font-medium">Output</th>
+                  <th className="py-1.5 text-right font-medium">Value</th>
+                  <th className="py-1.5 text-left pl-4 font-medium">Unit</th>
+                  <th className="py-1.5 text-left pl-4 font-medium">Clause</th>
+                </tr>
               </thead>
               <tbody>
                 {Object.entries(result.outputs).map(([key, val]) => (
@@ -151,10 +183,15 @@ export default function CalculationReportPage({
               </thead>
               <tbody>
                 {designChecks.map((dc) => (
-                  <tr key={dc.id} className={`border-b ${dc.status === 'fail' ? 'bg-red-50' : dc.status === 'warning' ? 'bg-amber-50' : ''}`}>
+                  <tr
+                    key={dc.id}
+                    className={`border-b ${dc.status === 'fail' ? 'bg-red-50' : dc.status === 'warning' ? 'bg-amber-50' : ''}`}
+                  >
                     <td className="py-1">{dc.checkType}</td>
                     <td className="py-1">{dc.limitState}</td>
-                    <td className="py-1 text-right font-mono">{(dc.utilisationRatio * 100).toFixed(1)}%</td>
+                    <td className="py-1 text-right font-mono">
+                      {(dc.utilisationRatio * 100).toFixed(1)}%
+                    </td>
                     <td className="py-1 pl-4 font-medium">{dc.status.toUpperCase()}</td>
                     <td className="py-1 pl-4 font-mono text-xs">{dc.clauseRef ?? ''}</td>
                   </tr>
@@ -172,7 +209,9 @@ export default function CalculationReportPage({
                 <div key={i} className="rounded border p-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-medium">{step.name}</h3>
-                    <span className="font-mono text-xs text-muted-foreground">{step.clauseRef}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {step.clauseRef}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
                   <p className="mt-1 font-mono text-sm">{step.formula}</p>
@@ -186,7 +225,10 @@ export default function CalculationReportPage({
         )}
 
         <footer className="border-t pt-4 text-center text-xs text-muted-foreground">
-          <p>This report was generated by EngPlatform. All calculations must be independently verified by a qualified engineer.</p>
+          <p>
+            This report was generated by EngPlatform. All calculations must be independently
+            verified by a qualified engineer.
+          </p>
           <p className="mt-1">Report generated: {new Date().toLocaleString()}</p>
           {needsReview && (
             <p className="mt-2 font-semibold text-amber-700">

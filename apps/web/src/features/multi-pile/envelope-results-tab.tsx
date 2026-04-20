@@ -3,7 +3,14 @@
 import type { MultiPileEnvelopeRunSummary, MultiPileEnvelopeValue } from '@eng/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { formatNumber, formatTimestamp, statusBadgeVariant } from './utils';
 
 interface EnvelopeResultsTabProps {
@@ -34,7 +41,9 @@ export function EnvelopeResultsTab({ latestRun }: EnvelopeResultsTabProps) {
               ) : null}
               {latestRun.envelope ? (
                 <>
-                  <Badge variant="outline">{latestRun.envelope.projectSummary.jointCount} joints</Badge>
+                  <Badge variant="outline">
+                    {latestRun.envelope.projectSummary.jointCount} joints
+                  </Badge>
                   <Badge variant="outline">
                     {latestRun.envelope.projectSummary.evaluatedCombinationCount} combinations
                   </Badge>
@@ -81,10 +90,14 @@ export function EnvelopeResultsTab({ latestRun }: EnvelopeResultsTabProps) {
                 <TableBody>
                   {latestRun.envelope.jointResults.map((row) => (
                     <TableRow key={row.jointId}>
-                      <TableCell className="font-medium">{row.jointDisplayName || row.jointId}</TableCell>
+                      <TableCell className="font-medium">
+                        {row.jointDisplayName || row.jointId}
+                      </TableCell>
                       <TableCell>{row.pileTypeId}</TableCell>
                       <TableCell>{row.representativePileId ?? '-'}</TableCell>
-                      <TableCell className="text-xs">{row.activePatternIds.join(', ') || '-'}</TableCell>
+                      <TableCell className="text-xs">
+                        {row.activePatternIds.join(', ') || '-'}
+                      </TableCell>
                       <EnvelopeCell value={row.nMax} />
                       <EnvelopeCell value={row.nMin} />
                       <EnvelopeCell value={row.vx} />

@@ -25,8 +25,11 @@ export function usePileGroup(projectId: string, id: string) {
 export function useCreatePileGroup(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; description?: string; metadata?: Record<string, unknown> }) =>
-      api<PileGroup>(`/projects/${projectId}/pile-groups`, { method: 'POST', body: data }),
+    mutationFn: (data: {
+      name: string;
+      description?: string;
+      metadata?: Record<string, unknown>;
+    }) => api<PileGroup>(`/projects/${projectId}/pile-groups`, { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups'] }),
   });
 }
@@ -46,7 +49,8 @@ export function useUpdatePileGroup(projectId: string, id: string) {
 export function useDeletePileGroup(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/projects/${projectId}/pile-groups/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      api(`/projects/${projectId}/pile-groups/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups'] }),
   });
 }
@@ -62,8 +66,12 @@ export function useAddPile(projectId: string, groupId: string) {
       embedmentDepth?: number;
       rakeAngle?: number;
     }) =>
-      api<Pile>(`/projects/${projectId}/pile-groups/${groupId}/piles`, { method: 'POST', body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
+      api<Pile>(`/projects/${projectId}/pile-groups/${groupId}/piles`, {
+        method: 'POST',
+        body: data,
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
   });
 }
 
@@ -72,7 +80,8 @@ export function useDeletePile(projectId: string, groupId: string) {
   return useMutation({
     mutationFn: (pileId: string) =>
       api(`/projects/${projectId}/pile-groups/${groupId}/piles/${pileId}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
   });
 }
 
@@ -84,6 +93,7 @@ export function useAddLayoutPoint(projectId: string, groupId: string) {
         method: 'POST',
         body: data,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'pile-groups', groupId] }),
   });
 }

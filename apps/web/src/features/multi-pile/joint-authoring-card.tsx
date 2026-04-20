@@ -70,9 +70,7 @@ export function JointAuthoringCard({
       const extremes = deriveJointEnvelopeExtremes(latestRun, joint.id);
       const suggestedPileType = findSuggestedPileTypeForEnvelopeExtremes(draft.pileTypes, extremes);
       const effectivePileTypeId =
-        joint.assignmentMode === 'auto'
-        && envelopeStatus.state === 'ready'
-        && suggestedPileType
+        joint.assignmentMode === 'auto' && envelopeStatus.state === 'ready' && suggestedPileType
           ? suggestedPileType.id
           : joint.pileTypeId;
       const effectivePileType = pileTypeById.get(effectivePileTypeId) ?? null;
@@ -95,16 +93,16 @@ export function JointAuthoringCard({
   const eligibleAutoJointIds = draft.joints
     .filter(
       (joint) =>
-        joint.active
-        && envelopeStatus.state === 'ready'
-        && Boolean(jointPreviews.get(joint.id)?.suggestedPileType),
+        joint.active &&
+        envelopeStatus.state === 'ready' &&
+        Boolean(jointPreviews.get(joint.id)?.suggestedPileType),
     )
     .map((joint) => joint.id);
-  const manualOverrideCount = draft.joints.filter((joint) => joint.assignmentMode === 'manual').length;
+  const manualOverrideCount = draft.joints.filter(
+    (joint) => joint.assignmentMode === 'manual',
+  ).length;
 
-  function updateJoints(
-    updater: (joints: MultiPileState['joints']) => MultiPileState['joints'],
-  ) {
+  function updateJoints(updater: (joints: MultiPileState['joints']) => MultiPileState['joints']) {
     updateDraft((current) => {
       const nextRawJoints = updater(current.joints);
       const seenIds = new Set<string>();
@@ -125,7 +123,8 @@ export function JointAuthoringCard({
           candidateId = `${normalized.id}_${suffix++}`;
         }
         seenIds.add(candidateId);
-        const nextRow = candidateId === normalized.id ? normalized : { ...normalized, id: candidateId };
+        const nextRow =
+          candidateId === normalized.id ? normalized : { ...normalized, id: candidateId };
         if (previousId && previousId !== nextRow.id) {
           renamePairs.push({ oldId: previousId, newId: nextRow.id });
         }
@@ -268,7 +267,9 @@ export function JointAuthoringCard({
               {draft.joints.map((joint, index) => {
                 const preview = jointPreviews.get(joint.id);
                 const effectivePileTypeId =
-                  preview?.effectivePileTypeId || joint.pileTypeId || MULTI_PILE_UNASSIGNED_PILE_TYPE_ID;
+                  preview?.effectivePileTypeId ||
+                  joint.pileTypeId ||
+                  MULTI_PILE_UNASSIGNED_PILE_TYPE_ID;
                 const effectivePileType = pileTypeById.get(effectivePileTypeId) ?? null;
                 const suggestedPileTypeLabel = preview?.suggestedPileType
                   ? pileTypeSelectLabel(preview.suggestedPileType)
@@ -345,7 +346,10 @@ export function JointAuthoringCard({
                         value={joint.supportCount}
                         onChange={(event) =>
                           updateJointAt(index, (row) => {
-                            const supportCount = Math.max(1, Math.round(Number(event.target.value || 1)));
+                            const supportCount = Math.max(
+                              1,
+                              Math.round(Number(event.target.value || 1)),
+                            );
                             return {
                               ...row,
                               supportCount,
@@ -376,7 +380,10 @@ export function JointAuthoringCard({
                       <div className="text-xs text-muted-foreground">
                         {preview?.suggestedPileType
                           ? suggestionDetail(envelopeStatus.state)
-                          : suggestionFallbackDetail(preview?.extremes ?? null, envelopeStatus.state)}
+                          : suggestionFallbackDetail(
+                              preview?.extremes ?? null,
+                              envelopeStatus.state,
+                            )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -409,7 +416,11 @@ export function JointAuthoringCard({
                           {joint.assignmentMode === 'auto' ? 'Auto-selected' : 'Manual override'}
                         </Badge>
                         {joint.assignmentMode === 'manual' ? (
-                          <Button variant="ghost" size="sm" onClick={() => resetJointToAuto(index, joint.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => resetJointToAuto(index, joint.id)}
+                          >
                             Reset to auto
                           </Button>
                         ) : (
@@ -423,7 +434,11 @@ export function JointAuthoringCard({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant={rangeMatchVariant(preview?.rangeMatchStatus ?? 'no-envelope-data')}>
+                        <Badge
+                          variant={rangeMatchVariant(
+                            preview?.rangeMatchStatus ?? 'no-envelope-data',
+                          )}
+                        >
                           {rangeMatchLabel(preview?.rangeMatchStatus ?? 'no-envelope-data')}
                         </Badge>
                         {effectivePileType ? (

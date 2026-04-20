@@ -335,7 +335,9 @@ export function AiReportsWorkspace({ projectId }: { projectId: string }) {
       setSelectedDocumentId(updated.id);
       toast.success('Report classification updated');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update report classification');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update report classification',
+      );
     }
   }
 
@@ -1123,8 +1125,7 @@ function DocumentListItem({
           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
             <p>Extraction status: {document.status.replace(/_/g, ' ')}</p>
             <p>
-              Latest run:{' '}
-              {latestRun ? `${latestRun.status} · ${latestRun.model}` : 'No run yet'}
+              Latest run: {latestRun ? `${latestRun.status} · ${latestRun.model}` : 'No run yet'}
             </p>
             <p>Uploaded: {formatDateTime(document.createdAt)}</p>
           </div>

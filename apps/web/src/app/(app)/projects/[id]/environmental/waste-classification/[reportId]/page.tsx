@@ -59,10 +59,6 @@ export default function ProjectWasteClassificationDetailPage({
   }
 
   return (
-    <WasteClassificationWorkspace
-      projectId={projectId}
-      reportId={reportId}
-      project={project}
-    />
+    <WasteClassificationWorkspace projectId={projectId} reportId={reportId} project={project} />
   );
 }

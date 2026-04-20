@@ -141,7 +141,7 @@ export default function MultiPilePage({
       configuredStructuralLibraries,
     });
 
-      return buildMultiPileAssistantPageContext({
+    return buildMultiPileAssistantPageContext({
       route: `/projects/${projectId}/pile-groups/${groupId}/multi-pile`,
       projectId,
       pileGroupId: groupId,
@@ -604,9 +604,7 @@ export default function MultiPilePage({
               <MultiPileProjectLink href={projectStructuralDefaultsHref}>
                 Structural defaults
               </MultiPileProjectLink>
-              <MultiPileProjectLink href={projectFoundationsHref}>
-                Foundations
-              </MultiPileProjectLink>
+              <MultiPileProjectLink href={projectFoundationsHref}>Foundations</MultiPileProjectLink>
               <MultiPileProjectLink href={projectLoadCasesHref}>Load cases</MultiPileProjectLink>
               <MultiPileProjectLink href={projectLoadCombinationsHref}>
                 Combinations
@@ -649,7 +647,9 @@ export default function MultiPilePage({
                   ? 'Persisting current Multi-Pile draft'
                   : 'Calculator-owned state only'
               }
-              valueVariant={saveState.isPending ? 'outline' : hasUnsavedChanges ? 'warning' : 'success'}
+              valueVariant={
+                saveState.isPending ? 'outline' : hasUnsavedChanges ? 'warning' : 'success'
+              }
             />
             <MultiPileStatCard
               label="Run Status"

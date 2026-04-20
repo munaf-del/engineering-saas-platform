@@ -985,8 +985,8 @@ export function deriveMultiPileEnvelopeSnapshotStatus(
   const currentInputSignature = buildMultiPileEnvelopeInputSignature(draft);
   const envelopeContext = readEnvelopeRunContext(draft.uiState);
   if (
-    !envelopeContext.lastRunInputSignature
-    || envelopeContext.lastRunInputSignature !== currentInputSignature
+    !envelopeContext.lastRunInputSignature ||
+    envelopeContext.lastRunInputSignature !== currentInputSignature
   ) {
     return {
       state: 'stale',
@@ -1112,8 +1112,8 @@ export function findSuggestedPileTypeForEnvelopeExtremes(
             extremes.maxCompression,
             pileType.compressionUltimateMin,
             pileType.compressionUltimateMax,
-          )
-          && withinUltimateRange(
+          ) &&
+          withinUltimateRange(
             extremes.maxTension,
             pileType.tensionUltimateMin,
             pileType.tensionUltimateMax,
@@ -1132,7 +1132,9 @@ export function findSuggestedPileTypeForEnvelopeExtremes(
           return dDelta;
         }
 
-        const displayDelta = (left.displayName || left.id).localeCompare(right.displayName || right.id);
+        const displayDelta = (left.displayName || left.id).localeCompare(
+          right.displayName || right.id,
+        );
         if (displayDelta !== 0) {
           return displayDelta;
         }
@@ -1167,8 +1169,8 @@ export function evaluatePileTypeRangeMatch(
     extremes.maxCompression,
     pileType.compressionUltimateMin,
     pileType.compressionUltimateMax,
-  )
-    && withinUltimateRange(
+  ) &&
+    withinUltimateRange(
       extremes.maxTension,
       pileType.tensionUltimateMin,
       pileType.tensionUltimateMax,

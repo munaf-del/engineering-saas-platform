@@ -102,7 +102,8 @@ function buildProjectSpecifics(): MultiPileProjectSpecifics {
 }
 
 function buildSuggestion(
-  overrides: Partial<AiAssistantSuggestedField> & Pick<AiAssistantSuggestedField, 'fieldPath' | 'label' | 'suggestedValue'>,
+  overrides: Partial<AiAssistantSuggestedField> &
+    Pick<AiAssistantSuggestedField, 'fieldPath' | 'label' | 'suggestedValue'>,
 ): AiAssistantSuggestedField {
   return {
     fieldPath: overrides.fieldPath,
@@ -299,9 +300,7 @@ describe('project AI suggestion adapter', () => {
       throw new Error('Expected scoped foundations draft to be applied');
     }
     const nextDraft = appliedDraft as MultiPileProjectSpecifics;
-    expect(nextDraft.geotechnicalBasis.foundingNotes).toBe(
-      'Found piles within weathered schist.',
-    );
+    expect(nextDraft.geotechnicalBasis.foundingNotes).toBe('Found piles within weathered schist.');
     expect(nextDraft.reportMeta.reportTitle).toBe('');
   });
 
@@ -348,9 +347,7 @@ describe('project AI suggestion adapter', () => {
     expect(projectGeotechnicalFiltered).not.toContain('references[0].title');
 
     expect(foundationsFiltered).toContain('geotechnicalBasis.foundingNotes');
-    expect(foundationsFiltered).not.toContain(
-      'geotechnicalMaterials.candidates[0].displayName',
-    );
+    expect(foundationsFiltered).not.toContain('geotechnicalMaterials.candidates[0].displayName');
     expect(foundationsFiltered).not.toContain('references[0].title');
   });
 

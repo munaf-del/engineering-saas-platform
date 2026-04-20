@@ -1,8 +1,5 @@
 import type { AiAssistantDraftAction } from '@eng/shared';
-import type {
-  AiAssistantPageContext,
-  AiAssistantSuggestedField,
-} from './assistant-page-context';
+import type { AiAssistantPageContext, AiAssistantSuggestedField } from './assistant-page-context';
 
 export const AI_ASSISTANT_MODES = ['assistant', 'agent'] as const;
 export const AI_ASSISTANT_QUICK_ACTIONS = [

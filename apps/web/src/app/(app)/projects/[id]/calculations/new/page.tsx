@@ -15,7 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/loading';
@@ -32,14 +38,18 @@ interface InputFieldDef {
   defaultValue?: number;
 }
 
-function deriveInputFields(schema: Record<string, unknown> | undefined, defaults: Record<string, unknown> | undefined): InputFieldDef[] {
+function deriveInputFields(
+  schema: Record<string, unknown> | undefined,
+  defaults: Record<string, unknown> | undefined,
+): InputFieldDef[] {
   if (!schema || typeof schema !== 'object') return [];
   const properties = (schema as Record<string, Record<string, unknown>>).properties ?? schema;
   return Object.entries(properties).map(([key, def]) => ({
     key,
     label: (def as Record<string, string>)?.label ?? (def as Record<string, string>)?.title ?? key,
     unit: (def as Record<string, string>)?.unit ?? '',
-    defaultValue: (defaults as Record<string, Record<string, number>>)?.[key]?.value ??
+    defaultValue:
+      (defaults as Record<string, Record<string, number>>)?.[key]?.value ??
       (def as Record<string, number>)?.default,
   }));
 }
@@ -64,7 +74,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
   const [selectedPileGroupId, setSelectedPileGroupId] = useState<string>('');
   const [selectedLoadCombSetId, setSelectedLoadCombSetId] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const [inputValues, setInputValues] = useState<Record<string, { value: string; unit: string; label: string }>>({});
+  const [inputValues, setInputValues] = useState<
+    Record<string, { value: string; unit: string; label: string }>
+  >({});
   const [includeSteps, setIncludeSteps] = useState(true);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string>('');
@@ -89,10 +101,24 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
 
   const assignedEditions = useMemo(() => {
     if (!assignments || !editions) return [];
-    return assignments.map((a) => {
-      const ed = editions.find((e) => e.id === a.standardEditionId);
-      return ed ? { code: ed.code, edition: ed.edition, amendment: ed.amendment, rulePackId: ed.rulePackId } : null;
-    }).filter(Boolean) as { code: string; edition: string; amendment?: string; rulePackId?: string }[];
+    return assignments
+      .map((a) => {
+        const ed = editions.find((e) => e.id === a.standardEditionId);
+        return ed
+          ? {
+              code: ed.code,
+              edition: ed.edition,
+              amendment: ed.amendment,
+              rulePackId: ed.rulePackId,
+            }
+          : null;
+      })
+      .filter(Boolean) as {
+      code: string;
+      edition: string;
+      amendment?: string;
+      rulePackId?: string;
+    }[];
   }, [assignments, editions]);
 
   const hasRulePacks = assignedEditions.some((e) => e.rulePackId);
@@ -141,7 +167,11 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
     if (inputFields.length && Object.keys(inputValues).length === 0 && !isCloned) {
       const defaults: Record<string, { value: string; unit: string; label: string }> = {};
       for (const f of inputFields) {
-        defaults[f.key] = { value: f.defaultValue !== undefined ? String(f.defaultValue) : '', unit: f.unit, label: f.label };
+        defaults[f.key] = {
+          value: f.defaultValue !== undefined ? String(f.defaultValue) : '',
+          unit: f.unit,
+          label: f.label,
+        };
       }
       setInputValues(defaults);
     }
@@ -153,7 +183,11 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
       return { ...prev, [key]: { ...existing, [field]: val } };
     });
     if (validationErrors[key]) {
-      setValidationErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   }
 
@@ -190,7 +224,12 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
 
     const rulePackEdition = assignedEditions.find((e) => e.rulePackId);
     const rulePack = rulePackEdition
-      ? { id: rulePackEdition.rulePackId!, standardCode: rulePackEdition.code, version: rulePackEdition.edition, rules: {} }
+      ? {
+          id: rulePackEdition.rulePackId!,
+          standardCode: rulePackEdition.code,
+          version: rulePackEdition.edition,
+          rules: {},
+        }
       : { id: 'none', standardCode: '', version: '', rules: {} };
 
     const payload: Record<string, unknown> = {
@@ -226,7 +265,10 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}/calculations`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${projectId}/calculations`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Calculation History
         </Link>
       </div>
@@ -234,7 +276,14 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
       <PageHeader
         title="New Calculation"
         description={`${project?.code ?? ''} — Submit a calculation run`}
-        badges={isCloned ? <Badge variant="secondary"><Copy className="mr-1 h-3 w-3" />Cloned from previous run</Badge> : undefined}
+        badges={
+          isCloned ? (
+            <Badge variant="secondary">
+              <Copy className="mr-1 h-3 w-3" />
+              Cloned from previous run
+            </Badge>
+          ) : undefined
+        }
       />
 
       {!hasRulePacks && (
@@ -242,8 +291,8 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Missing Approved Rule Packs</AlertTitle>
           <AlertDescription>
-            No approved rule packs are loaded for the assigned standards. The calculation may fail or produce
-            limited results. Import rule packs via standards administration first.
+            No approved rule packs are loaded for the assigned standards. The calculation may fail
+            or produce limited results. Import rule packs via standards administration first.
           </AlertDescription>
         </Alert>
       )}
@@ -254,7 +303,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
           <AlertTitle>No Standards Assigned</AlertTitle>
           <AlertDescription>
             This project has no standard editions assigned. Assign standards on the{' '}
-            <Link href={`/projects/${projectId}/standards`} className="underline">project standards page</Link>{' '}
+            <Link href={`/projects/${projectId}/standards`} className="underline">
+              project standards page
+            </Link>{' '}
             before submitting calculations.
           </AlertDescription>
         </Alert>
@@ -270,7 +321,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
 
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">Calculation Type & Calculator</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Calculation Type & Calculator</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -281,18 +334,28 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                   </SelectTrigger>
                   <SelectContent>
                     {CALC_TYPES.map((ct) => (
-                      <SelectItem key={ct} value={ct}>{ct.replace(/_/g, ' ')}</SelectItem>
+                      <SelectItem key={ct} value={ct}>
+                        {ct.replace(/_/g, ' ')}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {validationErrors._calcType && <p className="text-xs text-red-600">{validationErrors._calcType}</p>}
+                {validationErrors._calcType && (
+                  <p className="text-xs text-red-600">{validationErrors._calcType}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label>Calculator Version</Label>
-                <Select value={selectedVersionId} onValueChange={setSelectedVersionId} disabled={!versions?.length}>
+                <Select
+                  value={selectedVersionId}
+                  onValueChange={setSelectedVersionId}
+                  disabled={!versions?.length}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder={versions?.length ? 'Select version…' : 'No versions available'} />
+                    <SelectValue
+                      placeholder={versions?.length ? 'Select version…' : 'No versions available'}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {versions?.map((v: CalculatorVersion) => (
@@ -303,7 +366,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                   </SelectContent>
                 </Select>
                 {matchingCalculator && (
-                  <p className="text-xs text-muted-foreground">{matchingCalculator.name} — {matchingCalculator.code}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {matchingCalculator.name} — {matchingCalculator.code}
+                  </p>
                 )}
               </div>
             </div>
@@ -311,7 +376,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Context</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Context</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -323,7 +390,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                   <SelectContent>
                     <SelectItem value="__none__">None</SelectItem>
                     {pileGroups?.map((pg) => (
-                      <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>
+                      <SelectItem key={pg.id} value={pg.id}>
+                        {pg.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -352,7 +421,11 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                 <Label>Standards Context</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {assignedEditions.map((e) => (
-                    <Badge key={`${e.code}-${e.edition}`} variant="outline" className="font-mono text-xs">
+                    <Badge
+                      key={`${e.code}-${e.edition}`}
+                      variant="outline"
+                      className="font-mono text-xs"
+                    >
                       {e.code} ({e.edition}){e.rulePackId ? '' : ' — no rule pack'}
                     </Badge>
                   ))}
@@ -366,7 +439,11 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
           <CardHeader>
             <CardTitle className="text-base">
               Input Parameters
-              {isCloned && <Badge variant="secondary" className="ml-2 text-xs">Pre-filled from clone</Badge>}
+              {isCloned && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  Pre-filled from clone
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -386,7 +463,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                         placeholder="0"
                         className={validationErrors[f.key] ? 'border-red-500' : ''}
                       />
-                      {validationErrors[f.key] && <p className="text-xs text-red-600">{validationErrors[f.key]}</p>}
+                      {validationErrors[f.key] && (
+                        <p className="text-xs text-red-600">{validationErrors[f.key]}</p>
+                      )}
                     </div>
                     <div className="col-span-3">
                       <Input
@@ -401,16 +480,21 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
               </div>
             ) : selectedCalcType ? (
               <p className="text-sm text-muted-foreground">
-                No input schema available for this calculator version. The calculation engine will use defaults.
+                No input schema available for this calculator version. The calculation engine will
+                use defaults.
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Select a calculation type to see available inputs.</p>
+              <p className="text-sm text-muted-foreground">
+                Select a calculation type to see available inputs.
+              </p>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Options</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Options</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -429,7 +513,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
                 onChange={(e) => setIncludeSteps(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300"
               />
-              <Label htmlFor="include-steps" className="text-sm font-normal">Include intermediate calculation steps</Label>
+              <Label htmlFor="include-steps" className="text-sm font-normal">
+                Include intermediate calculation steps
+              </Label>
             </div>
           </CardContent>
         </Card>
@@ -439,7 +525,9 @@ export default function NewCalculationPage({ params }: { params: Promise<{ id: s
             {submitCalc.isPending ? (
               'Submitting…'
             ) : (
-              <><Play className="mr-2 h-4 w-4" /> Run Calculation</>
+              <>
+                <Play className="mr-2 h-4 w-4" /> Run Calculation
+              </>
             )}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>

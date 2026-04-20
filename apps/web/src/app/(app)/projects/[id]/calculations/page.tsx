@@ -14,7 +14,10 @@ import { EmptyState } from '@/components/empty-state';
 import { PageLoading } from '@/components/loading';
 import type { CalculationRun } from '@eng/shared';
 
-const statusColors: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'secondary'> = {
+const statusColors: Record<
+  string,
+  'default' | 'success' | 'destructive' | 'warning' | 'secondary'
+> = {
   draft: 'secondary',
   running: 'warning',
   completed: 'success',
@@ -26,7 +29,11 @@ const columns: Column<CalculationRun & Record<string, unknown>>[] = [
   {
     key: 'calcType',
     header: 'Type',
-    cell: (row) => <Badge variant="outline" className="font-mono">{row.calcType}</Badge>,
+    cell: (row) => (
+      <Badge variant="outline" className="font-mono">
+        {row.calcType}
+      </Badge>
+    ),
     className: 'w-[150px]',
   },
   {
@@ -77,7 +84,10 @@ export default function CalculationsPage({ params }: { params: Promise<{ id: str
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${projectId}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to project
         </Link>
       </div>
@@ -87,7 +97,9 @@ export default function CalculationsPage({ params }: { params: Promise<{ id: str
         description={`${project?.code ?? ''} · ${total} calculation run(s)`}
         actions={
           <Link href={`/projects/${projectId}/calculations/new`}>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Calculation</Button>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> New Calculation
+            </Button>
           </Link>
         }
       />

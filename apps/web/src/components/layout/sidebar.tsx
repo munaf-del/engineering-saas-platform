@@ -113,7 +113,9 @@ function NavSection({
 }) {
   return (
     <div className="mb-4">
-      <h4 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</h4>
+      <h4 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h4>
       <nav className="space-y-0.5">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/');

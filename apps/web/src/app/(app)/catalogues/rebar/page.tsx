@@ -16,12 +16,41 @@ import { toast } from 'sonner';
 import type { RebarSize, RebarCatalog } from '@eng/shared';
 
 const sizeColumns: Column<RebarSize & Record<string, unknown>>[] = [
-  { key: 'designation', header: 'Designation', cell: (row) => <span className="font-mono font-medium">{row.designation}</span> },
-  { key: 'barDiameter', header: 'Dia (mm)', cell: (row) => <span className="font-mono">{row.barDiameter}</span>, className: 'w-[100px]' },
-  { key: 'nominalArea', header: 'Area (mm²)', cell: (row) => <span className="font-mono">{row.nominalArea}</span>, className: 'w-[110px]' },
-  { key: 'massPerMetre', header: 'Mass (kg/m)', cell: (row) => <span className="font-mono">{row.massPerMetre.toFixed(3)}</span>, className: 'w-[120px]' },
-  { key: 'grade', header: 'Grade', cell: (row) => <Badge variant="outline">{row.grade}</Badge>, className: 'w-[100px]' },
-  { key: 'ductilityClass', header: 'Ductility', cell: (row) => <Badge variant="outline">{row.ductilityClass}</Badge>, className: 'w-[100px]' },
+  {
+    key: 'designation',
+    header: 'Designation',
+    cell: (row) => <span className="font-mono font-medium">{row.designation}</span>,
+  },
+  {
+    key: 'barDiameter',
+    header: 'Dia (mm)',
+    cell: (row) => <span className="font-mono">{row.barDiameter}</span>,
+    className: 'w-[100px]',
+  },
+  {
+    key: 'nominalArea',
+    header: 'Area (mm²)',
+    cell: (row) => <span className="font-mono">{row.nominalArea}</span>,
+    className: 'w-[110px]',
+  },
+  {
+    key: 'massPerMetre',
+    header: 'Mass (kg/m)',
+    cell: (row) => <span className="font-mono">{row.massPerMetre.toFixed(3)}</span>,
+    className: 'w-[120px]',
+  },
+  {
+    key: 'grade',
+    header: 'Grade',
+    cell: (row) => <Badge variant="outline">{row.grade}</Badge>,
+    className: 'w-[100px]',
+  },
+  {
+    key: 'ductilityClass',
+    header: 'Ductility',
+    cell: (row) => <Badge variant="outline">{row.ductilityClass}</Badge>,
+    className: 'w-[100px]',
+  },
 ];
 
 function SnapshotBadge({ catalog }: { catalog: RebarCatalog }) {
@@ -40,7 +69,9 @@ function SnapshotBadge({ catalog }: { catalog: RebarCatalog }) {
     );
   }
   return (
-    <Badge variant="outline" className="text-[10px] text-muted-foreground">No snapshot</Badge>
+    <Badge variant="outline" className="text-[10px] text-muted-foreground">
+      No snapshot
+    </Badge>
   );
 }
 
@@ -50,7 +81,10 @@ export default function RebarPage() {
   const [page, setPage] = useState(1);
   const activateCatalog = useActivateRebarCatalog();
 
-  const activeCatalog = catalogs?.find((c) => c.id === selectedCatalog) ?? catalogs?.find((c) => c.status === 'active') ?? catalogs?.[0];
+  const activeCatalog =
+    catalogs?.find((c) => c.id === selectedCatalog) ??
+    catalogs?.find((c) => c.status === 'active') ??
+    catalogs?.[0];
   const effectiveCatalogId = selectedCatalog || activeCatalog?.id || '';
 
   const { data: sizes, isLoading: sizesLoading } = useRebarSizes(effectiveCatalogId, page, 50);
@@ -68,7 +102,11 @@ export default function RebarPage() {
       {catsLoading ? (
         <PageLoading />
       ) : !catalogs?.length ? (
-        <EmptyState icon={<Database className="h-12 w-12" />} title="No catalogues" description="Import a rebar catalogue to get started." />
+        <EmptyState
+          icon={<Database className="h-12 w-12" />}
+          title="No catalogues"
+          description="Import a rebar catalogue to get started."
+        />
       ) : (
         <>
           {!hasActive && (
@@ -76,7 +114,8 @@ export default function RebarPage() {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>No Active Catalogue</AlertTitle>
               <AlertDescription>
-                No catalogue version is currently active. Activate a version to pin its snapshot for use in calculations.
+                No catalogue version is currently active. Activate a version to pin its snapshot for
+                use in calculations.
               </AlertDescription>
             </Alert>
           )}
@@ -87,7 +126,10 @@ export default function RebarPage() {
                 key={cat.id}
                 variant={effectiveCatalogId === cat.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setSelectedCatalog(cat.id); setPage(1); }}
+                onClick={() => {
+                  setSelectedCatalog(cat.id);
+                  setPage(1);
+                }}
                 className="gap-1.5"
               >
                 {cat.name} v{cat.version}
@@ -106,7 +148,9 @@ export default function RebarPage() {
               </CardHeader>
               <CardContent className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <p className="font-medium">{activeCatalog.name} — v{activeCatalog.version}</p>
+                  <p className="font-medium">
+                    {activeCatalog.name} — v{activeCatalog.version}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Source: {activeCatalog.sourceStandard} ({activeCatalog.sourceEdition})
                   </p>
@@ -147,7 +191,9 @@ export default function RebarPage() {
             </Card>
           )}
 
-          {sizesLoading ? <PageLoading /> : (
+          {sizesLoading ? (
+            <PageLoading />
+          ) : (
             <DataTable
               columns={sizeColumns}
               data={(sizes?.data ?? []) as (RebarSize & Record<string, unknown>)[]}

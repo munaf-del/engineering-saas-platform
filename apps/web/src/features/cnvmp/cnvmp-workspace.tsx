@@ -493,7 +493,10 @@ function CnvmpReferencesSection({
               projectReferences={projectReferences}
               aiDocuments={aiDocuments ?? []}
               onSave={(data) =>
-                updateReference.mutateAsync({ id: reference.id, data: normalizeReferenceInput(data) })
+                updateReference.mutateAsync({
+                  id: reference.id,
+                  data: normalizeReferenceInput(data),
+                })
               }
               onDelete={() => deleteReference.mutateAsync(reference.id)}
             />
@@ -869,14 +872,18 @@ function ApplicableStandardsSection({
             ) : (criteria ?? []).length === 0 ? (
               <EmptyRows>No criteria match the current filters.</EmptyRows>
             ) : (
-              (criteria ?? []).slice(0, 80).map((row) => (
-                <CriterionPickerRow
-                  key={row.id}
-                  row={row}
-                  selected={selectedCriterionKeys.has(`${row.id}:${defaultSelectionPurpose(row)}`)}
-                  onAdd={() => handleAddCriterion(row)}
-                />
-              ))
+              (criteria ?? [])
+                .slice(0, 80)
+                .map((row) => (
+                  <CriterionPickerRow
+                    key={row.id}
+                    row={row}
+                    selected={selectedCriterionKeys.has(
+                      `${row.id}:${defaultSelectionPurpose(row)}`,
+                    )}
+                    onAdd={() => handleAddCriterion(row)}
+                  />
+                ))
             )}
           </div>
         </div>
@@ -903,7 +910,13 @@ function ApplicableStandardsSection({
   );
 }
 
-function MitigationMeasuresSection({ projectId, cnvmp }: { projectId: string; cnvmp: ProjectCnvmp }) {
+function MitigationMeasuresSection({
+  projectId,
+  cnvmp,
+}: {
+  projectId: string;
+  cnvmp: ProjectCnvmp;
+}) {
   const createMeasure = useCreateCnvmpMitigationMeasure(projectId);
   const updateMeasure = useUpdateCnvmpMitigationMeasure(projectId);
   const deleteMeasure = useDeleteCnvmpMitigationMeasure(projectId);
@@ -1020,7 +1033,9 @@ function MonitoringRowsSection({ projectId, cnvmp }: { projectId: string; cnvmp:
         <LabeledField label="Method">
           <Input
             value={draft.method ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, method: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, method: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1390,7 +1405,13 @@ function CriterionPickerRow({
           <CriterionBadges row={row} />
           {row.rowNotes ? <p className="text-xs text-muted-foreground">{row.rowNotes}</p> : null}
         </div>
-        <Button type="button" variant={selected ? 'secondary' : 'outline'} size="sm" onClick={onAdd} disabled={selected}>
+        <Button
+          type="button"
+          variant={selected ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={onAdd}
+          disabled={selected}
+        >
           {selected ? 'Selected' : 'Select'}
         </Button>
       </div>
@@ -1598,7 +1619,9 @@ function MonitoringRow({
         <LabeledField label="Method">
           <Input
             value={draft.method ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, method: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, method: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Location">
@@ -1696,7 +1719,13 @@ function EditableRow({
           <Button type="button" variant="outline" size="sm" onClick={handleSave}>
             Save Row
           </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={handleDelete} aria-label="Delete row">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            aria-label="Delete row"
+          >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -1715,7 +1744,9 @@ function CriterionBadges({ row }: { row: NoiseVibrationCriterionRow }) {
         </Badge>
       ) : null}
       {row.timePeriod ? (
-        <Badge variant="outline">{labelFor(NOISE_VIBRATION_TIME_PERIOD_OPTIONS, row.timePeriod)}</Badge>
+        <Badge variant="outline">
+          {labelFor(NOISE_VIBRATION_TIME_PERIOD_OPTIONS, row.timePeriod)}
+        </Badge>
       ) : null}
       <Badge variant="outline">{row.group.metric.replace(/_/g, ' ')}</Badge>
       {row.workTypes.map((workType) => (
@@ -1735,7 +1766,10 @@ function ReceiverTypeSelect({
   onChange: (value: NoiseVibrationReceiverType) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationReceiverType)}>
+    <Select
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationReceiverType)}
+    >
       <SelectTrigger>
         <SelectValue />
       </SelectTrigger>
@@ -1758,7 +1792,10 @@ function WorkTypeSelect({
   onChange: (value: NoiseVibrationWorkType) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationWorkType)}>
+    <Select
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationWorkType)}
+    >
       <SelectTrigger>
         <SelectValue />
       </SelectTrigger>
@@ -1985,16 +2022,10 @@ function toDateInput(value: string | null) {
 }
 
 function defaultSelectionPurpose(row: NoiseVibrationCriterionRow): CnvmpSelectionPurpose {
-  if (
-    row.group.criterionCategory === 'vibration_human_comfort' ||
-    row.group.metric === 'vdv'
-  ) {
+  if (row.group.criterionCategory === 'vibration_human_comfort' || row.group.metric === 'vdv') {
     return 'vibration_human_comfort';
   }
-  if (
-    row.group.criterionCategory === 'vibration_structural_damage' ||
-    row.group.metric === 'ppv'
-  ) {
+  if (row.group.criterionCategory === 'vibration_structural_damage' || row.group.metric === 'ppv') {
     return 'vibration_structural';
   }
   if (
@@ -2068,7 +2099,11 @@ function formatWorkingHours(row: NoiseVibrationCriterionRow) {
   const parts = [
     row.weekdayStart && row.weekdayEnd ? `Mon-Fri ${row.weekdayStart}-${row.weekdayEnd}` : null,
     row.saturdayStart && row.saturdayEnd ? `Sat ${row.saturdayStart}-${row.saturdayEnd}` : null,
-    row.sundayAllowed === false ? 'no Sunday work' : row.sundayAllowed === true ? 'Sunday allowed' : null,
+    row.sundayAllowed === false
+      ? 'no Sunday work'
+      : row.sundayAllowed === true
+        ? 'Sunday allowed'
+        : null,
     row.publicHolidayAllowed === false
       ? 'no public holiday work'
       : row.publicHolidayAllowed === true
@@ -2102,13 +2137,12 @@ function formatNumber(value: string | null) {
   return Number.isInteger(numeric) ? String(numeric) : String(numeric);
 }
 
-function labelFor<T extends string>(
-  options: ReadonlyArray<{ value: T; label: string }>,
-  value: T,
-) {
+function labelFor<T extends string>(options: ReadonlyArray<{ value: T; label: string }>, value: T) {
   return options.find((option) => option.value === value)?.label ?? value.replace(/_/g, ' ');
 }
 
 function resolveProjectReferenceLabel(reference: MultiPileProjectReference) {
-  return reference.title || reference.referenceId || reference.documentNumber || 'Untitled reference';
+  return (
+    reference.title || reference.referenceId || reference.documentNumber || 'Untitled reference'
+  );
 }

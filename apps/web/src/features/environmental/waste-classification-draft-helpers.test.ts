@@ -102,9 +102,14 @@ describe('waste-classification draft helpers', () => {
               resultJson: {
                 documentFamily: { value: 'GEOTECHNICAL_REPORT', citations: [] },
                 reportTitle: { value: 'Site contamination assessment', citations: [] },
-                projectSummary: { value: 'Excavation spoil from former industrial land.', citations: [] },
+                projectSummary: {
+                  value: 'Excavation spoil from former industrial land.',
+                  citations: [],
+                },
                 reportSections: {
-                  fillMaterials: [{ value: 'Excavated fill and site-derived spoil', citations: [] }],
+                  fillMaterials: [
+                    { value: 'Excavated fill and site-derived spoil', citations: [] },
+                  ],
                 },
                 structuralDefaults: {
                   concreteMentions: [],

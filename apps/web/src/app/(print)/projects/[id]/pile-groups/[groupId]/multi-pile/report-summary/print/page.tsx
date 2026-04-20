@@ -99,7 +99,9 @@ export default function MultiPileReportSummaryPrintPage({
           </Link>
           <Link
             href={pricingHref}
-            className={buttonVariants({ variant: appendixMode === 'pricing' ? 'default' : 'outline' })}
+            className={buttonVariants({
+              variant: appendixMode === 'pricing' ? 'default' : 'outline',
+            })}
           >
             Report + Pricing Appendix
           </Link>

@@ -393,7 +393,10 @@ export type ProjectWasteClassificationRecommendationInput = Partial<
 >;
 
 export type ProjectWasteClassificationMaterialPathwayChecklistItemInput = Partial<
-  Pick<ProjectWasteClassificationMaterialPathwayChecklistItem, 'id' | 'label' | 'isChecked' | 'note' | 'sortOrder'>
+  Pick<
+    ProjectWasteClassificationMaterialPathwayChecklistItem,
+    'id' | 'label' | 'isChecked' | 'note' | 'sortOrder'
+  >
 >;
 
 export type ProjectWasteClassificationMaterialPathwayInput = Partial<
@@ -423,6 +426,12 @@ export type ProjectWasteClassificationMaterialPathwayInput = Partial<
 export type ProjectWasteClassificationRelatedPathwayInput = Partial<
   Pick<
     ProjectWasteClassificationRelatedPathway,
-    'pathwayCode' | 'title' | 'isRelevant' | 'summaryNote' | 'linkedReferenceId' | 'resultingAction' | 'sortOrder'
+    | 'pathwayCode'
+    | 'title'
+    | 'isRelevant'
+    | 'summaryNote'
+    | 'linkedReferenceId'
+    | 'resultingAction'
+    | 'sortOrder'
   >
 >;

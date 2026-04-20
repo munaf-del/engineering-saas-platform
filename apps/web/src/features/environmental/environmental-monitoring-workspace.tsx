@@ -142,10 +142,7 @@ export function EnvironmentalMonitoringWorkspace({
   }
 
   const projectIdentity = resolveProjectIdentity(project);
-  const reportTypeLabel = labelFor(
-    ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS,
-    report.reportType,
-  );
+  const reportTypeLabel = labelFor(ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS, report.reportType);
   const resultCount =
     report.reportType === 'noise_monitoring'
       ? report.noiseResults.length
@@ -172,7 +169,11 @@ export function EnvironmentalMonitoringWorkspace({
             <Badge variant="outline">{report.locations.length} locations</Badge>
             <Badge variant="outline">{report.selectedCriteria.length} criteria</Badge>
             <Badge variant="outline">{resultCount} results</Badge>
-            {isDirty ? <Badge variant="warning">Unsaved changes</Badge> : <Badge variant="success">Saved</Badge>}
+            {isDirty ? (
+              <Badge variant="warning">Unsaved changes</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
           </>
         }
         actions={
@@ -239,10 +240,7 @@ function RootSections({
 }) {
   return (
     <>
-      <SectionCard
-        title="Project Identity"
-        description="Inherited from the project workspace."
-      >
+      <SectionCard title="Project Identity" description="Inherited from the project workspace.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <LabeledField label="Project number">
             <ReadOnlyFieldValue value={projectIdentity.projectNumber} />
@@ -477,7 +475,9 @@ function ReferencesSection({
               row={row}
               projectReferences={projectReferences}
               aiDocuments={aiDocuments ?? []}
-              onSave={(data) => updateReference.mutateAsync({ id: row.id, data: normalizeReferenceInput(data) })}
+              onSave={(data) =>
+                updateReference.mutateAsync({ id: row.id, data: normalizeReferenceInput(data) })
+              }
               onDelete={() => deleteReference.mutateAsync(row.id)}
             />
           ))
@@ -545,13 +545,17 @@ function LocationsSection({
         <LabeledField label="Distance note">
           <Input
             value={draft.distanceNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, distanceNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, distanceNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Chainage note">
           <Input
             value={draft.chainageNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, chainageNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, chainageNote: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -590,7 +594,9 @@ function CriteriaSection({
   const deleteCriterion = useDeleteEnvironmentalMonitoringSelectedCriterion(projectId, reportId);
 
   const selectedCriterionKeys = new Set(
-    report.selectedCriteria.map((selection) => `${selection.criterionRowId}:${selection.selectionPurpose}`),
+    report.selectedCriteria.map(
+      (selection) => `${selection.criterionRowId}:${selection.selectionPurpose}`,
+    ),
   );
 
   async function handleAddCriterion(row: NoiseVibrationCriterionRow) {
@@ -676,14 +682,18 @@ function CriteriaSection({
             ) : (criteria ?? []).length === 0 ? (
               <EmptyRows>No criteria match the current filters.</EmptyRows>
             ) : (
-              (criteria ?? []).slice(0, 80).map((row) => (
-                <CriterionPickerRow
-                  key={row.id}
-                  row={row}
-                  selected={selectedCriterionKeys.has(`${row.id}:${defaultSelectionPurpose(row)}`)}
-                  onAdd={() => handleAddCriterion(row)}
-                />
-              ))
+              (criteria ?? [])
+                .slice(0, 80)
+                .map((row) => (
+                  <CriterionPickerRow
+                    key={row.id}
+                    row={row}
+                    selected={selectedCriterionKeys.has(
+                      `${row.id}:${defaultSelectionPurpose(row)}`,
+                    )}
+                    onAdd={() => handleAddCriterion(row)}
+                  />
+                ))
             )}
           </div>
         </div>
@@ -754,28 +764,37 @@ function NoiseResultsSection({
         <LabeledField label="Activity label">
           <Input
             value={draft.activityLabel ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, activityLabel: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, activityLabel: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observed at">
           <Input
             type="datetime-local"
             value={draft.observedAt ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observedAt: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observedAt: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Location">
           <OptionalSelect
             value={draft.locationId ?? null}
             placeholder="No location"
-            options={report.locations.map((location) => ({ value: location.id, label: location.label }))}
+            options={report.locations.map((location) => ({
+              value: location.id,
+              label: location.label,
+            }))}
             onChange={(locationId) => setDraft((current) => ({ ...current, locationId }))}
           />
         </LabeledField>
         <LabeledField label="Compliance status">
           <ComplianceStatusSelect
             value={draft.complianceStatus ?? 'not_assessed'}
-            onChange={(complianceStatus) => setDraft((current) => ({ ...current, complianceStatus }))}
+            onChange={(complianceStatus) =>
+              setDraft((current) => ({ ...current, complianceStatus }))
+            }
           />
         </LabeledField>
       </div>
@@ -789,7 +808,9 @@ function NoiseResultsSection({
               key={row.id}
               row={row}
               report={report}
-              onSave={(data) => updateResult.mutateAsync({ id: row.id, data: normalizeNoiseResultInput(data) })}
+              onSave={(data) =>
+                updateResult.mutateAsync({ id: row.id, data: normalizeNoiseResultInput(data) })
+              }
               onDelete={() => deleteResult.mutateAsync(row.id)}
             />
           ))
@@ -846,14 +867,18 @@ function VibrationResultsSection({
         <LabeledField label="Activity label">
           <Input
             value={draft.activityLabel ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, activityLabel: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, activityLabel: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observed at">
           <Input
             type="datetime-local"
             value={draft.observedAt ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observedAt: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observedAt: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Metric type">
@@ -865,7 +890,9 @@ function VibrationResultsSection({
         <LabeledField label="Compliance status">
           <ComplianceStatusSelect
             value={draft.complianceStatus ?? 'not_assessed'}
-            onChange={(complianceStatus) => setDraft((current) => ({ ...current, complianceStatus }))}
+            onChange={(complianceStatus) =>
+              setDraft((current) => ({ ...current, complianceStatus }))
+            }
           />
         </LabeledField>
       </div>
@@ -879,7 +906,9 @@ function VibrationResultsSection({
               key={row.id}
               row={row}
               report={report}
-              onSave={(data) => updateResult.mutateAsync({ id: row.id, data: normalizeVibrationResultInput(data) })}
+              onSave={(data) =>
+                updateResult.mutateAsync({ id: row.id, data: normalizeVibrationResultInput(data) })
+              }
               onDelete={() => deleteResult.mutateAsync(row.id)}
             />
           ))
@@ -935,13 +964,17 @@ function ObservationsSection({
         <LabeledField label="Category">
           <Input
             value={draft.category ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, category: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observation">
           <Input
             value={draft.observation ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observation: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observation: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1010,13 +1043,17 @@ function RecommendationsSection({
         <LabeledField label="Category">
           <Input
             value={draft.category ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, category: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Recommendation">
           <Input
             value={draft.recommendation ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, recommendation: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, recommendation: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1166,19 +1203,25 @@ function LocationRow({
         <LabeledField label="Distance note">
           <Input
             value={draft.distanceNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, distanceNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, distanceNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Chainage note">
           <Input
             value={draft.chainageNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, chainageNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, chainageNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Coordinates note">
           <Input
             value={draft.coordinatesNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, coordinatesNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, coordinatesNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Assessment location basis">
@@ -1306,7 +1349,9 @@ function SelectedCriterionRow({
           <LabeledField label="Selection note" className="md:col-span-2 xl:col-span-4">
             <Textarea
               value={draft.selectionNote ?? ''}
-              onChange={(event) => setDraft((current) => ({ ...current, selectionNote: event.target.value }))}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, selectionNote: event.target.value }))
+              }
             />
           </LabeledField>
         </div>
@@ -1356,34 +1401,45 @@ function NoiseResultRowEditor({
         <LabeledField label="Activity label">
           <Input
             value={draft.activityLabel ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, activityLabel: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, activityLabel: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observed at">
           <Input
             type="datetime-local"
             value={draft.observedAt ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observedAt: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observedAt: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Location">
           <OptionalSelect
             value={draft.locationId ?? null}
             placeholder="No location"
-            options={report.locations.map((location) => ({ value: location.id, label: location.label }))}
+            options={report.locations.map((location) => ({
+              value: location.id,
+              label: location.label,
+            }))}
             onChange={(locationId) => setDraft((current) => ({ ...current, locationId }))}
           />
         </LabeledField>
         <LabeledField label="Compliance status">
           <ComplianceStatusSelect
             value={draft.complianceStatus ?? 'not_assessed'}
-            onChange={(complianceStatus) => setDraft((current) => ({ ...current, complianceStatus }))}
+            onChange={(complianceStatus) =>
+              setDraft((current) => ({ ...current, complianceStatus }))
+            }
           />
         </LabeledField>
         <LabeledField label="Instrument note">
           <Input
             value={draft.instrumentNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, instrumentNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, instrumentNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Measurement period note">
@@ -1397,7 +1453,9 @@ function NoiseResultRowEditor({
         <LabeledField label="LAeq,15min">
           <Input
             value={draft.laeq15min ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, laeq15min: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, laeq15min: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="LAmax">
@@ -1409,7 +1467,9 @@ function NoiseResultRowEditor({
         <LabeledField label="LAF1,1min">
           <Input
             value={draft.laf1_1min ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, laf1_1min: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, laf1_1min: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Criterion">
@@ -1423,13 +1483,17 @@ function NoiseResultRowEditor({
         <LabeledField label="Background note" className="md:col-span-2">
           <Textarea
             value={draft.backgroundNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, backgroundNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, backgroundNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Result note" className="md:col-span-2">
           <Textarea
             value={draft.resultNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, resultNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, resultNote: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1478,21 +1542,28 @@ function VibrationResultRowEditor({
         <LabeledField label="Activity label">
           <Input
             value={draft.activityLabel ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, activityLabel: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, activityLabel: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observed at">
           <Input
             type="datetime-local"
             value={draft.observedAt ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observedAt: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observedAt: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Location">
           <OptionalSelect
             value={draft.locationId ?? null}
             placeholder="No location"
-            options={report.locations.map((location) => ({ value: location.id, label: location.label }))}
+            options={report.locations.map((location) => ({
+              value: location.id,
+              label: location.label,
+            }))}
             onChange={(locationId) => setDraft((current) => ({ ...current, locationId }))}
           />
         </LabeledField>
@@ -1505,31 +1576,41 @@ function VibrationResultRowEditor({
         <LabeledField label="Instrument note">
           <Input
             value={draft.instrumentNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, instrumentNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, instrumentNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="PPV">
           <Input
             value={draft.ppvValue ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, ppvValue: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, ppvValue: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="VDV">
           <Input
             value={draft.vdvValue ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, vdvValue: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, vdvValue: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Lin Peak">
           <Input
             value={draft.linPeakValue ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, linPeakValue: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, linPeakValue: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Dominant frequency (Hz)">
           <Input
             value={draft.dominantFrequencyHz ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, dominantFrequencyHz: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, dominantFrequencyHz: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Criterion">
@@ -1543,19 +1624,25 @@ function VibrationResultRowEditor({
         <LabeledField label="Compliance status">
           <ComplianceStatusSelect
             value={draft.complianceStatus ?? 'not_assessed'}
-            onChange={(complianceStatus) => setDraft((current) => ({ ...current, complianceStatus }))}
+            onChange={(complianceStatus) =>
+              setDraft((current) => ({ ...current, complianceStatus }))
+            }
           />
         </LabeledField>
         <LabeledField label="Axis note">
           <Input
             value={draft.axisNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, axisNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, axisNote: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Result note" className="md:col-span-2 xl:col-span-4">
           <Textarea
             value={draft.resultNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, resultNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, resultNote: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1591,19 +1678,25 @@ function ObservationRow({
         <LabeledField label="Category">
           <Input
             value={draft.category ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, category: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Observation" className="md:col-span-2">
           <Textarea
             value={draft.observation ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, observation: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, observation: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Implication note">
           <Textarea
             value={draft.implicationNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, implicationNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, implicationNote: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1639,31 +1732,41 @@ function RecommendationRow({
         <LabeledField label="Category">
           <Input
             value={draft.category ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, category: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Recommendation" className="xl:col-span-3">
           <Textarea
             value={draft.recommendation ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, recommendation: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, recommendation: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Priority">
           <Input
             value={draft.priority ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, priority: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, priority: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Responsibility">
           <Input
             value={draft.responsibility ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, responsibility: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, responsibility: event.target.value }))
+            }
           />
         </LabeledField>
         <LabeledField label="Timing note">
           <Input
             value={draft.timingNote ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, timingNote: event.target.value }))}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, timingNote: event.target.value }))
+            }
           />
         </LabeledField>
       </div>
@@ -1721,7 +1824,13 @@ function EditableRow({
           <Button type="button" variant="outline" size="sm" onClick={handleSave}>
             Save Row
           </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={handleDelete} aria-label="Delete row">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            aria-label="Delete row"
+          >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -1735,10 +1844,14 @@ function CriterionBadges({ row }: { row: NoiseVibrationCriterionRow }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {row.receiverType ? (
-        <Badge variant="secondary">{labelFor(NOISE_VIBRATION_RECEIVER_TYPE_OPTIONS, row.receiverType)}</Badge>
+        <Badge variant="secondary">
+          {labelFor(NOISE_VIBRATION_RECEIVER_TYPE_OPTIONS, row.receiverType)}
+        </Badge>
       ) : null}
       {row.timePeriod ? (
-        <Badge variant="outline">{labelFor(NOISE_VIBRATION_TIME_PERIOD_OPTIONS, row.timePeriod)}</Badge>
+        <Badge variant="outline">
+          {labelFor(NOISE_VIBRATION_TIME_PERIOD_OPTIONS, row.timePeriod)}
+        </Badge>
       ) : null}
       <Badge variant="outline">{row.group.metric.replace(/_/g, ' ')}</Badge>
       {row.workTypes.map((workType) => (
@@ -1758,7 +1871,10 @@ function ReceiverTypeSelect({
   onChange: (value: NoiseVibrationReceiverType) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationReceiverType)}>
+    <Select
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as NoiseVibrationReceiverType)}
+    >
       <SelectTrigger>
         <SelectValue />
       </SelectTrigger>
@@ -1781,7 +1897,10 @@ function MetricTypeSelect({
   onChange: (value: EnvironmentalMonitoringMetricType) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as EnvironmentalMonitoringMetricType)}>
+    <Select
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as EnvironmentalMonitoringMetricType)}
+    >
       <SelectTrigger>
         <SelectValue />
       </SelectTrigger>
@@ -1804,7 +1923,10 @@ function ComplianceStatusSelect({
   onChange: (value: EnvironmentalMonitoringComplianceStatus) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as EnvironmentalMonitoringComplianceStatus)}>
+    <Select
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as EnvironmentalMonitoringComplianceStatus)}
+    >
       <SelectTrigger>
         <SelectValue />
       </SelectTrigger>
@@ -2178,7 +2300,11 @@ function formatWorkingHours(row: NoiseVibrationCriterionRow) {
   const parts = [
     row.weekdayStart && row.weekdayEnd ? `Mon-Fri ${row.weekdayStart}-${row.weekdayEnd}` : null,
     row.saturdayStart && row.saturdayEnd ? `Sat ${row.saturdayStart}-${row.saturdayEnd}` : null,
-    row.sundayAllowed === false ? 'no Sunday work' : row.sundayAllowed === true ? 'Sunday allowed' : null,
+    row.sundayAllowed === false
+      ? 'no Sunday work'
+      : row.sundayAllowed === true
+        ? 'Sunday allowed'
+        : null,
     row.publicHolidayAllowed === false
       ? 'no public holiday work'
       : row.publicHolidayAllowed === true
@@ -2212,13 +2338,12 @@ function formatNumber(value: string | null) {
   return Number.isInteger(numeric) ? String(numeric) : String(numeric);
 }
 
-function labelFor<T extends string>(
-  options: ReadonlyArray<{ value: T; label: string }>,
-  value: T,
-) {
+function labelFor<T extends string>(options: ReadonlyArray<{ value: T; label: string }>, value: T) {
   return options.find((option) => option.value === value)?.label ?? value.replace(/_/g, ' ');
 }
 
 function resolveProjectReferenceLabel(reference: MultiPileProjectReference) {
-  return reference.title || reference.referenceId || reference.documentNumber || 'Untitled reference';
+  return (
+    reference.title || reference.referenceId || reference.documentNumber || 'Untitled reference'
+  );
 }

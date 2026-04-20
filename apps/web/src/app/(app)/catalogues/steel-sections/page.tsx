@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { Database, Pin, Check, AlertTriangle } from 'lucide-react';
-import { useSteelSectionCatalogs, useSteelSections, useActivateSteelCatalog } from '@/hooks/use-steel-sections';
+import {
+  useSteelSectionCatalogs,
+  useSteelSections,
+  useActivateSteelCatalog,
+} from '@/hooks/use-steel-sections';
 import { PageHeader } from '@/components/page-header';
 import { DataTable, type Column } from '@/components/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -16,30 +20,55 @@ import { toast } from 'sonner';
 import type { SteelSection, SteelSectionCatalog } from '@eng/shared';
 
 const sectionColumns: Column<SteelSection & Record<string, unknown>>[] = [
-  { key: 'designation', header: 'Designation', cell: (row) => <span className="font-mono font-medium">{row.designation}</span> },
-  { key: 'sectionType', header: 'Type', cell: (row) => <Badge variant="outline">{row.sectionType}</Badge>, className: 'w-[120px]' },
+  {
+    key: 'designation',
+    header: 'Designation',
+    cell: (row) => <span className="font-mono font-medium">{row.designation}</span>,
+  },
+  {
+    key: 'sectionType',
+    header: 'Type',
+    cell: (row) => <Badge variant="outline">{row.sectionType}</Badge>,
+    className: 'w-[120px]',
+  },
   {
     key: 'mass',
     header: 'Mass (kg/m)',
-    cell: (row) => <span className="font-mono">{(row.properties as Record<string, number>)?.massPerMetre?.toFixed(1) ?? '—'}</span>,
+    cell: (row) => (
+      <span className="font-mono">
+        {(row.properties as Record<string, number>)?.massPerMetre?.toFixed(1) ?? '—'}
+      </span>
+    ),
     className: 'w-[110px]',
   },
   {
     key: 'depth',
     header: 'd (mm)',
-    cell: (row) => <span className="font-mono">{(row.properties as Record<string, number>)?.depth?.toFixed(0) ?? '—'}</span>,
+    cell: (row) => (
+      <span className="font-mono">
+        {(row.properties as Record<string, number>)?.depth?.toFixed(0) ?? '—'}
+      </span>
+    ),
     className: 'w-[90px]',
   },
   {
     key: 'Ix',
     header: 'Ix (mm⁴)',
-    cell: (row) => <span className="font-mono">{(row.properties as Record<string, number>)?.momentOfInertiaX?.toExponential(2) ?? '—'}</span>,
+    cell: (row) => (
+      <span className="font-mono">
+        {(row.properties as Record<string, number>)?.momentOfInertiaX?.toExponential(2) ?? '—'}
+      </span>
+    ),
     className: 'w-[120px]',
   },
   {
     key: 'Zx',
     header: 'Zx (mm³)',
-    cell: (row) => <span className="font-mono">{(row.properties as Record<string, number>)?.sectionModulusX?.toExponential(2) ?? '—'}</span>,
+    cell: (row) => (
+      <span className="font-mono">
+        {(row.properties as Record<string, number>)?.sectionModulusX?.toExponential(2) ?? '—'}
+      </span>
+    ),
     className: 'w-[120px]',
   },
 ];
@@ -60,7 +89,9 @@ function SnapshotBadge({ catalog }: { catalog: SteelSectionCatalog }) {
     );
   }
   return (
-    <Badge variant="outline" className="text-[10px] text-muted-foreground">No snapshot</Badge>
+    <Badge variant="outline" className="text-[10px] text-muted-foreground">
+      No snapshot
+    </Badge>
   );
 }
 
@@ -70,10 +101,17 @@ export default function SteelSectionsPage() {
   const [page, setPage] = useState(1);
   const activateCatalog = useActivateSteelCatalog();
 
-  const activeCatalog = catalogs?.find((c) => c.id === selectedCatalog) ?? catalogs?.find((c) => c.status === 'active') ?? catalogs?.[0];
+  const activeCatalog =
+    catalogs?.find((c) => c.id === selectedCatalog) ??
+    catalogs?.find((c) => c.status === 'active') ??
+    catalogs?.[0];
   const effectiveCatalogId = selectedCatalog || activeCatalog?.id || '';
 
-  const { data: sections, isLoading: sectionsLoading } = useSteelSections(effectiveCatalogId, page, 50);
+  const { data: sections, isLoading: sectionsLoading } = useSteelSections(
+    effectiveCatalogId,
+    page,
+    50,
+  );
 
   const hasActive = catalogs?.some((c) => c.status === 'active');
 
@@ -93,7 +131,11 @@ export default function SteelSectionsPage() {
       {catsLoading ? (
         <PageLoading />
       ) : !catalogs?.length ? (
-        <EmptyState icon={<Database className="h-12 w-12" />} title="No catalogues" description="Import a steel section catalogue to get started." />
+        <EmptyState
+          icon={<Database className="h-12 w-12" />}
+          title="No catalogues"
+          description="Import a steel section catalogue to get started."
+        />
       ) : (
         <>
           {!hasActive && (
@@ -101,7 +143,8 @@ export default function SteelSectionsPage() {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>No Active Catalogue</AlertTitle>
               <AlertDescription>
-                No catalogue version is currently active. Activate a version to pin its snapshot for use in calculations.
+                No catalogue version is currently active. Activate a version to pin its snapshot for
+                use in calculations.
               </AlertDescription>
             </Alert>
           )}
@@ -112,7 +155,10 @@ export default function SteelSectionsPage() {
                 key={cat.id}
                 variant={effectiveCatalogId === cat.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setSelectedCatalog(cat.id); setPage(1); }}
+                onClick={() => {
+                  setSelectedCatalog(cat.id);
+                  setPage(1);
+                }}
                 className="gap-1.5"
               >
                 {cat.name} v{cat.version}
@@ -131,7 +177,9 @@ export default function SteelSectionsPage() {
               </CardHeader>
               <CardContent className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <p className="font-medium">{activeCatalog.name} — v{activeCatalog.version}</p>
+                  <p className="font-medium">
+                    {activeCatalog.name} — v{activeCatalog.version}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Source: {activeCatalog.sourceStandard} ({activeCatalog.sourceEdition})
                   </p>

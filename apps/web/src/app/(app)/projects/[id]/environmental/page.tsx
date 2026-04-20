@@ -12,11 +12,7 @@ import { extractProjectSpecifics } from '@/features/projects/project-specifics-a
 import { useProject } from '@/hooks/use-projects';
 import { ApiError } from '@/lib/api-client';
 
-export default function ProjectEnvironmentalPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ProjectEnvironmentalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const { data: project, isLoading, error } = useProject(projectId);
 
@@ -101,9 +97,7 @@ export default function ProjectEnvironmentalPage({
               </div>
             </CardHeader>
             <CardContent>
-              <CardDescription>
-                Construction Noise and Vibration Management Plan
-              </CardDescription>
+              <CardDescription>Construction Noise and Vibration Management Plan</CardDescription>
             </CardContent>
           </Card>
         </Link>

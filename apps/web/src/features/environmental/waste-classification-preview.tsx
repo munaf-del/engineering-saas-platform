@@ -70,7 +70,9 @@ export function WasteClassificationPreview({
               <Eye className="mr-1 h-3 w-3" />
               Preview
             </Badge>
-            <Badge variant={report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}>
+            <Badge
+              variant={report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}
+            >
               {labelFor(WASTE_CLASS_OPTIONS, report.finalWasteClass)}
             </Badge>
           </>
@@ -117,10 +119,25 @@ export function WasteClassificationPreview({
           <PreviewField label="Waste stream name" value={report.wasteStreamName} />
           <PreviewField label="Sampling date" value={formatDate(report.samplingDate)} />
           <PreviewField label="Quantity / volume estimate" value={report.quantityEstimate} />
-          <PreviewField label="Proposed receiving facility note" value={report.proposedReceivingFacilityNote} />
-          <PreviewField label="Waste source / origin" value={report.wasteSourceOrigin} className="md:col-span-2" />
-          <PreviewField label="Waste description" value={report.wasteDescription} className="md:col-span-2" />
-          <PreviewField label="Executive summary" value={report.executiveSummary} className="md:col-span-2" />
+          <PreviewField
+            label="Proposed receiving facility note"
+            value={report.proposedReceivingFacilityNote}
+          />
+          <PreviewField
+            label="Waste source / origin"
+            value={report.wasteSourceOrigin}
+            className="md:col-span-2"
+          />
+          <PreviewField
+            label="Waste description"
+            value={report.wasteDescription}
+            className="md:col-span-2"
+          />
+          <PreviewField
+            label="Executive summary"
+            value={report.executiveSummary}
+            className="md:col-span-2"
+          />
         </PreviewGrid>
       </PreviewCard>
 
@@ -145,7 +162,9 @@ export function WasteClassificationPreview({
                     {reference.sourceUrl}
                   </a>
                 ) : null}
-                {reference.note ? <p className="mt-2 text-sm text-muted-foreground">{reference.note}</p> : null}
+                {reference.note ? (
+                  <p className="mt-2 text-sm text-muted-foreground">{reference.note}</p>
+                ) : null}
               </div>
             ))
           )}
@@ -218,9 +237,15 @@ export function WasteClassificationPreview({
                   </Badge>
                 </div>
                 <div className="mt-3 space-y-3 text-sm">
-                  <PreviewInline label="Linked reference" value={pathway.linkedReference?.title ?? null} />
+                  <PreviewInline
+                    label="Linked reference"
+                    value={pathway.linkedReference?.title ?? null}
+                  />
                   <PreviewInline label="Summary note" value={pathway.summaryNote} />
-                  <PreviewInline label="Resulting action / implication" value={pathway.resultingAction} />
+                  <PreviewInline
+                    label="Resulting action / implication"
+                    value={pathway.resultingAction}
+                  />
                 </div>
               </div>
             ))
@@ -232,12 +257,20 @@ export function WasteClassificationPreview({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">Final waste class</span>
-            <Badge variant={report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}>
+            <Badge
+              variant={report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}
+            >
               {labelFor(WASTE_CLASS_OPTIONS, report.finalWasteClass)}
             </Badge>
           </div>
-          <PreviewField label="Final classification reasoning" value={report.finalClassificationReasoning} />
-          <PreviewField label="Management / disposal recommendation" value={report.managementRecommendation} />
+          <PreviewField
+            label="Final classification reasoning"
+            value={report.finalClassificationReasoning}
+          />
+          <PreviewField
+            label="Management / disposal recommendation"
+            value={report.managementRecommendation}
+          />
         </div>
       </PreviewCard>
 
@@ -250,14 +283,18 @@ export function WasteClassificationPreview({
               <div key={recommendation.id} className="rounded-lg border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium">{recommendation.category}</div>
-                  {recommendation.priority ? <Badge variant="outline">{recommendation.priority}</Badge> : null}
+                  {recommendation.priority ? (
+                    <Badge variant="outline">{recommendation.priority}</Badge>
+                  ) : null}
                   {recommendation.responsibility ? (
                     <Badge variant="outline">{recommendation.responsibility}</Badge>
                   ) : null}
                 </div>
                 <p className="mt-2 text-sm">{recommendation.recommendation}</p>
                 {recommendation.timingNote ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Timing: {recommendation.timingNote}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Timing: {recommendation.timingNote}
+                  </p>
                 ) : null}
               </div>
             ))
@@ -292,7 +329,9 @@ function PreviewMaterialPathway({
           </Badge>
         ) : null}
         {pathway.assClass ? (
-          <Badge variant="outline">{labelFor(ACID_SULFATE_SOIL_CLASS_OPTIONS, pathway.assClass)}</Badge>
+          <Badge variant="outline">
+            {labelFor(ACID_SULFATE_SOIL_CLASS_OPTIONS, pathway.assClass)}
+          </Badge>
         ) : null}
       </div>
 
@@ -302,7 +341,10 @@ function PreviewMaterialPathway({
         <PreviewInline label="Linked reference" value={pathway.linkedReference?.title ?? null} />
         <PreviewInline label="ASS class source" value={pathway.assClassSource} />
         <PreviewInline label="Project / location note" value={pathway.projectLocationNote} />
-        <PreviewInline label="Treatment / management note" value={pathway.treatmentManagementNote} />
+        <PreviewInline
+          label="Treatment / management note"
+          value={pathway.treatmentManagementNote}
+        />
         <PreviewInline
           label="Step 5 chemical assessment"
           value={
@@ -358,7 +400,9 @@ function PreviewStepDecision({ step }: { step: ProjectWasteClassificationStepDec
         <Badge variant="outline">
           {labelFor(WASTE_CLASSIFICATION_OUTCOME_STATUS_OPTIONS, step.outcomeStatus)}
         </Badge>
-        {step.classificationReached ? <Badge variant="success">Classification reached</Badge> : null}
+        {step.classificationReached ? (
+          <Badge variant="success">Classification reached</Badge>
+        ) : null}
         {step.resultingWasteClass ? (
           <Badge variant="outline">{labelFor(WASTE_CLASS_OPTIONS, step.resultingWasteClass)}</Badge>
         ) : null}
@@ -388,13 +432,7 @@ function PreviewStepDecision({ step }: { step: ProjectWasteClassificationStepDec
   );
 }
 
-function PreviewCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function PreviewCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card className="print:border-zinc-300 print:shadow-none">
       <CardHeader className="pb-3">
@@ -420,19 +458,15 @@ function PreviewField({
 }) {
   return (
     <div className={className ? `space-y-1 ${className}` : 'space-y-1'}>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       <div className="whitespace-pre-wrap text-sm">{value?.trim() ? value : 'Not recorded'}</div>
     </div>
   );
 }
 
-function PreviewInline({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
+function PreviewInline({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value?.trim()) {
     return null;
   }

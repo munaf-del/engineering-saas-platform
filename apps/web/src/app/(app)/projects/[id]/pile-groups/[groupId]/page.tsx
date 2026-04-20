@@ -23,13 +23,17 @@ export default function PileGroupEditorPage({
   if (isLoading || !group) return <PageLoading />;
 
   const piles =
-    (group as {
-      piles?: Array<{ id: string }>;
-    }).piles ?? [];
+    (
+      group as {
+        piles?: Array<{ id: string }>;
+      }
+    ).piles ?? [];
   const layoutPoints =
-    (group as {
-      layoutPoints?: Array<{ id: string }>;
-    }).layoutPoints ?? [];
+    (
+      group as {
+        layoutPoints?: Array<{ id: string }>;
+      }
+    ).layoutPoints ?? [];
 
   return (
     <>

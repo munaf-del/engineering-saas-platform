@@ -75,10 +75,7 @@ import {
 } from '@/hooks/use-project-spatial';
 import { ApiError } from '@/lib/api-client';
 import { toast } from 'sonner';
-import type {
-  ProjectSpatialDraftOverlay,
-  ProjectSpatialToolMode,
-} from './project-spatial-map';
+import type { ProjectSpatialDraftOverlay, ProjectSpatialToolMode } from './project-spatial-map';
 
 const ProjectSpatialMap = dynamic(
   () => import('./project-spatial-map').then((module) => module.ProjectSpatialMap),
@@ -93,8 +90,7 @@ const ProjectSpatialMap = dynamic(
 );
 
 const NONE_VALUE = '__none__';
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type EditableProjectSpatialFeature = {
   key: string;
@@ -123,10 +119,7 @@ type ProjectSpatialWorkspaceProps = {
   project: Project;
 };
 
-export function ProjectSpatialWorkspace({
-  projectId,
-  project,
-}: ProjectSpatialWorkspaceProps) {
+export function ProjectSpatialWorkspace({ projectId, project }: ProjectSpatialWorkspaceProps) {
   const projectSpecifics = useMemo(() => extractProjectSpecifics(project), [project]);
   const projectName = projectSpecifics.identity.projectName || project.name;
   const { data: features = [], isLoading } = useProjectSpatialFeatures(projectId);
@@ -191,8 +184,7 @@ export function ProjectSpatialWorkspace({
     : null;
 
   const linkedAiDocumentIdError =
-    draft?.linkedAiDocumentId.trim() &&
-    !UUID_PATTERN.test(draft.linkedAiDocumentId.trim())
+    draft?.linkedAiDocumentId.trim() && !UUID_PATTERN.test(draft.linkedAiDocumentId.trim())
       ? 'AI document ID must be a valid UUID.'
       : null;
 
@@ -479,10 +471,10 @@ export function ProjectSpatialWorkspace({
         badges={
           <>
             <Badge variant="outline">{projectName}</Badge>
-            <Badge variant="outline">{features.length} total feature{features.length === 1 ? '' : 's'}</Badge>
             <Badge variant="outline">
-              {visibleFeatures.length} visible in workspace
+              {features.length} total feature{features.length === 1 ? '' : 's'}
             </Badge>
+            <Badge variant="outline">{visibleFeatures.length} visible in workspace</Badge>
           </>
         }
       />
@@ -491,9 +483,9 @@ export function ProjectSpatialWorkspace({
         <MapIcon className="h-4 w-4" />
         <AlertTitle>Project-owned spatial workspace</AlertTitle>
         <AlertDescription>
-          This master map is shared across Project Geotechnical, Foundations, Environmental,
-          CNVMP, Monitoring Reports, and future inspections. It is the reusable source of truth for
-          project spatial features.
+          This master map is shared across Project Geotechnical, Foundations, Environmental, CNVMP,
+          Monitoring Reports, and future inspections. It is the reusable source of truth for project
+          spatial features.
         </AlertDescription>
       </Alert>
 
@@ -531,7 +523,8 @@ export function ProjectSpatialWorkspace({
             <CardHeader>
               <CardTitle className="text-base">Reuse Intent</CardTitle>
               <CardDescription>
-                Features stored here are ready to be referenced by later report and module workflows.
+                Features stored here are ready to be referenced by later report and module
+                workflows.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
@@ -729,17 +722,17 @@ export function ProjectSpatialWorkspace({
 
                 <div className="space-y-2">
                   <Label>Feature Type</Label>
-                    <Select
-                      value={draft.featureType || NONE_VALUE}
-                      onValueChange={(value) => {
-                        const nextFeatureType =
-                          value === NONE_VALUE ? '' : (value as ProjectSpatialFeatureType);
-                        updateDraftField('featureType', nextFeatureType);
-                        if (nextFeatureType) {
-                          setVisibleFeatureTypes((current) => new Set(current).add(nextFeatureType));
-                        }
-                      }}
-                    >
+                  <Select
+                    value={draft.featureType || NONE_VALUE}
+                    onValueChange={(value) => {
+                      const nextFeatureType =
+                        value === NONE_VALUE ? '' : (value as ProjectSpatialFeatureType);
+                      updateDraftField('featureType', nextFeatureType);
+                      if (nextFeatureType) {
+                        setVisibleFeatureTypes((current) => new Set(current).add(nextFeatureType));
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a feature type" />
                     </SelectTrigger>
@@ -805,9 +798,7 @@ export function ProjectSpatialWorkspace({
                     <Input
                       id="spatial-source-reference"
                       value={draft.sourceReference}
-                      onChange={(event) =>
-                        updateDraftField('sourceReference', event.target.value)
-                      }
+                      onChange={(event) => updateDraftField('sourceReference', event.target.value)}
                       placeholder="Optional source reference"
                     />
                   </div>
@@ -927,17 +918,13 @@ export function ProjectSpatialWorkspace({
                           <Textarea
                             id={`spatial-property-${field.key}`}
                             value={typeof currentValue === 'string' ? currentValue : ''}
-                            onChange={(event) =>
-                              updateDraftProperty(field.key, event.target.value)
-                            }
+                            onChange={(event) => updateDraftProperty(field.key, event.target.value)}
                           />
                         ) : (
                           <Input
                             id={`spatial-property-${field.key}`}
                             value={typeof currentValue === 'string' ? currentValue : ''}
-                            onChange={(event) =>
-                              updateDraftProperty(field.key, event.target.value)
-                            }
+                            onChange={(event) => updateDraftProperty(field.key, event.target.value)}
                           />
                         )}
                       </div>
@@ -951,8 +938,7 @@ export function ProjectSpatialWorkspace({
                         id="spatial-additional-properties"
                         value={
                           typeof asRecord(draft.propertiesJson).additionalProperties === 'string'
-                            ? (asRecord(draft.propertiesJson)
-                                .additionalProperties as string)
+                            ? (asRecord(draft.propertiesJson).additionalProperties as string)
                             : ''
                         }
                         onChange={(event) =>
@@ -1083,7 +1069,9 @@ function editableDraftFromFeature(feature: ProjectSpatialFeature): EditableProje
   };
 }
 
-function buildFeaturePayload(draft: EditableProjectSpatialFeature): ProjectSpatialFeatureInput | null {
+function buildFeaturePayload(
+  draft: EditableProjectSpatialFeature,
+): ProjectSpatialFeatureInput | null {
   if (!draft.featureType || !draft.label.trim()) {
     return null;
   }

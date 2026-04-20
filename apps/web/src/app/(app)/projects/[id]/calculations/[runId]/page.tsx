@@ -2,22 +2,46 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, AlertTriangle, FileText, Copy, Download, ShieldAlert, RefreshCw } from 'lucide-react';
-import { useCalculation, useCalculationSnapshot, useCalculationDesignChecks, useCalculationReports, useCreateReport } from '@/hooks/use-calculations';
+import {
+  ArrowLeft,
+  AlertTriangle,
+  FileText,
+  Copy,
+  Download,
+  ShieldAlert,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  useCalculation,
+  useCalculationSnapshot,
+  useCalculationDesignChecks,
+  useCalculationReports,
+  useCreateReport,
+} from '@/hooks/use-calculations';
 import { useProject } from '@/hooks/use-projects';
 import { useProjectStandardAssignments, useCurrentEditions } from '@/hooks/use-standards';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DesignCheckIndicator, UtilisationBar } from '@/components/design-check-indicator';
 import { PageLoading } from '@/components/loading';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
-const statusVariant: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'secondary'> = {
+const statusVariant: Record<
+  string,
+  'default' | 'success' | 'destructive' | 'warning' | 'secondary'
+> = {
   completed: 'success',
   failed: 'destructive',
   running: 'warning',
@@ -56,7 +80,10 @@ export default function CalculationDetailPage({
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}/calculations`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${projectId}/calculations`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Calculation History
         </Link>
       </div>
@@ -73,10 +100,16 @@ export default function CalculationDetailPage({
         actions={
           <div className="flex gap-2">
             <Link href={`/projects/${projectId}/calculations/new?cloneFrom=${runId}`}>
-              <Button variant="outline"><Copy className="mr-2 h-4 w-4" />Clone &amp; Re-run</Button>
+              <Button variant="outline">
+                <Copy className="mr-2 h-4 w-4" />
+                Clone &amp; Re-run
+              </Button>
             </Link>
             <Link href={`/projects/${projectId}/calculations/${runId}/report`}>
-              <Button variant="outline"><FileText className="mr-2 h-4 w-4" />View Report</Button>
+              <Button variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                View Report
+              </Button>
             </Link>
             <Button
               variant="outline"
@@ -124,7 +157,8 @@ export default function CalculationDetailPage({
           <RefreshCw className="h-4 w-4 animate-spin" />
           <AlertTitle>Calculation In Progress</AlertTitle>
           <AlertDescription>
-            This calculation is still {run.status === 'draft' ? 'queued' : 'running'}. Results will appear when processing completes.
+            This calculation is still {run.status === 'draft' ? 'queued' : 'running'}. Results will
+            appear when processing completes.
           </AlertDescription>
         </Alert>
       )}
@@ -132,7 +166,9 @@ export default function CalculationDetailPage({
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList>
           <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="design-checks">Design Checks ({designChecks?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="design-checks">
+            Design Checks ({designChecks?.length ?? 0})
+          </TabsTrigger>
           <TabsTrigger value="steps">Calculation Steps</TabsTrigger>
           <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
           <TabsTrigger value="reports">Reports ({reports?.length ?? 0})</TabsTrigger>
@@ -141,7 +177,9 @@ export default function CalculationDetailPage({
         <TabsContent value="summary">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle className="text-base">Inputs</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Inputs</CardTitle>
+              </CardHeader>
               <CardContent>
                 {run.requestSnapshot?.inputs ? (
                   <Table>
@@ -169,7 +207,9 @@ export default function CalculationDetailPage({
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-base">Outputs</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Outputs</CardTitle>
+              </CardHeader>
               <CardContent>
                 {result?.outputs ? (
                   <Table>
@@ -187,7 +227,9 @@ export default function CalculationDetailPage({
                           <TableCell className="font-medium">{val.label ?? key}</TableCell>
                           <TableCell className="text-right font-mono">{val.value}</TableCell>
                           <TableCell>{val.unit}</TableCell>
-                          <TableCell className="font-mono text-xs">{val.clauseRef ?? '—'}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {val.clauseRef ?? '—'}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -201,13 +243,17 @@ export default function CalculationDetailPage({
 
           {result?.warnings && result.warnings.length > 0 && (
             <Card className="mt-4">
-              <CardHeader><CardTitle className="text-base text-amber-600">Warnings</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base text-amber-600">Warnings</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ul className="space-y-1 text-sm">
                   {result.warnings.map((w, i) => (
                     <li key={i} className="text-amber-700">
                       <strong>{w.code}:</strong> {w.message}
-                      {w.clauseRef && <span className="ml-1 font-mono text-xs">({w.clauseRef})</span>}
+                      {w.clauseRef && (
+                        <span className="ml-1 font-mono text-xs">({w.clauseRef})</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -217,13 +263,17 @@ export default function CalculationDetailPage({
 
           {result?.errors && result.errors.length > 0 && (
             <Card className="mt-4">
-              <CardHeader><CardTitle className="text-base text-red-600">Errors</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base text-red-600">Errors</CardTitle>
+              </CardHeader>
               <CardContent>
                 <ul className="space-y-1 text-sm">
                   {result.errors.map((e, i) => (
                     <li key={i} className="text-red-700">
                       <strong>{e.code}:</strong> {e.message}
-                      {e.clauseRef && <span className="ml-1 font-mono text-xs">({e.clauseRef})</span>}
+                      {e.clauseRef && (
+                        <span className="ml-1 font-mono text-xs">({e.clauseRef})</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -241,7 +291,8 @@ export default function CalculationDetailPage({
                     <ShieldAlert className="h-4 w-4" />
                     <AlertTitle>Engineer Review Required</AlertTitle>
                     <AlertDescription>
-                      Checks marked with warnings or failures below require review by a qualified engineer before results can be approved.
+                      Checks marked with warnings or failures below require review by a qualified
+                      engineer before results can be approved.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -259,16 +310,34 @@ export default function CalculationDetailPage({
                   </TableHeader>
                   <TableBody>
                     {designChecks.map((dc) => (
-                      <TableRow key={dc.id} className={dc.status === 'fail' ? 'bg-red-50' : dc.status === 'warning' ? 'bg-amber-50' : ''}>
+                      <TableRow
+                        key={dc.id}
+                        className={
+                          dc.status === 'fail'
+                            ? 'bg-red-50'
+                            : dc.status === 'warning'
+                              ? 'bg-amber-50'
+                              : ''
+                        }
+                      >
                         <TableCell className="font-medium">{dc.checkType}</TableCell>
-                        <TableCell><Badge variant="outline">{dc.limitState}</Badge></TableCell>
-                        <TableCell className="text-right font-mono">{dc.demandValue.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-mono">{dc.capacityValue.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{dc.limitState}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {dc.demandValue.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {dc.capacityValue.toFixed(2)}
+                        </TableCell>
                         <TableCell className="w-[180px]">
                           <UtilisationBar ratio={dc.utilisationRatio} />
                         </TableCell>
                         <TableCell>
-                          <DesignCheckIndicator status={dc.status as 'pass' | 'fail' | 'warning' | 'not_checked'} compact />
+                          <DesignCheckIndicator
+                            status={dc.status as 'pass' | 'fail' | 'warning' | 'not_checked'}
+                            compact
+                          />
                         </TableCell>
                         <TableCell className="font-mono text-xs">{dc.clauseRef ?? '—'}</TableCell>
                       </TableRow>
@@ -290,12 +359,16 @@ export default function CalculationDetailPage({
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm">{step.name}</CardTitle>
-                      <Badge variant="outline" className="font-mono text-xs">{step.clauseRef}</Badge>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {step.clauseRef}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <p className="text-sm text-muted-foreground">{step.description}</p>
-                    <div className="rounded bg-muted px-3 py-2 font-mono text-sm">{step.formula}</div>
+                    <div className="rounded bg-muted px-3 py-2 font-mono text-sm">
+                      {step.formula}
+                    </div>
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-muted-foreground">Result:</span>
                       <span className="font-mono font-medium">
@@ -357,11 +430,14 @@ export default function CalculationDetailPage({
                     <div>
                       <p className="font-medium">{r.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {r.format} · {r.status} · {r.generatedAt ? new Date(r.generatedAt).toLocaleString() : 'Pending'}
+                        {r.format} · {r.status} ·{' '}
+                        {r.generatedAt ? new Date(r.generatedAt).toLocaleString() : 'Pending'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={r.status === 'completed' ? 'success' : 'secondary'}>{r.status}</Badge>
+                      <Badge variant={r.status === 'completed' ? 'success' : 'secondary'}>
+                        {r.status}
+                      </Badge>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -375,7 +451,8 @@ export default function CalculationDetailPage({
                 </Card>
               ))}
               <p className="mt-2 text-xs text-muted-foreground">
-                File download will be available when PDF export is implemented. Use the print-friendly report view in the meantime.
+                File download will be available when PDF export is implemented. Use the
+                print-friendly report view in the meantime.
               </p>
             </div>
           ) : (

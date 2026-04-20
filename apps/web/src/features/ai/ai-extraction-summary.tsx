@@ -44,11 +44,7 @@ const PARAMETER_TABLE_COLUMNS: Array<{
   { key: 'notes', label: 'Notes' },
 ];
 
-export function AiExtractionSummary({
-  extraction,
-}: {
-  extraction: AiEngineeringReportExtraction;
-}) {
+export function AiExtractionSummary({ extraction }: { extraction: AiEngineeringReportExtraction }) {
   const documentFamilyLabel = formatDocumentFamily(extraction.documentFamily.value);
   const isGeotechnical = isGeotechnicalDocumentFamily(extraction.documentFamily.value);
 
@@ -206,7 +202,10 @@ export function AiExtractionSummary({
       label: 'Groundwater observations',
       findings: extraction.dewateringProfile.groundwaterObservations,
     },
-    { label: 'Groundwater / water levels', findings: extraction.dewateringProfile.groundwaterLevels },
+    {
+      label: 'Groundwater / water levels',
+      findings: extraction.dewateringProfile.groundwaterLevels,
+    },
     {
       label: 'Permeability / hydraulic conductivity',
       findings: extraction.dewateringProfile.permeabilityHydraulicConductivity,
@@ -384,7 +383,9 @@ export function AiExtractionSummary({
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {extraction.batterSlopeTable ? <BatterSlopeTableCard table={extraction.batterSlopeTable} /> : null}
+        {extraction.batterSlopeTable ? (
+          <BatterSlopeTableCard table={extraction.batterSlopeTable} />
+        ) : null}
         {extraction.soilNailBondStressTable ? (
           <SoilNailBondStressTableCard table={extraction.soilNailBondStressTable} />
         ) : null}
@@ -449,7 +450,9 @@ export function AiExtractionSummary({
         </CardHeader>
         <CardContent className="space-y-3">
           {extraction.citations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No citations were returned for this run.</p>
+            <p className="text-sm text-muted-foreground">
+              No citations were returned for this run.
+            </p>
           ) : (
             extraction.citations.map((citation) => (
               <CitationCard key={citation.id} citation={citation} />
@@ -552,7 +555,9 @@ function FieldAndGroupCard({
           <div className="grid gap-3 md:grid-cols-2">
             {visibleFields.map((field) => (
               <div key={field.label} className="rounded-md border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{field.label}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {field.label}
+                </p>
                 <p className="mt-1 text-sm font-medium">{field.finding.value}</p>
                 <div className="mt-2">
                   <CitationList citations={field.finding.citations} compact />
@@ -597,9 +602,14 @@ function GroundModelCard({ extraction }: { extraction: AiEngineeringReportExtrac
       <CardContent className="space-y-4">
         {extraction.groundModel.siteWideInterpretation.value ? (
           <div className="rounded-md border p-3">
-            <p className="text-sm font-medium">{extraction.groundModel.siteWideInterpretation.value}</p>
+            <p className="text-sm font-medium">
+              {extraction.groundModel.siteWideInterpretation.value}
+            </p>
             <div className="mt-2">
-              <CitationList citations={extraction.groundModel.siteWideInterpretation.citations} compact />
+              <CitationList
+                citations={extraction.groundModel.siteWideInterpretation.citations}
+                compact
+              />
             </div>
           </div>
         ) : null}
@@ -623,7 +633,9 @@ function GroundModelCard({ extraction }: { extraction: AiEngineeringReportExtrac
                   <tr key={borehole.boreholeId} className="border-b align-top last:border-0">
                     <td className="px-3 py-2 font-medium">{borehole.boreholeId}</td>
                     {unitNames.map((unitName) => {
-                      const unitDepth = borehole.unitDepths.find((entry) => entry.unitName === unitName);
+                      const unitDepth = borehole.unitDepths.find(
+                        (entry) => entry.unitName === unitName,
+                      );
                       return (
                         <td key={`${borehole.boreholeId}-${unitName}`} className="px-3 py-2">
                           {unitDepth ? (
@@ -648,7 +660,9 @@ function GroundModelCard({ extraction }: { extraction: AiEngineeringReportExtrac
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No structured ground-model rows were extracted.</p>
+          <p className="text-sm text-muted-foreground">
+            No structured ground-model rows were extracted.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -736,7 +750,8 @@ function ShallowFoundationCard({
       <CardHeader>
         <HeaderWithBadge title="Shallow Foundations" badge="Report-derived" />
         <CardDescription>
-          Structured allowable bearing pressures preserved from the report, with assumptions and follow-up notes kept alongside the table.
+          Structured allowable bearing pressures preserved from the report, with assumptions and
+          follow-up notes kept alongside the table.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -761,9 +776,16 @@ function ShallowFoundationCard({
             </thead>
             <tbody>
               {table.rows.map((row, index) => (
-                <tr key={`${row.foundingMaterial ?? 'row'}-${index}`} className="border-b align-top last:border-0">
-                  <td className="px-3 py-2 font-medium">{row.foundingMaterial ?? `Row ${index + 1}`}</td>
-                  <td className="px-3 py-2">{formatNumberCell(row.padOrSquareOrCircularAllowableKPa)}</td>
+                <tr
+                  key={`${row.foundingMaterial ?? 'row'}-${index}`}
+                  className="border-b align-top last:border-0"
+                >
+                  <td className="px-3 py-2 font-medium">
+                    {row.foundingMaterial ?? `Row ${index + 1}`}
+                  </td>
+                  <td className="px-3 py-2">
+                    {formatNumberCell(row.padOrSquareOrCircularAllowableKPa)}
+                  </td>
                   <td className="px-3 py-2">{formatNumberCell(row.stripAllowableKPa)}</td>
                   <td className="px-3 py-2">{formatNumberCell(row.factorOfSafety)}</td>
                   <td className="px-3 py-2">{formatNumberCell(row.minimumFoundingWidthM)}</td>
@@ -772,7 +794,9 @@ function ShallowFoundationCard({
                     <div className="space-y-1">
                       {row.notes ? <p>{row.notes}</p> : null}
                       {row.toeOfCuttingGeometryAssumption ? (
-                        <p className="text-muted-foreground">{row.toeOfCuttingGeometryAssumption}</p>
+                        <p className="text-muted-foreground">
+                          {row.toeOfCuttingGeometryAssumption}
+                        </p>
                       ) : null}
                     </div>
                   </td>
@@ -804,9 +828,10 @@ function ShallowFoundationCard({
                 Engineered fill preliminary bearing
               </p>
               <p className="mt-1 text-sm font-medium">
-                {formatNumber(table.engineeredFillBearingPressures.padOrSquareOrCircularAllowableKPa)} /
-                {' '}
-                {formatNumber(table.engineeredFillBearingPressures.stripAllowableKPa)} kPa
+                {formatNumber(
+                  table.engineeredFillBearingPressures.padOrSquareOrCircularAllowableKPa,
+                )}{' '}
+                / {formatNumber(table.engineeredFillBearingPressures.stripAllowableKPa)} kPa
               </p>
               {table.engineeredFillBearingPressures.notes ? (
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -867,7 +892,9 @@ function SoilNailBondStressTableCard({
       headers={['Material', 'Allowable bond stress', 'Notes / assumptions', 'Source']}
       rows={table.rows.map((row, index) => [
         row.material ?? `Row ${index + 1}`,
-        row.allowableBondStressKPa !== null ? `${row.allowableBondStressKPa.toLocaleString()} kPa` : '-',
+        row.allowableBondStressKPa !== null
+          ? `${row.allowableBondStressKPa.toLocaleString()} kPa`
+          : '-',
         [row.notes, row.assumptions].filter(Boolean).join(' ') || '-',
         <InlineCitationBadges key={`cit-${index}`} citations={row.citations} />,
       ])}
@@ -951,7 +978,8 @@ function RetainingWallParametersCard({
       <CardHeader>
         <HeaderWithBadge title="Retaining Walls" badge="Report-derived" />
         <CardDescription>
-          Preliminary retaining-wall parameters and pressure notes, kept separate from standards-reference content.
+          Preliminary retaining-wall parameters and pressure notes, kept separate from
+          standards-reference content.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -959,7 +987,9 @@ function RetainingWallParametersCard({
           <div className="grid gap-3 sm:grid-cols-2">
             {numericFields.map((field) => (
               <div key={field.label} className="rounded-md border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{field.label}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {field.label}
+                </p>
                 <p className="mt-1 text-sm font-medium">{formatNumber(field.finding.value)}</p>
                 <div className="mt-2">
                   <CitationList citations={field.finding.citations} compact />
@@ -1038,11 +1068,7 @@ function EarthquakeSiteFactorCard({
   );
 }
 
-function GeotechnicalParameterTablesCard({
-  tables,
-}: {
-  tables: AiGeotechnicalParameterTable[];
-}) {
+function GeotechnicalParameterTablesCard({ tables }: { tables: AiGeotechnicalParameterTable[] }) {
   const visibleTables = tables.filter((table) => table.rows.length > 0);
   if (visibleTables.length === 0) {
     return null;
@@ -1089,10 +1115,16 @@ function GeotechnicalParameterTablesCard({
                   </thead>
                   <tbody>
                     {table.rows.map((row, index) => (
-                      <tr key={`${table.tableKey}-${index}`} className="border-b align-top last:border-0">
+                      <tr
+                        key={`${table.tableKey}-${index}`}
+                        className="border-b align-top last:border-0"
+                      >
                         <td className="px-2 py-2 font-medium">{formatRowLabel(row, index)}</td>
                         {visibleColumns.map((column) => (
-                          <td key={`${table.tableKey}-${index}-${column.key}`} className="px-2 py-2">
+                          <td
+                            key={`${table.tableKey}-${index}-${column.key}`}
+                            className="px-2 py-2"
+                          >
                             {formatParameterCell(row[column.key])}
                           </td>
                         ))}
@@ -1112,11 +1144,7 @@ function GeotechnicalParameterTablesCard({
   );
 }
 
-function StandardsMappingCard({
-  mapping,
-}: {
-  mapping: AiStandardsMapping;
-}) {
+function StandardsMappingCard({ mapping }: { mapping: AiStandardsMapping }) {
   const hasNotes = mapping.notes.length > 0;
   const hasClauses = mapping.relevantClauses.length > 0;
   const hasParameterMappings = mapping.parameterMappings.length > 0;
@@ -1170,7 +1198,9 @@ function StandardsMappingCard({
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium">{entry.extractedValueLabel}</p>
                   <Badge variant="outline">{entry.possibleAs2159Concept}</Badge>
-                  <Badge variant="secondary">{Math.round(entry.confidence * 100)}% confidence</Badge>
+                  <Badge variant="secondary">
+                    {Math.round(entry.confidence * 100)}% confidence
+                  </Badge>
                 </div>
                 <p className="mt-2 font-mono text-xs text-muted-foreground">
                   {entry.extractedFieldPath}
@@ -1271,13 +1301,7 @@ function NullableNumericFindingBlock({
   );
 }
 
-function FindingListBlock({
-  label,
-  findings,
-}: {
-  label: string;
-  findings: AiExtractionFinding[];
-}) {
+function FindingListBlock({ label, findings }: { label: string; findings: AiExtractionFinding[] }) {
   if (findings.length === 0) {
     return null;
   }

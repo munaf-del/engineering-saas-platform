@@ -3,15 +3,33 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { useOrgMembers, useAddOrgMember, useUpdateOrgMemberRole, useRemoveOrgMember } from '@/hooks/use-organisations';
+import {
+  useOrgMembers,
+  useAddOrgMember,
+  useUpdateOrgMemberRole,
+  useRemoveOrgMember,
+} from '@/hooks/use-organisations';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { EmptyState } from '@/components/empty-state';
 import { PageLoading } from '@/components/loading';
 import { SettingsSectionNav } from '@/features/settings/settings-section-nav';
@@ -81,7 +99,11 @@ export default function OrgMembersPage() {
       />
 
       {!members?.length ? (
-        <EmptyState icon={<Users className="h-12 w-12" />} title="No members" description="Add members to your organisation." />
+        <EmptyState
+          icon={<Users className="h-12 w-12" />}
+          title="No members"
+          description="Add members to your organisation."
+        />
       ) : (
         <div className="space-y-2">
           {members.map((m) => (
@@ -104,9 +126,15 @@ export default function OrgMembersPage() {
                       value={m.role}
                       onValueChange={(v) => handleRoleChange(m.id, m.userId, v)}
                     >
-                      <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {ORG_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        {ORG_ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -133,20 +161,35 @@ export default function OrgMembersPage() {
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="space-y-2">
               <Label>User ID</Label>
-              <Input value={userId} onChange={(e) => setUserId(e.target.value)} required placeholder="User UUID" />
+              <Input
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                required
+                placeholder="User UUID"
+              />
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {ORG_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {ORG_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-              <Button type="submit" disabled={addMember.isPending}>Add</Button>
+              <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addMember.isPending}>
+                Add
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
