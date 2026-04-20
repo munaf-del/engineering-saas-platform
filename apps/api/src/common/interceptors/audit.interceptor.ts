@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -24,9 +18,7 @@ export class AuditInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const user = request.user as
-      | { id: string; organisationId?: string }
-      | undefined;
+    const user = request.user as { id: string; organisationId?: string } | undefined;
 
     if (!user?.id) {
       return next.handle();
@@ -46,9 +38,7 @@ export class AuditInterceptor implements NestInterceptor {
             entityType,
             entityId,
             requestId,
-          ).catch((err) =>
-            this.logger.error('Failed to write audit log', err),
-          );
+          ).catch((err) => this.logger.error('Failed to write audit log', err));
         },
       }),
     );

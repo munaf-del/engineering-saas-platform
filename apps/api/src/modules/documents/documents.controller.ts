@@ -22,10 +22,7 @@ import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CreateDocumentDto } from './dto/document.dto';
 
@@ -50,10 +47,7 @@ export class DocumentsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a document by ID' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.documentsService.findById(id, user.organisationId!);
   }
@@ -96,10 +90,7 @@ export class DocumentsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Delete a document' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.documentsService.delete(id, user.organisationId!);
   }

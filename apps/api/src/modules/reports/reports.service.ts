@@ -30,12 +30,7 @@ export class ReportsService {
     return report;
   }
 
-  async create(
-    calculationRunId: string,
-    projectId: string,
-    userId: string,
-    dto: CreateReportDto,
-  ) {
+  async create(calculationRunId: string, projectId: string, userId: string, dto: CreateReportDto) {
     const run = await this.prisma.calculationRun.findFirst({
       where: { id: calculationRunId, projectId },
       include: {

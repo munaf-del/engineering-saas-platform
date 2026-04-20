@@ -571,7 +571,10 @@ export class ProjectCnvmpService {
     return project;
   }
 
-  private async assertAiDocumentBelongsToProject(access: ProjectAccess, aiDocumentId?: string | null) {
+  private async assertAiDocumentBelongsToProject(
+    access: ProjectAccess,
+    aiDocumentId?: string | null,
+  ) {
     if (!aiDocumentId) {
       return;
     }
@@ -812,12 +815,15 @@ function pickDefined<T extends object, K extends keyof T>(
   value: T,
   keys: K[],
 ): Partial<Pick<T, K>> {
-  return keys.reduce((result, key) => {
-    if (value[key] !== undefined) {
-      result[key] = value[key];
-    }
-    return result;
-  }, {} as Partial<Pick<T, K>>);
+  return keys.reduce(
+    (result, key) => {
+      if (value[key] !== undefined) {
+        result[key] = value[key];
+      }
+      return result;
+    },
+    {} as Partial<Pick<T, K>>,
+  );
 }
 
 function throwFriendlyUniqueError(error: unknown, message: string): never {

@@ -43,9 +43,7 @@ describe('Import Advanced E2E Tests', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const regRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send(testUser);
+    const regRes = await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser);
     accessToken = regRes.body.accessToken;
 
     const orgRes = await request(app.getHttpServer())
@@ -148,10 +146,7 @@ describe('Import Advanced E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const imported = res.body.data.filter(
-        (m: { name: string }) =>
-          m.name.includes(uniqueSuffix),
-      );
+      const imported = res.body.data.filter((m: { name: string }) => m.name.includes(uniqueSuffix));
       expect(imported.length).toBe(2);
     });
 
@@ -171,10 +166,7 @@ describe('Import Advanced E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const imported = res.body.data.filter(
-        (m: { name: string }) =>
-          m.name.includes(uniqueSuffix),
-      );
+      const imported = res.body.data.filter((m: { name: string }) => m.name.includes(uniqueSuffix));
       expect(imported.length).toBe(0);
     });
   });
@@ -225,9 +217,7 @@ describe('Import Advanced E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const imported = res.body.data.filter(
-        (p: { name: string }) => p.name.includes(uniqueSuffix),
-      );
+      const imported = res.body.data.filter((p: { name: string }) => p.name.includes(uniqueSuffix));
       expect(imported.length).toBe(2);
     });
 
@@ -246,9 +236,7 @@ describe('Import Advanced E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const imported = res.body.data.filter(
-        (p: { name: string }) => p.name.includes(uniqueSuffix),
-      );
+      const imported = res.body.data.filter((p: { name: string }) => p.name.includes(uniqueSuffix));
       expect(imported.length).toBe(0);
     });
   });
@@ -348,23 +336,17 @@ describe('Import Advanced E2E Tests', () => {
       expect(v2Upload.body.diff.unchanged).toBe(0);
 
       const rows = v2Upload.body.diff.rows;
-      const modifiedRow = rows.find(
-        (r: { action: string }) => r.action === 'modify',
-      );
+      const modifiedRow = rows.find((r: { action: string }) => r.action === 'modify');
       expect(modifiedRow).toBeDefined();
       expect(modifiedRow.key).toBe('DIFFV-100');
       expect(modifiedRow.changes).toBeDefined();
       expect(modifiedRow.changes.massPerMetre).toBeDefined();
 
-      const addedRow = rows.find(
-        (r: { action: string }) => r.action === 'add',
-      );
+      const addedRow = rows.find((r: { action: string }) => r.action === 'add');
       expect(addedRow).toBeDefined();
       expect(addedRow.key).toBe('DIFFV-300');
 
-      const removedRow = rows.find(
-        (r: { action: string }) => r.action === 'remove',
-      );
+      const removedRow = rows.find((r: { action: string }) => r.action === 'remove');
       expect(removedRow).toBeDefined();
       expect(removedRow.key).toBe('DIFFV-200');
     });
@@ -593,9 +575,7 @@ describe('Import Advanced E2E Tests', () => {
         .expect(200);
 
       expect(sizes.body.data.length).toBe(2);
-      const designations = sizes.body.data.map(
-        (s: { designation: string }) => s.designation,
-      );
+      const designations = sizes.body.data.map((s: { designation: string }) => s.designation);
       expect(designations).toContain(`RB12-${uniqueSuffix}`);
       expect(designations).toContain(`RB16-${uniqueSuffix}`);
     });
@@ -645,9 +625,7 @@ describe('Import Advanced E2E Tests', () => {
         .expect(200);
 
       expect(sections.body.data.length).toBe(2);
-      const designations = sections.body.data.map(
-        (s: { designation: string }) => s.designation,
-      );
+      const designations = sections.body.data.map((s: { designation: string }) => s.designation);
       expect(designations).toContain(`SS-A-${uniqueSuffix}`);
       expect(designations).toContain(`SS-B-${uniqueSuffix}`);
     });
@@ -662,8 +640,13 @@ describe('Import Advanced E2E Tests', () => {
       const sheet = workbook.addWorksheet('Data');
 
       sheet.addRow([
-        'designation', 'sectionType', 'massPerMetre', 'depth',
-        'flangeWidth', 'flangeThickness', 'webThickness',
+        'designation',
+        'sectionType',
+        'massPerMetre',
+        'depth',
+        'flangeWidth',
+        'flangeThickness',
+        'webThickness',
       ]);
       sheet.addRow([`XLSX-100-${uniqueSuffix}`, 'UB', 15, 150, 75, 6, 4]);
 

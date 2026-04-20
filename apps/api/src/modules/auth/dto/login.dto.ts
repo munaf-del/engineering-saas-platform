@@ -11,7 +11,8 @@ export class LoginDto {
   password!: string;
 
   @ApiPropertyOptional({
-    description: 'Organisation to scope the session to. If omitted, defaults to the sole membership (if exactly one).',
+    description:
+      'Organisation to scope the session to. If omitted, defaults to the sole membership (if exactly one).',
   })
   @IsOptional()
   @IsUUID()

@@ -27,10 +27,12 @@ export class SnapshotService {
   computeHash(data: unknown): string {
     const canonical = JSON.stringify(data, (_key, value) => {
       if (value && typeof value === 'object' && !Array.isArray(value)) {
-        return Object.keys(value).sort().reduce<Record<string, unknown>>((sorted, k) => {
-          sorted[k] = value[k];
-          return sorted;
-        }, {});
+        return Object.keys(value)
+          .sort()
+          .reduce<Record<string, unknown>>((sorted, k) => {
+            sorted[k] = value[k];
+            return sorted;
+          }, {});
       }
       return value;
     });

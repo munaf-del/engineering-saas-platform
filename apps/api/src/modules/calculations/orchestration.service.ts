@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CalcEngineClient, CalcEngineDesignCheck } from './calc-engine.client';
 import { SnapshotService } from './snapshot.service';
@@ -16,9 +12,16 @@ interface ResolvedRulePack {
 }
 
 const VALID_CALC_TYPES = new Set([
-  'pile_capacity', 'pile_settlement', 'pile_lateral', 'pile_group',
-  'beam_check', 'column_check', 'connection_check', 'footing_check',
-  'retaining_wall', 'bearing_capacity',
+  'pile_capacity',
+  'pile_settlement',
+  'pile_lateral',
+  'pile_group',
+  'beam_check',
+  'column_check',
+  'connection_check',
+  'footing_check',
+  'retaining_wall',
+  'bearing_capacity',
 ]);
 
 const SI_CONVERSIONS: Record<string, { toSI: number; dimension: string }> = {
@@ -118,7 +121,9 @@ export class OrchestrationService {
         },
       });
 
-      const outputSnapshot = result.outputs ? { outputs: result.outputs, steps: result.steps } : undefined;
+      const outputSnapshot = result.outputs
+        ? { outputs: result.outputs, steps: result.steps }
+        : undefined;
       await this.snapshotService.createSnapshot(run.id, snapshotData, outputSnapshot);
 
       if (result.designChecks && result.designChecks.length > 0) {
@@ -212,7 +217,7 @@ export class OrchestrationService {
       if (!activation) {
         this.logger.warn(
           `Rule pack ${dbPack.standardCode}@${dbPack.version} is not activated. ` +
-          `Using rule data from request, but calculations should use approved activated rule packs.`,
+            `Using rule data from request, but calculations should use approved activated rule packs.`,
         );
       }
 
@@ -230,7 +235,10 @@ export class OrchestrationService {
   private normalizeInputsToSI(
     inputs: Record<string, { value: number; unit: string; label: string; source?: string }>,
   ): Record<string, { value: number; unit: string; label: string; source?: string }> {
-    const normalized: Record<string, { value: number; unit: string; label: string; source?: string }> = {};
+    const normalized: Record<
+      string,
+      { value: number; unit: string; label: string; source?: string }
+    > = {};
 
     for (const [key, input] of Object.entries(inputs)) {
       const conv = SI_CONVERSIONS[input.unit];

@@ -239,7 +239,9 @@ export class ProjectEnvironmentalMonitoringController {
   @Patch(':reportId/selected-criteria/:id')
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
-  @ApiOperation({ summary: 'Update a selected standards criterion on an environmental monitoring report' })
+  @ApiOperation({
+    summary: 'Update a selected standards criterion on an environmental monitoring report',
+  })
   async updateSelectedCriterion(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Param('reportId', ParseUUIDPipe) reportId: string,
@@ -258,7 +260,9 @@ export class ProjectEnvironmentalMonitoringController {
   @Delete(':reportId/selected-criteria/:id')
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
-  @ApiOperation({ summary: 'Delete a selected standards criterion from an environmental monitoring report' })
+  @ApiOperation({
+    summary: 'Delete a selected standards criterion from an environmental monitoring report',
+  })
   async deleteSelectedCriterion(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Param('reportId', ParseUUIDPipe) reportId: string,

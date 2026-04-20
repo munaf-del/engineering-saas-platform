@@ -77,30 +77,27 @@ export class DeepSeekAssistantProvider implements AssistantProviderAdapter {
     }: AssistantProviderRequest,
     credential?: AssistantProviderCredentialInput,
   ) {
-    const response = await this.createChatCompletion(
-      this.resolveApiKey(credential?.apiKey),
-      {
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: buildDeepSeekSystemPrompt(systemPrompt, responseFormatDescription),
-          },
-          {
-            role: 'user',
-            content: promptContext,
-          },
-          ...conversation.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-        ],
-        response_format: {
-          type: 'json_object',
+    const response = await this.createChatCompletion(this.resolveApiKey(credential?.apiKey), {
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: buildDeepSeekSystemPrompt(systemPrompt, responseFormatDescription),
         },
-        max_tokens: 4096,
+        {
+          role: 'user',
+          content: promptContext,
+        },
+        ...conversation.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      ],
+      response_format: {
+        type: 'json_object',
       },
-    );
+      max_tokens: 4096,
+    });
 
     const content = response.choices?.[0]?.message?.content?.trim();
     if (!content) {
@@ -128,8 +125,7 @@ export class DeepSeekAssistantProvider implements AssistantProviderAdapter {
 
     if (!response.ok) {
       throw new Error(
-        payload?.error?.message ||
-          `DeepSeek request failed with status ${response.status}`,
+        payload?.error?.message || `DeepSeek request failed with status ${response.status}`,
       );
     }
 
@@ -155,10 +151,7 @@ export class DeepSeekAssistantProvider implements AssistantProviderAdapter {
   }
 }
 
-function buildDeepSeekSystemPrompt(
-  systemPrompt: string,
-  responseFormatDescription: string,
-) {
+function buildDeepSeekSystemPrompt(systemPrompt: string, responseFormatDescription: string) {
   return [
     systemPrompt,
     '',

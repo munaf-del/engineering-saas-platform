@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   AI_ASSISTANT_PROVIDER_OPTIONS,
   buildAiAssistantProviderStatusMap,
@@ -38,15 +34,10 @@ export class AssistantProviderRegistry {
     };
   }
 
-  getProvider(
-    provider: AiAssistantProvider,
-    model?: AiAssistantModelId,
-  ): AssistantProviderAdapter {
+  getProvider(provider: AiAssistantProvider, model?: AiAssistantModelId): AssistantProviderAdapter {
     const adapter = this.providers[provider];
     if (!adapter) {
-      throw new ServiceUnavailableException(
-        `Assistant provider "${provider}" is not registered`,
-      );
+      throw new ServiceUnavailableException(`Assistant provider "${provider}" is not registered`);
     }
 
     if (model && !isAiAssistantModelSupportedByProvider(model, provider)) {
@@ -58,10 +49,7 @@ export class AssistantProviderRegistry {
     return adapter;
   }
 
-  getProviderStatus(
-    provider: AiAssistantProvider,
-    credentials?: AssistantProviderCredentialState,
-  ) {
+  getProviderStatus(provider: AiAssistantProvider, credentials?: AssistantProviderCredentialState) {
     return this.getProvider(provider).getProviderStatus(credentials?.[provider]);
   }
 

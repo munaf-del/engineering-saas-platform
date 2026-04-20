@@ -7,12 +7,7 @@ import { CalcEngineClient } from './calc-engine.client';
 
 @Module({
   controllers: [CalculationsController],
-  providers: [
-    CalculationsService,
-    OrchestrationService,
-    SnapshotService,
-    CalcEngineClient,
-  ],
+  providers: [CalculationsService, OrchestrationService, SnapshotService, CalcEngineClient],
   exports: [CalculationsService, OrchestrationService, SnapshotService, CalcEngineClient],
 })
 export class CalculationsModule {}

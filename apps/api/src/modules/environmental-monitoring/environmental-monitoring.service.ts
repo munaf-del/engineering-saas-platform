@@ -41,10 +41,9 @@ type EnvironmentalMonitoringReportWithContext =
     include: typeof environmentalMonitoringReportInclude;
   }>;
 
-type EnvironmentalMonitoringReportSummary =
-  Prisma.ProjectEnvironmentalMonitoringReportGetPayload<{
-    select: typeof environmentalMonitoringReportSummarySelect;
-  }>;
+type EnvironmentalMonitoringReportSummary = Prisma.ProjectEnvironmentalMonitoringReportGetPayload<{
+  select: typeof environmentalMonitoringReportSummarySelect;
+}>;
 
 type MonitoringReportType = 'noise_monitoring' | 'vibration_monitoring';
 
@@ -63,10 +62,7 @@ export class ProjectEnvironmentalMonitoringService {
     return reports.map(serializeMonitoringReportSummary);
   }
 
-  async createReport(
-    access: ProjectAccess,
-    dto: CreateProjectEnvironmentalMonitoringReportDto,
-  ) {
+  async createReport(access: ProjectAccess, dto: CreateProjectEnvironmentalMonitoringReportDto) {
     await this.assertProjectWriteAccess(access);
 
     const report = await this.prisma.projectEnvironmentalMonitoringReport.create({
@@ -1018,12 +1014,15 @@ function pickDefined<T extends object, K extends keyof T>(
   value: T,
   keys: K[],
 ): Partial<Pick<T, K>> {
-  return keys.reduce((result, key) => {
-    if (value[key] !== undefined) {
-      result[key] = value[key];
-    }
-    return result;
-  }, {} as Partial<Pick<T, K>>);
+  return keys.reduce(
+    (result, key) => {
+      if (value[key] !== undefined) {
+        result[key] = value[key];
+      }
+      return result;
+    },
+    {} as Partial<Pick<T, K>>,
+  );
 }
 
 function defaultReportTitle(reportType: MonitoringReportType) {

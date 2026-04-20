@@ -10,7 +10,12 @@ export type WasteClassificationAssAutofillResult = {
   assClass: WasteClassificationAssClass;
   assClassSource: string;
   projectLocationNote: string | null;
-  detectionMethod: 'spatial_site_boundary' | 'spatial_parcel_boundary' | 'project_coordinates' | 'project_address_geocode' | 'fallback';
+  detectionMethod:
+    | 'spatial_site_boundary'
+    | 'spatial_parcel_boundary'
+    | 'project_coordinates'
+    | 'project_address_geocode'
+    | 'fallback';
   matchedPlanningPortalClass: string | null;
 };
 
@@ -105,9 +110,10 @@ export class NswAssAutofillService {
         throw new Error(payload.error.message ?? 'Planning Portal ASS lookup returned an error');
       }
 
-      const matchedClasses = payload.features
-        ?.map((feature) => feature.attributes?.LAY_CLASS?.trim())
-        .filter((entry): entry is string => Boolean(entry)) ?? [];
+      const matchedClasses =
+        payload.features
+          ?.map((feature) => feature.attributes?.LAY_CLASS?.trim())
+          .filter((entry): entry is string => Boolean(entry)) ?? [];
 
       const matchedClass = selectMostSeverePlanningPortalClass(matchedClasses);
       if (!matchedClass) {
@@ -121,11 +127,11 @@ export class NswAssAutofillService {
       }
 
       const epiName =
-        payload.features?.find((feature) => feature.attributes?.LAY_CLASS === matchedClass)?.attributes
-          ?.EPI_NAME ?? null;
+        payload.features?.find((feature) => feature.attributes?.LAY_CLASS === matchedClass)
+          ?.attributes?.EPI_NAME ?? null;
       const lgaName =
-        payload.features?.find((feature) => feature.attributes?.LAY_CLASS === matchedClass)?.attributes
-          ?.LGA_NAME ?? null;
+        payload.features?.find((feature) => feature.attributes?.LAY_CLASS === matchedClass)
+          ?.attributes?.LGA_NAME ?? null;
 
       const sourceSuffix = [epiName, lgaName].filter(Boolean).join(' · ');
 
@@ -236,7 +242,10 @@ export class NswAssAutofillService {
   private resolveSpatialLookupPoint(features: SpatialLookupFeature[]): LookupPoint | null {
     const orderedFeatures = features
       .filter((feature) => feature.geometryJson)
-      .sort((left, right) => spatialFeaturePriority(left.featureType) - spatialFeaturePriority(right.featureType));
+      .sort(
+        (left, right) =>
+          spatialFeaturePriority(left.featureType) - spatialFeaturePriority(right.featureType),
+      );
 
     for (const feature of orderedFeatures) {
       const coordinates = representativePointForGeometry(feature.geometryJson);
@@ -373,9 +382,11 @@ function parseCoordinate(value: string | null | undefined) {
 }
 
 function selectMostSeverePlanningPortalClass(classes: string[]) {
-  return [...classes]
-    .sort((left, right) => planningPortalClassRank(left) - planningPortalClassRank(right))
-    .at(0) ?? null;
+  return (
+    [...classes]
+      .sort((left, right) => planningPortalClassRank(left) - planningPortalClassRank(right))
+      .at(0) ?? null
+  );
 }
 
 function planningPortalClassRank(value: string) {

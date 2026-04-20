@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
@@ -18,19 +14,13 @@ export class SteelSectionsService {
 
   // ── Catalogs ──────────────────────────────────────────────────
 
-  async findAllCatalogs(
-    organisationId: string | undefined,
-    pagination: PaginationDto,
-  ) {
+  async findAllCatalogs(organisationId: string | undefined, pagination: PaginationDto) {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
     const where = organisationId
       ? {
-          OR: [
-            { organisationId },
-            { organisationId: null, isDemo: true },
-          ],
+          OR: [{ organisationId }, { organisationId: null, isDemo: true }],
         }
       : {};
 
@@ -107,7 +97,11 @@ export class SteelSectionsService {
     });
 
     const hash = createHash('sha256')
-      .update(JSON.stringify(sections.map((s: (typeof sections)[number]) => ({ d: s.designation, p: s.properties }))))
+      .update(
+        JSON.stringify(
+          sections.map((s: (typeof sections)[number]) => ({ d: s.designation, p: s.properties })),
+        ),
+      )
       .digest('hex');
 
     if (catalog.status === 'active' && catalog.snapshotHash === hash) {
@@ -162,9 +156,7 @@ export class SteelSectionsService {
   async createSection(dto: CreateSteelSectionDto) {
     const catalog = await this.assertCatalogExists(dto.catalogId);
     if (catalog.status !== 'draft') {
-      throw new BadRequestException(
-        'Can only add sections to catalogs in draft status',
-      );
+      throw new BadRequestException('Can only add sections to catalogs in draft status');
     }
 
     return this.prisma.steelSection.create({
@@ -180,15 +172,10 @@ export class SteelSectionsService {
     });
   }
 
-  async bulkCreateSections(
-    catalogId: string,
-    sections: CreateSteelSectionDto[],
-  ) {
+  async bulkCreateSections(catalogId: string, sections: CreateSteelSectionDto[]) {
     const catalog = await this.assertCatalogExists(catalogId);
     if (catalog.status !== 'draft') {
-      throw new BadRequestException(
-        'Can only add sections to catalogs in draft status',
-      );
+      throw new BadRequestException('Can only add sections to catalogs in draft status');
     }
 
     const data = sections.map((s) => ({

@@ -54,10 +54,7 @@ import { CreateAiDocumentDto } from './dto/create-ai-document.dto';
 import { DeleteAiDocumentsDto } from './dto/delete-ai-documents.dto';
 import { ExtractAiDocumentDto } from './dto/extract-ai-document.dto';
 import { ListAiDocumentsDto } from './dto/list-ai-documents.dto';
-import {
-  assistantResponseSchema,
-  type AssistantResponse,
-} from './assistant-response.schema';
+import { assistantResponseSchema, type AssistantResponse } from './assistant-response.schema';
 import {
   AI_REPORT_DOCUMENT_FAMILIES,
   AI_REPORT_OWNER_WORKSPACES,
@@ -1076,15 +1073,18 @@ export class AiService {
     try {
       const adapter = this.assistantProviderRegistry.getProvider(provider, model);
 
-      return await adapter.respondToAssistant({
-        model,
-        systemPrompt,
-        promptContext,
-        conversation: this.buildAssistantProviderConversation(messages),
-        responseFormatName,
-        responseFormatDescription,
-        noPayloadErrorMessage,
-      }, credential);
+      return await adapter.respondToAssistant(
+        {
+          model,
+          systemPrompt,
+          promptContext,
+          conversation: this.buildAssistantProviderConversation(messages),
+          responseFormatName,
+          responseFormatDescription,
+          noPayloadErrorMessage,
+        },
+        credential,
+      );
     } catch (error) {
       const message = getErrorMessage(error);
       this.logger.error(`Failed to respond with ${logContext}: ${message}`);
@@ -1634,7 +1634,12 @@ export class AiService {
         parsed.dewateringProfile.settlementDrawdownTriggerLevels,
         buildCitations,
         {
-          preferredTerms: ['trigger level', 'trigger value', 'settlement trigger', 'drawdown trigger'],
+          preferredTerms: [
+            'trigger level',
+            'trigger value',
+            'settlement trigger',
+            'drawdown trigger',
+          ],
           fallbackQueryTerms: ['settlement drawdown trigger levels'],
         },
       ),
@@ -1946,7 +1951,11 @@ export class AiService {
 
       if (
         focusedEvidence.length > 0 &&
-        shouldRunGeotechnicalFocusedRefinement(extractionProfile, geotechnicalCommentProfile, focusedEvidence)
+        shouldRunGeotechnicalFocusedRefinement(
+          extractionProfile,
+          geotechnicalCommentProfile,
+          focusedEvidence,
+        )
       ) {
         const focusedRefinement = await runGeotechnicalFocusedRefinement(
           openai,
@@ -2370,12 +2379,9 @@ export class AiService {
     const { fallbackSettings, metadata } =
       await this.readOrganisationAiSettingsMetadataForRuntime(organisationId);
     const providerCredentials =
-      await this.organisationAiAssistantCredentialStore.getCredentialState(
-        organisationId,
-        {
-          legacyMetadata: metadata,
-        },
-      );
+      await this.organisationAiAssistantCredentialStore.getCredentialState(organisationId, {
+        legacyMetadata: metadata,
+      });
 
     return {
       settings: metadata
@@ -2436,7 +2442,6 @@ export class AiService {
       'gpt-4.1-mini',
     );
   }
-
 }
 
 function resolveAssistantScopeId(

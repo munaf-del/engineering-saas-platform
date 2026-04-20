@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
@@ -181,9 +176,8 @@ export class ImportsService {
 
     try {
       const diff = job.diff as DiffResult | null;
-      const actionableRows = diff?.rows?.filter(
-        (r) => r.action === 'add' || r.action === 'modify',
-      ) ?? [];
+      const actionableRows =
+        diff?.rows?.filter((r) => r.action === 'add' || r.action === 'modify') ?? [];
 
       const meta = diff?.meta ?? {
         catalogName: 'Imported Catalog',
@@ -383,11 +377,7 @@ export class ImportsService {
     catalogName: string,
     validRows: ParsedRow[],
   ): Promise<DiffResult> {
-    const existingMap = await this.loadExistingData(
-      organisationId,
-      entityType,
-      catalogName,
-    );
+    const existingMap = await this.loadExistingData(organisationId, entityType, catalogName);
 
     const diffRows: DiffRow[] = [];
     const seenKeys = new Set<string>();
@@ -504,10 +494,7 @@ export class ImportsService {
       case 'material': {
         const materials = await this.prisma.material.findMany({
           where: {
-            OR: [
-              { organisationId },
-              { organisationId: null, isSystemDefault: true },
-            ],
+            OR: [{ organisationId }, { organisationId: null, isSystemDefault: true }],
           },
         });
         for (const m of materials) {
@@ -526,10 +513,7 @@ export class ImportsService {
       case 'geotech_parameter': {
         const params = await this.prisma.geotechParameterSet.findMany({
           where: {
-            OR: [
-              { organisationId },
-              { organisationId: null, isDemo: true },
-            ],
+            OR: [{ organisationId }, { organisationId: null, isDemo: true }],
           },
           include: { class: true },
         });
@@ -638,18 +622,22 @@ export class ImportsService {
     switch (entityType) {
       case 'steel_section':
         return [
-          'sectionType', 'massPerMetre', 'depth', 'flangeWidth',
-          'flangeThickness', 'webThickness', 'sectionArea',
-          'momentOfInertiaX', 'momentOfInertiaY',
+          'sectionType',
+          'massPerMetre',
+          'depth',
+          'flangeWidth',
+          'flangeThickness',
+          'webThickness',
+          'sectionArea',
+          'momentOfInertiaX',
+          'momentOfInertiaY',
         ];
       case 'rebar_size':
         return ['barDiameter', 'nominalArea', 'massPerMetre', 'grade', 'ductilityClass'];
       case 'material':
         return ['category', 'grade', 'sourceStandard', 'sourceEdition'];
       case 'geotech_parameter':
-        return [
-          'sourceStandard', 'sourceEdition', 'unitWeight', 'cohesion', 'frictionAngle',
-        ];
+        return ['sourceStandard', 'sourceEdition', 'unitWeight', 'cohesion', 'frictionAngle'];
       case 'standards_registry':
         return ['title', 'category', 'effectiveDate'];
       case 'load_combination_rules':
@@ -818,12 +806,14 @@ export class ImportsService {
 
       const category = String(d['category'] ?? 'concrete');
       const validCategories = [
-        'concrete', 'structural_steel', 'reinforcing_steel',
-        'soil', 'rock', 'timber',
+        'concrete',
+        'structural_steel',
+        'reinforcing_steel',
+        'soil',
+        'rock',
+        'timber',
       ];
-      const resolvedCategory = validCategories.includes(category)
-        ? category
-        : 'concrete';
+      const resolvedCategory = validCategories.includes(category) ? category : 'concrete';
 
       let properties: object = {};
       if (d['properties_json']) {
@@ -831,7 +821,7 @@ export class ImportsService {
           properties =
             typeof d['properties_json'] === 'string'
               ? JSON.parse(d['properties_json'] as string)
-              : d['properties_json'] as object;
+              : (d['properties_json'] as object);
         } catch {
           properties = {};
         }
@@ -847,7 +837,7 @@ export class ImportsService {
           sourceEdition: String(d['sourceEdition'] ?? meta.sourceEdition),
           sourceAmendment: d['sourceAmendment']
             ? String(d['sourceAmendment'])
-            : meta.sourceAmendment ?? null,
+            : (meta.sourceAmendment ?? null),
           properties,
           isDemo: false,
         },
@@ -911,7 +901,7 @@ export class ImportsService {
           sourceEdition: String(d['sourceEdition'] ?? meta.sourceEdition),
           sourceAmendment: d['sourceAmendment']
             ? String(d['sourceAmendment'])
-            : meta.sourceAmendment ?? null,
+            : (meta.sourceAmendment ?? null),
           parameters,
           isDemo: false,
         },
@@ -948,7 +938,14 @@ export class ImportsService {
       const sourceEdition = String(d['sourceEdition'] ?? d['source_edition'] ?? meta.sourceEdition);
       const effectiveDate = String(d['effectiveDate'] ?? d['effective_date'] ?? '');
 
-      const validCategories = ['loading', 'concrete', 'steel', 'reinforcement', 'geotech', 'general'];
+      const validCategories = [
+        'loading',
+        'concrete',
+        'steel',
+        'reinforcement',
+        'geotech',
+        'general',
+      ];
       const resolvedCategory = validCategories.includes(category) ? category : 'general';
 
       let standard = await this.prisma.standard.findUnique({ where: { code } });
@@ -966,9 +963,15 @@ export class ImportsService {
           edition,
           amendment: d['amendment'] ? String(d['amendment']) : null,
           sourceEdition,
-          sourceAmendment: d['sourceAmendment'] ? String(d['sourceAmendment']) : meta.sourceAmendment ?? null,
+          sourceAmendment: d['sourceAmendment']
+            ? String(d['sourceAmendment'])
+            : (meta.sourceAmendment ?? null),
           effectiveDate: new Date(effectiveDate || Date.now()),
-          sourceDoc: d['sourceDataset'] ? String(d['sourceDataset']) : d['source_dataset'] ? String(d['source_dataset']) : null,
+          sourceDoc: d['sourceDataset']
+            ? String(d['sourceDataset'])
+            : d['source_dataset']
+              ? String(d['source_dataset'])
+              : null,
           status: 'current',
           isDemo: false,
         },
@@ -1004,7 +1007,7 @@ export class ImportsService {
     if (preview.conflicts.length > 0) {
       throw new BadRequestException(
         `Rule pack has ${preview.conflicts.length} conflicting rule(s) with active packs. ` +
-        `Resolve conflicts before applying. Conflicts: ${preview.conflicts.map(c => c.ruleKey).join(', ')}`,
+          `Resolve conflicts before applying. Conflicts: ${preview.conflicts.map((c) => c.ruleKey).join(', ')}`,
       );
     }
 
@@ -1023,10 +1026,14 @@ export class ImportsService {
 
   private defaultUnit(field: string): string {
     switch (field) {
-      case 'unitWeight': return 'kN/m³';
-      case 'cohesion': return 'kPa';
-      case 'frictionAngle': return 'degrees';
-      default: return '';
+      case 'unitWeight':
+        return 'kN/m³';
+      case 'cohesion':
+        return 'kPa';
+      case 'frictionAngle':
+        return 'degrees';
+      default:
+        return '';
     }
   }
 
@@ -1045,11 +1052,7 @@ export class ImportsService {
 
   // ── Rollback Logic ────────────────────────────────────────────
 
-  private async rollbackSnapshot(
-    entityType: string,
-    snapshotId: string | null,
-    diff: unknown,
-  ) {
+  private async rollbackSnapshot(entityType: string, snapshotId: string | null, diff: unknown) {
     switch (entityType) {
       case 'steel_section':
         if (snapshotId) {

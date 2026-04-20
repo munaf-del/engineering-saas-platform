@@ -1,15 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { CreateMaterialFamilyDto } from './dto/create-material-family.dto';
-import {
-  CreateMaterialGradeDto,
-  UpdateMaterialGradeDto,
-} from './dto/create-material-grade.dto';
+import { CreateMaterialGradeDto, UpdateMaterialGradeDto } from './dto/create-material-grade.dto';
 import { CreatePropertySchemaDto } from './dto/create-property-schema.dto';
 
 @Injectable()
@@ -189,9 +182,7 @@ export class MaterialsService {
       if (typeof val === 'object' && val !== null) {
         const prop = val as Record<string, unknown>;
         if (!prop.unit) {
-          throw new BadRequestException(
-            `Property "${key}" is missing required "unit" field`,
-          );
+          throw new BadRequestException(`Property "${key}" is missing required "unit" field`);
         }
       }
     }

@@ -1,15 +1,13 @@
-import {
-  IsString,
-  IsEnum,
-  IsBoolean,
-  IsOptional,
-  IsObject,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsEnum, IsBoolean, IsOptional, IsObject, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const CATEGORIES = [
-  'concrete', 'structural_steel', 'reinforcing_steel', 'soil', 'rock', 'timber',
+  'concrete',
+  'structural_steel',
+  'reinforcing_steel',
+  'soil',
+  'rock',
+  'timber',
 ] as const;
 
 export class CreateMaterialGradeDto {
@@ -36,7 +34,10 @@ export class CreateMaterialGradeDto {
   @IsString()
   standardRef?: string;
 
-  @ApiProperty({ description: 'Source standard code (required for traceability)', example: 'AS 3600' })
+  @ApiProperty({
+    description: 'Source standard code (required for traceability)',
+    example: 'AS 3600',
+  })
   @IsString()
   sourceStandard!: string;
 

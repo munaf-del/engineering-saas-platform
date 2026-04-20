@@ -38,19 +38,22 @@ type ProjectAccess = {
   orgRole?: string;
 };
 
-type WasteClassificationReportWithContext =
-  Prisma.ProjectWasteClassificationReportGetPayload<{
-    include: typeof wasteClassificationReportInclude;
-  }>;
+type WasteClassificationReportWithContext = Prisma.ProjectWasteClassificationReportGetPayload<{
+  include: typeof wasteClassificationReportInclude;
+}>;
 
-type WasteClassificationReportSummary =
-  Prisma.ProjectWasteClassificationReportGetPayload<{
-    select: typeof wasteClassificationReportSummarySelect;
-  }>;
+type WasteClassificationReportSummary = Prisma.ProjectWasteClassificationReportGetPayload<{
+  select: typeof wasteClassificationReportSummarySelect;
+}>;
 
 type DraftRecommendationMaterialPathway = Pick<
   Prisma.ProjectWasteClassificationMaterialPathwayUncheckedCreateInput,
-  'pathwayCode' | 'isRelevant' | 'outcomeStatus' | 'assClass' | 'assOrderRelevant' | 'assExemptionRelevant'
+  | 'pathwayCode'
+  | 'isRelevant'
+  | 'outcomeStatus'
+  | 'assClass'
+  | 'assOrderRelevant'
+  | 'assExemptionRelevant'
 >;
 
 @Injectable()
@@ -229,7 +232,11 @@ export class ProjectWasteClassificationService {
       'sortOrder',
     ]) as Prisma.ProjectWasteClassificationReferenceUncheckedUpdateInput;
 
-    if (dto.title !== undefined || dto.aiDocumentId !== undefined || dto.projectReferenceId !== undefined) {
+    if (
+      dto.title !== undefined ||
+      dto.aiDocumentId !== undefined ||
+      dto.projectReferenceId !== undefined
+    ) {
       data.title = resolveReferenceTitle(
         dto.title ?? existing.title,
         aiDocument?.filename ?? existing.aiDocument?.filename ?? null,
@@ -237,7 +244,10 @@ export class ProjectWasteClassificationService {
       );
     }
 
-    if (dto.referenceType === undefined && (dto.aiDocumentId !== undefined || dto.projectReferenceId !== undefined)) {
+    if (
+      dto.referenceType === undefined &&
+      (dto.aiDocumentId !== undefined || dto.projectReferenceId !== undefined)
+    ) {
       data.referenceType = inferReferenceType(
         {
           ...dto,
@@ -324,9 +334,7 @@ export class ProjectWasteClassificationService {
     ]) as Prisma.ProjectWasteClassificationStepDecisionUncheckedUpdateInput;
 
     if (dto.stepTitle !== undefined || dto.stepCode !== undefined) {
-      data.stepTitle =
-        dto.stepTitle?.trim() ||
-        stepTitleForCode(dto.stepCode ?? existing.stepCode);
+      data.stepTitle = dto.stepTitle?.trim() || stepTitleForCode(dto.stepCode ?? existing.stepCode);
     }
 
     try {
@@ -627,8 +635,7 @@ export class ProjectWasteClassificationService {
 
     if (dto.title !== undefined || dto.pathwayCode !== undefined) {
       data.title =
-        dto.title?.trim() ||
-        materialPathwayTitleForCode(dto.pathwayCode ?? existing.pathwayCode);
+        dto.title?.trim() || materialPathwayTitleForCode(dto.pathwayCode ?? existing.pathwayCode);
     }
 
     try {
@@ -770,10 +777,7 @@ export class ProjectWasteClassificationService {
         },
       });
     } catch (error) {
-      throwFriendlyUniqueError(
-        error,
-        'This related pathway is already present on the report',
-      );
+      throwFriendlyUniqueError(error, 'This related pathway is already present on the report');
     }
 
     return this.findExistingReport(reportId);
@@ -801,8 +805,7 @@ export class ProjectWasteClassificationService {
 
     if (dto.title !== undefined || dto.pathwayCode !== undefined) {
       data.title =
-        dto.title?.trim() ||
-        pathwayTitleForCode(dto.pathwayCode ?? existing.pathwayCode);
+        dto.title?.trim() || pathwayTitleForCode(dto.pathwayCode ?? existing.pathwayCode);
     }
 
     try {
@@ -811,10 +814,7 @@ export class ProjectWasteClassificationService {
         data,
       });
     } catch (error) {
-      throwFriendlyUniqueError(
-        error,
-        'This related pathway is already present on the report',
-      );
+      throwFriendlyUniqueError(error, 'This related pathway is already present on the report');
     }
 
     return this.findExistingReport(reportId);
@@ -976,10 +976,7 @@ export class ProjectWasteClassificationService {
     );
   }
 
-  private async findAiDocumentForProject(
-    access: ProjectAccess,
-    aiDocumentId?: string | null,
-  ) {
+  private async findAiDocumentForProject(access: ProjectAccess, aiDocumentId?: string | null) {
     if (!aiDocumentId) {
       return null;
     }
@@ -1045,7 +1042,9 @@ export class ProjectWasteClassificationService {
         expected: (typeof PREFILLED_REFERENCES)[number];
       }>
     >((entries, reference) => {
-      const expected = PREFILLED_REFERENCES.find((prefilled) => prefilled.title === reference.title);
+      const expected = PREFILLED_REFERENCES.find(
+        (prefilled) => prefilled.title === reference.title,
+      );
       if (!expected) {
         return entries;
       }
@@ -1295,7 +1294,8 @@ const PREFILLED_REFERENCES = [
   },
   {
     referenceType: 'epa_guideline' as const,
-    title: 'NSW EPA Waste Classification Guidelines – Part 3: Waste containing radioactive material',
+    title:
+      'NSW EPA Waste Classification Guidelines – Part 3: Waste containing radioactive material',
     sourceUrl:
       'https://www.epa.nsw.gov.au/-/media/epa/corporate-site/resources/wasteregulation/140797-radioactive-waste.pdf',
     note: null,
@@ -1366,8 +1366,7 @@ const PREFILLED_REFERENCES = [
   {
     referenceType: 'other' as const,
     title: 'NSW Planning Portal Environmental Planning Instrument - Acid Sulfate Soils dataset',
-    sourceUrl:
-      'https://www.planningportal.nsw.gov.au/opendata/dataset/epi-acid-sulfate-soils',
+    sourceUrl: 'https://www.planningportal.nsw.gov.au/opendata/dataset/epi-acid-sulfate-soils',
     note: 'Planning Portal source for ASS class mapping and class descriptions.',
     isPrefilled: true,
     isIncluded: true,
@@ -1567,7 +1566,8 @@ const WASTE_CLASSIFICATION_MATERIAL_PATHWAY_DEFINITIONS = [
     defaultSupportingReasoning:
       'Use this panel to record the NSW Planning Portal ASS class, supporting source note, and how the ASS pathway affects the authored waste classification outcome.',
     defaultAssClass: 'not_mapped_unknown' as const,
-    defaultAssClassSource: 'Manual selection in this pass. Prepared hook for NSW Planning Portal ASS layer autofill next.',
+    defaultAssClassSource:
+      'Manual selection in this pass. Prepared hook for NSW Planning Portal ASS layer autofill next.',
     defaultTreatmentManagementNote: null,
     defaultStep5ChemicalAssessmentApplies: true,
     defaultAssOrderRelevant: false,
@@ -1589,7 +1589,9 @@ function buildDraftRecommendationHelper(
   authoredManagementRecommendation: string | null,
 ) {
   const wasteClass = finalWasteClass ?? 'not_yet_classified';
-  const assPathway = materialPathways.find((pathway) => pathway.pathwayCode === 'acid_sulfate_soils');
+  const assPathway = materialPathways.find(
+    (pathway) => pathway.pathwayCode === 'acid_sulfate_soils',
+  );
   const venmPathway = materialPathways.find((pathway) => pathway.pathwayCode === 'venm');
   const enmPathway = materialPathways.find((pathway) => pathway.pathwayCode === 'enm');
 
@@ -1661,8 +1663,8 @@ function buildDraftRecommendationHelper(
     },
   };
 
-  const base =
-    recommendationByClass[wasteClass] ?? recommendationByClass.not_yet_classified ?? {
+  const base = recommendationByClass[wasteClass] ??
+    recommendationByClass.not_yet_classified ?? {
       summary:
         'Draft only: complete the Step 1–6 workflow before relying on a disposal pathway recommendation.',
       category: 'Classification still required',
@@ -1805,9 +1807,8 @@ function pathwayTitleForCode(code: string) {
 
 function materialPathwayTitleForCode(code: string) {
   return (
-    WASTE_CLASSIFICATION_MATERIAL_PATHWAY_DEFINITIONS.find(
-      (entry) => entry.pathwayCode === code,
-    )?.title ?? code.replace(/_/g, ' ')
+    WASTE_CLASSIFICATION_MATERIAL_PATHWAY_DEFINITIONS.find((entry) => entry.pathwayCode === code)
+      ?.title ?? code.replace(/_/g, ' ')
   );
 }
 
@@ -1833,12 +1834,15 @@ function pickDefined<T extends object, K extends keyof T>(
   value: T,
   keys: K[],
 ): Partial<Pick<T, K>> {
-  return keys.reduce((result, key) => {
-    if (value[key] !== undefined) {
-      result[key] = value[key];
-    }
-    return result;
-  }, {} as Partial<Pick<T, K>>);
+  return keys.reduce(
+    (result, key) => {
+      if (value[key] !== undefined) {
+        result[key] = value[key];
+      }
+      return result;
+    },
+    {} as Partial<Pick<T, K>>,
+  );
 }
 
 function throwFriendlyUniqueError(error: unknown, message: string): never {

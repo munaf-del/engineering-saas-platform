@@ -39,9 +39,7 @@ describe('Calculations Domain E2E', () => {
     prisma = app.get(PrismaService);
 
     // Register, create org, switch org, create project
-    const regRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send(testUser);
+    const regRes = await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser);
     accessToken = regRes.body.accessToken;
     userId = regRes.body.user.id;
 
@@ -266,7 +264,9 @@ describe('Calculations Domain E2E', () => {
 
     it('DELETE combination', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/v1/projects/${projectId}/load-combination-sets/${setId}/combinations/${combinationId}`)
+        .delete(
+          `/api/v1/projects/${projectId}/load-combination-sets/${setId}/combinations/${combinationId}`,
+        )
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
     });
@@ -421,7 +421,9 @@ describe('Calculations Domain E2E', () => {
 
     it('DELETE layout point', async () => {
       await request(app.getHttpServer())
-        .delete(`/api/v1/projects/${projectId}/pile-groups/${pileGroupId}/layout-points/${layoutPointId}`)
+        .delete(
+          `/api/v1/projects/${projectId}/pile-groups/${pileGroupId}/layout-points/${layoutPointId}`,
+        )
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
     });
@@ -752,9 +754,7 @@ describe('Calculations Domain E2E', () => {
     });
 
     it('should reject unauthenticated calculators request', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/calculators')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/calculators').expect(401);
     });
   });
 });
