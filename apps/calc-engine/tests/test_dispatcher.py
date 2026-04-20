@@ -2,8 +2,8 @@ from app.engine.dispatcher import dispatch_calculation
 from app.models.calculation import (
     CalculationRequest,
     InputValue,
-    RulePack,
     RuleEntry,
+    RulePack,
     StandardRef,
 )
 

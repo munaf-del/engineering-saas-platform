@@ -1,9 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 
-class CalcType(str, Enum):
+class CalcType(StrEnum):
     MULTI_PILE_ENVELOPE = "multi_pile_envelope"
     PILE_CAPACITY = "pile_capacity"
     PILE_SETTLEMENT = "pile_settlement"
@@ -17,7 +18,7 @@ class CalcType(str, Enum):
     BEARING_CAPACITY = "bearing_capacity"
 
 
-class LimitState(str, Enum):
+class LimitState(StrEnum):
     STRENGTH = "strength"
     SERVICEABILITY = "serviceability"
     STABILITY = "stability"

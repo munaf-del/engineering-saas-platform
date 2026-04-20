@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import time
 
-
 STRUCT_UI_STATE_KEY = "multiPileStructDesigner"
 DEFAULT_PROJECT_STRUCTURAL_CONCRETE_CLASS_ID = "conc_32"
 DEFAULT_PROJECT_STRUCTURAL_REINFORCEMENT_GRADE_ID = "reo_d500n"
@@ -22,15 +21,96 @@ FC_EC_MAP = {
 }
 
 REO_DEFAULTS_BY_DIAMETER = {
-    450: {"barDia": 20, "nBars": 6, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    500: {"barDia": 20, "nBars": 6, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    600: {"barDia": 20, "nBars": 8, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    750: {"barDia": 20, "nBars": 10, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    900: {"barDia": 20, "nBars": 12, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    1050: {"barDia": 20, "nBars": 14, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    1200: {"barDia": 20, "nBars": 16, "tieDia": 12, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 12, "spiralPitch": 200},
-    1500: {"barDia": 24, "nBars": 20, "tieDia": 16, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 16, "spiralPitch": 200},
-    1800: {"barDia": 24, "nBars": 24, "tieDia": 16, "tieS": 200, "tieLegs": 2, "transverseSystem": "ties", "spiralDia": 16, "spiralPitch": 200},
+    450: {
+        "barDia": 20,
+        "nBars": 6,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    500: {
+        "barDia": 20,
+        "nBars": 6,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    600: {
+        "barDia": 20,
+        "nBars": 8,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    750: {
+        "barDia": 20,
+        "nBars": 10,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    900: {
+        "barDia": 20,
+        "nBars": 12,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    1050: {
+        "barDia": 20,
+        "nBars": 14,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    1200: {
+        "barDia": 20,
+        "nBars": 16,
+        "tieDia": 12,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 12,
+        "spiralPitch": 200,
+    },
+    1500: {
+        "barDia": 24,
+        "nBars": 20,
+        "tieDia": 16,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 16,
+        "spiralPitch": 200,
+    },
+    1800: {
+        "barDia": 24,
+        "nBars": 24,
+        "tieDia": 16,
+        "tieS": 200,
+        "tieLegs": 2,
+        "transverseSystem": "ties",
+        "spiralDia": 16,
+        "spiralPitch": 200,
+    },
 }
 
 BAR_AREAS = {
@@ -81,8 +161,7 @@ def compute_struct_results(
         )
         resolved_inputs = _resolve_structural_inputs(project_specifics, settings)
         cases = [
-            _compute_struct_design(pile_type, settings, resolved_inputs, row)
-            for row in joint_rows
+            _compute_struct_design(pile_type, settings, resolved_inputs, row) for row in joint_rows
         ]
         if not cases:
             continue
@@ -105,18 +184,24 @@ def compute_struct_results(
         if status == "pass" and input_warnings:
             status = "warning"
 
-        demand_point = worst_case["pmDemands"][0] if worst_case["pmDemands"] else {
-            "N": _round(worst_case["Nmax"], 4),
-            "M": _round(worst_case["Mplot"], 4),
-            "jointId": worst_case["jointId"],
-            "pileId": worst_case["pileId"],
-            "label": _pm_point_label(worst_case, "Nmax"),
-            "cls": "pmDot",
-        }
+        demand_point = (
+            worst_case["pmDemands"][0]
+            if worst_case["pmDemands"]
+            else {
+                "N": _round(worst_case["Nmax"], 4),
+                "M": _round(worst_case["Mplot"], 4),
+                "jointId": worst_case["jointId"],
+                "pileId": worst_case["pileId"],
+                "label": _pm_point_label(worst_case, "Nmax"),
+                "cls": "pmDot",
+            }
+        )
 
         results[type_id] = {
             "pileTypeId": type_id,
-            "linkedJointIds": [_string(row.get("jointId")) for row in joint_rows if row.get("jointId")],
+            "linkedJointIds": [
+                _string(row.get("jointId")) for row in joint_rows if row.get("jointId")
+            ],
             "representativePileId": worst_case["pileId"],
             "worstJointId": worst_case["jointId"],
             "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -137,7 +222,9 @@ def compute_struct_results(
                 "N_tension_demand": _round(worst_case["upliftAbs"], 4),
                 "compressionUtilisation": _round(worst_case["utilCompRatio"], 6),
                 "tensionUtilisation": _round(worst_case["utilTenRatio"], 6),
-                "utilisation": _round(max(worst_case["utilCompRatio"], worst_case["utilTenRatio"]), 6),
+                "utilisation": _round(
+                    max(worst_case["utilCompRatio"], worst_case["utilTenRatio"]), 6
+                ),
                 "pass": bool(worst_case["axialOk"]),
             },
             "moment": {
@@ -211,7 +298,9 @@ def _compute_struct_design(
     actions = {
         "jointId": _string(envelope_row.get("jointId")),
         "jointDisplayName": _string(envelope_row.get("jointDisplayName")),
-        "pileId": _string(envelope_row.get("representativePileId") or f"{_string(envelope_row.get('jointId'))}-P1"),
+        "pileId": _string(
+            envelope_row.get("representativePileId") or f"{_string(envelope_row.get('jointId'))}-P1"
+        ),
         "typeId": _string(envelope_row.get("pileTypeId") or pile_type.get("id")),
         "Nmax": _value_from_envelope(envelope_row.get("nMax")),
         "Nmin": _value_from_envelope(envelope_row.get("nMin")),
@@ -241,7 +330,9 @@ def _compute_struct_design(
     mx_des = abs(_number(actions["MxDes"]))
     my_des = abs(_number(actions["MyDes"]))
 
-    diameter_mm = max(50.0, _number(pile_type.get("Dmm") or pile_type.get("nominalDiameterMm"), 600.0))
+    diameter_mm = max(
+        50.0, _number(pile_type.get("Dmm") or pile_type.get("nominalDiameterMm"), 600.0)
+    )
     diameter_m = diameter_mm / 1000.0
     ag_mm2 = math.pi * diameter_mm * diameter_mm / 4.0
 
@@ -291,7 +382,9 @@ def _compute_struct_design(
 
     has_central = bool(settings["useCentralBar"] and as_central > 0)
     developed_at_head = has_central and bool(settings["centralBarDevelopedAtHead"])
-    effective_areas = _compute_effective_areas(as_perim, as_central, ax_model, has_central, developed_at_head)
+    effective_areas = _compute_effective_areas(
+        as_perim, as_central, ax_model, has_central, developed_at_head
+    )
     phi_nu_ten = phi_t * (fsy * effective_areas["As_tension_effective"] / 1000.0)
     util_comp_ratio = (nmax / max(phi_nu_comp, 1e-9)) if nmax > 0 else 0.0
     util_ten_ratio = (uplift_abs / max(phi_nu_ten, 1e-9)) if uplift_abs > 0 else 0.0
@@ -364,7 +457,9 @@ def _compute_struct_design(
     alpha_n = 0.7 + 1.7 * (nmax / phi_nuo) if phi_nuo > 0 else 2.0
     alpha_n = min(2.0, max(1.0, alpha_n))
     if settings["useBiax"] == "YES":
-        util_pm_ratio = math.pow(mx_des / max(phi_mux, 1e-9), alpha_n) + math.pow(my_des / max(phi_muy, 1e-9), alpha_n)
+        util_pm_ratio = math.pow(mx_des / max(phi_mux, 1e-9), alpha_n) + math.pow(
+            my_des / max(phi_muy, 1e-9), alpha_n
+        )
         mplot = math.hypot(mx_des, my_des)
     else:
         util_pm_ratio = max(mx_des / max(phi_mux, 1e-9), my_des / max(phi_muy, 1e-9))
@@ -381,10 +476,11 @@ def _compute_struct_design(
 
     is_spiral = settings["transverseSystem"] == "spiral"
     tie_dia = _number(settings.get("spiralDia" if is_spiral else "tieDia"), 12.0)
-    tie_s = max(25.0 if is_spiral else 50.0, _number(settings.get("spiralPitch" if is_spiral else "tieS"), 200.0))
+    tie_s = max(
+        25.0 if is_spiral else 50.0,
+        _number(settings.get("spiralPitch" if is_spiral else "tieS"), 200.0),
+    )
     tie_legs = 2 if is_spiral else max(2, round(_number(settings.get("tieLegs"), 2.0)))
-    spiral_dia = _number(settings.get("spiralDia"), 12.0)
-    spiral_pitch = max(25.0, _number(settings.get("spiralPitch"), 200.0))
     dg = max(10.0, _number(settings.get("dg"), 20.0))
     bv = diameter_mm
     d_eff = max(50.0, diameter_mm - cover - tie_dia - 0.5 * dbar)
@@ -439,23 +535,27 @@ def _compute_struct_design(
         }
     ]
     if nmin < -1e-9:
-        pm_demands.append({
-            "N": _round(nmin, 4),
-            "M": _round(mplot, 4),
-            "jointId": actions["jointId"],
-            "pileId": actions["pileId"],
-            "label": _pm_point_label(demand_row, "Nmin"),
-            "cls": "pmDotTen",
-        })
+        pm_demands.append(
+            {
+                "N": _round(nmin, 4),
+                "M": _round(mplot, 4),
+                "jointId": actions["jointId"],
+                "pileId": actions["pileId"],
+                "label": _pm_point_label(demand_row, "Nmin"),
+                "cls": "pmDotTen",
+            }
+        )
     elif abs(nmin - nmax) > 1e-9:
-        pm_demands.append({
-            "N": _round(nmin, 4),
-            "M": _round(mplot, 4),
-            "jointId": actions["jointId"],
-            "pileId": actions["pileId"],
-            "label": _pm_point_label(demand_row, "Nmin"),
-            "cls": "pmDot",
-        })
+        pm_demands.append(
+            {
+                "N": _round(nmin, 4),
+                "M": _round(mplot, 4),
+                "jointId": actions["jointId"],
+                "pileId": actions["pileId"],
+                "label": _pm_point_label(demand_row, "Nmin"),
+                "cls": "pmDot",
+            }
+        )
 
     return {
         "jointId": actions["jointId"],
@@ -527,7 +627,9 @@ def _compute_struct_design(
         "pmDemands": pm_demands,
         "slender": _round(slender, 6) if slender is not None else None,
         "isSlender": is_slender,
-        "designScore": max(util_comp_ratio, util_ten_ratio, util_pm_ratio, util_shear_ratio, util_web_ratio),
+        "designScore": max(
+            util_comp_ratio, util_ten_ratio, util_pm_ratio, util_shear_ratio, util_web_ratio
+        ),
     }
 
 
@@ -539,7 +641,9 @@ def _struct_settings_for_type(state: dict, type_id: str) -> dict:
 
 
 def _default_struct_type_settings(pile_type: dict) -> dict:
-    linked_dmm = max(50.0, _number(pile_type.get("Dmm") or pile_type.get("nominalDiameterMm"), 600.0))
+    linked_dmm = max(
+        50.0, _number(pile_type.get("Dmm") or pile_type.get("nominalDiameterMm"), 600.0)
+    )
     reo = _default_reo_by_diameter(linked_dmm)
     return {
         "typeId": _string(pile_type.get("id")),
@@ -628,7 +732,9 @@ def _normalize_struct_type_settings(pile_type: dict, raw: dict) -> dict:
         "coverDurabilityClassId": (
             _string(candidate.get("coverDurabilityClassId"))
             if has_explicit_cover_class_id
-            else _string(candidate.get("coverDurabilityClassId") or defaults["coverDurabilityClassId"])
+            else _string(
+                candidate.get("coverDurabilityClassId") or defaults["coverDurabilityClassId"]
+            )
         ),
         "fc": fc,
         "Ec": max(1000.0, _number(candidate.get("Ec"), _ec_from_fc(fc))),
@@ -636,12 +742,22 @@ def _normalize_struct_type_settings(pile_type: dict, raw: dict) -> dict:
         "Es": max(100000.0, _number(candidate.get("Es"), defaults["Es"])),
         "kPlace": "0.75" if str(candidate.get("kPlace")) == "0.75" else "1.0",
         "kMethod": _string(candidate.get("kMethod") or defaults["kMethod"]) or "all",
-        "axModel": _one_of(candidate.get("axModel"), ("reinforced", "partial", "plain"), defaults["axModel"]),
+        "axModel": _one_of(
+            candidate.get("axModel"), ("reinforced", "partial", "plain"), defaults["axModel"]
+        ),
         "reoCutDepth": max(0.0, _number(candidate.get("reoCutDepth"), defaults["reoCutDepth"])),
         "reoLd": max(0.0, _number(candidate.get("reoLd"), defaults["reoLd"])),
-        "minReoRule": _one_of(candidate.get("minReoRule"), ("other_embedded", "other_above", "precast"), defaults["minReoRule"]),
+        "minReoRule": _one_of(
+            candidate.get("minReoRule"),
+            ("other_embedded", "other_above", "precast"),
+            defaults["minReoRule"],
+        ),
         "reoLoc": _one_of(candidate.get("reoLoc"), ("below3d", "within3d"), defaults["reoLoc"]),
-        "reoLocDetail": _one_of(candidate.get("reoLocDetail"), ("above", "within3d", "below3d"), defaults["reoLocDetail"]),
+        "reoLocDetail": _one_of(
+            candidate.get("reoLocDetail"),
+            ("above", "within3d", "below3d"),
+            defaults["reoLocDetail"],
+        ),
         "allowAsOver": _bool(candidate.get("allowAsOver")),
         "phiOverride": _bool(candidate.get("phiOverride")),
         "phiC": min(1.0, max(0.4, _number(candidate.get("phiC"), defaults["phiC"]))),
@@ -652,26 +768,44 @@ def _normalize_struct_type_settings(pile_type: dict, raw: dict) -> dict:
         "useBiax": "NO" if str(candidate.get("useBiax")) == "NO" else "YES",
         "brace": "UNBRACED" if str(candidate.get("brace")) == "UNBRACED" else "BRACED",
         "Le": le_value,
-        "transverseSystem": "spiral" if str(candidate.get("transverseSystem")).lower() == "spiral" else "ties",
+        "transverseSystem": "spiral"
+        if str(candidate.get("transverseSystem")).lower() == "spiral"
+        else "ties",
         "tieDia": _one_of_number(candidate.get("tieDia"), TIE_DIA_OPTIONS, defaults["tieDia"]),
         "tieS": max(50.0, _number(candidate.get("tieS"), defaults["tieS"])),
         "tieLegs": max(2, round(_number(candidate.get("tieLegs"), defaults["tieLegs"]))),
-        "spiralDia": _one_of_number(candidate.get("spiralDia"), TIE_DIA_OPTIONS, defaults["spiralDia"]),
+        "spiralDia": _one_of_number(
+            candidate.get("spiralDia"), TIE_DIA_OPTIONS, defaults["spiralDia"]
+        ),
         "spiralPitch": max(25.0, _number(candidate.get("spiralPitch"), defaults["spiralPitch"])),
         "dg": max(10.0, _number(candidate.get("dg"), defaults["dg"])),
         "useCentralBar": _bool(candidate.get("useCentralBar")),
-        "centralBarDia": _one_of_number(candidate.get("centralBarDia"), BAR_DIA_OPTIONS, defaults["centralBarDia"]),
-        "centralBarCount": max(0, round(_number(candidate.get("centralBarCount"), defaults["centralBarCount"]))),
+        "centralBarDia": _one_of_number(
+            candidate.get("centralBarDia"), BAR_DIA_OPTIONS, defaults["centralBarDia"]
+        ),
+        "centralBarCount": max(
+            0, round(_number(candidate.get("centralBarCount"), defaults["centralBarCount"]))
+        ),
         "centralBarDevelopedAtHead": _bool(candidate.get("centralBarDevelopedAtHead")),
     }
 
 
 def _resolve_structural_inputs(project_specifics: dict, settings: dict) -> dict:
     structural_defaults = _object(project_specifics.get("structuralDefaults"))
-    concrete_rows = [row for row in structural_defaults.get("concreteClasses", []) if isinstance(row, dict)]
-    reinforcement_rows = [row for row in structural_defaults.get("reinforcementGrades", []) if isinstance(row, dict)]
-    tendon_rows = [row for row in structural_defaults.get("tendonGrades", []) if isinstance(row, dict)]
-    cover_rows = [row for row in structural_defaults.get("coverDurabilityClasses", []) if isinstance(row, dict)]
+    concrete_rows = [
+        row for row in structural_defaults.get("concreteClasses", []) if isinstance(row, dict)
+    ]
+    reinforcement_rows = [
+        row for row in structural_defaults.get("reinforcementGrades", []) if isinstance(row, dict)
+    ]
+    tendon_rows = [
+        row for row in structural_defaults.get("tendonGrades", []) if isinstance(row, dict)
+    ]
+    cover_rows = [
+        row
+        for row in structural_defaults.get("coverDurabilityClasses", [])
+        if isinstance(row, dict)
+    ]
 
     has_project_rows = bool(concrete_rows and reinforcement_rows and cover_rows)
     selected_concrete = _find_row(concrete_rows, settings["concreteClassId"])
@@ -691,7 +825,9 @@ def _resolve_structural_inputs(project_specifics: dict, settings: dict) -> dict:
         fallback_categories.append("Cover / durability class")
 
     fc = _number(_object(concrete_row).get("fc_MPa"), settings["fc"])
-    ec = _number(_object(concrete_row).get("Ec_MPa"), settings["Ec"] if not concrete_row else _ec_from_fc(fc))
+    ec = _number(
+        _object(concrete_row).get("Ec_MPa"), settings["Ec"] if not concrete_row else _ec_from_fc(fc)
+    )
     fsy = _number(_object(reinforcement_row).get("fsy_MPa"), settings["fsy"])
     es = _number(_object(reinforcement_row).get("Es_MPa"), settings["Es"])
     nominal_cover = _cover_value(cover_row)
@@ -719,15 +855,28 @@ def _resolve_structural_inputs(project_specifics: dict, settings: dict) -> dict:
     used_legacy_fallback = bool(fallback_categories)
     input_warnings: list[str] = []
     if missing_selections:
-        input_warnings.append(f"Missing project defaults selection: {', '.join(missing_selections)}.")
+        input_warnings.append(
+            f"Missing project defaults selection: {', '.join(missing_selections)}."
+        )
     if missing_selected_rows:
-        input_warnings.append(f"Selected project defaults could not be resolved: {', '.join(missing_selected_rows)}.")
+        input_warnings.append(
+            f"Selected project defaults could not be resolved: {', '.join(missing_selected_rows)}."
+        )
     if used_legacy_fallback:
+        fallback_message = (
+            "Migration fallback structural values are being used for: "
+            f"{', '.join(fallback_categories)} because "
+        )
         input_warnings.append(
             (
-                f"Migration fallback structural values are being used for: {', '.join(fallback_categories)} because this pile type is not yet mapped to matching project structural library rows."
-                if has_project_rows
-                else f"Migration fallback structural values are being used for: {', '.join(fallback_categories)} because this project does not yet expose all project structural library rows required by the v102c designer."
+                fallback_message
+                + "this pile type is not yet mapped to matching project structural "
+                "library rows."
+            )
+            if has_project_rows
+            else (
+                fallback_message + "this project does not yet expose all project structural "
+                "library rows required by the v102c designer."
             )
         )
 
@@ -744,7 +893,9 @@ def _resolve_structural_inputs(project_specifics: dict, settings: dict) -> dict:
     }
 
 
-def _build_reinforcement_compliance_result(design: dict, settings: dict, resolved_inputs: dict) -> dict:
+def _build_reinforcement_compliance_result(
+    design: dict, settings: dict, resolved_inputs: dict
+) -> dict:
     as_perim = _number(design.get("As"), 0.0)
     as_min = _number(design.get("As_min"), 0.0)
     as_max = _number(design.get("As_max"), 0.0)
@@ -757,13 +908,17 @@ def _build_reinforcement_compliance_result(design: dict, settings: dict, resolve
     detail_bits: list[str] = []
     if not ok_as_min:
         detail_bits.append(
-            "Provided As is below minimum longitudinal reinforcement required by AS 2159 Clause 5.3.3."
+            "Provided As is below minimum longitudinal reinforcement "
+            "required by AS 2159 Clause 5.3.3."
         )
     if as_max_exceeded:
         detail_bits.append(
             "As,max exceeded - override enabled; engineering justification required."
             if override_on
-            else "Provided As exceeds the AS 2159 Clause 5.3.3 maximum longitudinal reinforcement limit."
+            else (
+                "Provided As exceeds the AS 2159 Clause 5.3.3 maximum "
+                "longitudinal reinforcement limit."
+            )
         )
     if not detail_bits:
         detail_bits.append(
@@ -773,15 +928,15 @@ def _build_reinforcement_compliance_result(design: dict, settings: dict, resolve
     summary_text = "OK" if reo_limits_ok else "WARNING"
     minimum_status_text = "As,min OK" if ok_as_min else "As,min NOT MET"
     maximum_status_text = (
-        "As,max OK"
-        if ok_as_max
-        else ("As,max OVERRIDE" if override_on else "As,max NOT OK")
+        "As,max OK" if ok_as_max else ("As,max OVERRIDE" if override_on else "As,max NOT OK")
     )
     title_text = (
         f"As,prov={_format_reo_area(as_perim)} mm2; "
         f"As,min={_format_reo_area(as_min)} mm2 ({'MET' if ok_as_min else 'NOT MET'}); "
         f"As,max={_format_reo_area(as_max)} mm2 "
-        f"{'(EXCEEDED - OVERRIDE)' if as_max_exceeded and override_on else '(EXCEEDED)' if as_max_exceeded else '(MET)'}"
+        f"{'(EXCEEDED - OVERRIDE)' if as_max_exceeded and override_on else ''}"
+        f"{'(EXCEEDED)' if as_max_exceeded and not override_on else ''}"
+        f"{'(MET)' if not as_max_exceeded else ''}"
     )
 
     return {
@@ -797,8 +952,12 @@ def _build_reinforcement_compliance_result(design: dict, settings: dict, resolve
             "As_total": _round(_number(design.get("As_total"), 0.0), 4),
             "As_bending_effective": _round(_number(design.get("As_bending_effective"), 0.0), 4),
             "As_tension_effective": _round(_number(design.get("As_tension_effective"), 0.0), 4),
-            "As_head_tension_effective": _round(_number(design.get("As_head_tension_effective"), 0.0), 4),
-            "As_deep_tension_effective": _round(_number(design.get("As_deep_tension_effective"), 0.0), 4),
+            "As_head_tension_effective": _round(
+                _number(design.get("As_head_tension_effective"), 0.0), 4
+            ),
+            "As_deep_tension_effective": _round(
+                _number(design.get("As_deep_tension_effective"), 0.0), 4
+            ),
         },
         "required": {
             "As_min": _round(as_min, 4),
@@ -894,11 +1053,13 @@ def _struct_bar_layout(diameter_mm: float, cover: float, dbar: float, n_bars: in
     count = max(0, round(n_bars))
     for index in range(count):
         angle = 2.0 * math.pi * index / max(count, 1)
-        bars.append({
-            "x": r_bar * math.cos(angle),
-            "y": r_bar * math.sin(angle),
-            "yTop": radius - r_bar * math.sin(angle),
-        })
+        bars.append(
+            {
+                "x": r_bar * math.cos(angle),
+                "y": r_bar * math.sin(angle),
+                "yTop": radius - r_bar * math.sin(angle),
+            }
+        )
     return {"R": radius, "rBar": r_bar, "bars": bars}
 
 
@@ -933,7 +1094,9 @@ def _default_reo_by_diameter(diameter_mm: float) -> dict:
 def _central_bar_area(settings: dict) -> float:
     if not settings["useCentralBar"] or not (_number(settings.get("centralBarCount"), 0.0) > 0):
         return 0.0
-    return _number(settings.get("centralBarCount"), 0.0) * _bar_area_from_dia(_number(settings.get("centralBarDia"), 24.0))
+    return _number(settings.get("centralBarCount"), 0.0) * _bar_area_from_dia(
+        _number(settings.get("centralBarDia"), 24.0)
+    )
 
 
 def _alpha1_from_fc(fc: float) -> float:

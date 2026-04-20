@@ -1,24 +1,20 @@
 """Tests for the pile group reaction distribution calculator."""
 
-import math
-
 import pytest
 
+from app.engine.load_combinations import CombinedActions
 from app.engine.pile_group import (
+    CombinationReactions,
     PilePosition,
     PileReactions,
-    CombinationReactions,
-    EnvelopeEntry,
     compute_envelopes,
     compute_reactions,
     parse_pile_positions,
     run,
 )
-from app.engine.load_combinations import CombinedActions
 from app.models.calculation import (
     CalculationRequest,
     InputValue,
-    LimitState,
     LoadCombination,
     LoadCombinationFactor,
     RuleEntry,
@@ -145,7 +141,7 @@ class TestComputeReactions:
         )
         reactions = compute_reactions(piles, ca)
         for r in reactions:
-            assert r.N == pytest.approx(1000.0)
+            assert pytest.approx(1000.0) == r.N
             assert r.Vx == pytest.approx(0.0)
             assert r.Vy == pytest.approx(0.0)
 
@@ -165,9 +161,9 @@ class TestComputeReactions:
         bottom = [r for r in reactions if r.pile_index in (1, 2)]  # y = -1.5
         top = [r for r in reactions if r.pile_index in (3, 4)]  # y = +1.5
         for r in bottom:
-            assert r.N == pytest.approx(-150.0)
+            assert pytest.approx(-150.0) == r.N
         for r in top:
-            assert r.N == pytest.approx(150.0)
+            assert pytest.approx(150.0) == r.N
 
     def test_moment_my(self):
         """My produces differential axial in X-direction."""
@@ -185,9 +181,9 @@ class TestComputeReactions:
         left = [r for r in reactions if r.pile_index in (1, 3)]
         right = [r for r in reactions if r.pile_index in (2, 4)]
         for r in left:
-            assert r.N == pytest.approx(-75.0)
+            assert pytest.approx(-75.0) == r.N
         for r in right:
-            assert r.N == pytest.approx(75.0)
+            assert pytest.approx(75.0) == r.N
 
     def test_pure_shear(self):
         """Shear distributed equally."""
@@ -236,9 +232,9 @@ class TestComputeReactions:
         top = [r for r in reactions if r.pile_index in (3, 4)]
         bottom = [r for r in reactions if r.pile_index in (1, 2)]
         for r in top:
-            assert r.N == pytest.approx(1150.0)  # 1000 + 150
+            assert pytest.approx(1150.0) == r.N  # 1000 + 150
         for r in bottom:
-            assert r.N == pytest.approx(850.0)  # 1000 - 150
+            assert pytest.approx(850.0) == r.N  # 1000 - 150
 
     def test_single_pile_gets_all(self):
         """Single pile takes full load."""
@@ -251,7 +247,7 @@ class TestComputeReactions:
             actions={"N": 500.0, "Vx": 100.0, "Vy": 50.0, "Mx": 0, "My": 0, "T": 0},
         )
         reactions = compute_reactions(piles, ca)
-        assert reactions[0].N == pytest.approx(500.0)
+        assert pytest.approx(500.0) == reactions[0].N
         assert reactions[0].Vx == pytest.approx(100.0)
         assert reactions[0].Vy == pytest.approx(50.0)
 
@@ -266,12 +262,12 @@ class TestComputeReactions:
             actions={"N": 3000.0, "Vx": 120.0, "Vy": 80.0, "Mx": 500.0, "My": 300.0, "T": 0},
         )
         reactions = compute_reactions(piles, ca)
-        total_N = sum(r.N for r in reactions)
-        total_Vx = sum(r.Vx for r in reactions)
-        total_Vy = sum(r.Vy for r in reactions)
-        assert total_N == pytest.approx(3000.0, rel=1e-10)
-        assert total_Vx == pytest.approx(120.0, rel=1e-10)
-        assert total_Vy == pytest.approx(80.0, rel=1e-10)
+        total_n = sum(r.N for r in reactions)
+        total_vx = sum(r.Vx for r in reactions)
+        total_vy = sum(r.Vy for r in reactions)
+        assert total_n == pytest.approx(3000.0, rel=1e-10)
+        assert total_vx == pytest.approx(120.0, rel=1e-10)
+        assert total_vy == pytest.approx(80.0, rel=1e-10)
 
 
 # ── Envelopes ──────────────────────────────────────────────────────
@@ -443,9 +439,7 @@ class TestPileGroupRun:
                     name="Bad",
                     limitState="strength",
                     factors=[
-                        LoadCombinationFactor(
-                            loadCaseId="NONEXIST", factor=1.0, source="test"
-                        ),
+                        LoadCombinationFactor(loadCaseId="NONEXIST", factor=1.0, source="test"),
                     ],
                     clauseRef="Cl 1",
                 ),

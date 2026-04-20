@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.engine.pile_design_check import run_design_checks, _status
+from app.engine.pile_design_check import _status, run_design_checks
 from app.engine.pile_group import EnvelopeEntry, PilePosition
 from app.models.calculation import InputValue, RuleEntry, RulePack
 

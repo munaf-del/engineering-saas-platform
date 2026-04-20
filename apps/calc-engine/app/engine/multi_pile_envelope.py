@@ -10,18 +10,30 @@ from app.engine.multi_pile_combinations import (
     evaluate_custom_linear_for_joint,
     pattern_vector_for_joint,
     sum_pattern_type_for_joint,
-    zero_vector,
 )
-from app.models.calculation import CalculationRequest, CalculationResult, CalculationStep, OutputValue
-
+from app.models.calculation import (
+    CalculationRequest,
+    CalculationResult,
+    CalculationStep,
+    OutputValue,
+)
 
 ASSUMPTIONS = [
     "Joint-level loads are shared equally across the support count for that joint.",
-    "Built-in combinations follow the legacy Multi-Pile load engine sequence for the first migration slice.",
+    (
+        "Built-in combinations follow the legacy Multi-Pile load engine sequence "
+        "for the first migration slice."
+    ),
     "Vx and Vy envelopes include the legacy robustness minimum shear rule when alpha governs.",
     "Mx and My envelopes use e_oop and the 0.05D minimum moment rule per pile type.",
-    "GEO uses project-owned geotechnical materials and basis data when present, with legacy pile-type fallback values only when project-owned values are unavailable.",
-    "Socket length is auto-solved during the GEO run unless a manual adopted length override is enabled for the pile type.",
+    (
+        "GEO uses project-owned geotechnical materials and basis data when present, "
+        "with legacy pile-type fallback values only when project-owned values are unavailable."
+    ),
+    (
+        "Socket length is auto-solved during the GEO run unless a manual adopted "
+        "length override is enabled for the pile type."
+    ),
 ]
 
 
@@ -45,23 +57,31 @@ def run(request: CalculationRequest) -> CalculationResult:
         )
 
     pile_group_id = str(payload.get("pileGroupId") or "")
-    project_specifics = payload.get("projectSpecifics") if isinstance(payload.get("projectSpecifics"), dict) else {}
+    project_specifics = (
+        payload.get("projectSpecifics") if isinstance(payload.get("projectSpecifics"), dict) else {}
+    )
     settings = dict(state.get("combinationSettings") or {})
-    pile_types = {str(row["id"]): row for row in state.get("pileTypes", []) if isinstance(row, dict) and row.get("id")}
+    pile_types = {
+        str(row["id"]): row
+        for row in state.get("pileTypes", [])
+        if isinstance(row, dict) and row.get("id")
+    }
     joints = [
-        row for row in state.get("joints", [])
+        row
+        for row in state.get("joints", [])
         if isinstance(row, dict) and row.get("id") and row.get("active", True)
     ]
     generated_piles = [
-        row for row in state.get("generatedPiles", [])
+        row
+        for row in state.get("generatedPiles", [])
         if isinstance(row, dict) and row.get("id") and row.get("parentJointId")
     ]
     load_patterns = [
-        row for row in state.get("loadPatterns", [])
-        if isinstance(row, dict) and row.get("id")
+        row for row in state.get("loadPatterns", []) if isinstance(row, dict) and row.get("id")
     ]
     combination_library = [
-        row for row in state.get("combinationLibrary", [])
+        row
+        for row in state.get("combinationLibrary", [])
         if isinstance(row, dict) and row.get("id")
     ]
 
@@ -106,8 +126,12 @@ def run(request: CalculationRequest) -> CalculationResult:
     joint_results = []
 
     for joint in joints:
-        built_ins = evaluate_built_in_for_joint(joint, load_patterns, joint_load_map, combination_library, settings)
-        customs = evaluate_custom_linear_for_joint(joint, load_patterns, joint_load_map, combination_library)
+        built_ins = evaluate_built_in_for_joint(
+            joint, load_patterns, joint_load_map, combination_library, settings
+        )
+        customs = evaluate_custom_linear_for_joint(
+            joint, load_patterns, joint_load_map, combination_library
+        )
         candidates = built_ins + customs
         evaluated_count += len(candidates)
 
@@ -116,28 +140,46 @@ def run(request: CalculationRequest) -> CalculationResult:
         eoop = float(pile_type.get("eoopM") or 0.0)
 
         for candidate in candidates:
-            candidate.Mx_design = max(abs(candidate.actions.Mx + (candidate.actions.N * eoop)), abs(candidate.actions.N) * (0.05 * nominal_diameter_m))
-            candidate.My_design = max(abs(candidate.actions.My + (candidate.actions.N * eoop)), abs(candidate.actions.N) * (0.05 * nominal_diameter_m))
+            candidate.Mx_design = max(
+                abs(candidate.actions.Mx + (candidate.actions.N * eoop)),
+                abs(candidate.actions.N) * (0.05 * nominal_diameter_m),
+            )
+            candidate.My_design = max(
+                abs(candidate.actions.My + (candidate.actions.N * eoop)),
+                abs(candidate.actions.N) * (0.05 * nominal_diameter_m),
+            )
 
         active_pattern_ids = _active_pattern_ids(joint, load_patterns, joint_load_map)
         active_patterns_all.update(active_pattern_ids)
-        governing_candidates = [candidate for candidate in candidates if candidate.include_in_envelope]
+        governing_candidates = [
+            candidate for candidate in candidates if candidate.include_in_envelope
+        ]
 
         if not candidates:
-            warnings.append({
-                "code": "NO_COMBINATIONS",
-                "message": f"No active combinations resolved for joint {joint['id']}.",
-            })
+            warnings.append(
+                {
+                    "code": "NO_COMBINATIONS",
+                    "message": f"No active combinations resolved for joint {joint['id']}.",
+                }
+            )
 
         row_nmax = _pick_max(candidates=governing_candidates, selector=lambda item: item.actions.N)
         row_nmin = _pick_min(candidates=governing_candidates, selector=lambda item: item.actions.N)
-        row_vx = _pick_max(candidates=governing_candidates, selector=lambda item: abs(item.actions.Vx))
-        row_vy = _pick_max(candidates=governing_candidates, selector=lambda item: abs(item.actions.Vy))
+        row_vx = _pick_max(
+            candidates=governing_candidates, selector=lambda item: abs(item.actions.Vx)
+        )
+        row_vy = _pick_max(
+            candidates=governing_candidates, selector=lambda item: abs(item.actions.Vy)
+        )
         row_mx = _pick_max(candidates=governing_candidates, selector=lambda item: item.Mx_design)
         row_my = _pick_max(candidates=governing_candidates, selector=lambda item: item.My_design)
 
-        permanent_sum, _ = sum_pattern_type_for_joint(joint, "Permanent", _patterns_by_type(load_patterns), joint_load_map)
-        imposed_sum, _ = sum_pattern_type_for_joint(joint, "Imposed", _patterns_by_type(load_patterns), joint_load_map)
+        permanent_sum, _ = sum_pattern_type_for_joint(
+            joint, "Permanent", _patterns_by_type(load_patterns), joint_load_map
+        )
+        imposed_sum, _ = sum_pattern_type_for_joint(
+            joint, "Imposed", _patterns_by_type(load_patterns), joint_load_map
+        )
         vrob = alpha * (permanent_sum.N + psi_c * imposed_sum.N)
         abs_vx = abs(row_vx.actions.Vx) if row_vx else 0.0
         abs_vy = abs(row_vy.actions.Vy) if row_vy else 0.0
@@ -201,11 +243,16 @@ def run(request: CalculationRequest) -> CalculationResult:
         steps.append(
             CalculationStep(
                 name=f"Envelope: {joint['id']}",
-                description=f"Compute governing multi-pile envelope values for joint {joint['id']}.",
+                description=(
+                    f"Compute governing multi-pile envelope values for joint {joint['id']}."
+                ),
                 formula="Envelope = max/min over included built-in and custom linear combinations",
                 inputs={
                     "combination_count": {"value": float(len(candidates)), "unit": "count"},
-                    "active_pattern_count": {"value": float(len(active_pattern_ids)), "unit": "count"},
+                    "active_pattern_count": {
+                        "value": float(len(active_pattern_ids)),
+                        "unit": "count",
+                    },
                 },
                 result={
                     "nMax": round(joint_snapshot["nMax"]["value"], 4),
@@ -250,7 +297,9 @@ def run(request: CalculationRequest) -> CalculationResult:
         label="Evaluated combination count",
     )
 
-    geo_results, geo_warnings = multi_pile_geo.compute_geo_results(state, project_specifics, joint_results)
+    geo_results, geo_warnings = multi_pile_geo.compute_geo_results(
+        state, project_specifics, joint_results
+    )
     warnings.extend(geo_warnings)
 
     for joint_id, row in geo_results.items():
@@ -305,7 +354,9 @@ def run(request: CalculationRequest) -> CalculationResult:
         steps.append(
             CalculationStep(
                 name=f"GEO: {joint_id}",
-                description=f"Compute geotechnical ULS capacity and utilisation for joint {joint_id}.",
+                description=(
+                    f"Compute geotechnical ULS capacity and utilisation for joint {joint_id}."
+                ),
                 formula="Rd,ug = phi_g x (shaft resistance + optional base resistance)",
                 inputs={
                     "Nmax": {"value": float(row.get("Nmax") or 0.0), "unit": "kN"},

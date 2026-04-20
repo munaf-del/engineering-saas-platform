@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from app.engine import multi_pile_envelope, pile_group
 from app.models.calculation import (
+    CalcError,
     CalcType,
     CalculationRequest,
     CalculationResult,
@@ -47,10 +48,12 @@ def dispatch_calculation(request: CalculationRequest) -> CalculationResult:
             governingCase=None,
             warnings=[],
             errors=[
-                {
-                    "code": "CALC_TYPE_NOT_IMPLEMENTED",
-                    "message": f"Calculation type '{request.calc_type.value}' is not yet implemented.",
-                }
+                CalcError(
+                    code="CALC_TYPE_NOT_IMPLEMENTED",
+                    message=(
+                        f"Calculation type '{request.calc_type.value}' is not yet implemented."
+                    ),
+                )
             ],
             standardRefsUsed=[],
             durationMs=elapsed,
@@ -70,7 +73,7 @@ def dispatch_calculation(request: CalculationRequest) -> CalculationResult:
             steps=[],
             governingCase=None,
             warnings=[],
-            errors=[{"code": "MISSING_RULE", "message": str(e)}],
+            errors=[CalcError(code="MISSING_RULE", message=str(e))],
             standardRefsUsed=[],
             durationMs=elapsed,
         )
@@ -82,7 +85,7 @@ def dispatch_calculation(request: CalculationRequest) -> CalculationResult:
             steps=[],
             governingCase=None,
             warnings=[],
-            errors=[{"code": "ENGINE_ERROR", "message": str(e)}],
+            errors=[CalcError(code="ENGINE_ERROR", message=str(e))],
             standardRefsUsed=[],
             durationMs=elapsed,
         )

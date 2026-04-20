@@ -1,6 +1,7 @@
 import pytest
-from app.standards.loader import require_rule, require_table, MissingRuleError
-from app.models.calculation import RulePack, RuleEntry
+
+from app.models.calculation import RuleEntry, RulePack
+from app.standards.loader import MissingRuleError, require_rule, require_table
 
 
 @pytest.fixture
