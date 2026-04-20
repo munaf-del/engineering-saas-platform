@@ -27,6 +27,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm build --filter @eng/shared
+      - run: cd apps/api && npx prisma generate
+        env:
+          DATABASE_URL: postgresql://engplatform:engplatform@localhost:5432/engplatform
       - run: pnpm typecheck
       - run: pnpm lint
 
@@ -127,6 +130,8 @@ jobs:
         run: |
           if [ "${{ matrix.service }}" = "calc-engine" ]; then
             docker build -f apps/calc-engine/Dockerfile apps/calc-engine
+          elif [ "${{ matrix.service }}" = "web" ]; then
+            docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000 -f apps/web/Dockerfile .
           else
             docker build -f apps/${{ matrix.service }}/Dockerfile .
           fi
