@@ -92,15 +92,7 @@ export const MULTI_PILE_STRUCT_RESULT_STATUSES = ['pass', 'fail', 'warning'] as 
 export type MultiPileStructResultStatus = (typeof MULTI_PILE_STRUCT_RESULT_STATUSES)[number];
 
 export const MULTI_PILE_STANDARD_PILE_DIAMETERS_MM = [
-  450,
-  500,
-  600,
-  750,
-  900,
-  1050,
-  1200,
-  1500,
-  1800,
+  450, 500, 600, 750, 900, 1050, 1200, 1500, 1800,
 ] as const;
 export type MultiPileStandardPileDiameterMm =
   (typeof MULTI_PILE_STANDARD_PILE_DIAMETERS_MM)[number];
@@ -803,7 +795,10 @@ export type PersistableMultiPileState = Pick<
 };
 
 export function defaultMultiPileSelectedCombinationIds(
-  combinationLibrary: readonly Pick<MultiPileCombinationRow, 'id' | 'enabled' | 'includeInEnvelope'>[],
+  combinationLibrary: readonly Pick<
+    MultiPileCombinationRow,
+    'id' | 'enabled' | 'includeInEnvelope'
+  >[],
 ): string[] {
   return combinationLibrary
     .filter((row) => row.enabled && row.includeInEnvelope)
@@ -812,7 +807,10 @@ export function defaultMultiPileSelectedCombinationIds(
 
 export function normalizeMultiPileSelectedCombinationIds(
   selectedCombinationIds: readonly string[] | null | undefined,
-  combinationLibrary: readonly Pick<MultiPileCombinationRow, 'id' | 'enabled' | 'includeInEnvelope'>[],
+  combinationLibrary: readonly Pick<
+    MultiPileCombinationRow,
+    'id' | 'enabled' | 'includeInEnvelope'
+  >[],
 ): string[] {
   const validIds = new Set(combinationLibrary.map((row) => row.id));
   const selectedIds = Array.isArray(selectedCombinationIds)
@@ -826,9 +824,7 @@ export function normalizeMultiPileSelectedCombinationIds(
   return Array.from(new Set(selectedIds));
 }
 
-export function buildPersistableMultiPileState(
-  state: MultiPileState,
-): PersistableMultiPileState {
+export function buildPersistableMultiPileState(state: MultiPileState): PersistableMultiPileState {
   const uiState = stripRuntimeMultiPileUiState(state.uiState);
 
   return {
@@ -901,13 +897,14 @@ export function buildMultiPileEnvelopeInputSignature(
       enabled: row.enabled,
     })),
     jointLoads: state.jointLoads
-      .filter((row) =>
-        Math.abs(row.p) > 1e-9
-        || Math.abs(row.vx) > 1e-9
-        || Math.abs(row.vy) > 1e-9
-        || Math.abs(row.mx) > 1e-9
-        || Math.abs(row.my) > 1e-9
-        || Math.abs(row.mz) > 1e-9,
+      .filter(
+        (row) =>
+          Math.abs(row.p) > 1e-9 ||
+          Math.abs(row.vx) > 1e-9 ||
+          Math.abs(row.vy) > 1e-9 ||
+          Math.abs(row.mx) > 1e-9 ||
+          Math.abs(row.my) > 1e-9 ||
+          Math.abs(row.mz) > 1e-9,
       )
       .map((row) => ({
         jointId: row.jointId,

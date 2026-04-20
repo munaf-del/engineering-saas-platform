@@ -497,12 +497,13 @@ export const MultiPileStructInteractionPointSchema = z.object({
   M: z.number(),
 });
 
-export const MultiPileStructInteractionDemandPointSchema = MultiPileStructInteractionPointSchema.extend({
-  jointId: z.string().optional(),
-  pileId: z.string().optional(),
-  label: z.string().optional(),
-  cls: z.string().optional(),
-});
+export const MultiPileStructInteractionDemandPointSchema =
+  MultiPileStructInteractionPointSchema.extend({
+    jointId: z.string().optional(),
+    pileId: z.string().optional(),
+    label: z.string().optional(),
+    cls: z.string().optional(),
+  });
 
 export const MultiPileStructSectionValuesSchema = z.object({
   phiPn: z.number(),

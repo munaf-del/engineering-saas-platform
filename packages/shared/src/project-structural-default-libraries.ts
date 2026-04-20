@@ -374,10 +374,7 @@ export function projectTendonPresetMatchId(raw: unknown) {
   return numericMatch?.id ?? '';
 }
 
-export function normalizeProjectTendonGrade(
-  raw: unknown,
-  index = 0,
-): MultiPileProjectTendonGrade {
+export function normalizeProjectTendonGrade(raw: unknown, index = 0): MultiPileProjectTendonGrade {
   const source = tendonSourceRecord(raw);
   const hasRaw = raw !== null && typeof raw === 'object' && !Array.isArray(raw);
   const matchedPresetId = projectTendonPresetMatchId(source);
@@ -405,7 +402,10 @@ export function normalizeProjectTendonGrade(
     overrideStandardValues: override,
   };
 
-  if (!row.overrideStandardValues && row.standardProfileId !== MULTI_PILE_MANUAL_STRUCTURAL_PROFILE_ID) {
+  if (
+    !row.overrideStandardValues &&
+    row.standardProfileId !== MULTI_PILE_MANUAL_STRUCTURAL_PROFILE_ID
+  ) {
     row = {
       ...(applyProjectTendonPresetToRow({}, row.standardProfileId) as MultiPileProjectTendonGrade),
       id: row.id,
@@ -679,22 +679,22 @@ export function projectCoverClassMatchId(raw: unknown) {
     }
   }
 
-  const exposureClass = stringValue(source.exposureClass || source.exposureClassification).toLowerCase();
+  const exposureClass = stringValue(
+    source.exposureClass || source.exposureClassification,
+  ).toLowerCase();
   const comparisonMinCast =
-    stringValue(source.minConcreteStrengthCastInPlace_MPa) || stringValue(source.minConcreteStrength_MPa);
+    stringValue(source.minConcreteStrengthCastInPlace_MPa) ||
+    stringValue(source.minConcreteStrength_MPa);
   const comparisonMinPrecast =
-    stringValue(source.minConcreteStrengthPrecast_MPa) || stringValue(source.minConcreteStrength_MPa);
+    stringValue(source.minConcreteStrengthPrecast_MPa) ||
+    stringValue(source.minConcreteStrength_MPa);
   const numericMatch = projectCoverDurabilitySeedClasses().find(
     (row) =>
       approxEqual(source.designLifeYears, row.designLifeYears, 1e-3) &&
       exposureClass === row.exposureClass.trim().toLowerCase() &&
       comparisonMinPrecast === row.minConcreteStrengthPrecast_MPa &&
       comparisonMinCast === row.minConcreteStrengthCastInPlace_MPa &&
-      approxEqual(
-        source.minCoverPrecast_mm,
-        row.minCoverPrecast_mm,
-        1e-3,
-      ) &&
+      approxEqual(source.minCoverPrecast_mm, row.minCoverPrecast_mm, 1e-3) &&
       approxEqual(
         source.minCoverCastInPlace_mm ?? source.nominalCover_mm,
         row.minCoverCastInPlace_mm,
@@ -899,7 +899,9 @@ function reinforcementDesignationTokens(value: unknown) {
 }
 
 function reinforcementDesignationKey(value: unknown) {
-  return stringValue(value).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return stringValue(value)
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
 }
 
 function stringValue(value: unknown) {

@@ -98,13 +98,13 @@ function clampNumber(value: unknown, fallback: number, min: number, max: number)
 export function phiFromARR(arr: number) {
   const rows = [
     { max: 1.5, low: 0.67, high: 0.76 },
-    { max: 2.0, low: 0.61, high: 0.70 },
+    { max: 2.0, low: 0.61, high: 0.7 },
     { max: 2.5, low: 0.56, high: 0.64 },
-    { max: 3.0, low: 0.52, high: 0.60 },
+    { max: 3.0, low: 0.52, high: 0.6 },
     { max: 3.5, low: 0.48, high: 0.56 },
     { max: 4.0, low: 0.45, high: 0.52 },
     { max: 4.5, low: 0.42, high: 0.49 },
-    { max: Number.POSITIVE_INFINITY, low: 0.40, high: 0.47 },
+    { max: Number.POSITIVE_INFINITY, low: 0.4, high: 0.47 },
   ];
 
   for (const row of rows) {
@@ -113,7 +113,7 @@ export function phiFromARR(arr: number) {
     }
   }
 
-  return rows[rows.length - 1] ?? { max: Number.POSITIVE_INFINITY, low: 0.40, high: 0.47 };
+  return rows[rows.length - 1] ?? { max: Number.POSITIVE_INFINITY, low: 0.4, high: 0.47 };
 }
 
 export function bandFromARR(arr: number) {
@@ -168,27 +168,23 @@ export function normalizeMultiPileGeoArrSettings(raw: unknown): MultiPileGeoArrS
   const irrValues = MULTI_PILE_GEO_ARR_ITEMS.map((_item, index) =>
     clampNumber(irrSource[index], DEFAULT_IRR, 1, 5),
   );
-  const testType = (
-    source.testType === 'STATIC'
-    || source.testType === 'RAPID'
-    || source.testType === 'DYN_PREF'
-    || source.testType === 'DYN_OTHER'
-    || source.testType === 'BIDIR'
-  )
-    ? source.testType
-    : 'NONE';
+  const testType =
+    source.testType === 'STATIC' ||
+    source.testType === 'RAPID' ||
+    source.testType === 'DYN_PREF' ||
+    source.testType === 'DYN_OTHER' ||
+    source.testType === 'BIDIR'
+      ? source.testType
+      : 'NONE';
   const weightTotal = MULTI_PILE_GEO_ARR_ITEMS.reduce((sum, item) => sum + item.weighting, 0);
   const weightedScore = MULTI_PILE_GEO_ARR_ITEMS.reduce(
-    (sum, item, index) => sum + (item.weighting * (irrValues[index] ?? DEFAULT_IRR)),
+    (sum, item, index) => sum + item.weighting * (irrValues[index] ?? DEFAULT_IRR),
     0,
   );
   const arrValue = weightTotal > 0 ? weightedScore / weightTotal : 0;
   const arrBand = bandFromARR(arrValue);
   const phiGb = phiFromARR(arrValue);
-  const testing = geoTestingBenefit(
-    testType,
-    clampNumber(source.testPilePercentage, 0, 0, 100),
-  );
+  const testing = geoTestingBenefit(testType, clampNumber(source.testPilePercentage, 0, 0, 100));
   const phiGLow = phiWithTesting(phiGb.low, testing.phiTf, testing.testBenefitK);
   const phiGHigh = phiWithTesting(phiGb.high, testing.phiTf, testing.testBenefitK);
 
@@ -209,14 +205,15 @@ export function normalizeMultiPileGeoArrSettings(raw: unknown): MultiPileGeoArrS
   };
 }
 
-function legacyTestType(value: unknown, fallback: MultiPileGeoTestType = 'NONE'): MultiPileGeoTestType {
-  return (
-    value === 'STATIC'
-    || value === 'RAPID'
-    || value === 'DYN_PREF'
-    || value === 'DYN_OTHER'
-    || value === 'BIDIR'
-  )
+function legacyTestType(
+  value: unknown,
+  fallback: MultiPileGeoTestType = 'NONE',
+): MultiPileGeoTestType {
+  return value === 'STATIC' ||
+    value === 'RAPID' ||
+    value === 'DYN_PREF' ||
+    value === 'DYN_OTHER' ||
+    value === 'BIDIR'
     ? value
     : fallback;
 }
@@ -227,7 +224,11 @@ export function extractMultiPileGeoArrSettingsFromLegacyState(
   const source = asRecord(raw);
   const explicit = asRecord(source.geoArrSettings);
   if (Object.keys(explicit).length > 0) {
-    if (Array.isArray(explicit.irrValues) || 'testType' in explicit || 'testPilePercentage' in explicit) {
+    if (
+      Array.isArray(explicit.irrValues) ||
+      'testType' in explicit ||
+      'testPilePercentage' in explicit
+    ) {
       return normalizeMultiPileGeoArrSettings(explicit);
     }
 
@@ -241,7 +242,12 @@ export function extractMultiPileGeoArrSettingsFromLegacyState(
         0,
         100,
       ),
-      weightTotal: clampNumber(explicit.weightTotal, defaults.weightTotal, 0, Number.POSITIVE_INFINITY),
+      weightTotal: clampNumber(
+        explicit.weightTotal,
+        defaults.weightTotal,
+        0,
+        Number.POSITIVE_INFINITY,
+      ),
       weightedScore: clampNumber(
         explicit.weightedScore,
         defaults.weightedScore,
@@ -250,7 +256,8 @@ export function extractMultiPileGeoArrSettingsFromLegacyState(
       ),
       arrValue: clampNumber(explicit.arrValue, defaults.arrValue, 0, Number.POSITIVE_INFINITY),
       arrBand: typeof explicit.arrBand === 'string' ? explicit.arrBand : defaults.arrBand,
-      phiTf: explicit.phiTf == null ? null : clampNumber(explicit.phiTf, 0, 0, Number.POSITIVE_INFINITY),
+      phiTf:
+        explicit.phiTf == null ? null : clampNumber(explicit.phiTf, 0, 0, Number.POSITIVE_INFINITY),
       testBenefitK: clampNumber(explicit.testBenefitK, defaults.testBenefitK, 0, 1),
       phiGbLow: clampNumber(explicit.phiGbLow, defaults.phiGbLow, 0, Number.POSITIVE_INFINITY),
       phiGbHigh: clampNumber(explicit.phiGbHigh, defaults.phiGbHigh, 0, Number.POSITIVE_INFINITY),
@@ -260,19 +267,18 @@ export function extractMultiPileGeoArrSettingsFromLegacyState(
   }
 
   const legacyTest = asRecord(source.test);
-  const legacyHasComputedValues = (
-    source.ARR !== undefined
-    || source.band !== undefined
-    || source.phiGbLow !== undefined
-    || source.phiGbHigh !== undefined
-    || source.phiGLow !== undefined
-    || source.phiGHigh !== undefined
-    || source.arrVal !== undefined
-    || source.arrBand !== undefined
-    || source.phiLow !== undefined
-    || source.phiHigh !== undefined
-    || Object.keys(legacyTest).length > 0
-  );
+  const legacyHasComputedValues =
+    source.ARR !== undefined ||
+    source.band !== undefined ||
+    source.phiGbLow !== undefined ||
+    source.phiGbHigh !== undefined ||
+    source.phiGLow !== undefined ||
+    source.phiGHigh !== undefined ||
+    source.arrVal !== undefined ||
+    source.arrBand !== undefined ||
+    source.phiLow !== undefined ||
+    source.phiHigh !== undefined ||
+    Object.keys(legacyTest).length > 0;
 
   if (!legacyHasComputedValues) {
     return null;
@@ -284,17 +290,26 @@ export function extractMultiPileGeoArrSettingsFromLegacyState(
     testType: legacyTestType(legacyTest.type, defaults.testType),
     testPilePercentage: clampNumber(legacyTest.p, defaults.testPilePercentage, 0, 100),
     weightTotal: clampNumber(source.arrWtot, defaults.weightTotal, 0, Number.POSITIVE_INFINITY),
-    weightedScore: clampNumber(source.arrScore, defaults.weightedScore, 0, Number.POSITIVE_INFINITY),
+    weightedScore: clampNumber(
+      source.arrScore,
+      defaults.weightedScore,
+      0,
+      Number.POSITIVE_INFINITY,
+    ),
     arrValue: clampNumber(
       source.ARR ?? source.arrVal,
       defaults.arrValue,
       0,
       Number.POSITIVE_INFINITY,
     ),
-    arrBand: typeof (source.band ?? source.arrBand) === 'string'
-      ? String(source.band ?? source.arrBand)
-      : defaults.arrBand,
-    phiTf: legacyTest.phi_tf == null ? null : clampNumber(legacyTest.phi_tf, 0, 0, Number.POSITIVE_INFINITY),
+    arrBand:
+      typeof (source.band ?? source.arrBand) === 'string'
+        ? String(source.band ?? source.arrBand)
+        : defaults.arrBand,
+    phiTf:
+      legacyTest.phi_tf == null
+        ? null
+        : clampNumber(legacyTest.phi_tf, 0, 0, Number.POSITIVE_INFINITY),
     testBenefitK: clampNumber(legacyTest.K, defaults.testBenefitK, 0, 1),
     phiGbLow: clampNumber(source.phiGbLow, defaults.phiGbLow, 0, Number.POSITIVE_INFINITY),
     phiGbHigh: clampNumber(source.phiGbHigh, defaults.phiGbHigh, 0, Number.POSITIVE_INFINITY),
