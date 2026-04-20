@@ -130,6 +130,8 @@ jobs:
         run: |
           if [ "${{ matrix.service }}" = "calc-engine" ]; then
             docker build -f apps/calc-engine/Dockerfile apps/calc-engine
+          elif [ "${{ matrix.service }}" = "web" ]; then
+            docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000 -f apps/web/Dockerfile .
           else
             docker build -f apps/${{ matrix.service }}/Dockerfile .
           fi
