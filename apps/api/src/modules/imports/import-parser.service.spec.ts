@@ -29,9 +29,9 @@ describe('ImportParserService', () => {
 
     it('should reject CSV with only a header', async () => {
       const csv = 'designation,sectionType';
-      await expect(
-        parser.parse(Buffer.from(csv), 'csv', 'test.csv'),
-      ).rejects.toThrow('at least one data row');
+      await expect(parser.parse(Buffer.from(csv), 'csv', 'test.csv')).rejects.toThrow(
+        'at least one data row',
+      );
     });
 
     it('should coerce numeric strings to numbers', async () => {
@@ -66,9 +66,9 @@ describe('ImportParserService', () => {
     });
 
     it('should reject invalid JSON', async () => {
-      await expect(
-        parser.parse(Buffer.from('not json'), 'json', 'test.json'),
-      ).rejects.toThrow('Invalid JSON');
+      await expect(parser.parse(Buffer.from('not json'), 'json', 'test.json')).rejects.toThrow(
+        'Invalid JSON',
+      );
     });
   });
 });

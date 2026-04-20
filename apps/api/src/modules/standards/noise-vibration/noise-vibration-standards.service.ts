@@ -25,11 +25,7 @@ export class NoiseVibrationStandardsService {
           select: { criterionGroups: true },
         },
       },
-      orderBy: [
-        { jurisdiction: 'asc' },
-        { year: 'asc' },
-        { shortName: 'asc' },
-      ],
+      orderBy: [{ jurisdiction: 'asc' }, { year: 'asc' }, { shortName: 'asc' }],
     });
 
     return sources.map(({ _count, ...source }) => ({

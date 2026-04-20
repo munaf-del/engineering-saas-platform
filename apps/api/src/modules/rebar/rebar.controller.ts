@@ -14,16 +14,9 @@ import { RebarService } from './rebar.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import {
-  CreateRebarCatalogDto,
-  UpdateRebarCatalogDto,
-  CreateRebarSizeDto,
-} from './dto/rebar.dto';
+import { CreateRebarCatalogDto, UpdateRebarCatalogDto, CreateRebarSizeDto } from './dto/rebar.dto';
 
 @ApiTags('rebar')
 @ApiBearerAuth()
@@ -34,10 +27,7 @@ export class RebarController {
 
   @Get('catalogs')
   @ApiOperation({ summary: 'List rebar catalogs (system + org)' })
-  async findAllCatalogs(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findAllCatalogs(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
     return this.rebarService.findAllCatalogs(user.organisationId, pagination);
   }
 
@@ -51,10 +41,7 @@ export class RebarController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a rebar catalog (versioned snapshot)' })
-  async createCatalog(
-    @Body() dto: CreateRebarCatalogDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async createCatalog(@Body() dto: CreateRebarCatalogDto, @CurrentUser() user: RequestUser) {
     return this.rebarService.createCatalog(user.organisationId, user.id, dto);
   }
 
@@ -62,10 +49,7 @@ export class RebarController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Update rebar catalog status or effective date' })
-  async updateCatalog(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateRebarCatalogDto,
-  ) {
+  async updateCatalog(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRebarCatalogDto) {
     return this.rebarService.updateCatalog(id, dto);
   }
 

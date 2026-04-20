@@ -121,4 +121,3 @@ export class CreateProjectSpatialFeatureDto {
 }
 
 export class UpdateProjectSpatialFeatureDto extends PartialType(CreateProjectSpatialFeatureDto) {}
-

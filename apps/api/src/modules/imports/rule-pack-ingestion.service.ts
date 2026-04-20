@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ParsedRow } from './import-parser.service';
@@ -112,7 +108,7 @@ export class RulePackIngestionService {
       }
       throw new BadRequestException(
         `Rule pack ${standardCode}@${version} already exists with different content. ` +
-        `Use a new version identifier to avoid conflicts.`,
+          `Use a new version identifier to avoid conflicts.`,
       );
     }
 

@@ -7,4 +7,3 @@ import { ProjectSpatialService } from './project-spatial.service';
   providers: [ProjectSpatialService],
 })
 export class ProjectSpatialModule {}
-

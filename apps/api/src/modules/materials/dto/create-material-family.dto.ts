@@ -2,7 +2,12 @@ import { IsString, IsEnum, IsBoolean, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const CATEGORIES = [
-  'concrete', 'structural_steel', 'reinforcing_steel', 'soil', 'rock', 'timber',
+  'concrete',
+  'structural_steel',
+  'reinforcing_steel',
+  'soil',
+  'rock',
+  'timber',
 ] as const;
 
 export class CreateMaterialFamilyDto {

@@ -45,15 +45,18 @@ export class OpenAiAssistantProvider implements AssistantProviderAdapter {
     };
   }
 
-  async respondToAssistant({
-    model,
-    systemPrompt,
-    promptContext,
-    conversation,
-    responseFormatName,
-    responseFormatDescription,
-    noPayloadErrorMessage,
-  }: AssistantProviderRequest, credential?: AssistantProviderCredentialInput) {
+  async respondToAssistant(
+    {
+      model,
+      systemPrompt,
+      promptContext,
+      conversation,
+      responseFormatName,
+      responseFormatDescription,
+      noPayloadErrorMessage,
+    }: AssistantProviderRequest,
+    credential?: AssistantProviderCredentialInput,
+  ) {
     const openai = this.getOpenAiClient(credential?.apiKey);
     const response = await openai.responses.parse({
       model,

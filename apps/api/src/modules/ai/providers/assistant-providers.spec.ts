@@ -14,22 +14,18 @@ const mockAnthropic = jest.fn().mockImplementation(({ apiKey }: { apiKey: string
     parse: mockAnthropicParse,
   },
 }));
-const mockGoogleGenerativeAI = jest
-  .fn()
-  .mockImplementation((apiKey: string) => ({
-    apiKey,
-    getGenerativeModel: jest.fn().mockImplementation(({ model, systemInstruction }) => ({
-      model,
-      systemInstruction,
-      generateContent: mockGeminiGenerateContent,
-    })),
-  }));
+const mockGoogleGenerativeAI = jest.fn().mockImplementation((apiKey: string) => ({
+  apiKey,
+  getGenerativeModel: jest.fn().mockImplementation(({ model, systemInstruction }) => ({
+    model,
+    systemInstruction,
+    generateContent: mockGeminiGenerateContent,
+  })),
+}));
 
 jest.mock('@eng/shared', () => ({
   AI_ASSISTANT_PROVIDER_OPTIONS: ['openai', 'anthropic', 'gemini', 'deepseek'],
-  buildAiAssistantProviderStatusMap: (
-    overrides: Record<string, Record<string, unknown>> = {},
-  ) => ({
+  buildAiAssistantProviderStatusMap: (overrides: Record<string, Record<string, unknown>> = {}) => ({
     openai: {
       configuredForOrganisation: false,
       available: true,
@@ -107,9 +103,7 @@ const EXPECTED_RESPONSE = {
   limitationNote: null,
 };
 
-function createConfigService(
-  overrides: Record<string, string | undefined> = {},
-): ConfigService {
+function createConfigService(overrides: Record<string, string | undefined> = {}): ConfigService {
   return {
     get: jest.fn((key: string) => overrides[key]),
   } as unknown as ConfigService;
@@ -166,9 +160,7 @@ describe('assistant providers', () => {
     expect(() => registry.getProvider('deepseek', 'gpt-4.1')).toThrow(
       'AI model "gpt-4.1" is not supported for assistant provider "deepseek"',
     );
-    expect(registry.getProvider('openai', 'gpt-4.1-mini')).toBeInstanceOf(
-      OpenAiAssistantProvider,
-    );
+    expect(registry.getProvider('openai', 'gpt-4.1-mini')).toBeInstanceOf(OpenAiAssistantProvider);
   });
 
   it('reports provider availability from organisation credentials and environment fallback', () => {
@@ -484,9 +476,7 @@ describe('assistant providers', () => {
       ),
     ).resolves.toEqual(EXPECTED_RESPONSE);
 
-    expect(mockGoogleGenerativeAI).toHaveBeenCalledWith(
-      'org-gemini-key-12345678901234567890',
-    );
+    expect(mockGoogleGenerativeAI).toHaveBeenCalledWith('org-gemini-key-12345678901234567890');
   });
 
   it('verifies Gemini credentials with a lightweight test request', async () => {

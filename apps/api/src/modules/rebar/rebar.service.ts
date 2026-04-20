@@ -1,16 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
-import {
-  CreateRebarCatalogDto,
-  UpdateRebarCatalogDto,
-  CreateRebarSizeDto,
-} from './dto/rebar.dto';
+import { CreateRebarCatalogDto, UpdateRebarCatalogDto, CreateRebarSizeDto } from './dto/rebar.dto';
 
 @Injectable()
 export class RebarService {
@@ -18,19 +10,13 @@ export class RebarService {
 
   // ── Catalogs ──────────────────────────────────────────────────
 
-  async findAllCatalogs(
-    organisationId: string | undefined,
-    pagination: PaginationDto,
-  ) {
+  async findAllCatalogs(organisationId: string | undefined, pagination: PaginationDto) {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
     const where = organisationId
       ? {
-          OR: [
-            { organisationId },
-            { organisationId: null, isDemo: true },
-          ],
+          OR: [{ organisationId }, { organisationId: null, isDemo: true }],
         }
       : {};
 
@@ -107,13 +93,17 @@ export class RebarService {
     });
 
     const hash = createHash('sha256')
-      .update(JSON.stringify(sizes.map((s: (typeof sizes)[number]) => ({
-        d: s.designation,
-        dia: s.barDiameter,
-        a: s.nominalArea,
-        m: s.massPerMetre,
-        g: s.grade,
-      }))))
+      .update(
+        JSON.stringify(
+          sizes.map((s: (typeof sizes)[number]) => ({
+            d: s.designation,
+            dia: s.barDiameter,
+            a: s.nominalArea,
+            m: s.massPerMetre,
+            g: s.grade,
+          })),
+        ),
+      )
       .digest('hex');
 
     if (catalog.status === 'active' && catalog.snapshotHash === hash) {
@@ -168,9 +158,7 @@ export class RebarService {
   async createSize(dto: CreateRebarSizeDto) {
     const catalog = await this.assertCatalogExists(dto.catalogId);
     if (catalog.status !== 'draft') {
-      throw new BadRequestException(
-        'Can only add sizes to catalogs in draft status',
-      );
+      throw new BadRequestException('Can only add sizes to catalogs in draft status');
     }
 
     return this.prisma.rebarSize.create({
@@ -191,9 +179,7 @@ export class RebarService {
   async bulkCreateSizes(catalogId: string, sizes: CreateRebarSizeDto[]) {
     const catalog = await this.assertCatalogExists(catalogId);
     if (catalog.status !== 'draft') {
-      throw new BadRequestException(
-        'Can only add sizes to catalogs in draft status',
-      );
+      throw new BadRequestException('Can only add sizes to catalogs in draft status');
     }
 
     const data = sizes.map((s) => ({

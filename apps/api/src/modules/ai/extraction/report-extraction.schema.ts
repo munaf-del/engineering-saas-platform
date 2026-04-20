@@ -97,12 +97,7 @@ const snippetBackedNullableNumericFindingSchema = z
   })
   .strict();
 
-const groundModelDepthQualifierSchema = z.enum([
-  'EXACT',
-  'MINIMUM',
-  'NOT_ENCOUNTERED',
-  'UNKNOWN',
-]);
+const groundModelDepthQualifierSchema = z.enum(['EXACT', 'MINIMUM', 'NOT_ENCOUNTERED', 'UNKNOWN']);
 
 const groundModelUnitDepthDraftSchema = z
   .object({
@@ -166,13 +161,7 @@ const geotechnicalParameterTableTypeSchema = z.enum([
   'OTHER_GEOTECHNICAL_PARAMETERS',
 ]);
 
-const standardsUseTagSchema = z.enum([
-  'compression',
-  'uplift',
-  'lateral',
-  'durability',
-  'testing',
-]);
+const standardsUseTagSchema = z.enum(['compression', 'uplift', 'lateral', 'durability', 'testing']);
 
 const geotechnicalParameterTableRowDraftSchema = z
   .object({
@@ -399,9 +388,7 @@ export type EngineeringReportExtractionDraft = z.infer<
   typeof engineeringReportExtractionDraftSchema
 >;
 
-export type EngineeringReportDocumentFamily = z.infer<
-  typeof engineeringReportDocumentFamilySchema
->;
+export type EngineeringReportDocumentFamily = z.infer<typeof engineeringReportDocumentFamilySchema>;
 
 export type EngineeringReportExtractionProfile = z.infer<typeof extractionProfileSchema>;
 
@@ -409,9 +396,7 @@ export type GeotechnicalFocusedRefinementDraft = z.infer<
   typeof geotechnicalFocusedRefinementDraftSchema
 >;
 
-export type GeotechnicalParameterTableType = z.infer<
-  typeof geotechnicalParameterTableTypeSchema
->;
+export type GeotechnicalParameterTableType = z.infer<typeof geotechnicalParameterTableTypeSchema>;
 
 export type StandardsUseTag = z.infer<typeof standardsUseTagSchema>;
 

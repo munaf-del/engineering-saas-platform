@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -63,7 +54,11 @@ export class AuthController {
     @CurrentUser() user: RequestUser,
     @Req() req: Request,
   ) {
-    return this.authService.switchOrg(user.id, dto.organisationId, req.headers['x-request-id'] as string);
+    return this.authService.switchOrg(
+      user.id,
+      dto.organisationId,
+      req.headers['x-request-id'] as string,
+    );
   }
 
   @Get('me')

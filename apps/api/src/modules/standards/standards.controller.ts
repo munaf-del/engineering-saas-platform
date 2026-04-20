@@ -16,10 +16,7 @@ import { StandardsService } from './standards.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CreateStandardDto, UpdateStandardDto } from './dto/create-standard.dto';
 import { CreateStandardEditionDto } from './dto/create-standard-edition.dto';
@@ -70,10 +67,7 @@ export class StandardsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Update a standard (admin only)' })
-  async updateStandard(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateStandardDto,
-  ) {
+  async updateStandard(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateStandardDto) {
     return this.standardsService.updateStandard(id, dto);
   }
 
@@ -109,20 +103,14 @@ export class StandardsController {
 
   @Get('profiles')
   @ApiOperation({ summary: 'List standards profiles for the current organisation' })
-  async findProfiles(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findProfiles(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
     this.requireOrgContext(user);
     return this.standardsService.findProfiles(user.organisationId!, pagination);
   }
 
   @Get('profiles/:id')
   @ApiOperation({ summary: 'Get a standards profile by ID' })
-  async findProfileById(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async findProfileById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.standardsService.findProfileById(id, user.organisationId!);
   }
@@ -131,10 +119,7 @@ export class StandardsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a standards profile' })
-  async createProfile(
-    @Body() dto: CreateStandardsProfileDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async createProfile(@Body() dto: CreateStandardsProfileDto, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.standardsService.createProfile(user.organisationId!, dto);
   }
@@ -156,10 +141,7 @@ export class StandardsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Delete a standards profile' })
-  async deleteProfile(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async deleteProfile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.standardsService.deleteProfile(id, user.organisationId!);
   }
@@ -176,11 +158,7 @@ export class StandardsController {
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.standardsService.pinStandard(
-      id,
-      user.organisationId!,
-      dto.standardEditionId,
-    );
+    return this.standardsService.pinStandard(id, user.organisationId!, dto.standardEditionId);
   }
 
   @Post('profiles/:id/pin/bulk')
@@ -193,11 +171,7 @@ export class StandardsController {
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.standardsService.bulkPinStandards(
-      id,
-      user.organisationId!,
-      dto.standardEditionIds,
-    );
+    return this.standardsService.bulkPinStandards(id, user.organisationId!, dto.standardEditionIds);
   }
 
   @Delete('profiles/:profileId/pin/:editionId')
@@ -210,11 +184,7 @@ export class StandardsController {
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.standardsService.unpinStandard(
-      profileId,
-      user.organisationId!,
-      editionId,
-    );
+    return this.standardsService.unpinStandard(profileId, user.organisationId!, editionId);
   }
 
   // ── Project Standard Assignments ──────────────────────────────
@@ -226,10 +196,7 @@ export class StandardsController {
     @CurrentUser() user: RequestUser,
   ) {
     this.requireOrgContext(user);
-    return this.standardsService.getProjectAssignments(
-      projectId,
-      user.organisationId!,
-    );
+    return this.standardsService.getProjectAssignments(projectId, user.organisationId!);
   }
 
   @Post('projects/:projectId/assignments')

@@ -7,11 +7,7 @@ import { CreateDocumentDto } from './dto/document.dto';
 export class DocumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(
-    organisationId: string,
-    pagination: PaginationDto,
-    projectId?: string,
-  ) {
+  async findAll(organisationId: string, pagination: PaginationDto, projectId?: string) {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 

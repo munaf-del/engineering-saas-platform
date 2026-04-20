@@ -15,10 +15,7 @@ import { GeotechService } from './geotech.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   CreateGeotechMaterialClassDto,
@@ -65,11 +62,7 @@ export class GeotechController {
     @Query() pagination: PaginationDto,
     @Query('classId') classId?: string,
   ) {
-    return this.geotechService.findParameterSets(
-      user.organisationId,
-      pagination,
-      classId,
-    );
+    return this.geotechService.findParameterSets(user.organisationId, pagination, classId);
   }
 
   @Get('parameters/:id')

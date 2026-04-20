@@ -77,11 +77,10 @@ export function getProjectLoadDefinitionFromLegacyMultiPileMetadata(
 ): ProjectLoadDefinition | null {
   const base = objectValue(metadata);
   const multiPile = objectValue(base.multiPile);
-  const hasLegacyLoadDefinition = (
-    'combinationSettings' in multiPile
-    || 'loadPatterns' in multiPile
-    || 'combinationLibrary' in multiPile
-  );
+  const hasLegacyLoadDefinition =
+    'combinationSettings' in multiPile ||
+    'loadPatterns' in multiPile ||
+    'combinationLibrary' in multiPile;
   if (!hasLegacyLoadDefinition) {
     return null;
   }
@@ -99,9 +98,9 @@ export function getHydratedProjectMetadataWithLoadDefinition(
 ): Record<string, unknown> {
   const base = objectValue(metadata);
   const projectLoadDefinition =
-    getProjectLoadDefinitionFromProjectMetadata(base)
-    ?? getProjectLoadDefinitionFromLegacyPileGroups(pileGroups)
-    ?? defaultProjectLoadDefinition();
+    getProjectLoadDefinitionFromProjectMetadata(base) ??
+    getProjectLoadDefinitionFromLegacyPileGroups(pileGroups) ??
+    defaultProjectLoadDefinition();
 
   return {
     ...base,
@@ -232,7 +231,8 @@ function normalizeLoadCombinations(
       source === 'custom' ? `Custom ${index + 1}` : '',
     );
     const enabled = row.enabled === undefined ? true : Boolean(row.enabled);
-    const includeInEnvelope = row.includeInEnvelope === undefined ? true : Boolean(row.includeInEnvelope);
+    const includeInEnvelope =
+      row.includeInEnvelope === undefined ? true : Boolean(row.includeInEnvelope);
     const metadata = objectValue(row.metadata);
 
     if (source === 'built-in') {
@@ -248,7 +248,8 @@ function normalizeLoadCombinations(
         includeInEnvelope,
         reference: optionalStringValue(row.reference),
         family: familyValue(row.family),
-        reversibleAware: row.reversibleAware === undefined ? undefined : Boolean(row.reversibleAware),
+        reversibleAware:
+          row.reversibleAware === undefined ? undefined : Boolean(row.reversibleAware),
         factors: undefined,
         childCombinationIds: undefined,
         expressionSummary: optionalStringValue(row.expressionSummary),
@@ -425,10 +426,8 @@ function getBuiltInSpecs(settings: ProjectLoadCombinationSettings): BuiltInSpec[
         {
           mode: 'typeSum',
           patternType: 'Permanent',
-          factor: (current) => (
-            current.minPermanentFactor
-            * (current.reduceMinimumPermanentWithPointNine ? 0.9 : 1)
-          ),
+          factor: (current) =>
+            current.minPermanentFactor * (current.reduceMinimumPermanentWithPointNine ? 0.9 : 1),
         },
         {
           mode: 'typeSum',
@@ -448,23 +447,23 @@ function builtInExpressionSummary(
   spec: BuiltInSpec,
   settings: ProjectLoadCombinationSettings,
 ): string {
-  return spec.terms.map((term) => {
-    const factor = term.factor(settings);
-    const suffix = term.mode === 'typeEach' && term.allowReverse ? ' (each, reversible)' : '';
-    return `${formatFactor(factor)}${term.patternType}${suffix}`;
-  }).join(' + ');
+  return spec.terms
+    .map((term) => {
+      const factor = term.factor(settings);
+      const suffix = term.mode === 'typeEach' && term.allowReverse ? ' (each, reversible)' : '';
+      return `${formatFactor(factor)}${term.patternType}${suffix}`;
+    })
+    .join(' + ');
 }
 
 function customExpressionSummary(row: ProjectLoadCombination): string {
   if (!row.factors?.length) return row.name;
-  return row.factors
-    .map((term) => `${formatFactor(term.factor)}${term.loadCaseId}`)
-    .join(' + ');
+  return row.factors.map((term) => `${formatFactor(term.factor)}${term.loadCaseId}`).join(' + ');
 }
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {};
 }
 
@@ -478,11 +477,7 @@ function optionalStringValue(value: unknown): string | undefined {
   return candidate || undefined;
 }
 
-function numberValue(
-  value: unknown,
-  fallback: number,
-  opts?: { min?: number },
-): number {
+function numberValue(value: unknown, fallback: number, opts?: { min?: number }): number {
   const candidate = Number(value);
   if (!Number.isFinite(candidate)) {
     return fallback;

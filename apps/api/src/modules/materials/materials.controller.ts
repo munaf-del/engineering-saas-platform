@@ -15,16 +15,10 @@ import { MaterialsService } from './materials.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CreateMaterialFamilyDto } from './dto/create-material-family.dto';
-import {
-  CreateMaterialGradeDto,
-  UpdateMaterialGradeDto,
-} from './dto/create-material-grade.dto';
+import { CreateMaterialGradeDto, UpdateMaterialGradeDto } from './dto/create-material-grade.dto';
 import { CreatePropertySchemaDto } from './dto/create-property-schema.dto';
 
 @ApiTags('materials')
@@ -76,11 +70,7 @@ export class MaterialsController {
     @Query() pagination: PaginationDto,
     @Query('category') category?: string,
   ) {
-    return this.materialsService.findAllGrades(
-      user.organisationId,
-      pagination,
-      category,
-    );
+    return this.materialsService.findAllGrades(user.organisationId, pagination, category);
   }
 
   @Get('grades/:id')
@@ -93,10 +83,7 @@ export class MaterialsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a material grade' })
-  async createGrade(
-    @Body() dto: CreateMaterialGradeDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async createGrade(@Body() dto: CreateMaterialGradeDto, @CurrentUser() user: RequestUser) {
     return this.materialsService.createGrade(user.organisationId, dto);
   }
 
@@ -104,10 +91,7 @@ export class MaterialsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Update a material grade' })
-  async updateGrade(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateMaterialGradeDto,
-  ) {
+  async updateGrade(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMaterialGradeDto) {
     return this.materialsService.updateGrade(id, dto);
   }
 

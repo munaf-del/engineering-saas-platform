@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsEnum,
-  IsBoolean,
-  IsOptional,
-  IsDateString,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsEnum, IsBoolean, IsOptional, IsDateString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const STATUSES = ['current', 'superseded', 'withdrawn'] as const;

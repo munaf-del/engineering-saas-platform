@@ -34,9 +34,7 @@ describe('Ingestion & Approval Workflow E2E', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const regRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send(testUser);
+    const regRes = await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser);
     accessToken = regRes.body.accessToken;
 
     const orgRes = await request(app.getHttpServer())
@@ -271,7 +269,8 @@ describe('Ingestion & Approval Workflow E2E', () => {
 
   describe('Invalid Metadata', () => {
     it('should fail import missing sourceStandard', async () => {
-      const csv = 'designation,sectionType,massPerMetre,depth,flangeWidth,flangeThickness,webThickness\n200UB,UB,25.4,203,133,7.8,5.8';
+      const csv =
+        'designation,sectionType,massPerMetre,depth,flangeWidth,flangeThickness,webThickness\n200UB,UB,25.4,203,133,7.8,5.8';
 
       await request(app.getHttpServer())
         .post('/api/v1/imports/upload')

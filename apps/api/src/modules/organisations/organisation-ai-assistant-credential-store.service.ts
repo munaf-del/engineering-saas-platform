@@ -1,13 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  Prisma,
-  type OrganisationAiAssistantProviderCredential,
-} from '@prisma/client';
-import {
-  isAiAssistantProvider,
-  type AiAssistantProvider,
-} from '@eng/shared';
+import { Prisma, type OrganisationAiAssistantProviderCredential } from '@prisma/client';
+import { isAiAssistantProvider, type AiAssistantProvider } from '@eng/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { AssistantProviderCredentialState } from '../ai/providers/assistant-provider.interface';
 import {
@@ -154,9 +148,8 @@ export class OrganisationAiAssistantCredentialStoreService {
   ): StoredOrganisationAiProviderCredentialMap {
     return Object.fromEntries(
       rows
-        .filter(
-          (row): row is StoredCredentialRow & { provider: AiAssistantProvider } =>
-            isAiAssistantProvider(row.provider),
+        .filter((row): row is StoredCredentialRow & { provider: AiAssistantProvider } =>
+          isAiAssistantProvider(row.provider),
         )
         .map((row) => [
           row.provider,
@@ -176,9 +169,7 @@ export class OrganisationAiAssistantCredentialStoreService {
     const encryptionSecret = this.resolveEncryptionSecret();
 
     if (!encryptionSecret) {
-      throw new ServiceUnavailableException(
-        'Organisation AI credential encryption is unavailable',
-      );
+      throw new ServiceUnavailableException('Organisation AI credential encryption is unavailable');
     }
 
     return encryptionSecret;

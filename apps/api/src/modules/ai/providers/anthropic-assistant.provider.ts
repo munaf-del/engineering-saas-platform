@@ -45,13 +45,16 @@ export class AnthropicAssistantProvider implements AssistantProviderAdapter {
     };
   }
 
-  async respondToAssistant({
-    model,
-    systemPrompt,
-    promptContext,
-    conversation,
-    noPayloadErrorMessage: noPayloadErrorMessage,
-  }: AssistantProviderRequest, credential?: AssistantProviderCredentialInput) {
+  async respondToAssistant(
+    {
+      model,
+      systemPrompt,
+      promptContext,
+      conversation,
+      noPayloadErrorMessage: noPayloadErrorMessage,
+    }: AssistantProviderRequest,
+    credential?: AssistantProviderCredentialInput,
+  ) {
     const anthropic = this.getAnthropicClient(credential?.apiKey);
     const response = await anthropic.messages.parse({
       model,

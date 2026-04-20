@@ -3,12 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 
 jest.mock('@eng/shared', () => {
   const AI_MODEL_OPTIONS = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5-mini', 'gpt-5.2'] as const;
-  const AI_ASSISTANT_PROVIDER_OPTIONS = [
-    'openai',
-    'anthropic',
-    'gemini',
-    'deepseek',
-  ] as const;
+  const AI_ASSISTANT_PROVIDER_OPTIONS = ['openai', 'anthropic', 'gemini', 'deepseek'] as const;
 
   function isAiModelId(value: unknown): value is (typeof AI_MODEL_OPTIONS)[number] {
     return typeof value === 'string' && (AI_MODEL_OPTIONS as readonly string[]).includes(value);
@@ -27,7 +22,7 @@ jest.mock('@eng/shared', () => {
         ? 'gemini-2.0-flash'
         : provider === 'deepseek'
           ? 'deepseek-chat'
-        : 'gpt-4.1';
+          : 'gpt-4.1';
   }
 
   function isAiAssistantModelSupportedByProvider(
@@ -48,9 +43,10 @@ jest.mock('@eng/shared', () => {
   }
 
   function normalizeOrganisationAiSettings(value: unknown, fallback?: Record<string, unknown>) {
-    const record = value && typeof value === 'object' && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {};
+    const record =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
     const assistantProvider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' =
       record.assistantProvider === 'anthropic' ||
       record.assistantProvider === 'openai' ||
@@ -62,17 +58,20 @@ jest.mock('@eng/shared', () => {
             | 'anthropic'
             | 'gemini'
             | 'deepseek'
-            | undefined) ??
-          'openai');
+            | undefined) ?? 'openai');
 
     return {
       assistantProvider,
-      assistantModel: isAiAssistantModelSupportedByProvider(record.assistantModel, assistantProvider)
+      assistantModel: isAiAssistantModelSupportedByProvider(
+        record.assistantModel,
+        assistantProvider,
+      )
         ? record.assistantModel
         : getDefaultAssistantModelForProvider(assistantProvider),
       agentModel: normalizeAiModelSelection(
         record.agentModel,
-        ((fallback?.agentModel as string | undefined) ?? 'gpt-4.1-mini') as (typeof AI_MODEL_OPTIONS)[number],
+        ((fallback?.agentModel as string | undefined) ??
+          'gpt-4.1-mini') as (typeof AI_MODEL_OPTIONS)[number],
       ),
     };
   }
@@ -122,8 +121,7 @@ jest.mock('@eng/shared', () => {
       statusReason: string;
       credentialSource?: string;
     }) {
-      const credentialSource =
-        status.credentialSource ?? deriveCredentialSource(status);
+      const credentialSource = status.credentialSource ?? deriveCredentialSource(status);
 
       if (credentialSource === 'connected_account') {
         return 'connected';
@@ -160,10 +158,8 @@ jest.mock('@eng/shared', () => {
       return {
         ...typedStatus,
         credentialIssueReason: typedStatus.credentialIssueReason ?? null,
-        credentialSource:
-          typedStatus.credentialSource ?? deriveCredentialSource(typedStatus),
-        connectionState:
-          typedStatus.connectionState ?? deriveConnectionState(typedStatus),
+        credentialSource: typedStatus.credentialSource ?? deriveCredentialSource(typedStatus),
+        connectionState: typedStatus.connectionState ?? deriveConnectionState(typedStatus),
       };
     }
 
@@ -180,7 +176,7 @@ jest.mock('@eng/shared', () => {
             ? ['gemini-2.0-flash', 'gemini-2.0-pro']
             : settings.assistantProvider === 'deepseek'
               ? ['deepseek-chat', 'deepseek-reasoner']
-            : [...AI_MODEL_OPTIONS],
+              : [...AI_MODEL_OPTIONS],
       availableAgentModels: [...AI_MODEL_OPTIONS],
       assistantProviderStatus: Object.fromEntries(
         Object.entries(
@@ -281,10 +277,7 @@ jest.mock('@eng/shared', () => {
     buildOrganisationAiSettingsResponse,
     getDefaultAssistantModelForProvider,
     isAiAssistantProvider: (value: unknown) =>
-      value === 'openai' ||
-      value === 'anthropic' ||
-      value === 'gemini' ||
-      value === 'deepseek',
+      value === 'openai' || value === 'anthropic' || value === 'gemini' || value === 'deepseek',
     isAiAssistantModelSupportedByProvider,
     normalizeAiModelSelection,
     normalizeOrganisationAiSettings,
@@ -303,9 +296,7 @@ import {
 import { OrganisationAiAssistantCredentialStoreService } from './organisation-ai-assistant-credential-store.service';
 import { OrganisationsService } from './organisations.service';
 
-function createConfigService(
-  overrides: Record<string, string | undefined> = {},
-): ConfigService {
+function createConfigService(overrides: Record<string, string | undefined> = {}): ConfigService {
   return {
     get: jest.fn((key: string) => overrides[key]),
   } as unknown as ConfigService;
@@ -493,18 +484,15 @@ function buildExpectedProviderStatus({
 }
 
 function createMissingCredentialStoreTableError() {
-  return Object.assign(
-    Object.create(Prisma.PrismaClientKnownRequestError.prototype),
-    {
-      code: 'P2021',
-      clientVersion: 'test',
-      meta: {
-        table: 'public.organisation_ai_assistant_provider_credentials',
-      },
-      message:
-        'The table `public.organisation_ai_assistant_provider_credentials` does not exist in the current database.',
+  return Object.assign(Object.create(Prisma.PrismaClientKnownRequestError.prototype), {
+    code: 'P2021',
+    clientVersion: 'test',
+    meta: {
+      table: 'public.organisation_ai_assistant_provider_credentials',
     },
-  ) as Prisma.PrismaClientKnownRequestError;
+    message:
+      'The table `public.organisation_ai_assistant_provider_credentials` does not exist in the current database.',
+  }) as Prisma.PrismaClientKnownRequestError;
 }
 
 describe('OrganisationsService AI settings', () => {
@@ -558,22 +546,22 @@ describe('OrganisationsService AI settings', () => {
         }),
       },
       organisationAiAssistantProviderCredential: {
-        findMany: jest.fn().mockImplementation(({ where }) =>
-          Promise.resolve(
-            storedCredentialRows
-              .filter((row) => row.organisationId === where.organisationId)
-              .map((row) => ({ ...row })),
+        findMany: jest
+          .fn()
+          .mockImplementation(({ where }) =>
+            Promise.resolve(
+              storedCredentialRows
+                .filter((row) => row.organisationId === where.organisationId)
+                .map((row) => ({ ...row })),
+            ),
           ),
-        ),
         upsert: jest.fn().mockImplementation(({ where, create, update }) => {
           const key = where.organisationId_provider as {
             organisationId: string;
             provider: string;
           };
           const existingIndex = storedCredentialRows.findIndex(
-            (row) =>
-              row.organisationId === key.organisationId &&
-              row.provider === key.provider,
+            (row) => row.organisationId === key.organisationId && row.provider === key.provider,
           );
           const now = new Date('2026-04-13T00:00:00.000Z');
 
@@ -604,10 +592,7 @@ describe('OrganisationsService AI settings', () => {
           const beforeCount = storedCredentialRows.length;
           storedCredentialRows = storedCredentialRows.filter(
             (row) =>
-              !(
-                row.organisationId === where.organisationId &&
-                row.provider === where.provider
-              ),
+              !(row.organisationId === where.organisationId && row.provider === where.provider),
           );
 
           return Promise.resolve({
@@ -880,9 +865,7 @@ describe('OrganisationsService AI settings', () => {
     });
 
     expect(assistantProviderRegistry.getProvider).toHaveBeenCalledWith('deepseek');
-    expect(assistantProviderRegistry.deepseekVerifyCredential).toHaveBeenCalledWith(
-      deepseekApiKey,
-    );
+    expect(assistantProviderRegistry.deepseekVerifyCredential).toHaveBeenCalledWith(deepseekApiKey);
     expect(saved.assistantProviderStatus.deepseek).toEqual(
       buildExpectedProviderStatus({
         configuredForOrganisation: true,
@@ -971,15 +954,12 @@ describe('OrganisationsService AI settings', () => {
       openaiApiKey: 'org-openai-key-12345678901234567890',
     });
 
-    const rotatedSecretService = createService(
-      prisma as unknown as PrismaService,
-      {
-        AI_OPENAI_MODEL: 'gpt-4.1',
-        AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
-        OPENAI_API_KEY: 'env-openai-key-1234567890',
-        JWT_SECRET: 'different-jwt-secret',
-      },
-    );
+    const rotatedSecretService = createService(prisma as unknown as PrismaService, {
+      AI_OPENAI_MODEL: 'gpt-4.1',
+      AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
+      OPENAI_API_KEY: 'env-openai-key-1234567890',
+      JWT_SECRET: 'different-jwt-secret',
+    });
 
     const settings = await rotatedSecretService.getAiSettings('org-1', 'user-1');
 
@@ -1000,14 +980,11 @@ describe('OrganisationsService AI settings', () => {
       openaiApiKey: 'org-openai-key-12345678901234567890',
     });
 
-    const missingSecretService = createService(
-      prisma as unknown as PrismaService,
-      {
-        AI_OPENAI_MODEL: 'gpt-4.1',
-        AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
-        OPENAI_API_KEY: 'env-openai-key-1234567890',
-      },
-    );
+    const missingSecretService = createService(prisma as unknown as PrismaService, {
+      AI_OPENAI_MODEL: 'gpt-4.1',
+      AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
+      OPENAI_API_KEY: 'env-openai-key-1234567890',
+    });
 
     const settings = await missingSecretService.getAiSettings('org-1', 'user-1');
 
@@ -1030,15 +1007,12 @@ describe('OrganisationsService AI settings', () => {
       assistantModel: 'claude-sonnet-4-0',
     });
 
-    const rotatedSecretService = createService(
-      prisma as unknown as PrismaService,
-      {
-        AI_OPENAI_MODEL: 'gpt-4.1',
-        AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
-        OPENAI_API_KEY: 'env-openai-key-1234567890',
-        JWT_SECRET: 'different-jwt-secret',
-      },
-    );
+    const rotatedSecretService = createService(prisma as unknown as PrismaService, {
+      AI_OPENAI_MODEL: 'gpt-4.1',
+      AI_OPENAI_AGENT_MODEL: 'gpt-4.1-mini',
+      OPENAI_API_KEY: 'env-openai-key-1234567890',
+      JWT_SECRET: 'different-jwt-secret',
+    });
 
     const settings = await rotatedSecretService.getAiSettings('org-1', 'user-1');
 

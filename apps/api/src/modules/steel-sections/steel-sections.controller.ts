@@ -14,10 +14,7 @@ import { SteelSectionsService } from './steel-sections.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   CreateSteelSectionCatalogDto,
@@ -36,14 +33,8 @@ export class SteelSectionsController {
 
   @Get('catalogs')
   @ApiOperation({ summary: 'List steel section catalogs (system + org)' })
-  async findAllCatalogs(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
-    return this.steelSectionsService.findAllCatalogs(
-      user.organisationId,
-      pagination,
-    );
+  async findAllCatalogs(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
+    return this.steelSectionsService.findAllCatalogs(user.organisationId, pagination);
   }
 
   @Get('catalogs/:id')
@@ -56,15 +47,8 @@ export class SteelSectionsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a steel section catalog (versioned snapshot)' })
-  async createCatalog(
-    @Body() dto: CreateSteelSectionCatalogDto,
-    @CurrentUser() user: RequestUser,
-  ) {
-    return this.steelSectionsService.createCatalog(
-      user.organisationId,
-      user.id,
-      dto,
-    );
+  async createCatalog(@Body() dto: CreateSteelSectionCatalogDto, @CurrentUser() user: RequestUser) {
+    return this.steelSectionsService.createCatalog(user.organisationId, user.id, dto);
   }
 
   @Patch('catalogs/:id')

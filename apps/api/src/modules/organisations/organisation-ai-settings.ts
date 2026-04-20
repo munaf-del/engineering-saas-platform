@@ -76,8 +76,10 @@ export function mergeOrganisationMetadataWithAiSettings(
 ): Record<string, unknown> {
   const base = objectValue(metadata);
   const currentAiSettings = objectValue(base.aiSettings);
-  const { providerCredentials: _currentProviderCredentials, ...currentAiSettingsWithoutCredentials } =
-    currentAiSettings;
+  const {
+    providerCredentials: _currentProviderCredentials,
+    ...currentAiSettingsWithoutCredentials
+  } = currentAiSettings;
   const nextProviderCredentials =
     providerCredentials ?? getStoredOrganisationAiProviderCredentialRecordsFromMetadata(metadata);
   const nextAiSettings = {
@@ -102,18 +104,19 @@ export function getStoredOrganisationAiProviderCredentialRecordsFromMetadata(
   const providerCredentials = objectValue(aiSettings.providerCredentials);
 
   return Object.fromEntries(
-    Object.entries(providerCredentials).filter((entry): entry is [AiAssistantProvider, StoredOrganisationAiProviderCredential] => {
-      const [provider, value] = entry;
-      if (!isAiAssistantProvider(provider)) {
-        return false;
-      }
+    Object.entries(providerCredentials).filter(
+      (entry): entry is [AiAssistantProvider, StoredOrganisationAiProviderCredential] => {
+        const [provider, value] = entry;
+        if (!isAiAssistantProvider(provider)) {
+          return false;
+        }
 
-      const record = objectValue(value);
-      return (
-        typeof record.updatedAt === 'string' &&
-        isEncryptedOrganisationAiSecret(record.apiKey)
-      );
-    }),
+        const record = objectValue(value);
+        return (
+          typeof record.updatedAt === 'string' && isEncryptedOrganisationAiSecret(record.apiKey)
+        );
+      },
+    ),
   );
 }
 
@@ -121,12 +124,10 @@ export function getOrganisationAiProviderCredentialStateFromMetadata(
   metadata: unknown,
   encryptionSecret?: string | null,
 ): AssistantProviderCredentialState {
-  const providerCredentials = getStoredOrganisationAiProviderCredentialRecordsFromMetadata(metadata);
+  const providerCredentials =
+    getStoredOrganisationAiProviderCredentialRecordsFromMetadata(metadata);
 
-  return getOrganisationAiProviderCredentialStateFromRecords(
-    providerCredentials,
-    encryptionSecret,
-  );
+  return getOrganisationAiProviderCredentialStateFromRecords(providerCredentials, encryptionSecret);
 }
 
 export function getOrganisationAiProviderCredentialStateFromRecords(
@@ -246,7 +247,9 @@ export function decryptOrganisationAiSecret(
     const decryptedValue = Buffer.concat([
       decipher.update(Buffer.from(value.ciphertext, 'base64')),
       decipher.final(),
-    ]).toString('utf8').trim();
+    ])
+      .toString('utf8')
+      .trim();
 
     return {
       apiKey: decryptedValue || null,

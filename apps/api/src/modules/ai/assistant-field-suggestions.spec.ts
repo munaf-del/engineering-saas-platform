@@ -36,9 +36,9 @@ describe('assistant project geotechnical material suggestions', () => {
           suggestion.suggestedValue === '75-85 Mary Street, St Peters',
       ),
     ).toBe(true);
-    expect(result.suggestedFields.some((suggestion) => suggestion.fieldPath.startsWith('references['))).toBe(
-      false,
-    );
+    expect(
+      result.suggestedFields.some((suggestion) => suggestion.fieldPath.startsWith('references[')),
+    ).toBe(false);
   });
 
   it('surfaces all St Peters foundation rows and combined shoring parameter rows', () => {

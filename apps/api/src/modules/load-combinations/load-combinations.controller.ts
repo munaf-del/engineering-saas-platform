@@ -119,7 +119,9 @@ export class LoadCombinationsController {
     return this.loadCombinationsService.removeCombination(setId, combinationId, projectId);
   }
 
-  private requireOrgContext(user: RequestUser): asserts user is RequestUser & { organisationId: string } {
+  private requireOrgContext(
+    user: RequestUser,
+  ): asserts user is RequestUser & { organisationId: string } {
     if (!user.organisationId) {
       throw new ForbiddenException('Organisation context required.');
     }

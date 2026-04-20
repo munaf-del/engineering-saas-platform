@@ -28,13 +28,7 @@ const TENANT_SCOPED_MODELS = new Set<TenantScopedModel>([
   'AiDocument',
 ]);
 
-const READ_ACTIONS = new Set([
-  'findMany',
-  'findFirst',
-  'count',
-  'aggregate',
-  'groupBy',
-]);
+const READ_ACTIONS = new Set(['findMany', 'findFirst', 'count', 'aggregate', 'groupBy']);
 
 const WRITE_MANY_ACTIONS = new Set(['updateMany', 'deleteMany']);
 
@@ -95,10 +89,7 @@ const ExtendedPrismaClient = class {
 } as new () => ReturnType<typeof createPrismaClient>;
 
 @Injectable()
-export class PrismaService
-  extends ExtendedPrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends ExtendedPrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   async onModuleInit() {

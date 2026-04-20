@@ -96,7 +96,12 @@ export class PileGroupsService {
     });
   }
 
-  async updatePile(pileId: string, pileGroupId: string, projectId: string, dto: Partial<CreatePileDto>) {
+  async updatePile(
+    pileId: string,
+    pileGroupId: string,
+    projectId: string,
+    dto: Partial<CreatePileDto>,
+  ) {
     await this.assertGroupExists(pileGroupId, projectId);
     const pile = await this.prisma.pile.findFirst({ where: { id: pileId, pileGroupId } });
     if (!pile) {
@@ -144,7 +149,9 @@ export class PileGroupsService {
 
   async removeLayoutPoint(pointId: string, pileGroupId: string, projectId: string) {
     await this.assertGroupExists(pileGroupId, projectId);
-    const point = await this.prisma.pileLayoutPoint.findFirst({ where: { id: pointId, pileGroupId } });
+    const point = await this.prisma.pileLayoutPoint.findFirst({
+      where: { id: pointId, pileGroupId },
+    });
     if (!point) {
       throw new NotFoundException('Layout point not found');
     }

@@ -94,12 +94,17 @@ export class MultiPileService {
     );
   }
 
-  async saveState(pileGroupId: string, projectId: string, rawState: unknown): Promise<MultiPileState> {
+  async saveState(
+    pileGroupId: string,
+    projectId: string,
+    rawState: unknown,
+  ): Promise<MultiPileState> {
     const pileGroup = await this.getPileGroup(pileGroupId, projectId);
     const projectContext = await this.getProjectContext(projectId);
 
-    const fallbackLoadDefinition = projectContext.projectLoadDefinition
-      ?? getProjectLoadDefinitionFromLegacyMultiPileMetadata(pileGroup.metadata);
+    const fallbackLoadDefinition =
+      projectContext.projectLoadDefinition ??
+      getProjectLoadDefinitionFromLegacyMultiPileMetadata(pileGroup.metadata);
     const state = this.normalizeState(
       rawState,
       fallbackLoadDefinition,
@@ -130,16 +135,13 @@ export class MultiPileService {
       this.getProjectContext(projectId),
     ]);
     const projectLoadDefinition =
-      projectContext.projectLoadDefinition
-      ?? getProjectLoadDefinitionFromLegacyMultiPileMetadata(pileGroup.metadata);
+      projectContext.projectLoadDefinition ??
+      getProjectLoadDefinitionFromLegacyMultiPileMetadata(pileGroup.metadata);
     const projectSpecifics = projectContext.projectSpecifics;
-    const state = rawState === undefined
-      ? this.extractState(
-        pileGroup.metadata,
-        projectLoadDefinition,
-        projectSpecifics,
-      )
-      : this.normalizeState(rawState, projectLoadDefinition, projectSpecifics);
+    const state =
+      rawState === undefined
+        ? this.extractState(pileGroup.metadata, projectLoadDefinition, projectSpecifics)
+        : this.normalizeState(rawState, projectLoadDefinition, projectSpecifics);
     const envelopeState = this.applyEnvelopeSelection(state);
     const inputSignature = buildMultiPileEnvelopeInputSignature(state);
     const requestPayload = {
@@ -186,10 +188,7 @@ export class MultiPileService {
       const result = await this.calcEngineClient.runCalculation(requestPayload);
       const status = result.errors && result.errors.length > 0 ? 'failed' : 'completed';
       const nextState = this.withEnvelopeRunContext(
-        this.mergeCalculatedGeoResults(
-          state,
-          this.extractGeoResults(result.artifacts),
-        ),
+        this.mergeCalculatedGeoResults(state, this.extractGeoResults(result.artifacts)),
         {
           runId: run.id,
           createdAt: run.createdAt.toISOString(),
@@ -241,10 +240,7 @@ export class MultiPileService {
       where: {
         projectId,
         calcType: MULTI_PILE_CALC_TYPE,
-        OR: [
-          { elementId: pileGroupId },
-          { notes: this.multiPileRunNote(pileGroupId) },
-        ],
+        OR: [{ elementId: pileGroupId }, { notes: this.multiPileRunNote(pileGroupId) }],
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -317,7 +313,10 @@ export class MultiPileService {
     );
   }
 
-  private withMultiPileMetadata(metadata: unknown, state: Record<string, unknown>): Record<string, unknown> {
+  private withMultiPileMetadata(
+    metadata: unknown,
+    state: Record<string, unknown>,
+  ): Record<string, unknown> {
     const base = this.objectValue(metadata);
     return { ...base, multiPile: state };
   }
@@ -474,20 +473,23 @@ export class MultiPileService {
         { min: 50 },
       );
       const rawSizePreset = this.stringValue(
-        row.sizePreset
-          ?? row.standardSizePreset
-          ?? row.presetSize
-          ?? row.standardSize
-          ?? rawDiameter,
+        row.sizePreset ??
+          row.standardSizePreset ??
+          row.presetSize ??
+          row.standardSize ??
+          rawDiameter,
         DEFAULT_PILE_SIZE_PRESET,
       );
       let sizePreset = presetOptions.includes(rawSizePreset)
         ? rawSizePreset
-        : (presetOptions.includes(String(rawDiameter)) ? String(rawDiameter) : DEFAULT_PILE_SIZE_PRESET);
+        : presetOptions.includes(String(rawDiameter))
+          ? String(rawDiameter)
+          : DEFAULT_PILE_SIZE_PRESET;
 
-      let useCustom = row.useCustom === undefined
-        ? Boolean(row.useCustomDiameter ?? row.customDiameterEnabled)
-        : Boolean(row.useCustom);
+      let useCustom =
+        row.useCustom === undefined
+          ? Boolean(row.useCustomDiameter ?? row.customDiameterEnabled)
+          : Boolean(row.useCustom);
 
       if (!presetOptions.includes(String(rawDiameter)) && !useCustom) {
         useCustom = true;
@@ -501,11 +503,7 @@ export class MultiPileService {
       );
       const Dmm = useCustom ? customMm : presetMm;
       sizePreset = presetOptions.includes(sizePreset) ? sizePreset : String(presetMm);
-      const eoop = this.numberValue(
-        row.eoop ?? row.eoopM,
-        DEFAULT_PILE_TYPE.eoop,
-        { min: 0 },
-      );
+      const eoop = this.numberValue(row.eoop ?? row.eoopM, DEFAULT_PILE_TYPE.eoop, { min: 0 });
 
       return {
         id,
@@ -568,17 +566,19 @@ export class MultiPileService {
           return [];
         }
 
-        return [[
-          joint.id,
-          {
-            ...row,
-            jointId: joint.id,
-            ...((joint.displayName || joint.jointDisplayName) && !row.jointDisplayName
-              ? { jointDisplayName: joint.displayName || joint.jointDisplayName }
-              : {}),
-            pileId: row.pileId || representativePileByJoint.get(joint.id) || row.pileId,
-          },
-        ]];
+        return [
+          [
+            joint.id,
+            {
+              ...row,
+              jointId: joint.id,
+              ...((joint.displayName || joint.jointDisplayName) && !row.jointDisplayName
+                ? { jointDisplayName: joint.displayName || joint.jointDisplayName }
+                : {}),
+              pileId: row.pileId || representativePileByJoint.get(joint.id) || row.pileId,
+            },
+          ],
+        ];
       }),
     );
   }
@@ -639,9 +639,7 @@ export class MultiPileService {
     };
   }
 
-  private defaultGeoTypeSettings(
-    pileType: MultiPilePileTypeDefinition,
-  ): MultiPileGeoTypeSettings {
+  private defaultGeoTypeSettings(pileType: MultiPilePileTypeDefinition): MultiPileGeoTypeSettings {
     return {
       typeId: pileType.id,
       linkedDmm: pileType.Dmm,
@@ -716,7 +714,9 @@ export class MultiPileService {
         'type',
       ].some((field) => Object.prototype.hasOwnProperty.call(row, field));
       const rawLinkedPileId = this.stringValue(row.pile ?? row.pileId, '');
-      const linkedPileTypeId = rawLinkedPileId ? generatedPileTypeById.get(rawLinkedPileId) ?? '' : '';
+      const linkedPileTypeId = rawLinkedPileId
+        ? (generatedPileTypeById.get(rawLinkedPileId) ?? '')
+        : '';
       const rawPileTypeId = this.stringValue(
         row.pileTypeId ?? row.assignedPileTypeId ?? row.typeId ?? row.type ?? linkedPileTypeId,
         '',
@@ -821,12 +821,10 @@ export class MultiPileService {
       ...state,
       geoTypeSettings: Object.fromEntries(
         Object.entries(state.geoTypeSettings).map(([typeId, settings]) => {
-          const adopted = settings.socketOverrideEnabled && settings.LsManual > 0
-            ? settings.LsManual
-            : 0;
-          const mode = settings.socketOverrideEnabled && settings.LsManual > 0
-            ? 'manual'
-            : 'pending';
+          const adopted =
+            settings.socketOverrideEnabled && settings.LsManual > 0 ? settings.LsManual : 0;
+          const mode =
+            settings.socketOverrideEnabled && settings.LsManual > 0 ? 'manual' : 'pending';
           return [
             typeId,
             {
@@ -845,7 +843,10 @@ export class MultiPileService {
 
   private applyEnvelopeSelection(state: MultiPileState): MultiPileState {
     const selectedIds = new Set(
-      normalizeMultiPileSelectedCombinationIds(state.selectedCombinations, state.combinationLibrary),
+      normalizeMultiPileSelectedCombinationIds(
+        state.selectedCombinations,
+        state.combinationLibrary,
+      ),
     );
 
     return {
@@ -858,10 +859,7 @@ export class MultiPileService {
     };
   }
 
-  private mergeCalculatedGeoResults(
-    state: MultiPileState,
-    rawGeoResults: unknown,
-  ): MultiPileState {
+  private mergeCalculatedGeoResults(state: MultiPileState, rawGeoResults: unknown): MultiPileState {
     return {
       ...state,
       geoResults: this.normalizeGeoResults(rawGeoResults, state.joints, state.generatedPiles),
@@ -889,7 +887,11 @@ export class MultiPileService {
   private extractGeoResults(artifacts: unknown): unknown {
     const artifactRecord = this.objectValue(artifacts);
     const multiPileGeo = this.objectValue(artifactRecord.multiPileGeo);
-    if (multiPileGeo.rows && typeof multiPileGeo.rows === 'object' && !Array.isArray(multiPileGeo.rows)) {
+    if (
+      multiPileGeo.rows &&
+      typeof multiPileGeo.rows === 'object' &&
+      !Array.isArray(multiPileGeo.rows)
+    ) {
       return multiPileGeo.rows;
     }
     return artifactRecord.multiPileGeo;
@@ -946,17 +948,19 @@ export class MultiPileService {
   }
 
   private isZeroLoadRow(row: MultiPileJointLoadRow): boolean {
-    return Math.abs(row.p) <= ZERO_TOLERANCE
-      && Math.abs(row.vx) <= ZERO_TOLERANCE
-      && Math.abs(row.vy) <= ZERO_TOLERANCE
-      && Math.abs(row.mx) <= ZERO_TOLERANCE
-      && Math.abs(row.my) <= ZERO_TOLERANCE
-      && Math.abs(row.mz) <= ZERO_TOLERANCE;
+    return (
+      Math.abs(row.p) <= ZERO_TOLERANCE &&
+      Math.abs(row.vx) <= ZERO_TOLERANCE &&
+      Math.abs(row.vy) <= ZERO_TOLERANCE &&
+      Math.abs(row.mx) <= ZERO_TOLERANCE &&
+      Math.abs(row.my) <= ZERO_TOLERANCE &&
+      Math.abs(row.mz) <= ZERO_TOLERANCE
+    );
   }
 
   private objectValue(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value)
-      ? value as Record<string, unknown>
+      ? (value as Record<string, unknown>)
       : {};
   }
 

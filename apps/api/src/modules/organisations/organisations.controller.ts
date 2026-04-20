@@ -18,10 +18,7 @@ import { UpdateOrganisationAiSettingsDto } from './dto/update-organisation-ai-se
 import { AddOrgMemberDto } from './dto/add-org-member.dto';
 import { UpdateOrgMemberRoleDto } from './dto/update-org-member-role.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('organisations')
@@ -33,28 +30,19 @@ export class OrganisationsController {
 
   @Get()
   @ApiOperation({ summary: 'List organisations the current user belongs to' })
-  async findAll(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findAll(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
     return this.organisationsService.findByUser(user.id, pagination);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get organisation by ID (must be a member)' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.organisationsService.findById(id, user.id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create an organisation (caller becomes owner)' })
-  async create(
-    @Body() dto: CreateOrganisationDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async create(@Body() dto: CreateOrganisationDto, @CurrentUser() user: RequestUser) {
     return this.organisationsService.create(user.id, dto);
   }
 
@@ -73,10 +61,7 @@ export class OrganisationsController {
     summary:
       'Get organisation assistant runtime settings, provider availability, and credential status',
   })
-  async getAiSettings(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async getAiSettings(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.organisationsService.getAiSettings(id, user.id);
   }
 
@@ -95,10 +80,7 @@ export class OrganisationsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an organisation (owner only)' })
-  async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.organisationsService.remove(id, user.id);
   }
 
@@ -106,10 +88,7 @@ export class OrganisationsController {
 
   @Get(':id/members')
   @ApiOperation({ summary: 'List organisation members (requires membership)' })
-  async listMembers(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async listMembers(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.organisationsService.listMembers(id, user.id);
   }
 

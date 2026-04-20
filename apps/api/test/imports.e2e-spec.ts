@@ -34,9 +34,7 @@ describe('Import Subsystem E2E Tests', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const regRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send(testUser);
+    const regRes = await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser);
     accessToken = regRes.body.accessToken;
 
     const orgRes = await request(app.getHttpServer())
@@ -133,10 +131,7 @@ describe('Import Subsystem E2E Tests', () => {
     });
 
     it('should fail validation for CSV with missing required fields', async () => {
-      const csvContent = [
-        'designation,sectionType,massPerMetre',
-        '200UB25.4,UB,25.4',
-      ].join('\n');
+      const csvContent = ['designation,sectionType,massPerMetre', '200UB25.4,UB,25.4'].join('\n');
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/imports/upload')

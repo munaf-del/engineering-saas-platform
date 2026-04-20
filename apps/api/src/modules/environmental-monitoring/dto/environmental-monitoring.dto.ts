@@ -12,9 +12,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  NOISE_VIBRATION_RECEIVER_TYPES,
-} from '../../standards/noise-vibration/dto/noise-vibration-criteria-query.dto';
+import { NOISE_VIBRATION_RECEIVER_TYPES } from '../../standards/noise-vibration/dto/noise-vibration-criteria-query.dto';
 
 export const ENVIRONMENTAL_MONITORING_REPORT_TYPES = [
   'noise_monitoring',
