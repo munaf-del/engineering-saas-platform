@@ -57,11 +57,15 @@ export default function CalculatorsPage() {
                   <CardTitle className="text-base">{calc.name}</CardTitle>
                   <Badge variant="outline">{calc.category}</Badge>
                 </div>
-                <CardDescription>{calc.description ?? `${calc.calcType} calculator`}</CardDescription>
+                <CardDescription>
+                  {calc.description ?? `${calc.calcType} calculator`}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="secondary" className="font-mono text-xs">{calc.calcType}</Badge>
+                  <Badge variant="secondary" className="font-mono text-xs">
+                    {calc.calcType}
+                  </Badge>
                   <span>Code: {calc.code}</span>
                 </div>
               </CardContent>

@@ -273,9 +273,7 @@ function applyProjectSuggestionField(
     if (!shouldApplyProjectSuggestion(projectSpecifics.identity.status, suggestion)) {
       return false;
     }
-    if (
-      !(MULTI_PILE_PROJECT_STATUSES as readonly string[]).includes(suggestion.suggestedValue)
-    ) {
+    if (!(MULTI_PILE_PROJECT_STATUSES as readonly string[]).includes(suggestion.suggestedValue)) {
       return false;
     }
     projectSpecifics.identity.status =

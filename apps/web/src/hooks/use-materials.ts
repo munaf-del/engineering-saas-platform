@@ -6,15 +6,15 @@ import type { PaginatedResponse } from '@/lib/api-client';
 export function useMaterialFamilies() {
   return useQuery({
     queryKey: ['materials', 'families'],
-    queryFn: () =>
-      api<{ data: MaterialFamily[] }>('/materials/families').then((r) => r.data),
+    queryFn: () => api<{ data: MaterialFamily[] }>('/materials/families').then((r) => r.data),
   });
 }
 
 export function useMaterials(page = 1, limit = 20) {
   return useQuery({
     queryKey: ['materials', 'grades', page, limit],
-    queryFn: () => api<PaginatedResponse<Material>>('/materials/grades', { params: { page, limit } }),
+    queryFn: () =>
+      api<PaginatedResponse<Material>>('/materials/grades', { params: { page, limit } }),
   });
 }
 

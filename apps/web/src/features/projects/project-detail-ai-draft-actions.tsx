@@ -2,14 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  CircleSlash,
-  Lock,
-  TriangleAlert,
-  X,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, CircleSlash, Lock, TriangleAlert, X } from 'lucide-react';
 import type {
   AiAssistantDraftAction,
   AiAssistantDraftActionStatus,
@@ -95,7 +88,9 @@ export function ProjectDetailAiDraftActions({
   const actionSignature = useMemo(
     () =>
       actions
-        .map((action) => [action.id, action.status, action.currentValue, action.proposedValue].join('::'))
+        .map((action) =>
+          [action.id, action.status, action.currentValue, action.proposedValue].join('::'),
+        )
         .join('\u001f'),
     [actions],
   );
@@ -182,7 +177,9 @@ export function ProjectDetailAiDraftActions({
         `${result.appliedCount} ${resolveProjectCurrentPageActionScopeLabel(scope)} draft action${result.appliedCount === 1 ? '' : 's'} applied. Save remains manual.`,
       );
     } else {
-      toast.message(`No selected ${resolveProjectCurrentPageActionScopeLabel(scope)} draft actions were applied.`);
+      toast.message(
+        `No selected ${resolveProjectCurrentPageActionScopeLabel(scope)} draft actions were applied.`,
+      );
     }
 
     if (result.appliedCount > 0) {
@@ -348,7 +345,9 @@ export function ProjectDetailAiDraftActions({
                     </Badge>
                     <Badge variant="secondary">{labelForActionType(action.actionType)}</Badge>
                     {action.confidence != null ? (
-                      <Badge variant="outline">{Math.round(action.confidence * 100)}% confidence</Badge>
+                      <Badge variant="outline">
+                        {Math.round(action.confidence * 100)}% confidence
+                      </Badge>
                     ) : null}
                   </div>
 
@@ -611,9 +610,7 @@ function formatExecutionResultStatus(status: CurrentPageActionExecutionResult['s
   }
 }
 
-function formatExecutionLogSummary(
-  summary: ReturnType<typeof summarizeCurrentPageActionResults>,
-) {
+function formatExecutionLogSummary(summary: ReturnType<typeof summarizeCurrentPageActionResults>) {
   const parts = [
     summary.applied > 0 ? `${summary.applied} applied` : null,
     summary.skipped_existing_value > 0
@@ -653,7 +650,9 @@ function buildResponseSignature(
   return [
     scope,
     ...suggestions.map((suggestion) => suggestionKey(suggestion)),
-    ...draftActions.map((draftAction) => draftActionKey(draftAction.fieldKey, draftAction.proposedValue)),
+    ...draftActions.map((draftAction) =>
+      draftActionKey(draftAction.fieldKey, draftAction.proposedValue),
+    ),
   ].join('\u001f');
 }
 
@@ -700,9 +699,7 @@ function StatusIndicator({
         <Icon className={cn('h-4 w-4 shrink-0', meta.iconClassName)} />
         <span>{meta.label}</span>
       </div>
-      <div className="mt-1 leading-relaxed">
-        {message ?? statusMessageForStatus(status, scope)}
-      </div>
+      <div className="mt-1 leading-relaxed">{message ?? statusMessageForStatus(status, scope)}</div>
     </div>
   );
 }

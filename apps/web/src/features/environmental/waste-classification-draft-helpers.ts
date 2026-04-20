@@ -173,7 +173,8 @@ export function buildWasteClassificationDraftSuggestions({
       suggestedValue: helperText,
       sourceType: 'lab_result',
       sourceLabel: 'Lab / chemical assessment table',
-      rationale: 'Derived from the current lab result rows and Step 5 evidence already linked to the report.',
+      rationale:
+        'Derived from the current lab result rows and Step 5 evidence already linked to the report.',
     });
   }
 
@@ -214,7 +215,10 @@ export function applyAssAutofillResultToPathway(
     assClassSource: result.assClassSource,
     projectLocationNote: result.projectLocationNote
       ? pathway.projectLocationNote?.trim()
-        ? appendIfMissing(pathway.projectLocationNote, `Autofill note: ${result.projectLocationNote}`)
+        ? appendIfMissing(
+            pathway.projectLocationNote,
+            `Autofill note: ${result.projectLocationNote}`,
+          )
         : result.projectLocationNote
       : pathway.projectLocationNote,
   };

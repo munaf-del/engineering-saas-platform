@@ -11,7 +11,15 @@ function stateQueryKey(projectId: string, groupId: string) {
 }
 
 function latestRunQueryKey(projectId: string, groupId: string) {
-  return ['projects', projectId, 'pile-groups', groupId, 'multi-pile', 'envelope-runs', 'latest'] as const;
+  return [
+    'projects',
+    projectId,
+    'pile-groups',
+    groupId,
+    'multi-pile',
+    'envelope-runs',
+    'latest',
+  ] as const;
 }
 
 export function useMultiPileState(projectId: string, groupId: string) {
@@ -61,9 +69,9 @@ export function useRunMultiPileEnvelope(projectId: string, groupId: string) {
         `/projects/${projectId}/pile-groups/${groupId}/multi-pile/envelope-runs`,
         state
           ? {
-            method: 'POST',
-            body: { state },
-          }
+              method: 'POST',
+              body: { state },
+            }
           : { method: 'POST' },
       ),
     onSuccess: (result) => {

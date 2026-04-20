@@ -1,9 +1,7 @@
 import type { Page } from '@playwright/test';
 
 const API_BASE =
-  process.env.E2E_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:4000';
+  process.env.E2E_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function seedTestUser(): Promise<{ email: string; password: string }> {
   const email = `e2e-${crypto.randomUUID()}@test.eng`;

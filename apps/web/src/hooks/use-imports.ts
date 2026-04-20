@@ -103,8 +103,7 @@ export function useRejectImport() {
 export function useActivateImport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api<ImportJob>(`/imports/${id}/activate`, { method: 'POST' }),
+    mutationFn: (id: string) => api<ImportJob>(`/imports/${id}/activate`, { method: 'POST' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['imports'] });
       qc.invalidateQueries({ queryKey: ['rule-packs'] });
@@ -116,9 +115,9 @@ export function useActiveRulePacks() {
   return useQuery({
     queryKey: ['rule-packs', 'active'],
     queryFn: () =>
-      api<Array<{ rulePackId: string; standardCode: string; version: string; activatedAt: string }>>(
-        '/imports/rule-packs/active',
-      ),
+      api<
+        Array<{ rulePackId: string; standardCode: string; version: string; activatedAt: string }>
+      >('/imports/rule-packs/active'),
   });
 }
 

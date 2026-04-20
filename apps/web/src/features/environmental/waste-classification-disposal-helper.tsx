@@ -10,7 +10,10 @@ import {
   useCreateWasteClassificationRecommendation,
   useGenerateWasteClassificationDraftRecommendation,
 } from '@/hooks/use-waste-classification';
-import type { ProjectWasteClassificationDraftRecommendation, ProjectWasteClass } from './waste-classification-types';
+import type {
+  ProjectWasteClassificationDraftRecommendation,
+  ProjectWasteClass,
+} from './waste-classification-types';
 
 export function WasteClassificationDisposalHelper({
   projectId,
@@ -41,7 +44,9 @@ export function WasteClassificationDisposalHelper({
       setDraftRecommendation(result);
       toast.success('Draft recommendation helper generated');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to generate draft recommendation');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to generate draft recommendation',
+      );
     }
   }
 
@@ -54,7 +59,9 @@ export function WasteClassificationDisposalHelper({
       await createRecommendation.mutateAsync(draftRecommendation.recommendationRow);
       toast.success('Draft recommendation row added');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to add draft recommendation row');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to add draft recommendation row',
+      );
     }
   }
 
@@ -88,15 +95,19 @@ export function WasteClassificationDisposalHelper({
       <CardContent className="space-y-4">
         {disabled ? (
           <div className="rounded-lg border border-dashed px-4 py-4 text-sm text-muted-foreground">
-            Select a final waste class first to generate a draft disposal / management recommendation.
+            Select a final waste class first to generate a draft disposal / management
+            recommendation.
           </div>
         ) : null}
 
         {draftRecommendation ? (
           <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{draftRecommendation.finalWasteClass.replace(/_/g, ' ')}</Badge>
-              {hasAuthoredRecommendation || draftRecommendation.authoredManagementRecommendationPresent ? (
+              <Badge variant="outline">
+                {draftRecommendation.finalWasteClass.replace(/_/g, ' ')}
+              </Badge>
+              {hasAuthoredRecommendation ||
+              draftRecommendation.authoredManagementRecommendationPresent ? (
                 <Badge variant="warning">Authored summary already present</Badge>
               ) : null}
               <Badge variant="secondary">Draft only</Badge>

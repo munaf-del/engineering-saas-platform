@@ -111,12 +111,7 @@ export type AiGeotechnicalParameterTableType =
   | 'PILE_FOUNDING_PARAMETERS'
   | 'OTHER_GEOTECHNICAL_PARAMETERS';
 
-export type AiStandardsUseTag =
-  | 'compression'
-  | 'uplift'
-  | 'lateral'
-  | 'durability'
-  | 'testing';
+export type AiStandardsUseTag = 'compression' | 'uplift' | 'lateral' | 'durability' | 'testing';
 
 export type AiGeotechnicalParameterTableRow = {
   rowLabel: string | null;
@@ -594,7 +589,9 @@ export function resolveAiReportClassification(
 
   return {
     documentFamily,
-    reportType: isAiReportType(document.reportType) ? document.reportType : familyDefault.reportType,
+    reportType: isAiReportType(document.reportType)
+      ? document.reportType
+      : familyDefault.reportType,
     ownerWorkspace: isAiReportOwnerWorkspace(document.ownerWorkspace)
       ? document.ownerWorkspace
       : familyDefault.ownerWorkspace,
@@ -648,8 +645,7 @@ function normalizeAiExtractionProfile(value: unknown): AiReportClassification | 
   const record = recordFromUnknown(value);
   const documentFamily = typeof record.documentFamily === 'string' ? record.documentFamily : null;
   const reportType = typeof record.reportType === 'string' ? record.reportType : null;
-  const ownerWorkspace =
-    typeof record.ownerWorkspace === 'string' ? record.ownerWorkspace : null;
+  const ownerWorkspace = typeof record.ownerWorkspace === 'string' ? record.ownerWorkspace : null;
 
   if (
     !isAiReportDocumentFamily(documentFamily) ||
@@ -695,7 +691,8 @@ export function normalizeAiEngineeringReportExtraction(
         extraction.retainingWallPreliminaryParameters ?? emptyRetainingWallPreliminaryParameters(),
       siteClassificationResult:
         extraction.siteClassificationResult ?? emptySiteClassificationExtraction(),
-      earthquakeSiteFactor: extraction.earthquakeSiteFactor ?? emptyEarthquakeSiteFactorExtraction(),
+      earthquakeSiteFactor:
+        extraction.earthquakeSiteFactor ?? emptyEarthquakeSiteFactorExtraction(),
       pileConstruction: extraction.pileConstruction ?? emptyPileConstructionExtraction(),
       geotechnicalCommentProfile: normalizeGeotechnicalCommentProfileExtraction(
         extraction.geotechnicalCommentProfile,
@@ -766,7 +763,9 @@ export function normalizeAiEngineeringReportExtraction(
   return null;
 }
 
-export function isAiEngineeringReportExtraction(value: unknown): value is AiEngineeringReportExtraction {
+export function isAiEngineeringReportExtraction(
+  value: unknown,
+): value is AiEngineeringReportExtraction {
   return normalizeAiEngineeringReportExtraction(value) !== null;
 }
 

@@ -20,7 +20,8 @@ import type {
 export function useWasteClassificationReports(projectId: string) {
   return useQuery({
     queryKey: wasteClassificationListQueryKey(projectId),
-    queryFn: () => api<ProjectWasteClassificationReportSummary[]>(wasteClassificationBasePath(projectId)),
+    queryFn: () =>
+      api<ProjectWasteClassificationReportSummary[]>(wasteClassificationBasePath(projectId)),
     enabled: !!projectId,
   });
 }
@@ -28,7 +29,8 @@ export function useWasteClassificationReports(projectId: string) {
 export function useWasteClassificationReport(projectId: string, reportId: string) {
   return useQuery({
     queryKey: wasteClassificationDetailQueryKey(projectId, reportId),
-    queryFn: () => api<ProjectWasteClassificationReport>(wasteClassificationReportPath(projectId, reportId)),
+    queryFn: () =>
+      api<ProjectWasteClassificationReport>(wasteClassificationReportPath(projectId, reportId)),
     enabled: !!projectId && !!reportId,
   });
 }
@@ -54,11 +56,16 @@ export function useDeleteWasteClassificationReport(projectId: string) {
 
   return useMutation({
     mutationFn: (reportId: string) =>
-      api<DeleteWasteClassificationReportResult>(wasteClassificationReportPath(projectId, reportId), {
-        method: 'DELETE',
-      }),
+      api<DeleteWasteClassificationReportResult>(
+        wasteClassificationReportPath(projectId, reportId),
+        {
+          method: 'DELETE',
+        },
+      ),
     onSuccess: async (_, reportId) => {
-      queryClient.removeQueries({ queryKey: wasteClassificationDetailQueryKey(projectId, reportId) });
+      queryClient.removeQueries({
+        queryKey: wasteClassificationDetailQueryKey(projectId, reportId),
+      });
       await queryClient.invalidateQueries({ queryKey: wasteClassificationListQueryKey(projectId) });
     },
   });
@@ -92,17 +99,17 @@ export function useCreateWasteClassificationReference(projectId: string, reportI
 }
 
 export function useUpdateWasteClassificationReference(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationReferenceInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/references/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationReferenceInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/references/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -116,17 +123,17 @@ export function useDeleteWasteClassificationReference(projectId: string, reportI
 }
 
 export function useUpdateWasteClassificationStepDecision(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationStepDecisionInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/step-decisions/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationStepDecisionInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/step-decisions/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -162,17 +169,17 @@ export function useCreateWasteClassificationLabResult(projectId: string, reportI
 }
 
 export function useUpdateWasteClassificationLabResult(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationLabResultInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/lab-results/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationLabResultInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/lab-results/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -201,32 +208,32 @@ export function useCreateWasteClassificationRecommendation(projectId: string, re
 }
 
 export function useUpdateWasteClassificationRecommendation(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationRecommendationInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/recommendations/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationRecommendationInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/recommendations/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
     ),
   );
 }
 
 export function useUpdateWasteClassificationMaterialPathway(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationMaterialPathwayInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/material-pathways/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationMaterialPathwayInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/material-pathways/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -248,7 +255,9 @@ export function useGenerateWasteClassificationDraftRecommendation(
   reportId: string,
 ) {
   return useMutation({
-    mutationFn: (payload: { finalWasteClass?: ProjectWasteClassificationDraftRecommendation['finalWasteClass'] }) =>
+    mutationFn: (payload: {
+      finalWasteClass?: ProjectWasteClassificationDraftRecommendation['finalWasteClass'];
+    }) =>
       api<ProjectWasteClassificationDraftRecommendation>(
         `${wasteClassificationReportPath(projectId, reportId)}/draft-recommendation`,
         {
@@ -269,17 +278,17 @@ export function useDeleteWasteClassificationRecommendation(projectId: string, re
 }
 
 export function useUpdateWasteClassificationRelatedPathway(projectId: string, reportId: string) {
-  return useWasteClassificationDetailMutation<{ id: string; data: ProjectWasteClassificationRelatedPathwayInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectWasteClassificationReport>(
-        `${wasteClassificationReportPath(projectId, reportId)}/related-pathways/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useWasteClassificationDetailMutation<{
+    id: string;
+    data: ProjectWasteClassificationRelatedPathwayInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectWasteClassificationReport>(
+      `${wasteClassificationReportPath(projectId, reportId)}/related-pathways/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 

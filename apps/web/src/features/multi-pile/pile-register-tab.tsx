@@ -118,78 +118,75 @@ export function PileRegisterTab({
     [latestRun],
   );
 
-  const registerRows = useMemo<RegisterRow[]>(
-    () => {
-      const structResultsByTypeId = latestRun?.envelope?.structResults ?? {};
+  const registerRows = useMemo<RegisterRow[]>(() => {
+    const structResultsByTypeId = latestRun?.envelope?.structResults ?? {};
 
-      return derivePileRegisterRows(draft).map((row) => {
-        const jointEnvelope = envelopeByJointId.get(row.parentJointId) ?? null;
-        const storedGeoResult = draft.geoResults[row.parentJointId];
-        const geoResult =
-          storedGeoResult && storedGeoResult.typeId === row.pileTypeId ? storedGeoResult : null;
-        const structResult = structResultsByTypeId[row.pileTypeId] ?? null;
-        const geoStatus = resolveGeoStatus(row.includedInAnalysis, geoResult);
-        const structStatus = resolveStructStatus(row.includedInAnalysis, structResult);
-        const equalSupportSharingNote =
-          row.supportCount > 1
-            ? `Joint-level loads are shared equally across ${row.supportCount} supports, so sibling piles under ${row.parentJointLabel} carry the same current envelope actions.`
-            : null;
-        const notes = buildNotes({
-          authoringStatus: row.status,
-          includedInAnalysis: row.includedInAnalysis,
-          geoResult,
-          structResult,
-        });
-        const flag = resolveRegisterFlag({
-          includedInAnalysis: row.includedInAnalysis,
-          geoStatusKey: geoStatus.key,
-          structStatusKey: structStatus.key,
-          notes,
-        });
-
-        return {
-          pileId: row.id,
-          jointId: row.parentJointId,
-          jointLabel: row.parentJointLabel,
-          supportIndex: row.supportIndex,
-          supportCount: row.supportCount,
-          pileTypeId: row.pileTypeId,
-          pileTypeLabel: row.pileTypeLabel,
-          includedInAnalysis: row.includedInAnalysis,
-          authoringStatus: row.status,
-          geoStatusKey: geoStatus.key,
-          geoStatusLabel: geoStatus.label,
-          geoCompUtil: geoResult?.utilComp ?? null,
-          geoUpliftUtil: geoResult?.utilTen ?? null,
-          structStatusKey: structStatus.key,
-          structStatusLabel: structStatus.label,
-          structAxialUtil: structResult?.utilisation.axial ?? null,
-          structPmUtil: structResult?.utilisation.moment ?? null,
-          structShearUtil: structResult?.utilisation.shear ?? null,
-          governingSource: resolveGoverningSource({ geoResult, jointEnvelope, structResult }),
-          noteSummary: summarizeNotes(notes),
-          notes,
-          flag,
-          geoResult,
-          structResult,
-          jointEnvelope,
-          geoBasisLabel: buildGeoBasisLabel({
-            geoResult,
-            jointLabel: row.parentJointLabel,
-            supportCount: row.supportCount,
-          }),
-          structBasisLabel: buildStructBasisLabel({
-            structResult,
-            pileTypeLabel: row.pileTypeLabel,
-          }),
-          geoUpdatedAt: geoResult?.updatedAt ?? null,
-          structUpdatedAt: structResult?.updatedAt ?? null,
-          equalSupportSharingNote,
-        };
+    return derivePileRegisterRows(draft).map((row) => {
+      const jointEnvelope = envelopeByJointId.get(row.parentJointId) ?? null;
+      const storedGeoResult = draft.geoResults[row.parentJointId];
+      const geoResult =
+        storedGeoResult && storedGeoResult.typeId === row.pileTypeId ? storedGeoResult : null;
+      const structResult = structResultsByTypeId[row.pileTypeId] ?? null;
+      const geoStatus = resolveGeoStatus(row.includedInAnalysis, geoResult);
+      const structStatus = resolveStructStatus(row.includedInAnalysis, structResult);
+      const equalSupportSharingNote =
+        row.supportCount > 1
+          ? `Joint-level loads are shared equally across ${row.supportCount} supports, so sibling piles under ${row.parentJointLabel} carry the same current envelope actions.`
+          : null;
+      const notes = buildNotes({
+        authoringStatus: row.status,
+        includedInAnalysis: row.includedInAnalysis,
+        geoResult,
+        structResult,
       });
-    },
-    [draft, envelopeByJointId, latestRun],
-  );
+      const flag = resolveRegisterFlag({
+        includedInAnalysis: row.includedInAnalysis,
+        geoStatusKey: geoStatus.key,
+        structStatusKey: structStatus.key,
+        notes,
+      });
+
+      return {
+        pileId: row.id,
+        jointId: row.parentJointId,
+        jointLabel: row.parentJointLabel,
+        supportIndex: row.supportIndex,
+        supportCount: row.supportCount,
+        pileTypeId: row.pileTypeId,
+        pileTypeLabel: row.pileTypeLabel,
+        includedInAnalysis: row.includedInAnalysis,
+        authoringStatus: row.status,
+        geoStatusKey: geoStatus.key,
+        geoStatusLabel: geoStatus.label,
+        geoCompUtil: geoResult?.utilComp ?? null,
+        geoUpliftUtil: geoResult?.utilTen ?? null,
+        structStatusKey: structStatus.key,
+        structStatusLabel: structStatus.label,
+        structAxialUtil: structResult?.utilisation.axial ?? null,
+        structPmUtil: structResult?.utilisation.moment ?? null,
+        structShearUtil: structResult?.utilisation.shear ?? null,
+        governingSource: resolveGoverningSource({ geoResult, jointEnvelope, structResult }),
+        noteSummary: summarizeNotes(notes),
+        notes,
+        flag,
+        geoResult,
+        structResult,
+        jointEnvelope,
+        geoBasisLabel: buildGeoBasisLabel({
+          geoResult,
+          jointLabel: row.parentJointLabel,
+          supportCount: row.supportCount,
+        }),
+        structBasisLabel: buildStructBasisLabel({
+          structResult,
+          pileTypeLabel: row.pileTypeLabel,
+        }),
+        geoUpdatedAt: geoResult?.updatedAt ?? null,
+        structUpdatedAt: structResult?.updatedAt ?? null,
+        equalSupportSharingNote,
+      };
+    });
+  }, [draft, envelopeByJointId, latestRun]);
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = deferredSearchText.trim().toLowerCase();

@@ -19,6 +19,9 @@ export function useAuditLogs(page = 1, limit = 50) {
     queryFn: () =>
       api<{ data: AuditLogEntry[]; meta: Record<string, number> }>('/audit', {
         params: { page, limit },
-      }).catch(() => ({ data: [] as AuditLogEntry[], meta: { total: 0, page: 1, limit: 50, totalPages: 1 } })),
+      }).catch(() => ({
+        data: [] as AuditLogEntry[],
+        meta: { total: 0, page: 1, limit: 50, totalPages: 1 },
+      })),
   });
 }

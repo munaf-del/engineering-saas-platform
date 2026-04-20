@@ -624,10 +624,15 @@ export function LoadEngineLoadsTab({
                     {jointLoadImportReference.pileTypes.length > 0 ? (
                       <div className="space-y-2">
                         {jointLoadImportReference.pileTypes.map((pileType) => (
-                          <div key={pileType.id} className="rounded-md border bg-muted/20 px-3 py-2">
+                          <div
+                            key={pileType.id}
+                            className="rounded-md border bg-muted/20 px-3 py-2"
+                          >
                             <code className="text-sm font-semibold">{pileType.id}</code>
                             {pileType.uiLabel !== pileType.id ? (
-                              <div className="text-xs text-muted-foreground">{pileType.uiLabel}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {pileType.uiLabel}
+                              </div>
                             ) : null}
                             {!pileType.active ? (
                               <div className="text-xs text-muted-foreground">
@@ -659,9 +664,7 @@ export function LoadEngineLoadsTab({
                               <code className="text-sm font-semibold">
                                 {loadCase.canonicalToken}
                               </code>
-                              <span className="text-xs text-muted-foreground">
-                                {loadCase.type}
-                              </span>
+                              <span className="text-xs text-muted-foreground">{loadCase.type}</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {loadCase.aliasTokens.length > 0

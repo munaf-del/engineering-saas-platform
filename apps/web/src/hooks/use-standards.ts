@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import type { Standard, StandardEdition, StandardsProfile, ProjectStandardAssignment } from '@eng/shared';
+import type {
+  Standard,
+  StandardEdition,
+  StandardsProfile,
+  ProjectStandardAssignment,
+} from '@eng/shared';
 import type {
   NoiseVibrationCriteriaFilters,
   NoiseVibrationCriterionRow,
@@ -10,16 +15,14 @@ import type {
 export function useStandards() {
   return useQuery({
     queryKey: ['standards'],
-    queryFn: () =>
-      api<{ data: Standard[] }>('/standards').then((r) => r.data),
+    queryFn: () => api<{ data: Standard[] }>('/standards').then((r) => r.data),
   });
 }
 
 export function useStandardEditions() {
   return useQuery({
     queryKey: ['standards', 'editions'],
-    queryFn: () =>
-      api<{ data: StandardEdition[] }>('/standards/editions').then((r) => r.data),
+    queryFn: () => api<{ data: StandardEdition[] }>('/standards/editions').then((r) => r.data),
   });
 }
 
@@ -34,8 +37,7 @@ export function useCurrentEditions() {
 export function useNoiseVibrationSources() {
   return useQuery({
     queryKey: ['standards', 'noise-vibration', 'sources'],
-    queryFn: () =>
-      api<NoiseVibrationStandardSource[]>('/standards/noise-vibration/sources'),
+    queryFn: () => api<NoiseVibrationStandardSource[]>('/standards/noise-vibration/sources'),
   });
 }
 
@@ -52,8 +54,7 @@ export function useNoiseVibrationCriteria(filters: NoiseVibrationCriteriaFilters
 export function useStandardsProfiles() {
   return useQuery({
     queryKey: ['standards', 'profiles'],
-    queryFn: () =>
-      api<{ data: StandardsProfile[] }>('/standards/profiles').then((r) => r.data),
+    queryFn: () => api<{ data: StandardsProfile[] }>('/standards/profiles').then((r) => r.data),
   });
 }
 
@@ -87,7 +88,10 @@ export function useBulkPinStandards(profileId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (standardEditionIds: string[]) =>
-      api(`/standards/profiles/${profileId}/pin/bulk`, { method: 'POST', body: { standardEditionIds } }),
+      api(`/standards/profiles/${profileId}/pin/bulk`, {
+        method: 'POST',
+        body: { standardEditionIds },
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['standards', 'profiles'] }),
   });
 }
@@ -105,7 +109,8 @@ export function useAssignProjectStandard(projectId: string) {
   return useMutation({
     mutationFn: (data: { standardEditionId: string; notes?: string }) =>
       api(`/standards/projects/${projectId}/assignments`, { method: 'POST', body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'standard-assignments'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'standard-assignments'] }),
   });
 }
 

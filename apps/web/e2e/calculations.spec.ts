@@ -10,14 +10,21 @@ test.describe('Calculation Submission', () => {
     await page.getByRole('link', { name: 'Projects' }).click();
     await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
 
-    const hasProject = await page.locator('table tbody tr').first().isVisible().catch(() => false);
+    const hasProject = await page
+      .locator('table tbody tr')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (hasProject) {
       await page.locator('table tbody tr').first().click();
       await expect(page.getByRole('link', { name: /Calculations/ })).toBeVisible();
       return true;
     }
 
-    const apiError = await page.getByText('Failed to load projects').isVisible().catch(() => false);
+    const apiError = await page
+      .getByText('Failed to load projects')
+      .isVisible()
+      .catch(() => false);
     if (apiError) return false;
 
     await page.getByRole('button', { name: 'New Project' }).click();
@@ -25,7 +32,10 @@ test.describe('Calculation Submission', () => {
     await page.getByLabel('Code').fill(`E2E-${Date.now()}`);
     await page.getByRole('button', { name: 'Create Project' }).click();
 
-    const navigated = await page.waitForURL(/\/projects\/\w/, { timeout: 10_000 }).then(() => true).catch(() => false);
+    const navigated = await page
+      .waitForURL(/\/projects\/\w/, { timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
     if (!navigated) return false;
 
     await expect(page.getByRole('link', { name: /Calculations/ })).toBeVisible();
@@ -34,7 +44,10 @@ test.describe('Calculation Submission', () => {
 
   test('can navigate to new calculation page from calculations list', async ({ page }) => {
     const ready = await ensureProjectDetail(page);
-    if (!ready) { test.skip(); return; }
+    if (!ready) {
+      test.skip();
+      return;
+    }
 
     await page.getByRole('link', { name: /Calculations/ }).click();
     await expect(page.getByText('Calculation History')).toBeVisible();
@@ -47,7 +60,10 @@ test.describe('Calculation Submission', () => {
 
   test('new calculation form shows required fields', async ({ page }) => {
     const ready = await ensureProjectDetail(page);
-    if (!ready) { test.skip(); return; }
+    if (!ready) {
+      test.skip();
+      return;
+    }
 
     await page.getByRole('link', { name: /Calculations/ }).click();
     await page.getByRole('link', { name: 'New Calculation' }).click();
@@ -61,7 +77,10 @@ test.describe('Calculation Submission', () => {
 
   test('shows validation errors when submitting empty form', async ({ page }) => {
     const ready = await ensureProjectDetail(page);
-    if (!ready) { test.skip(); return; }
+    if (!ready) {
+      test.skip();
+      return;
+    }
 
     await page.getByRole('link', { name: /Calculations/ }).click();
     await page.getByRole('link', { name: 'New Calculation' }).click();
@@ -72,7 +91,10 @@ test.describe('Calculation Submission', () => {
 
   test('can select a calculation type', async ({ page }) => {
     const ready = await ensureProjectDetail(page);
-    if (!ready) { test.skip(); return; }
+    if (!ready) {
+      test.skip();
+      return;
+    }
 
     await page.getByRole('link', { name: /Calculations/ }).click();
     await page.getByRole('link', { name: 'New Calculation' }).click();
@@ -86,16 +108,28 @@ test.describe('Calculation Submission', () => {
     await page.getByRole('link', { name: 'Projects' }).click();
     await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
 
-    const apiError = await page.getByText('Failed to load projects').isVisible().catch(() => false);
-    if (apiError) { test.skip(); return; }
+    const apiError = await page
+      .getByText('Failed to load projects')
+      .isVisible()
+      .catch(() => false);
+    if (apiError) {
+      test.skip();
+      return;
+    }
 
     await page.getByRole('button', { name: 'New Project' }).click();
     await page.getByLabel('Name').fill('E2E No Standards');
     await page.getByLabel('Code').fill(`E2E-NS-${Date.now()}`);
     await page.getByRole('button', { name: 'Create Project' }).click();
 
-    const navigated = await page.waitForURL(/\/projects\/\w/, { timeout: 10_000 }).then(() => true).catch(() => false);
-    if (!navigated) { test.skip(); return; }
+    const navigated = await page
+      .waitForURL(/\/projects\/\w/, { timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!navigated) {
+      test.skip();
+      return;
+    }
 
     await expect(page.getByRole('link', { name: /Calculations/ })).toBeVisible();
     await page.getByRole('link', { name: /Calculations/ }).click();
@@ -110,7 +144,11 @@ test.describe('Clone Previous Calculation', () => {
     await signInWithSeedUser(page);
     await page.getByRole('link', { name: 'Projects' }).click();
 
-    const hasProject = await page.locator('table tbody tr').first().isVisible().catch(() => false);
+    const hasProject = await page
+      .locator('table tbody tr')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (!hasProject) {
       test.skip();
       return;
@@ -119,7 +157,11 @@ test.describe('Clone Previous Calculation', () => {
     await page.locator('table tbody tr').first().click();
     await page.getByRole('link', { name: /Calculations/ }).click();
 
-    const hasRun = await page.locator('table tbody tr').first().isVisible().catch(() => false);
+    const hasRun = await page
+      .locator('table tbody tr')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (!hasRun) {
       test.skip();
       return;
@@ -133,7 +175,11 @@ test.describe('Clone Previous Calculation', () => {
     await signInWithSeedUser(page);
     await page.getByRole('link', { name: 'Projects' }).click();
 
-    const hasProject = await page.locator('table tbody tr').first().isVisible().catch(() => false);
+    const hasProject = await page
+      .locator('table tbody tr')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (!hasProject) {
       test.skip();
       return;
@@ -142,7 +188,11 @@ test.describe('Clone Previous Calculation', () => {
     await page.locator('table tbody tr').first().click();
     await page.getByRole('link', { name: /Calculations/ }).click();
 
-    const hasRun = await page.locator('table tbody tr').first().isVisible().catch(() => false);
+    const hasRun = await page
+      .locator('table tbody tr')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (!hasRun) {
       test.skip();
       return;

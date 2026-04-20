@@ -2,12 +2,23 @@
 
 import { useState } from 'react';
 import { ShieldCheck, ShieldOff, Package } from 'lucide-react';
-import { useActiveRulePacks, useActivateRulePack, useDeactivateRulePack } from '@/hooks/use-imports';
+import {
+  useActiveRulePacks,
+  useActivateRulePack,
+  useDeactivateRulePack,
+} from '@/hooks/use-imports';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
 import { PageLoading } from '@/components/loading';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -30,9 +41,9 @@ export default function RulePacksPage() {
 
       <Alert className="mb-6">
         <AlertDescription>
-          Rule packs contain licensed standards data. Raw files are not stored in the repository.
-          To load new rule packs, use the <strong>Imports</strong> page to upload YAML files, then follow the
-          approval workflow before activation.
+          Rule packs contain licensed standards data. Raw files are not stored in the repository. To
+          load new rule packs, use the <strong>Imports</strong> page to upload YAML files, then
+          follow the approval workflow before activation.
         </AlertDescription>
       </Alert>
 
@@ -68,7 +79,8 @@ export default function RulePacksPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="success">
-                        <ShieldCheck className="mr-1 h-3 w-3" />Active
+                        <ShieldCheck className="mr-1 h-3 w-3" />
+                        Active
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -86,7 +98,8 @@ export default function RulePacksPage() {
                         }}
                         disabled={deactivate.isPending}
                       >
-                        <ShieldOff className="mr-1 h-3 w-3" />Deactivate
+                        <ShieldOff className="mr-1 h-3 w-3" />
+                        Deactivate
                       </Button>
                     </TableCell>
                   </TableRow>

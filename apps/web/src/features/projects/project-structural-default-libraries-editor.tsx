@@ -149,9 +149,7 @@ export function ProjectStructuralDefaultLibrariesEditor({
 
   function updateCoverClass(
     index: number,
-    updater: (
-      row: MultiPileProjectCoverDurabilityClass,
-    ) => MultiPileProjectCoverDurabilityClass,
+    updater: (row: MultiPileProjectCoverDurabilityClass) => MultiPileProjectCoverDurabilityClass,
   ) {
     updateStructuralArray('coverDurabilityClasses', index, (current) =>
       normalizeProjectCoverClass(updater(current), index),
@@ -1361,9 +1359,7 @@ function CoverDurabilityEditorRow({
   onRemove: () => void;
   onUpdate: (
     index: number,
-    updater: (
-      row: MultiPileProjectCoverDurabilityClass,
-    ) => MultiPileProjectCoverDurabilityClass,
+    updater: (row: MultiPileProjectCoverDurabilityClass) => MultiPileProjectCoverDurabilityClass,
   ) => void;
 }) {
   const coverRow = normalizeProjectCoverClass(row, index);
@@ -1800,9 +1796,7 @@ function SourceFields({
   );
 }
 
-function resolveConcreteSourceModeText(
-  sourceMode: 'preset-driven' | 'preset-override' | 'manual',
-) {
+function resolveConcreteSourceModeText(sourceMode: 'preset-driven' | 'preset-override' | 'manual') {
   if (sourceMode === 'preset-driven') {
     return 'Preset-driven row. Preset-backed values are locked until Override is enabled.';
   }
@@ -1816,7 +1810,9 @@ function resolveReadOnlyClassName(readOnly: boolean, isTextarea = false) {
   if (!readOnly) {
     return undefined;
   }
-  return isTextarea ? 'min-h-24 bg-muted/40 text-muted-foreground' : 'bg-muted/40 text-muted-foreground';
+  return isTextarea
+    ? 'min-h-24 bg-muted/40 text-muted-foreground'
+    : 'bg-muted/40 text-muted-foreground';
 }
 
 function NumberField({

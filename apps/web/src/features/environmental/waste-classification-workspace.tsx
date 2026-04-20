@@ -145,7 +145,9 @@ export function WasteClassificationWorkspace({
   }
 
   const projectIdentity = resolveProjectIdentity(project);
-  const firstReachedStepIndex = report.stepDecisions.findIndex((step) => step.classificationReached);
+  const firstReachedStepIndex = report.stepDecisions.findIndex(
+    (step) => step.classificationReached,
+  );
 
   return (
     <>
@@ -171,7 +173,11 @@ export function WasteClassificationWorkspace({
             <Badge variant={draft.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}>
               {labelFor(WASTE_CLASS_OPTIONS, draft.finalWasteClass ?? 'not_yet_classified')}
             </Badge>
-            {isDirty ? <Badge variant="warning">Unsaved changes</Badge> : <Badge variant="success">Saved</Badge>}
+            {isDirty ? (
+              <Badge variant="warning">Unsaved changes</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
           </>
         }
         actions={
@@ -285,7 +291,10 @@ function RootSections({
 }) {
   return (
     <>
-      <SectionCard title="Project Identity" description="Inherited from the project workspace by default.">
+      <SectionCard
+        title="Project Identity"
+        description="Inherited from the project workspace by default."
+      >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <LabeledField label="Project number">
             <ReadOnlyFieldValue value={projectIdentity.projectNumber} />
@@ -557,7 +566,8 @@ function ReferencesSection({
                     title:
                       (current.title ?? '').trim().length > 0
                         ? current.title
-                        : aiDocuments.find((document) => document.id === value)?.filename ?? current.title,
+                        : (aiDocuments.find((document) => document.id === value)?.filename ??
+                          current.title),
                   }))
                 }
               >
@@ -721,9 +731,7 @@ function MaterialPathwayEditor({
             <ClipboardList className="h-4 w-4" />
             <AlertTitle>VENM note</AlertTitle>
             <AlertDescription>
-              If VENM is a waste, it is pre-classified as general solid waste
-              {' '}
-              (non-putrescible).
+              If VENM is a waste, it is pre-classified as general solid waste (non-putrescible).
             </AlertDescription>
           </Alert>
         ) : null}
@@ -771,7 +779,8 @@ function MaterialPathwayEditor({
               onValueChange={(value) => {
                 setDraft((current) => ({
                   ...current,
-                  outcomeStatus: value as ProjectWasteClassificationMaterialPathway['outcomeStatus'],
+                  outcomeStatus:
+                    value as ProjectWasteClassificationMaterialPathway['outcomeStatus'],
                 }));
                 setIsDirty(true);
               }}
@@ -789,7 +798,10 @@ function MaterialPathwayEditor({
             </Select>
           </LabeledField>
 
-          <LabeledField label="Linked reference" className={isAssPathway ? 'md:col-span-2' : undefined}>
+          <LabeledField
+            label="Linked reference"
+            className={isAssPathway ? 'md:col-span-2' : undefined}
+          >
             <Select
               value={draft.linkedReferenceId || NONE_VALUE}
               onValueChange={(value) => {
@@ -954,12 +966,18 @@ function MaterialPathwayEditor({
                   value={draft.projectLocationNote ?? ''}
                   rows={3}
                   onChange={(event) => {
-                    setDraft((current) => ({ ...current, projectLocationNote: event.target.value }));
+                    setDraft((current) => ({
+                      ...current,
+                      projectLocationNote: event.target.value,
+                    }));
                     setIsDirty(true);
                   }}
                 />
               </LabeledField>
-              <LabeledField label="Treatment / management note" className="md:col-span-2 xl:col-span-4">
+              <LabeledField
+                label="Treatment / management note"
+                className="md:col-span-2 xl:col-span-4"
+              >
                 <Textarea
                   value={draft.treatmentManagementNote ?? ''}
                   rows={3}
@@ -1244,9 +1262,7 @@ function FinalClassificationSection({
         <LabeledField label="Final waste class">
           <Select
             value={finalWasteClass}
-            onValueChange={(value) =>
-              onChange({ finalWasteClass: value as ProjectWasteClass })
-            }
+            onValueChange={(value) => onChange({ finalWasteClass: value as ProjectWasteClass })}
           >
             <SelectTrigger>
               <SelectValue />
@@ -1260,16 +1276,20 @@ function FinalClassificationSection({
             </SelectContent>
           </Select>
         </LabeledField>
-        <LabeledField label="Final classification reasoning" className="md:col-span-2 xl:col-span-4">
+        <LabeledField
+          label="Final classification reasoning"
+          className="md:col-span-2 xl:col-span-4"
+        >
           <Textarea
             value={draft.finalClassificationReasoning ?? ''}
             rows={5}
-            onChange={(event) =>
-              onChange({ finalClassificationReasoning: event.target.value })
-            }
+            onChange={(event) => onChange({ finalClassificationReasoning: event.target.value })}
           />
         </LabeledField>
-        <LabeledField label="Management / disposal recommendation" className="md:col-span-2 xl:col-span-4">
+        <LabeledField
+          label="Management / disposal recommendation"
+          className="md:col-span-2 xl:col-span-4"
+        >
           <Textarea
             value={draft.managementRecommendation ?? ''}
             rows={4}
@@ -1303,16 +1323,20 @@ function RecommendationsSection({
   const createRecommendation = useCreateWasteClassificationRecommendation(projectId, reportId);
   const updateRecommendation = useUpdateWasteClassificationRecommendation(projectId, reportId);
   const deleteRecommendation = useDeleteWasteClassificationRecommendation(projectId, reportId);
-  const [newRecommendation, setNewRecommendation] = useState<ProjectWasteClassificationRecommendationInput>({
-    category: '',
-    recommendation: '',
-    priority: '',
-    responsibility: '',
-    timingNote: '',
-  });
+  const [newRecommendation, setNewRecommendation] =
+    useState<ProjectWasteClassificationRecommendationInput>({
+      category: '',
+      recommendation: '',
+      priority: '',
+      responsibility: '',
+      timingNote: '',
+    });
 
   async function handleCreate() {
-    if (!(newRecommendation.category ?? '').trim() || !(newRecommendation.recommendation ?? '').trim()) {
+    if (
+      !(newRecommendation.category ?? '').trim() ||
+      !(newRecommendation.recommendation ?? '').trim()
+    ) {
       toast.error('Category and recommendation are required');
       return;
     }
@@ -1455,7 +1479,10 @@ function ReferenceEditor({
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-base">{row.title}</CardTitle>
           <Badge variant="outline">
-            {labelFor(WASTE_CLASSIFICATION_REFERENCE_TYPE_OPTIONS, draft.referenceType ?? row.referenceType)}
+            {labelFor(
+              WASTE_CLASSIFICATION_REFERENCE_TYPE_OPTIONS,
+              draft.referenceType ?? row.referenceType,
+            )}
           </Badge>
           {row.isPrefilled ? <Badge variant="secondary">Prefilled</Badge> : null}
           <Badge variant={(draft.isIncluded ?? row.isIncluded) ? 'success' : 'warning'}>
@@ -1662,13 +1689,19 @@ function StepDecisionEditor({
           <Badge variant="outline">
             {labelFor(WASTE_CLASSIFICATION_OUTCOME_STATUS_OPTIONS, draft.outcomeStatus)}
           </Badge>
-          {draft.classificationReached ? <Badge variant="success">Classification reached</Badge> : null}
+          {draft.classificationReached ? (
+            <Badge variant="success">Classification reached</Badge>
+          ) : null}
           {draft.resultingWasteClass ? (
-            <Badge variant={draft.resultingWasteClass === 'not_yet_classified' ? 'warning' : 'success'}>
+            <Badge
+              variant={draft.resultingWasteClass === 'not_yet_classified' ? 'warning' : 'success'}
+            >
               {labelFor(WASTE_CLASS_OPTIONS, draft.resultingWasteClass)}
             </Badge>
           ) : null}
-          {usuallyNotRequired ? <Badge variant="warning">Usually not required after earlier step</Badge> : null}
+          {usuallyNotRequired ? (
+            <Badge variant="warning">Usually not required after earlier step</Badge>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -2025,7 +2058,10 @@ function RelatedPathwayEditor({
               }}
             />
           </LabeledField>
-          <LabeledField label="Resulting action / implication" className="md:col-span-2 xl:col-span-4">
+          <LabeledField
+            label="Resulting action / implication"
+            className="md:col-span-2 xl:col-span-4"
+          >
             <Textarea
               value={draft.resultingAction ?? ''}
               rows={3}
@@ -2353,7 +2389,9 @@ function normalizeMaterialPathwayInput(
     assExemptionRelevant: input.assExemptionRelevant ?? null,
     orderExemptionNote: blankToNull(input.orderExemptionNote),
     sortOrder: input.sortOrder,
-    checklistItems: input.checklistItems?.map((item) => normalizeMaterialPathwayChecklistItemInput(item)),
+    checklistItems: input.checklistItems?.map((item) =>
+      normalizeMaterialPathwayChecklistItemInput(item),
+    ),
   };
 }
 
@@ -2423,10 +2461,7 @@ function projectReferenceLabel(reference: MultiPileProjectReference | null) {
   return `${left} · ${right}`;
 }
 
-function labelFor(
-  options: ReadonlyArray<{ value: string; label: string }>,
-  value: string,
-) {
+function labelFor(options: ReadonlyArray<{ value: string; label: string }>, value: string) {
   return options.find((option) => option.value === value)?.label ?? value.replace(/_/g, ' ');
 }
 

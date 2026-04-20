@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLoading } from '@/components/loading';
 import { toast } from 'sonner';
-import { useCreateWasteClassificationReport, useWasteClassificationReports } from '@/hooks/use-waste-classification';
+import {
+  useCreateWasteClassificationReport,
+  useWasteClassificationReports,
+} from '@/hooks/use-waste-classification';
 import { ApiError } from '@/lib/api-client';
 import {
   WASTE_CLASS_OPTIONS,
@@ -88,9 +91,15 @@ export function WasteClassificationReportsPanel({
                     {report.documentStatus ? (
                       <Badge variant="outline">{report.documentStatus}</Badge>
                     ) : null}
-                    {report.revision ? <Badge variant="outline">Rev {report.revision}</Badge> : null}
+                    {report.revision ? (
+                      <Badge variant="outline">Rev {report.revision}</Badge>
+                    ) : null}
                     {report.finalWasteClass ? (
-                      <Badge variant={report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'}>
+                      <Badge
+                        variant={
+                          report.finalWasteClass === 'not_yet_classified' ? 'warning' : 'success'
+                        }
+                      >
                         {labelForWasteClass(report.finalWasteClass)}
                       </Badge>
                     ) : null}
@@ -110,7 +119,9 @@ export function WasteClassificationReportsPanel({
 }
 
 function labelForWasteClass(value: string) {
-  return WASTE_CLASS_OPTIONS.find((option) => option.value === value)?.label ?? value.replace(/_/g, ' ');
+  return (
+    WASTE_CLASS_OPTIONS.find((option) => option.value === value)?.label ?? value.replace(/_/g, ' ')
+  );
 }
 
 function displayReportTitle(report: ProjectWasteClassificationReportSummary) {

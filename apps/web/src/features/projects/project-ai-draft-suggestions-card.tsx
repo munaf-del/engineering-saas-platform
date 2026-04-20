@@ -120,9 +120,7 @@ export function ProjectAiDraftSuggestionsCard({
           <CardTitle className="text-base">
             {resolveProjectAiDraftSuggestionsTitle(scope)}
           </CardTitle>
-          <CardDescription>
-            {resolveProjectAiDraftSuggestionsDescription(scope)}
-          </CardDescription>
+          <CardDescription>{resolveProjectAiDraftSuggestionsDescription(scope)}</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">Draft-only</Badge>
@@ -143,9 +141,7 @@ export function ProjectAiDraftSuggestionsCard({
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            {response
-              ? 'Refresh Suggestions'
-              : resolveProjectAiDraftSuggestionsButtonLabel(scope)}
+            {response ? 'Refresh Suggestions' : resolveProjectAiDraftSuggestionsButtonLabel(scope)}
           </Button>
         </div>
       </CardHeader>
@@ -163,9 +159,10 @@ export function ProjectAiDraftSuggestionsCard({
               </>
             ) : scope === 'project-foundations' ? (
               <>
-                Click <span className="font-medium text-foreground">Show Foundation AI Suggestions</span>{' '}
-                to load visible report-derived draft suggestions for groundwater, CFA uplift,
-                socket assumptions, founding notes, and project-level geotechnical commentary.
+                Click{' '}
+                <span className="font-medium text-foreground">Show Foundation AI Suggestions</span>{' '}
+                to load visible report-derived draft suggestions for groundwater, CFA uplift, socket
+                assumptions, founding notes, and project-level geotechnical commentary.
               </>
             ) : (
               <>

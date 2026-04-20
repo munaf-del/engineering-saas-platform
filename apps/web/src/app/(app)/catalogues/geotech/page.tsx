@@ -65,48 +65,58 @@ export default function GeotechPage() {
         }
       />
 
-      {(classesLoading || paramsLoading) ? (
+      {classesLoading || paramsLoading ? (
         <PageLoading />
       ) : (
-      <Tabs defaultValue="parameters">
-        <TabsList>
-          <TabsTrigger value="parameters">Parameter Sets ({total})</TabsTrigger>
-          <TabsTrigger value="classes">Material Classes ({classes?.length ?? 0})</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="parameters">
+          <TabsList>
+            <TabsTrigger value="parameters">Parameter Sets ({total})</TabsTrigger>
+            <TabsTrigger value="classes">Material Classes ({classes?.length ?? 0})</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="parameters">
-          {parameterSets.length === 0 ? (
-            <EmptyState icon={<Database className="h-12 w-12" />} title="No parameter sets" description="Import or define geotechnical parameter sets." />
-          ) : (
-            <DataTable
-              columns={paramColumns}
-              data={parameterSets as (GeotechParameterSet & Record<string, unknown>)[]}
-              searchKey="name"
-              searchPlaceholder="Search parameters…"
-              totalFromServer={total}
-              page={page}
-              onPageChange={setPage}
-            />
-          )}
-        </TabsContent>
+          <TabsContent value="parameters">
+            {parameterSets.length === 0 ? (
+              <EmptyState
+                icon={<Database className="h-12 w-12" />}
+                title="No parameter sets"
+                description="Import or define geotechnical parameter sets."
+              />
+            ) : (
+              <DataTable
+                columns={paramColumns}
+                data={parameterSets as (GeotechParameterSet & Record<string, unknown>)[]}
+                searchKey="name"
+                searchPlaceholder="Search parameters…"
+                totalFromServer={total}
+                page={page}
+                onPageChange={setPage}
+              />
+            )}
+          </TabsContent>
 
-        <TabsContent value="classes">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {classes?.map((cls) => (
-              <Card key={cls.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{cls.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-mono text-xs text-muted-foreground">{cls.code}</p>
-                  {cls.classification && <Badge variant="outline" className="mt-1">{cls.classification}</Badge>}
-                  {cls.description && <p className="mt-1 text-xs text-muted-foreground">{cls.description}</p>}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="classes">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {classes?.map((cls) => (
+                <Card key={cls.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">{cls.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="font-mono text-xs text-muted-foreground">{cls.code}</p>
+                    {cls.classification && (
+                      <Badge variant="outline" className="mt-1">
+                        {cls.classification}
+                      </Badge>
+                    )}
+                    {cls.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">{cls.description}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       )}
     </>
   );

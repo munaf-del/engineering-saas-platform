@@ -36,12 +36,21 @@ export function StandardsBadge({ code, edition, size = 'default' }: StandardsBad
   );
 }
 
-export function StandardsBadgeList({ standards }: { standards: { code: string; edition?: string }[] }) {
+export function StandardsBadgeList({
+  standards,
+}: {
+  standards: { code: string; edition?: string }[];
+}) {
   if (!standards.length) return null;
   return (
     <div className="flex flex-wrap gap-1">
       {standards.map((s) => (
-        <StandardsBadge key={`${s.code}-${s.edition}`} code={s.code} edition={s.edition} size="sm" />
+        <StandardsBadge
+          key={`${s.code}-${s.edition}`}
+          code={s.code}
+          edition={s.edition}
+          size="sm"
+        />
       ))}
     </div>
   );

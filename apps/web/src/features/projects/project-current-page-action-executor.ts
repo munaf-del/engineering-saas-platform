@@ -32,10 +32,7 @@ type ProjectCurrentPageActionFieldConfig = {
   isReadonly?: (projectSpecifics: MultiPileProjectSpecifics) => boolean;
 };
 
-type ProjectCurrentPageActionAllowlist = Record<
-  string,
-  ProjectCurrentPageActionFieldConfig
->;
+type ProjectCurrentPageActionAllowlist = Record<string, ProjectCurrentPageActionFieldConfig>;
 
 export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActionAllowlist = {
   'identity.projectNumber': createTextFieldConfig({
@@ -63,8 +60,7 @@ export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActio
     allowedValues: MULTI_PILE_PROJECT_STATUSES,
     getValue: (projectSpecifics) => projectSpecifics.identity.status,
     applyValue: (projectSpecifics, value) => {
-      projectSpecifics.identity.status =
-        value as MultiPileProjectSpecifics['identity']['status'];
+      projectSpecifics.identity.status = value as MultiPileProjectSpecifics['identity']['status'];
     },
   }),
   'identity.address': createTextFieldConfig({
@@ -162,48 +158,48 @@ export const PROJECT_PAGE_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActio
 
 export const PROJECT_FOUNDATIONS_CURRENT_PAGE_ACTION_ALLOWLIST: ProjectCurrentPageActionAllowlist =
   {
-  'geotechnicalBasis.groundwaterDesignNotes': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.groundwaterDesignNotes,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.groundwaterDesignNotes = value;
-    },
-  }),
-  'geotechnicalBasis.cfaUpliftMode': createSelectFieldConfig({
-    allowedValues: MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftMode,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.cfaUpliftMode =
-        value as MultiPileProjectSpecifics['geotechnicalBasis']['cfaUpliftMode'];
-    },
-  }),
-  'geotechnicalBasis.cfaUpliftFactor': createNumericTextFieldConfig({
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftFactor,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.cfaUpliftFactor = value;
-    },
-  }),
-  'geotechnicalBasis.defaultSocketAssumptions': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.defaultSocketAssumptions,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.defaultSocketAssumptions = value;
-    },
-  }),
-  'geotechnicalBasis.foundingNotes': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.foundingNotes,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.foundingNotes = value;
-    },
-  }),
-  'geotechnicalBasis.commentary': createTextFieldConfig({
-    actionType: 'set_textarea',
-    getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.commentary,
-    applyValue: (projectSpecifics, value) => {
-      projectSpecifics.geotechnicalBasis.commentary = value;
-    },
-  }),
+    'geotechnicalBasis.groundwaterDesignNotes': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.groundwaterDesignNotes,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.groundwaterDesignNotes = value;
+      },
+    }),
+    'geotechnicalBasis.cfaUpliftMode': createSelectFieldConfig({
+      allowedValues: MULTI_PILE_PROJECT_GEO_UPLIFT_MODES,
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftMode,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.cfaUpliftMode =
+          value as MultiPileProjectSpecifics['geotechnicalBasis']['cfaUpliftMode'];
+      },
+    }),
+    'geotechnicalBasis.cfaUpliftFactor': createNumericTextFieldConfig({
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.cfaUpliftFactor,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.cfaUpliftFactor = value;
+      },
+    }),
+    'geotechnicalBasis.defaultSocketAssumptions': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.defaultSocketAssumptions,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.defaultSocketAssumptions = value;
+      },
+    }),
+    'geotechnicalBasis.foundingNotes': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.foundingNotes,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.foundingNotes = value;
+      },
+    }),
+    'geotechnicalBasis.commentary': createTextFieldConfig({
+      actionType: 'set_textarea',
+      getValue: (projectSpecifics) => projectSpecifics.geotechnicalBasis.commentary,
+      applyValue: (projectSpecifics, value) => {
+        projectSpecifics.geotechnicalBasis.commentary = value;
+      },
+    }),
   };
 
 export function createProjectCurrentPageActionExecutor({
@@ -230,7 +226,12 @@ export function createProjectCurrentPageActionExecutor({
         const evaluation = evaluateProjectCurrentPageActionCandidate(nextDraft, scope, candidate);
         if (evaluation.executionStatus !== 'ready') {
           results.push(
-            createExecutionResult(candidate, evaluation, evaluation.executionStatus, evaluation.message),
+            createExecutionResult(
+              candidate,
+              evaluation,
+              evaluation.executionStatus,
+              evaluation.message,
+            ),
           );
           return;
         }
@@ -298,9 +299,7 @@ export function resolveProjectCurrentPageActionType(
   return fieldConfig?.actionTypes[0] ?? null;
 }
 
-export function resolveProjectCurrentPageActionScopeTitle(
-  scope: ProjectCurrentPageActionScope,
-) {
+export function resolveProjectCurrentPageActionScopeTitle(scope: ProjectCurrentPageActionScope) {
   if (scope === 'project-foundations') {
     return 'Foundation / Global GEO Controls';
   }
@@ -308,9 +307,7 @@ export function resolveProjectCurrentPageActionScopeTitle(
   return 'Project Details';
 }
 
-export function resolveProjectCurrentPageActionScopeLabel(
-  scope: ProjectCurrentPageActionScope,
-) {
+export function resolveProjectCurrentPageActionScopeLabel(scope: ProjectCurrentPageActionScope) {
   if (scope === 'project-foundations') {
     return 'foundation / global GEO controls';
   }
@@ -410,8 +407,7 @@ function evaluateProjectCurrentPageActionCandidate(
         currentValue,
         proposedValue,
         status: 'requires_manual_selection',
-        message:
-          `This would overwrite an existing ${resolveProjectCurrentPageActionScopeLabel(scope)} value. Select it manually if you want to apply it.`,
+        message: `This would overwrite an existing ${resolveProjectCurrentPageActionScopeLabel(scope)} value. Select it manually if you want to apply it.`,
         selectable: true,
         selectedByDefault: false,
         executionStatus: 'ready',

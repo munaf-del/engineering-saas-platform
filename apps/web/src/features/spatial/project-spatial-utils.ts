@@ -11,10 +11,12 @@ export const PROJECT_SPATIAL_FEATURE_TYPE_OPTIONS = PROJECT_SPATIAL_FEATURE_TYPE
   label: formatSpatialLabel(value),
 })) as ReadonlyArray<{ value: ProjectSpatialFeatureType; label: string }>;
 
-export const PROJECT_SPATIAL_GEOMETRY_TYPE_OPTIONS = PROJECT_SPATIAL_GEOMETRY_TYPES.map((value) => ({
-  value,
-  label: formatSpatialLabel(value),
-})) satisfies ReadonlyArray<{
+export const PROJECT_SPATIAL_GEOMETRY_TYPE_OPTIONS = PROJECT_SPATIAL_GEOMETRY_TYPES.map(
+  (value) => ({
+    value,
+    label: formatSpatialLabel(value),
+  }),
+) satisfies ReadonlyArray<{
   value: (typeof PROJECT_SPATIAL_GEOMETRY_TYPES)[number];
   label: string;
 }>;

@@ -29,11 +29,19 @@ const columns: Column<AuditEntry & Record<string, unknown>>[] = [
       return <Badge variant={color as 'success' | 'destructive' | 'default'}>{row.action}</Badge>;
     },
   },
-  { key: 'entityType', header: 'Entity', cell: (row) => <span className="font-mono text-xs">{row.entityType}</span> },
+  {
+    key: 'entityType',
+    header: 'Entity',
+    cell: (row) => <span className="font-mono text-xs">{row.entityType}</span>,
+  },
   {
     key: 'entityId',
     header: 'Entity ID',
-    cell: (row) => <span className="font-mono text-xs text-muted-foreground">{row.entityId ? row.entityId.slice(0, 8) + '…' : '—'}</span>,
+    cell: (row) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {row.entityId ? row.entityId.slice(0, 8) + '…' : '—'}
+      </span>
+    ),
     className: 'w-[120px]',
   },
   {
@@ -44,7 +52,11 @@ const columns: Column<AuditEntry & Record<string, unknown>>[] = [
   {
     key: 'createdAt',
     header: 'Timestamp',
-    cell: (row) => <span className="text-sm text-muted-foreground">{new Date(row.createdAt).toLocaleString()}</span>,
+    cell: (row) => (
+      <span className="text-sm text-muted-foreground">
+        {new Date(row.createdAt).toLocaleString()}
+      </span>
+    ),
     className: 'w-[200px]',
   },
 ];
@@ -63,7 +75,11 @@ export default function AuditPage() {
       <PageHeader title="Audit Trail" description="Organisation activity log" />
 
       {logs.length === 0 ? (
-        <EmptyState icon={<History className="h-12 w-12" />} title="No audit entries" description="Actions performed in this organisation will appear here." />
+        <EmptyState
+          icon={<History className="h-12 w-12" />}
+          title="No audit entries"
+          description="Actions performed in this organisation will appear here."
+        />
       ) : (
         <DataTable
           columns={columns}

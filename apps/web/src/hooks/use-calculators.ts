@@ -5,15 +5,15 @@ import type { CalculatorDefinition, CalculatorVersion } from '@eng/shared';
 export function useCalculators() {
   return useQuery({
     queryKey: ['calculators'],
-    queryFn: () =>
-      api<{ data: CalculatorDefinition[] }>('/calculators').then((r) => r.data),
+    queryFn: () => api<{ data: CalculatorDefinition[] }>('/calculators').then((r) => r.data),
   });
 }
 
 export function useCalculator(id: string) {
   return useQuery({
     queryKey: ['calculators', id],
-    queryFn: () => api<CalculatorDefinition & { versions?: CalculatorVersion[] }>(`/calculators/${id}`),
+    queryFn: () =>
+      api<CalculatorDefinition & { versions?: CalculatorVersion[] }>(`/calculators/${id}`),
     enabled: !!id,
   });
 }

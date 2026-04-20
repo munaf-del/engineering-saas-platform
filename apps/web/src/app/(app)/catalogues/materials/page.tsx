@@ -30,7 +30,11 @@ const columns: Column<Material & Record<string, unknown>>[] = [
     header: 'Standard',
     cell: (row) =>
       row.sourceStandard ? (
-        <StandardsBadge code={row.sourceStandard as string} edition={row.sourceEdition as string | undefined} size="sm" />
+        <StandardsBadge
+          code={row.sourceStandard as string}
+          edition={row.sourceEdition as string | undefined}
+          size="sm"
+        />
       ) : (
         <span className="text-muted-foreground">—</span>
       ),
@@ -71,7 +75,11 @@ export default function MaterialsPage() {
       {isLoading ? (
         <PageLoading />
       ) : materials.length === 0 ? (
-        <EmptyState icon={<Database className="h-12 w-12" />} title="No materials" description="Import or create material grades to populate the catalogue." />
+        <EmptyState
+          icon={<Database className="h-12 w-12" />}
+          title="No materials"
+          description="Import or create material grades to populate the catalogue."
+        />
       ) : (
         <DataTable
           columns={columns}

@@ -61,10 +61,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ result: null });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      return NextResponse.json(
-        { message: 'Geocoding request timed out' },
-        { status: 504 },
-      );
+      return NextResponse.json({ message: 'Geocoding request timed out' }, { status: 504 });
     }
 
     console.error('Project address geocoding failed', error);

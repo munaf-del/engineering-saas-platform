@@ -249,8 +249,8 @@ export default function ProjectGeotechnicalPage({ params }: { params: Promise<{ 
       <Alert className="mb-6">
         <AlertTitle>Materials workspace scope</AlertTitle>
         <AlertDescription>
-          This page owns the shared Project Geotechnical materials library and material-candidate
-          AI review/apply flow. Foundations owns the project geotechnical basis and global GEO
+          This page owns the shared Project Geotechnical materials library and material-candidate AI
+          review/apply flow. Foundations owns the project geotechnical basis and global GEO
           controls.
         </AlertDescription>
       </Alert>
