@@ -31,6 +31,7 @@ If this slice is wrong, every later GEO / STRUCT / report output will drift.
 ## 2. In scope
 
 ### 2.1 Authoring
+
 - pile-group level joint / node register
 - support count per joint
 - pile type assignment per joint
@@ -38,6 +39,7 @@ If this slice is wrong, every later GEO / STRUCT / report output will drift.
 - joint-load matrix
 
 ### 2.2 Combination engine
+
 - built-in combinations
 - custom linear combinations
 - envelope inclusion flag
@@ -45,6 +47,7 @@ If this slice is wrong, every later GEO / STRUCT / report output will drift.
 - combination provenance fields
 
 ### 2.3 Results
+
 - per joint governing envelope values:
   - `Nmax`
   - `Nmin`
@@ -56,6 +59,7 @@ If this slice is wrong, every later GEO / STRUCT / report output will drift.
 - latest run + snapshot persistence
 
 ### 2.4 Basic UI
+
 A minimal migrated multi-pile page/route that allows a user to:
 
 - create/edit joints
@@ -120,11 +124,13 @@ and also report:
 ## 5. Target SaaS domain model
 
 ## 5.1 Project shell
+
 Reuse existing `Project`.
 
 No heavy schema changes are required yet beyond linking the migrated authored state.
 
 ## 5.2 PileGroup as authored aggregate
+
 For the first pass, store the authored multi-pile state in `PileGroup.metadata` with schema validation.
 
 Suggested metadata root:
@@ -145,6 +151,7 @@ Suggested metadata root:
 ```
 
 ### Note
+
 `generatedPiles` may be persisted or derived.  
 For phase 1, derivation is acceptable if it is deterministic.
 
@@ -155,6 +162,7 @@ For phase 1, derivation is acceptable if it is deterministic.
 These can live in `packages/shared`.
 
 ## 6.1 Pile type
+
 ```ts
 type PileTypeDefinition = {
   id: string;
@@ -167,6 +175,7 @@ type PileTypeDefinition = {
 ```
 
 ## 6.2 Joint
+
 ```ts
 type MultiPileJoint = {
   id: string;
@@ -182,6 +191,7 @@ type MultiPileJoint = {
 ```
 
 ## 6.3 Generated pile
+
 ```ts
 type GeneratedPile = {
   id: string;
@@ -192,11 +202,12 @@ type GeneratedPile = {
 ```
 
 ## 6.4 Load pattern
+
 ```ts
 type LoadPattern = {
   id: string;
   displayName: string;
-  patternType: "Permanent" | "Imposed" | "Wind" | "Earthquake" | "Groundwater" | "Other";
+  patternType: 'Permanent' | 'Imposed' | 'Wind' | 'Earthquake' | 'Groundwater' | 'Other';
   reversible: boolean;
   enabled: boolean;
   order: number;
@@ -204,6 +215,7 @@ type LoadPattern = {
 ```
 
 ## 6.5 Joint load row
+
 ```ts
 type JointLoadRow = {
   jointId: string;
@@ -218,6 +230,7 @@ type JointLoadRow = {
 ```
 
 ## 6.6 Combination library row
+
 ```ts
 type CombinationTerm = {
   patternId: string;
@@ -227,8 +240,8 @@ type CombinationTerm = {
 type CombinationRow = {
   id: string;
   displayName: string;
-  source: "built-in" | "custom";
-  kind: "linear" | "envelope";
+  source: 'built-in' | 'custom';
+  kind: 'linear' | 'envelope';
   enabled: boolean;
   includeInEnvelope: boolean;
   reversibleAware?: boolean;
@@ -240,12 +253,13 @@ type CombinationRow = {
 ```
 
 ## 6.7 Envelope snapshot
+
 ```ts
 type GoverningEnvelopeValue = {
   value: number;
   combinationId: string;
   combinationName: string;
-  source: "built-in" | "custom";
+  source: 'built-in' | 'custom';
 };
 
 type JointEnvelopeSnapshot = {
@@ -267,15 +281,18 @@ type JointEnvelopeSnapshot = {
 ## 7. Persistence plan
 
 ## 7.1 Phase 1 persistence
+
 Keep authored state in `PileGroup.metadata` with validation.
 
 ### Why
+
 - fastest path
 - least risky
 - aligns with review recommendation
 - avoids premature table explosion
 
 ## 7.2 Persist runs separately
+
 Reuse existing `CalculationRun` / `CalculationSnapshot` pattern.
 
 Suggested snapshot contents:
@@ -296,6 +313,7 @@ This makes later GEO / STRUCT phases easier because they can consume a persisted
 ## 8. Backend implementation shape
 
 ## 8.1 API layer
+
 Add API endpoints/service methods for:
 
 - get pile-group multi-pile state
@@ -304,6 +322,7 @@ Add API endpoints/service methods for:
 - get latest envelope snapshot
 
 ## 8.2 Calc-engine
+
 Add a focused Python engine module for this slice only.
 
 Suggested files:
@@ -313,6 +332,7 @@ Suggested files:
 - `multi_pile_envelopes.py`
 
 ### Responsibilities
+
 - normalize pattern library
 - expand built-in combinations
 - evaluate custom combinations
@@ -320,6 +340,7 @@ Suggested files:
 - return governing provenance
 
 ## 8.3 No GEO/STRUCT logic yet
+
 Do not import geotechnical or structural rules into this slice.
 
 ---
@@ -327,11 +348,13 @@ Do not import geotechnical or structural rules into this slice.
 ## 9. Frontend route
 
 ## 9.1 Use the pile-group editor route
+
 Do not use the generic “new calculation” page.
 
 Create or extend a pile-group editor based route with a multi-pile shell.
 
 ## 9.2 First page layout
+
 Minimal tabs or sections:
 
 1. **Pile Types**
@@ -348,6 +371,7 @@ This is enough for phase 1.
 ## 10. Built-in combination strategy
 
 ## 10.1 Store built-ins explicitly
+
 Do not hardcode them only in UI.
 
 Have a clear built-in registry produced by the backend or shared module.
@@ -362,6 +386,7 @@ Each built-in row should include:
 - include-in-envelope default
 
 ## 10.2 Custom combinations
+
 Allow the user to add/edit custom combinations, but only within the same schema as built-ins.
 
 No separate custom-only engine path.
@@ -385,6 +410,7 @@ That allows later GEO / STRUCT reporting to remain compatible.
 ## 12. Parity test set
 
 ## 12.1 Minimum golden tests
+
 Before merging, create a small parity fixture with:
 
 1. one joint, one type, simple G/Q
@@ -395,6 +421,7 @@ Before merging, create a small parity fixture with:
 6. governing envelope provenance check
 
 ## 12.2 Hard outputs to compare
+
 Compare SaaS vs legacy on:
 
 - `Nmax`
@@ -407,6 +434,7 @@ Compare SaaS vs legacy on:
 - active pattern list
 
 ## 12.3 Fixture sources
+
 Use small copied fixtures from the legacy calculator, not a full production project first.
 
 ---
@@ -427,15 +455,19 @@ This phase is complete when:
 ## 14. Risks
 
 ### Risk 1 — over-scoping
+
 Trying to add ARR, GEO, and STRUCT in the same pass will likely blur the domain boundary.
 
 ### Risk 2 — wrong data model
+
 If the first slice is implemented as flat load-case inputs instead of `joint × pattern` authoring, the later migration will drift from legacy behavior.
 
 ### Risk 3 — UI-first shortcuts
+
 If logic is implemented only in React/web state, later backend parity will be painful.
 
 ### Risk 4 — report-driven design
+
 Do not start with report generation. Start with the envelope engine.
 
 ---
@@ -506,4 +538,3 @@ Process:
 3. then apply the changes
 4. then summarize what remains for phase 2
 ```
-

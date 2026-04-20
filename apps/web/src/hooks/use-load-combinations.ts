@@ -25,7 +25,9 @@ export function useLoadCombinationSets(projectId: string) {
   return useQuery({
     queryKey: ['projects', projectId, 'load-combination-sets'],
     queryFn: () =>
-      api<{ data: LoadCombinationSetAPI[] }>(`/projects/${projectId}/load-combination-sets`).then((r) => r.data),
+      api<{ data: LoadCombinationSetAPI[] }>(`/projects/${projectId}/load-combination-sets`).then(
+        (r) => r.data,
+      ),
     enabled: !!projectId,
   });
 }
@@ -43,16 +45,26 @@ export function useCreateLoadCombinationSet(projectId: string) {
   return useMutation({
     mutationFn: (data: { name: string; standardRef?: string; description?: string }) =>
       api(`/projects/${projectId}/load-combination-sets`, { method: 'POST', body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
   });
 }
 
 export function useAddLoadCombination(projectId: string, setId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; limitState: string; clauseRef?: string; factors: Record<string, unknown>[] }) =>
-      api(`/projects/${projectId}/load-combination-sets/${setId}/combinations`, { method: 'POST', body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
+    mutationFn: (data: {
+      name: string;
+      limitState: string;
+      clauseRef?: string;
+      factors: Record<string, unknown>[];
+    }) =>
+      api(`/projects/${projectId}/load-combination-sets/${setId}/combinations`, {
+        method: 'POST',
+        body: data,
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
   });
 }
 
@@ -61,6 +73,7 @@ export function useDeleteLoadCombinationSet(projectId: string) {
   return useMutation({
     mutationFn: (id: string) =>
       api(`/projects/${projectId}/load-combination-sets/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-combination-sets'] }),
   });
 }

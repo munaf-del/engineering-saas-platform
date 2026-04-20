@@ -8,7 +8,14 @@ import { StandardsBadge } from '@/components/standards-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/empty-state';
@@ -94,7 +101,9 @@ export default function StandardsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No standards pinned to this profile.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No standards pinned to this profile.
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -106,20 +115,35 @@ export default function StandardsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Standards Profile</DialogTitle>
-            <DialogDescription>Create a standards profile to group pinned standard editions.</DialogDescription>
+            <DialogDescription>
+              Create a standards profile to group pinned standard editions.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-2">
               <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. AS Standard Set 2024" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="e.g. AS Standard Set 2024"
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description"
+              />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={createProfile.isPending}>Create</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createProfile.isPending}>
+                Create
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

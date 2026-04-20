@@ -1,8 +1,7 @@
 const rawApiBase = process.env.NEXT_PUBLIC_API_URL?.trim();
-const API_BASE = (rawApiBase || (process.env.NODE_ENV !== 'production' ? 'http://localhost:4000' : undefined))?.replace(
-  /\/+$/,
-  '',
-);
+const API_BASE = (
+  rawApiBase || (process.env.NODE_ENV !== 'production' ? 'http://localhost:4000' : undefined)
+)?.replace(/\/+$/, '');
 const API_PREFIX = API_BASE?.endsWith('/api/v1') ? '' : '/api/v1';
 
 if (!API_BASE) {

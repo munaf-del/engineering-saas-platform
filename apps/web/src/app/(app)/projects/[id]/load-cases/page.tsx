@@ -66,8 +66,14 @@ export default function LoadCasesPage({ params }: { params: Promise<{ id: string
         badges={
           <>
             <StandardsBadge code="AS/NZS 1170.0" edition="2002" />
-            <Badge variant="outline">{draft.loadCases.length} load case{draft.loadCases.length === 1 ? '' : 's'}</Badge>
-            {isDirty ? <Badge variant="warning">Unsaved changes</Badge> : <Badge variant="success">Saved</Badge>}
+            <Badge variant="outline">
+              {draft.loadCases.length} load case{draft.loadCases.length === 1 ? '' : 's'}
+            </Badge>
+            {isDirty ? (
+              <Badge variant="warning">Unsaved changes</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
           </>
         }
         actions={
@@ -85,8 +91,8 @@ export default function LoadCasesPage({ params }: { params: Promise<{ id: string
         <CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
           <Weight className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Load cases now live at the project level and are injected into calculators like Multi-Pile.
-            Calculators can use these cases, but they do not define them.
+            Load cases now live at the project level and are injected into calculators like
+            Multi-Pile. Calculators can use these cases, but they do not define them.
           </p>
         </CardContent>
       </Card>

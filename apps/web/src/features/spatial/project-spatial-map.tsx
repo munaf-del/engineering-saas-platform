@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-} from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import type {
   ProjectSpatialFeature,
   ProjectSpatialFeatureType,
@@ -502,10 +497,7 @@ function fitMapToSourceWhenReady(
   const attemptFit = () => {
     const size = map.getSize();
 
-    if (
-      (!size || size[0] === 0 || size[1] === 0) &&
-      attemptCount < maxAttempts
-    ) {
+    if ((!size || size[0] === 0 || size[1] === 0) && attemptCount < maxAttempts) {
       attemptCount += 1;
       frameId = requestAnimationFrame(attemptFit);
       return;
@@ -533,12 +525,9 @@ function centerMapView(map: Map, center: [number, number], zoom: number) {
 
 async function geocodeProjectAddress(address: string) {
   try {
-    const response = await fetch(
-      `/api/geocode/project-address?q=${encodeURIComponent(address)}`,
-      {
-        cache: 'no-store',
-      },
-    );
+    const response = await fetch(`/api/geocode/project-address?q=${encodeURIComponent(address)}`, {
+      cache: 'no-store',
+    });
 
     if (!response.ok) {
       return null;
@@ -621,10 +610,7 @@ function createBasemapLayer() {
   return basemapFactories[BASEMAP_PROVIDER]();
 }
 
-function registerSpatialMapDebug(
-  map: Map,
-  source: VectorSource<Feature<Geometry>>,
-) {
+function registerSpatialMapDebug(map: Map, source: VectorSource<Feature<Geometry>>) {
   if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') {
     return;
   }

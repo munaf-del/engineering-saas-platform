@@ -61,8 +61,8 @@ export function NoiseVibrationStandardsBrowser() {
             Filters
           </CardTitle>
           <CardDescription>
-            Browse seeded NSW and commonly conditioned criteria by source, receiver, activity,
-            time period, and metric.
+            Browse seeded NSW and commonly conditioned criteria by source, receiver, activity, time
+            period, and metric.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -177,13 +177,23 @@ export function NoiseVibrationStandardsBrowser() {
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant={sourceGroup.source.publicationStatus === 'active' ? 'success' : 'warning'}>
+                    <Badge
+                      variant={
+                        sourceGroup.source.publicationStatus === 'active' ? 'success' : 'warning'
+                      }
+                    >
                       {formatStatus(sourceGroup.source.publicationStatus)}
                     </Badge>
-                    <Badge variant={sourceGroup.source.legalStatus === 'enforceable' ? 'success' : 'secondary'}>
+                    <Badge
+                      variant={
+                        sourceGroup.source.legalStatus === 'enforceable' ? 'success' : 'secondary'
+                      }
+                    >
                       {formatStatus(sourceGroup.source.legalStatus)}
                     </Badge>
-                    <Badge variant="outline">{formatStatus(sourceGroup.source.instrumentType)}</Badge>
+                    <Badge variant="outline">
+                      {formatStatus(sourceGroup.source.instrumentType)}
+                    </Badge>
                     {sourceGroup.source.notes?.toLowerCase().includes('commonly conditioned') ? (
                       <Badge variant="warning">Commonly conditioned in NSW</Badge>
                     ) : null}
@@ -195,12 +205,18 @@ export function NoiseVibrationStandardsBrowser() {
               </CardHeader>
               <CardContent className="space-y-5">
                 {sourceGroup.groups.map((group) => (
-                  <section key={`${sourceGroup.source.slug}-${group.group.slug}`} className="space-y-3">
+                  <section
+                    key={`${sourceGroup.source.slug}-${group.group.slug}`}
+                    className="space-y-3"
+                  >
                     <div className="border-b pb-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-base font-semibold">{group.group.title}</h2>
                         <Badge variant="outline">
-                          {labelFor(NOISE_VIBRATION_CRITERION_CATEGORY_OPTIONS, group.group.criterionCategory)}
+                          {labelFor(
+                            NOISE_VIBRATION_CRITERION_CATEGORY_OPTIONS,
+                            group.group.criterionCategory,
+                          )}
                         </Badge>
                         <Badge variant="secondary">
                           {labelFor(NOISE_VIBRATION_METRIC_OPTIONS, group.group.metric)}
@@ -273,8 +289,8 @@ function CriterionRowItem({ row }: { row: NoiseVibrationCriterionRow }) {
             <h3 className="font-medium">{row.label}</h3>
             <p className="text-xs text-muted-foreground">
               {row.source.shortName} · {row.source.jurisdiction} · {row.source.year} ·{' '}
-              {formatStatus(row.source.publicationStatus)} · {formatStatus(row.source.legalStatus)} ·{' '}
-              {formatStatus(row.source.instrumentType)}
+              {formatStatus(row.source.publicationStatus)} · {formatStatus(row.source.legalStatus)}{' '}
+              · {formatStatus(row.source.instrumentType)}
             </p>
           </div>
           <p className="text-sm font-semibold">{formatCriterionExpression(row)}</p>
@@ -290,7 +306,9 @@ function CriterionRowItem({ row }: { row: NoiseVibrationCriterionRow }) {
                 {labelFor(NOISE_VIBRATION_TIME_PERIOD_OPTIONS, row.timePeriod)}
               </Badge>
             ) : null}
-            <Badge variant="outline">{labelFor(NOISE_VIBRATION_METRIC_OPTIONS, row.group.metric)}</Badge>
+            <Badge variant="outline">
+              {labelFor(NOISE_VIBRATION_METRIC_OPTIONS, row.group.metric)}
+            </Badge>
             {row.workTypes.map((workType) => (
               <Badge key={workType} variant="outline">
                 {labelFor(NOISE_VIBRATION_WORK_TYPE_OPTIONS, workType)}
@@ -320,8 +338,7 @@ function groupCriteria(rows: NoiseVibrationCriterionRow[]) {
   >();
 
   for (const row of rows) {
-    const sourceGroup =
-      sourceMap.get(row.source.slug) ?? { source: row.source, groups: [] };
+    const sourceGroup = sourceMap.get(row.source.slug) ?? { source: row.source, groups: [] };
     let group = sourceGroup.groups.find((entry) => entry.group.id === row.group.id);
     if (!group) {
       group = { group: row.group, rows: [] };
@@ -387,7 +404,9 @@ function formatCriterionExpression(row: NoiseVibrationCriterionRow) {
   if (row.exceedanceAllowancePercent !== null) {
     parts.push(
       `${formatNumber(row.exceedanceAllowancePercent)}% exceedance allowance${
-        row.exceedanceWindowText ? ` over ${row.exceedanceWindowText.replace(/^5% of blasts over /, '')}` : ''
+        row.exceedanceWindowText
+          ? ` over ${row.exceedanceWindowText.replace(/^5% of blasts over /, '')}`
+          : ''
       }`,
     );
   }
@@ -399,7 +418,11 @@ function formatWorkingHours(row: NoiseVibrationCriterionRow) {
   const parts = [
     row.weekdayStart && row.weekdayEnd ? `Mon-Fri ${row.weekdayStart}-${row.weekdayEnd}` : null,
     row.saturdayStart && row.saturdayEnd ? `Sat ${row.saturdayStart}-${row.saturdayEnd}` : null,
-    row.sundayAllowed === false ? 'no Sunday work' : row.sundayAllowed === true ? 'Sunday allowed' : null,
+    row.sundayAllowed === false
+      ? 'no Sunday work'
+      : row.sundayAllowed === true
+        ? 'Sunday allowed'
+        : null,
     row.publicHolidayAllowed === false
       ? 'no public holiday work'
       : row.publicHolidayAllowed === true
@@ -433,10 +456,7 @@ function formatNumber(value: string | null) {
   return Number.isInteger(numeric) ? String(numeric) : String(numeric);
 }
 
-function labelFor<T extends string>(
-  options: ReadonlyArray<{ value: T; label: string }>,
-  value: T,
-) {
+function labelFor<T extends string>(options: ReadonlyArray<{ value: T; label: string }>, value: T) {
   return options.find((option) => option.value === value)?.label ?? formatStatus(value);
 }
 

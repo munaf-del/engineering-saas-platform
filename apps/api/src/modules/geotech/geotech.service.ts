@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import {
@@ -67,10 +63,7 @@ export class GeotechService {
     const where: Record<string, unknown> = {};
     if (classId) where.classId = classId;
     if (organisationId) {
-      where.OR = [
-        { organisationId },
-        { organisationId: null, isDemo: true },
-      ];
+      where.OR = [{ organisationId }, { organisationId: null, isDemo: true }];
     }
 
     const [data, total] = await Promise.all([
@@ -96,10 +89,7 @@ export class GeotechService {
     return ps;
   }
 
-  async createParameterSet(
-    organisationId: string | undefined,
-    dto: CreateGeotechParameterSetDto,
-  ) {
+  async createParameterSet(organisationId: string | undefined, dto: CreateGeotechParameterSetDto) {
     if (!dto.sourceStandard) {
       throw new BadRequestException('sourceStandard is required for traceability');
     }
@@ -169,9 +159,7 @@ export class GeotechService {
       if (typeof val === 'object' && val !== null) {
         const param = val as Record<string, unknown>;
         if (!param.unit) {
-          throw new BadRequestException(
-            `Parameter "${key}" is missing required "unit" field`,
-          );
+          throw new BadRequestException(`Parameter "${key}" is missing required "unit" field`);
         }
       }
     }

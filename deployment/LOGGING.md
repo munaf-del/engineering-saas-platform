@@ -58,12 +58,14 @@ Server-side logs go to Cloud Logging via stdout. Client-side logs stay in the br
 ## Cloud Logging Queries
 
 ### Find all logs for a request:
+
 ```
 resource.type="cloud_run_revision"
 jsonPayload.requestId="req-abc123"
 ```
 
 ### Find errors across all services:
+
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name=~"engplatform-"
@@ -71,6 +73,7 @@ severity>=ERROR
 ```
 
 ### Find slow API requests (>2s):
+
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="engplatform-api"
@@ -78,6 +81,7 @@ jsonPayload.duration_ms>2000
 ```
 
 ### Find failed calculations:
+
 ```
 resource.type="cloud_run_revision"
 resource.labels.service_name="engplatform-calc-engine"
@@ -87,11 +91,11 @@ jsonPayload.message=~"calculation"
 
 ## Health Checks
 
-| Service | Endpoint | Port | Checks |
-|---------|----------|------|--------|
-| API | `GET /api/v1/health` | 4000 | Database connectivity |
-| Calc Engine | `GET /health` | 8000 | Service liveness |
-| Web | `GET /` | 3000 | Next.js render |
+| Service     | Endpoint             | Port | Checks                |
+| ----------- | -------------------- | ---- | --------------------- |
+| API         | `GET /api/v1/health` | 4000 | Database connectivity |
+| Calc Engine | `GET /health`        | 8000 | Service liveness      |
+| Web         | `GET /`              | 3000 | Next.js render        |
 
 Cloud Run uses these for startup probes (allow slow starts) and liveness probes (detect stuck processes).
 
@@ -128,12 +132,12 @@ Terraform provisions a Cloud Monitoring dashboard (`modules/monitoring`) with:
 
 ## Alert Policies
 
-| Alert | Condition | Duration |
-|-------|-----------|----------|
-| API 5xx rate | > 5 errors/min | 5 min |
-| API latency p95 | > 2000ms | 5 min |
-| Calc engine errors | > 3 errors/min | 5 min |
-| Cloud SQL CPU | > 80% | 10 min |
-| Cloud SQL disk | > 85% | 5 min |
-| Queue backlog | > 100 tasks | 10 min |
-| API uptime | Fails 2 consecutive checks | 2 min |
+| Alert              | Condition                  | Duration |
+| ------------------ | -------------------------- | -------- |
+| API 5xx rate       | > 5 errors/min             | 5 min    |
+| API latency p95    | > 2000ms                   | 5 min    |
+| Calc engine errors | > 3 errors/min             | 5 min    |
+| Cloud SQL CPU      | > 80%                      | 10 min   |
+| Cloud SQL disk     | > 85%                      | 5 min    |
+| Queue backlog      | > 100 tasks                | 10 min   |
+| API uptime         | Fails 2 consecutive checks | 2 min    |

@@ -193,9 +193,7 @@ export default function AiSettingsPage() {
       <PageHeader
         title="AI Settings"
         description="Choose which model powers the floating Assistant and Agent (Beta) modes for this organisation."
-        badges={
-          currentOrg ? <Badge variant="outline">{currentOrg.name}</Badge> : undefined
-        }
+        badges={currentOrg ? <Badge variant="outline">{currentOrg.name}</Badge> : undefined}
         actions={
           canManage ? (
             <Button
@@ -237,10 +235,10 @@ export default function AiSettingsPage() {
               Assistant Runtime
             </CardTitle>
             <CardDescription>
-              Assistant mode can use OpenAI, Claude, Gemini, or DeepSeek, with
-              organisation-level credentials or safe environment fallback where available. Agent
-              mode remains OpenAI-only in this phase, and AI Reports indexing, extraction, and
-              retrieval also remain OpenAI-only in this pass.
+              Assistant mode can use OpenAI, Claude, Gemini, or DeepSeek, with organisation-level
+              credentials or safe environment fallback where available. Agent mode remains
+              OpenAI-only in this phase, and AI Reports indexing, extraction, and retrieval also
+              remain OpenAI-only in this pass.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -288,14 +286,10 @@ export default function AiSettingsPage() {
               helperText={
                 selectedAssistantProviderUnavailable
                   ? selectedAssistantProviderStatus.statusReason === 'credential_unusable'
-                    ? buildUnavailableAssistantModelHelperText(
-                        selectedAssistantProviderStatus,
-                      )
+                    ? buildUnavailableAssistantModelHelperText(selectedAssistantProviderStatus)
                     : 'This provider is currently unavailable, so assistant chat will not use this model until the provider becomes available again.'
                   : selectedAssistantProviderStatus.statusReason === 'credential_unusable'
-                    ? buildFallbackAssistantModelHelperText(
-                        selectedAssistantProviderStatus,
-                      )
+                    ? buildFallbackAssistantModelHelperText(selectedAssistantProviderStatus)
                     : selectedAssistantProviderStatus.statusReason === 'environment_fallback'
                       ? 'Assistant chat currently uses environment fallback for this provider.'
                       : aiRuntimeSettings.data
@@ -405,9 +399,7 @@ export default function AiSettingsPage() {
             </div>
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="font-medium">Assistant default</div>
-              <div className="mt-1 text-muted-foreground">
-                {settings.defaults.assistantModel}
-              </div>
+              <div className="mt-1 text-muted-foreground">{settings.defaults.assistantModel}</div>
             </div>
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="font-medium">Agent default</div>
@@ -421,7 +413,7 @@ export default function AiSettingsPage() {
       </div>
     </>
   );
-  }
+}
 
 function ModelSelectField({
   label,
@@ -451,11 +443,7 @@ function ModelSelectField({
         </SelectTrigger>
         <SelectContent>
           {options.map((model) => (
-            <SelectItem
-              key={model}
-              value={model}
-              disabled={disabledOptions?.[model] ?? false}
-            >
+            <SelectItem key={model} value={model} disabled={disabledOptions?.[model] ?? false}>
               {labels?.[model] ?? model}
             </SelectItem>
           ))}
@@ -543,10 +531,7 @@ function ProviderCredentialCard({
   );
 }
 
-function buildProviderStatusHelperText(
-  label: string,
-  status: AiAssistantProviderStatus,
-) {
+function buildProviderStatusHelperText(label: string, status: AiAssistantProviderStatus) {
   if (status.statusReason === 'organisation_credential') {
     return `${label} is configured for this organisation and ready for assistant chat.`;
   }
@@ -630,11 +615,9 @@ function buildAssistantRuntimeNotice({
 }) {
   if (selectedProvider !== activeProvider) {
     const issuePrefix =
-      selectedProviderStatus.credentialIssueReason ===
-      'stored_credential_cannot_be_decrypted'
+      selectedProviderStatus.credentialIssueReason === 'stored_credential_cannot_be_decrypted'
         ? `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted,`
-        : selectedProviderStatus.credentialIssueReason ===
-            'encryption_secret_unavailable'
+        : selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
           ? `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable,`
           : null;
 
@@ -652,11 +635,13 @@ function buildAssistantRuntimeNotice({
   ) {
     return {
       title: 'Environment fallback is active',
-      description: `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} ${buildCredentialIssueStatusMessage(selectedProviderStatus, {
-        withFallback:
-          'so assistant chat is using environment fallback right now.',
-        withoutFallback: 'and is currently unavailable.',
-      })}`,
+      description: `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} ${buildCredentialIssueStatusMessage(
+        selectedProviderStatus,
+        {
+          withFallback: 'so assistant chat is using environment fallback right now.',
+          withoutFallback: 'and is currently unavailable.',
+        },
+      )}`,
     };
   }
 
@@ -672,15 +657,16 @@ function buildAssistantRuntimeNotice({
       title:
         selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
           ? 'Credential secret unavailable'
-          : selectedProviderStatus.credentialIssueReason ===
-              'stored_credential_cannot_be_decrypted'
+          : selectedProviderStatus.credentialIssueReason === 'stored_credential_cannot_be_decrypted'
             ? 'Stored credential cannot be decrypted'
             : 'Stored credential is unusable',
-      description: `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} ${buildCredentialIssueStatusMessage(selectedProviderStatus, {
-        withFallback:
-          'so assistant chat is using environment fallback right now.',
-        withoutFallback: 'and no environment fallback is available.',
-      })}`,
+      description: `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} ${buildCredentialIssueStatusMessage(
+        selectedProviderStatus,
+        {
+          withFallback: 'so assistant chat is using environment fallback right now.',
+          withoutFallback: 'and no environment fallback is available.',
+        },
+      )}`,
     };
   }
 

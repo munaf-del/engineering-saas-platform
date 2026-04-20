@@ -42,10 +42,9 @@ import {
   type OrganisationAiAssistantCredentialStoreClient,
 } from './organisation-ai-assistant-credential-store.service';
 
-type OrganisationAiSettingsTransactionClient =
-  OrganisationAiAssistantCredentialStoreClient & {
-    organisation: Pick<PrismaService['organisation'], 'update'>;
-  };
+type OrganisationAiSettingsTransactionClient = OrganisationAiAssistantCredentialStoreClient & {
+  organisation: Pick<PrismaService['organisation'], 'update'>;
+};
 
 const ORGANISATION_BASE_SELECT = {
   id: true,
@@ -179,18 +178,11 @@ export class OrganisationsService {
       throw new NotFoundException('Organisation not found');
     }
 
-    const providerStatus = await this.resolveAssistantProviderStatus(
-      id,
-      metadataState.metadata,
-    );
+    const providerStatus = await this.resolveAssistantProviderStatus(id, metadataState.metadata);
     return buildOrganisationAiSettingsPayload(metadataState.metadata, fallback, providerStatus);
   }
 
-  async updateAiSettings(
-    id: string,
-    userId: string,
-    dto: UpdateOrganisationAiSettingsDto,
-  ) {
+  async updateAiSettings(id: string, userId: string, dto: UpdateOrganisationAiSettingsDto) {
     await this.assertRole(id, userId, ['owner', 'admin']);
 
     const fallback = this.resolveAiSettingsFallbacks();
@@ -206,17 +198,13 @@ export class OrganisationsService {
       );
     }
 
-    const currentSettings = getOrganisationAiSettingsFromMetadata(
-      metadataState.metadata,
-      fallback,
-    );
+    const currentSettings = getOrganisationAiSettingsFromMetadata(metadataState.metadata, fallback);
     await this.verifyAssistantProviderCredentialUpdates(dto);
     const hasCredentialUpdates = this.hasAssistantProviderCredentialUpdates(dto);
-    const nextLegacyCredentialRecords =
-      this.applyAssistantProviderCredentialCompatibilityUpdates(
-        metadataState.metadata,
-        dto,
-      );
+    const nextLegacyCredentialRecords = this.applyAssistantProviderCredentialCompatibilityUpdates(
+      metadataState.metadata,
+      dto,
+    );
     const currentMetadataWithCompatibility = mergeOrganisationMetadataWithAiSettings(
       metadataState.metadata,
       currentSettings,
@@ -245,21 +233,13 @@ export class OrganisationsService {
         select: { metadata: true },
       });
 
-      return buildOrganisationAiSettingsPayload(
-        updated.metadata,
-        fallback,
-        nextProviderStatus,
-      );
+      return buildOrganisationAiSettingsPayload(updated.metadata, fallback, nextProviderStatus);
     }
 
     return this.prisma.$transaction(async (tx) => {
       const transactionClient = tx as unknown as OrganisationAiSettingsTransactionClient;
 
-      await this.applyAssistantProviderCredentialUpdates(
-        id,
-        dto,
-        transactionClient,
-      );
+      await this.applyAssistantProviderCredentialUpdates(id, dto, transactionClient);
 
       const nextProviderStatus = await this.resolveAssistantProviderStatus(
         id,
@@ -284,11 +264,7 @@ export class OrganisationsService {
         select: { metadata: true },
       });
 
-      return buildOrganisationAiSettingsPayload(
-        updated.metadata,
-        fallback,
-        nextProviderStatus,
-      );
+      return buildOrganisationAiSettingsPayload(updated.metadata, fallback, nextProviderStatus);
     });
   }
 
@@ -307,12 +283,7 @@ export class OrganisationsService {
     });
   }
 
-  async addMember(
-    organisationId: string,
-    actorUserId: string,
-    targetUserId: string,
-    role: string,
-  ) {
+  async addMember(organisationId: string, actorUserId: string, targetUserId: string, role: string) {
     await this.assertRole(organisationId, actorUserId, ['owner', 'admin']);
 
     const targetUser = await this.prisma.user.findUnique({
@@ -369,11 +340,7 @@ export class OrganisationsService {
     });
   }
 
-  async removeMember(
-    organisationId: string,
-    actorUserId: string,
-    targetUserId: string,
-  ) {
+  async removeMember(organisationId: string, actorUserId: string, targetUserId: string) {
     await this.assertRole(organisationId, actorUserId, ['owner', 'admin']);
 
     if (actorUserId === targetUserId) {
@@ -629,13 +596,13 @@ export class OrganisationsService {
   private hasAssistantProviderCredentialUpdates(dto: UpdateOrganisationAiSettingsDto) {
     return Boolean(
       dto.openaiApiKey ||
-        dto.removeOpenaiApiKey ||
-        dto.anthropicApiKey ||
-        dto.removeAnthropicApiKey ||
-        dto.geminiApiKey ||
-        dto.removeGeminiApiKey ||
-        dto.deepseekApiKey ||
-        dto.removeDeepseekApiKey,
+      dto.removeOpenaiApiKey ||
+      dto.anthropicApiKey ||
+      dto.removeAnthropicApiKey ||
+      dto.geminiApiKey ||
+      dto.removeGeminiApiKey ||
+      dto.deepseekApiKey ||
+      dto.removeDeepseekApiKey,
     );
   }
 
@@ -644,8 +611,7 @@ export class OrganisationsService {
     currentSettings: OrganisationAiSettings,
     nextProviderStatus: AiAssistantProviderStatusMap,
   ) {
-    const nextAssistantProvider =
-      dto.assistantProvider ?? currentSettings.assistantProvider;
+    const nextAssistantProvider = dto.assistantProvider ?? currentSettings.assistantProvider;
 
     if (
       dto.assistantModel &&
@@ -677,9 +643,7 @@ export class OrganisationsService {
     };
   }
 
-  private async verifyAssistantProviderCredentialUpdates(
-    dto: UpdateOrganisationAiSettingsDto,
-  ) {
+  private async verifyAssistantProviderCredentialUpdates(dto: UpdateOrganisationAiSettingsDto) {
     this.assertCredentialUpdateFlagsAreValid(dto);
 
     if (dto.geminiApiKey) {
@@ -691,10 +655,7 @@ export class OrganisationsService {
     }
   }
 
-  private async verifyAssistantProviderCredential(
-    provider: AiAssistantProvider,
-    apiKey: string,
-  ) {
+  private async verifyAssistantProviderCredential(provider: AiAssistantProvider, apiKey: string) {
     const adapter = this.assistantProviderRegistry.getProvider(provider);
     if (!adapter.verifyCredential) {
       return;
@@ -709,11 +670,7 @@ export class OrganisationsService {
     }
   }
 
-  private async assertRole(
-    organisationId: string,
-    userId: string,
-    allowedRoles: string[],
-  ) {
+  private async assertRole(organisationId: string, userId: string, allowedRoles: string[]) {
     const membership = await this.assertMembership(organisationId, userId);
     if (!allowedRoles.includes(membership.role)) {
       throw new ForbiddenException('Insufficient role');

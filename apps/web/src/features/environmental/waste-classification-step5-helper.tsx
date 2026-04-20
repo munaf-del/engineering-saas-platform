@@ -76,7 +76,9 @@ export function WasteClassificationStep5Helper({
             <div key={item.title} className="rounded-lg border bg-background p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="font-medium">{item.title}</div>
-                {linkedReferences.length > 0 ? <Badge variant="outline">Linked sources</Badge> : null}
+                {linkedReferences.length > 0 ? (
+                  <Badge variant="outline">Linked sources</Badge>
+                ) : null}
               </div>
               <p className="mt-2 text-sm text-muted-foreground">{item.summary}</p>
               {linkedReferences.length > 0 ? (
@@ -93,7 +95,10 @@ export function WasteClassificationStep5Helper({
                         {reference.title}
                       </a>
                     ) : (
-                      <span key={reference.id} className="inline-flex rounded-full border px-3 py-1 text-xs">
+                      <span
+                        key={reference.id}
+                        className="inline-flex rounded-full border px-3 py-1 text-xs"
+                      >
                         {reference.title}
                       </span>
                     ),

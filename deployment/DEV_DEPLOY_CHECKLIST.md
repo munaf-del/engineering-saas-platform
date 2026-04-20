@@ -99,6 +99,7 @@
   gcloud auth configure-docker australia-southeast1-docker.pkg.dev
   ```
 - [ ] Build images from the repo root:
+
   ```bash
   REPO="australia-southeast1-docker.pkg.dev/engine-dev-487802/engplatform"
 
@@ -106,6 +107,7 @@
   docker build -f apps/web/Dockerfile -t ${REPO}/web:initial .
   docker build -f apps/calc-engine/Dockerfile -t ${REPO}/calc-engine:initial apps/calc-engine
   ```
+
 - [ ] Push images:
   ```bash
   docker push ${REPO}/api:initial
@@ -187,15 +189,15 @@
 
 ## Quick Reference: Key Outputs
 
-| Output | Command |
-|--------|---------|
-| API URL | `terraform output api_url` |
-| Web URL | `terraform output web_url` |
-| Calc Engine URL | `terraform output calc_engine_url` |
-| Registry | `terraform output artifact_registry` |
-| DB connection | `terraform output db_connection_name` |
-| DB instance | `terraform output db_instance_name` |
-| LB IP (if enabled) | `terraform output lb_ip_address` |
+| Output             | Command                               |
+| ------------------ | ------------------------------------- |
+| API URL            | `terraform output api_url`            |
+| Web URL            | `terraform output web_url`            |
+| Calc Engine URL    | `terraform output calc_engine_url`    |
+| Registry           | `terraform output artifact_registry`  |
+| DB connection      | `terraform output db_connection_name` |
+| DB instance        | `terraform output db_instance_name`   |
+| LB IP (if enabled) | `terraform output lb_ip_address`      |
 
 ## Related Documents
 

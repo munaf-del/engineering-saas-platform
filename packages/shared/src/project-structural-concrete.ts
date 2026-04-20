@@ -248,7 +248,8 @@ export function projectConcretePresetProfiles(): MultiPileProjectConcreteClass[]
     creepReferenceText: 'AS 3600:2018 Clause 3.1.8, Figure 3.1.8.3, Table 3.1.8.3',
     creepEnvironmentNotes:
       'Basic creep and final creep coefficients vary by environment, notional size, and concrete strength class.',
-    notes: 'Preset sourced from the attached AS 3600 material-property pages as editable project data.',
+    notes:
+      'Preset sourced from the attached AS 3600 material-property pages as editable project data.',
   }));
 }
 
@@ -352,7 +353,10 @@ export function projectConcretePresetMatchId(raw: unknown) {
   return numericMatch?.id ?? '';
 }
 
-export function normalizeProjectConcreteClass(raw: unknown, index = 0): MultiPileProjectConcreteClass {
+export function normalizeProjectConcreteClass(
+  raw: unknown,
+  index = 0,
+): MultiPileProjectConcreteClass {
   const source = concreteSourceRecord(raw);
   const hasRaw = raw !== null && typeof raw === 'object' && !Array.isArray(raw);
   const matchedPresetId = projectConcretePresetMatchId(source);
@@ -380,10 +384,16 @@ export function normalizeProjectConcreteClass(raw: unknown, index = 0): MultiPil
     overrideStandardValues: override,
   };
 
-  if (!row.overrideStandardValues && row.standardProfileId !== MULTI_PILE_MANUAL_STRUCTURAL_PROFILE_ID) {
+  if (
+    !row.overrideStandardValues &&
+    row.standardProfileId !== MULTI_PILE_MANUAL_STRUCTURAL_PROFILE_ID
+  ) {
     row = {
       ...row,
-      ...(applyProjectConcretePresetToRow({}, row.standardProfileId) as MultiPileProjectConcreteClass),
+      ...(applyProjectConcretePresetToRow(
+        {},
+        row.standardProfileId,
+      ) as MultiPileProjectConcreteClass),
       id: row.id,
       active: row.active,
       overrideStandardValues: false,
@@ -457,10 +467,14 @@ function toConcretePresetComparisonSource(raw: unknown) {
     standardProfileId: stringValue(source.standardProfileId),
     displayName: stringValue(source.displayName),
     fc_MPa,
-    fc_cube_MPa: nullableNumberValue(source.fc_cube_MPa) ?? fallbackMappedValue(fc_MPa, CONCRETE_CUBE_MAP),
-    fcm_MPa: nullableNumberValue(source.fcm_MPa) ?? fallbackMappedValue(fc_MPa, CONCRETE_MEAN_STRENGTH_MAP),
+    fc_cube_MPa:
+      nullableNumberValue(source.fc_cube_MPa) ?? fallbackMappedValue(fc_MPa, CONCRETE_CUBE_MAP),
+    fcm_MPa:
+      nullableNumberValue(source.fcm_MPa) ??
+      fallbackMappedValue(fc_MPa, CONCRETE_MEAN_STRENGTH_MAP),
     fcmi_MPa:
-      nullableNumberValue(source.fcmi_MPa) ?? fallbackMappedValue(fc_MPa, CONCRETE_IN_SITU_STRENGTH_MAP),
+      nullableNumberValue(source.fcmi_MPa) ??
+      fallbackMappedValue(fc_MPa, CONCRETE_IN_SITU_STRENGTH_MAP),
     fctf_MPa: nullableNumberValue(source.fctf_MPa) ?? concreteFlexuralTensile(fc_MPa),
     fct_MPa: nullableNumberValue(source.fct_MPa) ?? concreteUniaxialTensile(fc_MPa),
     Ec_MPa:
@@ -488,10 +502,7 @@ function concreteSourceRecord(raw: unknown) {
   return source;
 }
 
-function fallbackMappedValue(
-  fcValue: number | null,
-  map: Record<number, number>,
-): number | null {
+function fallbackMappedValue(fcValue: number | null, map: Record<number, number>): number | null {
   if (fcValue == null) {
     return null;
   }

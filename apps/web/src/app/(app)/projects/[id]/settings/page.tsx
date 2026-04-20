@@ -12,7 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PageLoading } from '@/components/loading';
 import { toast } from 'sonner';
 import { PROJECT_STATUSES } from '@eng/shared';
@@ -70,7 +76,10 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${id}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to project
         </Link>
       </div>
@@ -96,10 +105,14 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {PROJECT_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>
+                        <SelectItem key={s} value={s}>
+                          {s.replace('_', ' ')}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -107,10 +120,14 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2">
                   <Label>Standards Profile</Label>
                   <Select value={profileId} onValueChange={setProfileId}>
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
                     <SelectContent>
                       {profilesQuery.data?.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -126,7 +143,9 @@ export default function ProjectSettingsPage({ params }: { params: Promise<{ id: 
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="text-lg text-destructive">Danger Zone</CardTitle>
-            <CardDescription>Permanently delete this project and all associated data.</CardDescription>
+            <CardDescription>
+              Permanently delete this project and all associated data.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="destructive" onClick={handleDelete} disabled={remove.isPending}>

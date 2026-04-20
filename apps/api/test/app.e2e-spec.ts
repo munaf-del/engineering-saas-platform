@@ -87,10 +87,7 @@ describe('API E2E Tests', () => {
     });
 
     it('should reject duplicate email', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/register')
-        .send(testUser)
-        .expect(409);
+      await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser).expect(409);
     });
   });
 
@@ -164,9 +161,7 @@ describe('API E2E Tests', () => {
     });
 
     it('should reject unauthenticated request', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
     });
   });
 
@@ -198,9 +193,7 @@ describe('API E2E Tests', () => {
       expect(res.body.data).toBeDefined();
       expect(res.body.meta).toBeDefined();
       expect(res.body.meta.total).toBeGreaterThanOrEqual(1);
-      expect(res.body.data.some((o: { id: string }) => o.id === orgId)).toBe(
-        true,
-      );
+      expect(res.body.data.some((o: { id: string }) => o.id === orgId)).toBe(true);
     });
 
     it('GET /organisations/:id - should get org detail', async () => {
@@ -278,9 +271,7 @@ describe('API E2E Tests', () => {
 
       expect(res.body.data).toBeDefined();
       expect(res.body.meta).toBeDefined();
-      expect(
-        res.body.data.some((p: { id: string }) => p.id === projectId),
-      ).toBe(true);
+      expect(res.body.data.some((p: { id: string }) => p.id === projectId)).toBe(true);
     });
 
     it('GET /projects/:id - should get project detail', async () => {
@@ -664,21 +655,15 @@ describe('API E2E Tests', () => {
 
   describe('Standards Auth Guard', () => {
     it('GET /standards - should reject unauthenticated request', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/standards')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/standards').expect(401);
     });
 
     it('GET /standards/current - should reject unauthenticated request', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/standards/current')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/standards/current').expect(401);
     });
 
     it('GET /standards/:code - should reject unauthenticated request', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/standards/AS3600')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/v1/standards/AS3600').expect(401);
     });
 
     it('GET /standards - should allow authenticated request', async () => {
@@ -696,9 +681,7 @@ describe('API E2E Tests', () => {
 
   describe('Request ID Tracing', () => {
     it('should return x-request-id header on response', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/health')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
 
       expect(res.headers['x-request-id']).toBeDefined();
     });

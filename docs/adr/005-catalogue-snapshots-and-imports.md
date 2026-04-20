@@ -23,6 +23,7 @@ All catalogue data (steel sections, rebar sizes) is organized into **versioned c
 - `RebarCatalog` → contains `RebarSize` records
 
 Each catalog has:
+
 - A `name` + `version` (unique together)
 - A `status` lifecycle: `draft` → `active` → `superseded` → `archived`
 - A `snapshotHash` computed on activation for integrity verification
@@ -40,6 +41,7 @@ The import pipeline follows a strict workflow:
 6. **Rollback** — Delete the snapshot created by the import
 
 Key guarantees:
+
 - Imports create **new** catalog versions, never modifying existing ones
 - Projects pinned to a specific catalog version are unaffected by new imports
 - All imports are tracked in `ImportJob` with full audit trail
@@ -48,6 +50,7 @@ Key guarantees:
 ### Standards Registry
 
 Standards are modeled as:
+
 - `Standard` — parent entity (e.g., "AS 3600")
 - `StandardEdition` — specific edition (e.g., "2018, Amdt 2 (2021)")
 - `StandardsProfile` — org-level collection of pinned editions
@@ -58,6 +61,7 @@ All demo data is marked `is_demo = true` to distinguish from user data.
 ### Traceability Requirements
 
 All material properties, catalogue entries, and parameter sets require:
+
 - `sourceStandard` — which Australian Standard the data references
 - `sourceEdition` — which edition of that standard
 - `unit` — measurement unit for every property value

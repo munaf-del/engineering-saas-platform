@@ -174,11 +174,14 @@ export function ProjectAiSuggestionsContent({
         ) : null}
 
         {hasSuggestedContent || shouldShowAiReportsAction ? (
-          <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
-            On supported current pages, you review and apply these draft actions manually. They
-            only affect the current {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)}{' '}
-            draft on this page, never auto-save, never auto-run, and never change other pages.
-            Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+          <div
+            className="text-xs text-muted-foreground"
+            data-testid="project-ai-suggestions-footer"
+          >
+            On supported current pages, you review and apply these draft actions manually. They only
+            affect the current {resolveScalarDraftActionScopeLabel(draftActionAdapter.scope)} draft
+            on this page, never auto-save, never auto-run, and never change other pages. Unsaved
+            changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
           </div>
         ) : null}
       </div>
@@ -740,7 +743,8 @@ export function ProjectAiSuggestionsContent({
         <div className="text-xs text-muted-foreground" data-testid="project-ai-suggestions-footer">
           On supported current pages, you review and apply draft changes manually. They only stage
           the current draft on this page, never auto-save, never auto-run, and never change other
-          pages. Unsaved changes remain until you click {resolveSaveButtonLabel(draftActionAdapter.scope)}.
+          pages. Unsaved changes remain until you click{' '}
+          {resolveSaveButtonLabel(draftActionAdapter.scope)}.
         </div>
       ) : null}
     </div>

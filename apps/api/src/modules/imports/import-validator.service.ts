@@ -94,7 +94,9 @@ export class ImportValidatorService {
     if (!specs) {
       return {
         valid: false,
-        errors: [{ rowNumber: 0, message: `Unknown entity type: ${entityType}`, severity: 'error' }],
+        errors: [
+          { rowNumber: 0, message: `Unknown entity type: ${entityType}`, severity: 'error' },
+        ],
         validRows: [],
       };
     }
@@ -172,7 +174,14 @@ export class ImportValidatorService {
     }
 
     if (entityType === 'standards_registry') {
-      const validCategories = ['loading', 'concrete', 'steel', 'reinforcement', 'geotech', 'general'];
+      const validCategories = [
+        'loading',
+        'concrete',
+        'steel',
+        'reinforcement',
+        'geotech',
+        'general',
+      ];
       const cat = data['category'];
       if (cat && !validCategories.includes(String(cat))) {
         errors.push({
@@ -196,19 +205,43 @@ export class ImportValidatorService {
       const meta = data['_yamlMeta'] as Record<string, unknown> | undefined;
       if (meta) {
         if (!meta['standardCode']) {
-          errors.push({ rowNumber, field: 'standardCode', message: 'Missing required standardCode in YAML metadata', severity: 'error' });
+          errors.push({
+            rowNumber,
+            field: 'standardCode',
+            message: 'Missing required standardCode in YAML metadata',
+            severity: 'error',
+          });
         }
         if (!meta['version']) {
-          errors.push({ rowNumber, field: 'version', message: 'Missing required version in YAML metadata', severity: 'error' });
+          errors.push({
+            rowNumber,
+            field: 'version',
+            message: 'Missing required version in YAML metadata',
+            severity: 'error',
+          });
         }
         if (!meta['effectiveDate']) {
-          errors.push({ rowNumber, field: 'effectiveDate', message: 'Missing required effectiveDate in YAML metadata', severity: 'error' });
+          errors.push({
+            rowNumber,
+            field: 'effectiveDate',
+            message: 'Missing required effectiveDate in YAML metadata',
+            severity: 'error',
+          });
         }
         if (!meta['sourceDataset']) {
-          errors.push({ rowNumber, field: 'sourceDataset', message: 'Missing required sourceDataset in YAML metadata', severity: 'error' });
+          errors.push({
+            rowNumber,
+            field: 'sourceDataset',
+            message: 'Missing required sourceDataset in YAML metadata',
+            severity: 'error',
+          });
         }
       }
-      if (data['value'] === undefined && data['table'] === undefined && data['formula'] === undefined) {
+      if (
+        data['value'] === undefined &&
+        data['table'] === undefined &&
+        data['formula'] === undefined
+      ) {
         errors.push({
           rowNumber,
           field: 'value|table|formula',

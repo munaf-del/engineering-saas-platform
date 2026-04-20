@@ -18,11 +18,11 @@
 
 ### Phase 2 failure — Terraform init/validate
 
-| Symptom | Fix |
-|---------|-----|
-| `backend bucket does not exist` | Create the bucket (Phase 1 step) and re-run `terraform init` |
-| `provider version constraint` | Run `terraform init -upgrade` to fetch the latest matching provider |
-| Validation errors | Fix the `.tf` file and re-run `terraform validate` |
+| Symptom                         | Fix                                                                 |
+| ------------------------------- | ------------------------------------------------------------------- |
+| `backend bucket does not exist` | Create the bucket (Phase 1 step) and re-run `terraform init`        |
+| `provider version constraint`   | Run `terraform init -upgrade` to fetch the latest matching provider |
+| Validation errors               | Fix the `.tf` file and re-run `terraform validate`                  |
 
 No cloud resources exist yet — nothing to roll back.
 
@@ -30,13 +30,13 @@ No cloud resources exist yet — nothing to roll back.
 
 ### Phase 3 failure — Terraform apply
 
-| Symptom | Fix |
-|---------|-----|
-| API not enabled | Terraform enables APIs automatically, but propagation can take 60s. Wait and re-run `terraform apply`. |
-| Quota exceeded | Request quota increase in Console → IAM & Admin → Quotas, then re-apply |
-| Permission denied | Ensure your account has Owner role. Re-authenticate: `gcloud auth application-default login` |
-| Cloud SQL timeout | Cloud SQL takes 8–15 min. If it times out, just re-run `terraform apply` — it will pick up where it left off. |
-| Partial apply (some resources created) | Fix the error and re-run `terraform apply`. Terraform tracks created resources in state. |
+| Symptom                                | Fix                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| API not enabled                        | Terraform enables APIs automatically, but propagation can take 60s. Wait and re-run `terraform apply`.        |
+| Quota exceeded                         | Request quota increase in Console → IAM & Admin → Quotas, then re-apply                                       |
+| Permission denied                      | Ensure your account has Owner role. Re-authenticate: `gcloud auth application-default login`                  |
+| Cloud SQL timeout                      | Cloud SQL takes 8–15 min. If it times out, just re-run `terraform apply` — it will pick up where it left off. |
+| Partial apply (some resources created) | Fix the error and re-run `terraform apply`. Terraform tracks created resources in state.                      |
 
 **Nuclear option** — tear down everything and start fresh:
 
@@ -49,21 +49,21 @@ terraform destroy -var-file=environments/dev.tfvars
 
 ### Phase 4 failure — Secrets
 
-| Symptom | Fix |
-|---------|-----|
-| Secret not found | Re-run `terraform apply` — the secret-manager module creates them |
+| Symptom                   | Fix                                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret not found          | Re-run `terraform apply` — the secret-manager module creates them                                                                               |
 | DATABASE_URL has wrong IP | Wait for Cloud SQL to finish provisioning, then re-apply Terraform. The secret module reads the DB private IP from the cloud-sql module output. |
-| Want to rotate a secret | Add a new version: `echo -n "new-value" \| gcloud secrets versions add <secret-name> --data-file=-` |
+| Want to rotate a secret   | Add a new version: `echo -n "new-value" \| gcloud secrets versions add <secret-name> --data-file=-`                                             |
 
 ---
 
 ### Phase 5 failure — Docker build/push
 
-| Symptom | Fix |
-|---------|-----|
-| `unauthorized` on push | Re-run `gcloud auth configure-docker australia-southeast1-docker.pkg.dev` |
-| Build fails | Fix the Dockerfile or app code locally, rebuild, push again |
-| Wrong architecture | If building on Apple Silicon for Cloud Run (amd64), use: `docker build --platform linux/amd64 ...` |
+| Symptom                | Fix                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `unauthorized` on push | Re-run `gcloud auth configure-docker australia-southeast1-docker.pkg.dev`                          |
+| Build fails            | Fix the Dockerfile or app code locally, rebuild, push again                                        |
+| Wrong architecture     | If building on Apple Silicon for Cloud Run (amd64), use: `docker build --platform linux/amd64 ...` |
 
 No rollback needed — just fix and re-push. Artifact Registry accepts overwrites of the same tag.
 
@@ -71,11 +71,11 @@ No rollback needed — just fix and re-push. Artifact Registry accepts overwrite
 
 ### Phase 6 failure — Cloud Run update
 
-| Symptom | Fix |
-|---------|-----|
-| Image not found | Verify the image tag matches what you pushed. Check: `gcloud artifacts docker images list ...` |
-| Service crashes on start | Check logs: `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="engplatform-api"' --limit=20 --freshness=15m` |
-| Env vars / secrets misconfigured | Check the Cloud Run service env: `gcloud run services describe engplatform-api --region=australia-southeast1 --format=yaml` |
+| Symptom                          | Fix                                                                                                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image not found                  | Verify the image tag matches what you pushed. Check: `gcloud artifacts docker images list ...`                                                       |
+| Service crashes on start         | Check logs: `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="engplatform-api"' --limit=20 --freshness=15m` |
+| Env vars / secrets misconfigured | Check the Cloud Run service env: `gcloud run services describe engplatform-api --region=australia-southeast1 --format=yaml`                          |
 
 **Roll back a Cloud Run service:**
 
@@ -93,10 +93,10 @@ gcloud run services update-traffic engplatform-api \
 
 ### Phase 7 failure — Migrations
 
-| Symptom | Fix |
-|---------|-----|
-| Cloud Build fails | Check build logs: `gcloud builds log $(gcloud builds list --project=engine-dev-487802 --limit=1 --format='value(id)')` |
-| Migration SQL error | Fix the Prisma schema/migration locally, rebuild the API image, push, then re-run `./deployment/jobs/migrate.sh dev` |
+| Symptom             | Fix                                                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud Build fails   | Check build logs: `gcloud builds log $(gcloud builds list --project=engine-dev-487802 --limit=1 --format='value(id)')`                                      |
+| Migration SQL error | Fix the Prisma schema/migration locally, rebuild the API image, push, then re-run `./deployment/jobs/migrate.sh dev`                                        |
 | Can't connect to DB | Verify Cloud SQL has a private IP and the VPC connector is healthy. Check: `gcloud sql instances describe engplatform-db-dev --format="value(ipAddresses)"` |
 
 **If a migration left the DB in a bad state (dev only):**
@@ -116,12 +116,12 @@ gcloud sql backups restore <BACKUP_ID> --restore-instance=engplatform-db-dev
 
 ### Phase 8 failure — Smoke tests
 
-| Symptom | Fix |
-|---------|-----|
-| API returns 5xx | Check API logs (see Phase 6). Common cause: DATABASE_URL secret is wrong or DB not migrated. |
+| Symptom             | Fix                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| API returns 5xx     | Check API logs (see Phase 6). Common cause: DATABASE_URL secret is wrong or DB not migrated.           |
 | Web returns 502/503 | The container may still be starting. Wait 30s and retry. Check `NEXT_PUBLIC_API_URL` is set correctly. |
-| Calc engine 502 | Check calc-engine logs. Common cause: Python dependency missing or port mismatch. |
-| Connection refused | Cloud Run needs 1–2 min for the first cold start with min_instances=0. Retry after a pause. |
+| Calc engine 502     | Check calc-engine logs. Common cause: Python dependency missing or port mismatch.                      |
+| Connection refused  | Cloud Run needs 1–2 min for the first cold start with min_instances=0. Retry after a pause.            |
 
 **Quick service status sweep:**
 

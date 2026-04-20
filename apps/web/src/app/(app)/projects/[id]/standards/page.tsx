@@ -3,14 +3,31 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Pin, Plus, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { useProjectStandardAssignments, useAssignProjectStandard, useCurrentEditions } from '@/hooks/use-standards';
+import {
+  useProjectStandardAssignments,
+  useAssignProjectStandard,
+  useCurrentEditions,
+} from '@/hooks/use-standards';
 import { useProject } from '@/hooks/use-projects';
 import { PageHeader } from '@/components/page-header';
 import { StandardsBadge } from '@/components/standards-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PageLoading } from '@/components/loading';
@@ -31,12 +48,15 @@ export default function ProjectStandardsPage({ params }: { params: Promise<{ id:
   const assignedIds = new Set(assignments?.map((a) => a.standardEditionId) ?? []);
   const available = editions?.filter((e) => !assignedIds.has(e.id)) ?? [];
 
-  const assignmentsWithEditions = assignments?.map((a) => {
-    const edition = editions?.find((e) => e.id === a.standardEditionId);
-    return { ...a, edition };
-  }) ?? [];
+  const assignmentsWithEditions =
+    assignments?.map((a) => {
+      const edition = editions?.find((e) => e.id === a.standardEditionId);
+      return { ...a, edition };
+    }) ?? [];
 
-  const missingRulePacks = assignmentsWithEditions.filter((a) => a.edition && !a.edition.rulePackId);
+  const missingRulePacks = assignmentsWithEditions.filter(
+    (a) => a.edition && !a.edition.rulePackId,
+  );
   const hasAllRulePacks = missingRulePacks.length === 0 && assignmentsWithEditions.length > 0;
 
   async function handleAssign(e: React.FormEvent) {
@@ -55,7 +75,10 @@ export default function ProjectStandardsPage({ params }: { params: Promise<{ id:
   return (
     <>
       <div className="mb-4">
-        <Link href={`/projects/${id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${id}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to project
         </Link>
       </div>
@@ -78,9 +101,9 @@ export default function ProjectStandardsPage({ params }: { params: Promise<{ id:
           <AlertTitle>Missing Rule Packs</AlertTitle>
           <AlertDescription>
             The following assigned standards are missing approved rule packs:{' '}
-            <strong>{missingRulePacks.map((a) => a.edition?.code).join(', ')}</strong>.
-            Calculations using these standards may fail or produce limited results.
-            Import rule packs via standards administration.
+            <strong>{missingRulePacks.map((a) => a.edition?.code).join(', ')}</strong>. Calculations
+            using these standards may fail or produce limited results. Import rule packs via
+            standards administration.
           </AlertDescription>
         </Alert>
       )}
@@ -130,7 +153,10 @@ export default function ProjectStandardsPage({ params }: { params: Promise<{ id:
                 <CardTitle className="text-sm">{a.edition?.title ?? 'Unknown'}</CardTitle>
                 {a.edition?.status && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <Badge variant={a.edition.status === 'current' ? 'success' : 'secondary'} className="text-[10px]">
+                    <Badge
+                      variant={a.edition.status === 'current' ? 'success' : 'secondary'}
+                      className="text-[10px]"
+                    >
                       {a.edition.status}
                     </Badge>
                     {a.edition.status !== 'current' && (
@@ -152,22 +178,31 @@ export default function ProjectStandardsPage({ params }: { params: Promise<{ id:
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Standard</DialogTitle>
-            <DialogDescription>Select a standard edition to assign to this project.</DialogDescription>
+            <DialogDescription>
+              Select a standard edition to assign to this project.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssign} className="space-y-4">
             <Select value={selectedEdition} onValueChange={setSelectedEdition}>
-              <SelectTrigger><SelectValue placeholder="Select edition…" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select edition…" />
+              </SelectTrigger>
               <SelectContent>
                 {available.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.code} ({e.edition}){e.amendment ? ` ${e.amendment}` : ''}{e.rulePackId ? '' : ' — no rule pack'}
+                    {e.code} ({e.edition}){e.amendment ? ` ${e.amendment}` : ''}
+                    {e.rulePackId ? '' : ' — no rule pack'}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAssign(false)}>Cancel</Button>
-              <Button type="submit" disabled={!selectedEdition || assign.isPending}>Assign</Button>
+              <Button type="button" variant="outline" onClick={() => setShowAssign(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!selectedEdition || assign.isPending}>
+                Assign
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

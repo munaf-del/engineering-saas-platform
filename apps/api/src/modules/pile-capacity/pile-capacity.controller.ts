@@ -60,7 +60,9 @@ export class PileCapacityController {
     return this.pileCapacityService.create(projectId, dto);
   }
 
-  private requireOrgContext(user: RequestUser): asserts user is RequestUser & { organisationId: string } {
+  private requireOrgContext(
+    user: RequestUser,
+  ): asserts user is RequestUser & { organisationId: string } {
     if (!user.organisationId) {
       throw new ForbiddenException('Organisation context required.');
     }

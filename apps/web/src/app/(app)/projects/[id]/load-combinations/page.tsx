@@ -67,9 +67,14 @@ export default function LoadCombinationsPage({ params }: { params: Promise<{ id:
           <>
             <StandardsBadge code="AS/NZS 1170.0" edition="2002" />
             <Badge variant="outline">
-              {draft.loadCombinations.length} combination{draft.loadCombinations.length === 1 ? '' : 's'}
+              {draft.loadCombinations.length} combination
+              {draft.loadCombinations.length === 1 ? '' : 's'}
             </Badge>
-            {isDirty ? <Badge variant="warning">Unsaved changes</Badge> : <Badge variant="success">Saved</Badge>}
+            {isDirty ? (
+              <Badge variant="warning">Unsaved changes</Badge>
+            ) : (
+              <Badge variant="success">Saved</Badge>
+            )}
           </>
         }
         actions={
@@ -87,8 +92,8 @@ export default function LoadCombinationsPage({ params }: { params: Promise<{ id:
         <CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
           <Layers className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Load combinations are owned at the project level and reference the project load cases. Multi-Pile
-            consumes these combinations, but it is no longer the editing source of truth.
+            Load combinations are owned at the project level and reference the project load cases.
+            Multi-Pile consumes these combinations, but it is no longer the editing source of truth.
           </p>
         </CardContent>
       </Card>

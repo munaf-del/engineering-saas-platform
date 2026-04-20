@@ -438,11 +438,17 @@ export function buildJointLoadImportWorkbookData({
 
   const referenceRows: Array<Array<string | number>> = [
     ['Reference'],
-    ['What goes in `loadCase`? Use one of the canonical tokens below. Also accepted aliases are listed where applicable.'],
+    [
+      'What goes in `loadCase`? Use one of the canonical tokens below. Also accepted aliases are listed where applicable.',
+    ],
     ['What goes in `pileType`? Use one of the exact pile type codes below.'],
     ['Are zeros allowed? Yes. Enter 0 to keep zero. Leave blank to keep blank / unassigned.'],
-    ['How do repeated rows work? One row = one joint + one load case. Repeat the same joint fields across each loadCase row for the same joint.'],
-    ['Descriptive text like `Permanent` is not accepted unless your project explicitly lists it as an alias below.'],
+    [
+      'How do repeated rows work? One row = one joint + one load case. Repeat the same joint fields across each loadCase row for the same joint.',
+    ],
+    [
+      'Descriptive text like `Permanent` is not accepted unless your project explicitly lists it as an alias below.',
+    ],
     [],
     ['Accepted pile type codes'],
     ['pileType', 'UI label', 'Active'],
@@ -478,9 +484,7 @@ export function buildJointLoadImportWorkbookData({
 
   const sampleRows: Array<Array<string | number>> = [
     ['Examples only'],
-    [
-      'One row = one joint + one load case.',
-    ],
+    ['One row = one joint + one load case.'],
     [
       'Repeat the same jointId/jointLabel/x/y/z/supports/pileType/active across multiple loadCase rows for the same joint.',
     ],
@@ -524,12 +528,13 @@ export function buildJointLoadImportReferenceData({
     .sort((left, right) => left.order - right.order)
     .map((loadCase) => {
       const calculatorPattern = loadPatternById.get(loadCase.id);
-      const canonicalToken = firstImportToken(
-        loadCase.id,
-        calculatorPattern?.id,
-        loadCase.name,
-        calculatorPattern?.displayName,
-      ) || loadCase.id;
+      const canonicalToken =
+        firstImportToken(
+          loadCase.id,
+          calculatorPattern?.id,
+          loadCase.name,
+          calculatorPattern?.displayName,
+        ) || loadCase.id;
       const acceptedTokens = uniqueImportTokens([
         canonicalToken,
         ...collectLoadCaseAliasTokens(loadCase, calculatorPattern?.displayName),
@@ -808,9 +813,7 @@ function buildDuplicatedVisibleCodeAlias(loadCase: ProjectLoadCase) {
 
 function readMetadataImportTokens(metadata: ProjectLoadCase['metadata']) {
   const record =
-    metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-      ? metadata
-      : {};
+    metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
 
   return uniqueImportTokens([
     ...stringArrayValue(record.importAliases),
@@ -823,9 +826,7 @@ function readMetadataImportTokens(metadata: ProjectLoadCase['metadata']) {
 
 function stringArrayValue(value: unknown) {
   if (Array.isArray(value)) {
-    return value
-      .map((entry) => String(entry ?? '').trim())
-      .filter(Boolean);
+    return value.map((entry) => String(entry ?? '').trim()).filter(Boolean);
   }
 
   const text = String(value ?? '').trim();

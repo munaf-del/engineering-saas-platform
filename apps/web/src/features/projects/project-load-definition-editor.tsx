@@ -1,17 +1,26 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
-import type {
-  ProjectLoadCase,
-  ProjectLoadCombination,
-  ProjectLoadDefinition,
-} from '@eng/shared';
+import type { ProjectLoadCase, ProjectLoadCombination, ProjectLoadDefinition } from '@eng/shared';
 import { MULTI_PILE_PATTERN_TYPES } from '@eng/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { nextId, numberFromInput } from '@/features/multi-pile/utils';
 
 type ProjectLoadEditorSection = 'settings' | 'load-cases' | 'load-combinations';
@@ -134,10 +143,11 @@ export function ProjectLoadDefinitionEditor({
           return row;
         }
 
-        const filteredFactors = (row.factors ?? []).filter((term) => term.loadCaseId !== loadCaseId);
-        const nextFactors = Math.abs(factor) > 1e-9
-          ? [...filteredFactors, { loadCaseId, factor }]
-          : filteredFactors;
+        const filteredFactors = (row.factors ?? []).filter(
+          (term) => term.loadCaseId !== loadCaseId,
+        );
+        const nextFactors =
+          Math.abs(factor) > 1e-9 ? [...filteredFactors, { loadCaseId, factor }] : filteredFactors;
 
         return {
           ...row,
@@ -158,7 +168,8 @@ export function ProjectLoadDefinitionEditor({
           <CardHeader>
             <CardTitle className="text-base">Project Load Settings</CardTitle>
             <CardDescription>
-              Project-level factors that drive the built-in load combinations and minimum permanent case.
+              Project-level factors that drive the built-in load combinations and minimum permanent
+              case.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-4">
@@ -364,7 +375,8 @@ export function ProjectLoadDefinitionEditor({
             <CardHeader>
               <CardTitle className="text-base">Built-In Load Combinations</CardTitle>
               <CardDescription>
-                Built-in rows are preserved and recalculated from the current project settings when you save.
+                Built-in rows are preserved and recalculated from the current project settings when
+                you save.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -385,7 +397,9 @@ export function ProjectLoadDefinitionEditor({
                       <TableCell className="text-xs text-muted-foreground">
                         {row.reference ?? row.builtinKey}
                       </TableCell>
-                      <TableCell className="text-xs">{row.expressionSummary || row.builtinKey}</TableCell>
+                      <TableCell className="text-xs">
+                        {row.expressionSummary || row.builtinKey}
+                      </TableCell>
                       <TableCell>
                         <input
                           type="checkbox"
@@ -432,7 +446,8 @@ export function ProjectLoadDefinitionEditor({
               <div>
                 <CardTitle className="text-base">Custom Load Combinations</CardTitle>
                 <CardDescription>
-                  Project-owned custom rows are reusable across calculators and feed the same envelope runs.
+                  Project-owned custom rows are reusable across calculators and feed the same
+                  envelope runs.
                 </CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={addCustomCombination}>
@@ -529,7 +544,11 @@ export function ProjectLoadDefinitionEditor({
                           {summarizeProjectLoadCombination(row)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => removeCustomCombination(row.id)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeCustomCombination(row.id)}
+                          >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>

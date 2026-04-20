@@ -15,8 +15,7 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('@/hooks/use-waste-classification', () => ({
-  useWasteClassificationReport: (...args: unknown[]) =>
-    mockUseWasteClassificationReport(...args),
+  useWasteClassificationReport: (...args: unknown[]) => mockUseWasteClassificationReport(...args),
 }));
 
 vi.mock('@/features/projects/project-specifics-adapter', () => ({
@@ -60,10 +59,9 @@ vi.mock('@/components/ui/badge', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({
-    children,
-    ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
 }));
 
 vi.mock('@/components/ui/card', () => ({
@@ -215,7 +213,8 @@ function buildReportFixture(): ProjectWasteClassificationReport {
         supportingReasoning: 'ASS screening remains relevant to the excavation area.',
         linkedReferenceId: null,
         assClass: 'class_2',
-        assClassSource: 'Auto-filled from NSW Planning Portal ASS layer using project address geocode.',
+        assClassSource:
+          'Auto-filled from NSW Planning Portal ASS layer using project address geocode.',
         projectLocationNote: 'Lookup point derived from project address geocode.',
         treatmentManagementNote: 'Keep treatment notes aligned with Step 5.',
         step5ChemicalAssessmentApplies: true,

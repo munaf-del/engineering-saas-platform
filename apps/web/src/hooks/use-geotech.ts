@@ -5,15 +5,17 @@ import type { GeotechMaterialClass, GeotechParameterSet } from '@eng/shared';
 export function useGeotechClasses() {
   return useQuery({
     queryKey: ['geotech', 'classes'],
-    queryFn: () =>
-      api<{ data: GeotechMaterialClass[] }>('/geotech/classes').then((r) => r.data),
+    queryFn: () => api<{ data: GeotechMaterialClass[] }>('/geotech/classes').then((r) => r.data),
   });
 }
 
 export function useGeotechParameters(page = 1, limit = 20) {
   return useQuery({
     queryKey: ['geotech', 'parameters', page, limit],
-    queryFn: () => api<{ data: GeotechParameterSet[]; meta: Record<string, number> }>('/geotech/parameters', { params: { page, limit } }),
+    queryFn: () =>
+      api<{ data: GeotechParameterSet[]; meta: Record<string, number> }>('/geotech/parameters', {
+        params: { page, limit },
+      }),
   });
 }
 

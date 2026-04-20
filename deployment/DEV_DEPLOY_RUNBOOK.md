@@ -9,13 +9,13 @@
 
 **What you need on your machine:**
 
-| Tool | Minimum version | Check command |
-|------|----------------|---------------|
-| Terraform | 1.7 | `terraform version` |
-| gcloud CLI | Latest | `gcloud version` |
-| Docker Desktop | Running | `docker info` |
-| Node.js | 20.x | `node -v` |
-| Python | 3.12 | `python3 --version` |
+| Tool           | Minimum version | Check command       |
+| -------------- | --------------- | ------------------- |
+| Terraform      | 1.7             | `terraform version` |
+| gcloud CLI     | Latest          | `gcloud version`    |
+| Docker Desktop | Running         | `docker info`       |
+| Node.js        | 20.x            | `node -v`           |
+| Python         | 3.12            | `python3 --version` |
 
 **What you need in GCP:**
 
@@ -38,7 +38,7 @@ Verify: `gcloud config get project` should print `engine-dev-487802`.
 
 ## Step 2: Create the Terraform State Bucket (~1 min)
 
-This bucket stores Terraform's knowledge of what it has already created. It must exist *before* `terraform init`.
+This bucket stores Terraform's knowledge of what it has already created. It must exist _before_ `terraform init`.
 
 ```bash
 gsutil mb -p engine-dev-487802 -l australia-southeast1 gs://engplatform-terraform-state
@@ -73,6 +73,7 @@ terraform plan -var-file=environments/dev.tfvars -out=dev.tfplan
 - No errors.
 
 Read through the plan. The major resources are:
+
 - VPC + subnet + VPC connector
 - 5 service accounts + IAM bindings
 - Artifact Registry repository
@@ -228,6 +229,7 @@ curl -sf "${CALC_URL}/health" | jq .
 ```
 
 **Expected results:**
+
 - API: `{ "status": "ok" }` (or similar)
 - Web: `HTTP 200`
 - Calc Engine: `{ "status": "ok" }`

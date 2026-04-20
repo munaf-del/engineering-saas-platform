@@ -3,8 +3,13 @@ import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const ENTITY_TYPES = [
-  'steel_section', 'rebar_size', 'material', 'geotech_parameter',
-  'standards_registry', 'load_combination_rules', 'pile_design_rules',
+  'steel_section',
+  'rebar_size',
+  'material',
+  'geotech_parameter',
+  'standards_registry',
+  'load_combination_rules',
+  'pile_design_rules',
 ] as const;
 const FORMATS = ['csv', 'xlsx', 'json', 'yaml'] as const;
 

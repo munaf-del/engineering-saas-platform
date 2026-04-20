@@ -1,16 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { CreateStandardDto, UpdateStandardDto } from './dto/create-standard.dto';
 import { CreateStandardEditionDto } from './dto/create-standard-edition.dto';
-import {
-  CreateStandardsProfileDto,
-  UpdateStandardsProfileDto,
-} from './dto/standards-profile.dto';
+import { CreateStandardsProfileDto, UpdateStandardsProfileDto } from './dto/standards-profile.dto';
 
 @Injectable()
 export class StandardsService {
@@ -200,11 +193,7 @@ export class StandardsService {
     });
   }
 
-  async updateProfile(
-    id: string,
-    organisationId: string,
-    dto: UpdateStandardsProfileDto,
-  ) {
+  async updateProfile(id: string, organisationId: string, dto: UpdateStandardsProfileDto) {
     await this.assertProfileExists(id, organisationId);
     return this.prisma.standardsProfile.update({
       where: { id },
@@ -250,11 +239,7 @@ export class StandardsService {
     return this.prisma.pinnedStandard.delete({ where: { id: pin.id } });
   }
 
-  async bulkPinStandards(
-    profileId: string,
-    organisationId: string,
-    editionIds: string[],
-  ) {
+  async bulkPinStandards(profileId: string, organisationId: string, editionIds: string[]) {
     await this.assertProfileExists(profileId, organisationId);
 
     const editions = await this.prisma.standardEdition.findMany({
@@ -311,11 +296,7 @@ export class StandardsService {
     });
   }
 
-  async removeProjectAssignment(
-    projectId: string,
-    organisationId: string,
-    editionId: string,
-  ) {
+  async removeProjectAssignment(projectId: string, organisationId: string, editionId: string) {
     await this.assertProjectInOrg(projectId, organisationId);
 
     const assignment = await this.prisma.projectStandardAssignment.findUnique({

@@ -55,7 +55,10 @@ export function useSubmitCalculation(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      api<CalculationRun>(`/projects/${projectId}/calculations/run`, { method: 'POST', body: data }),
+      api<CalculationRun>(`/projects/${projectId}/calculations/run`, {
+        method: 'POST',
+        body: data,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'calculations'] }),
   });
 }

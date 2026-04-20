@@ -39,7 +39,10 @@ export function MultiPileSectionSketch({ type, settings, className }: MultiPileV
   const size = 260;
   const center = size / 2;
   const radius = 104;
-  const coverRatio = Math.min(0.35, Math.max(0.05, settings.cover / Math.max(1, nominalDiameterMm)));
+  const coverRatio = Math.min(
+    0.35,
+    Math.max(0.05, settings.cover / Math.max(1, nominalDiameterMm)),
+  );
   const barRingRadius = radius * (1 - coverRatio) - 10;
   const barRadius = Math.max(4, Math.min(10, settings.barDia / 3.5));
   const perimeterBars = Array.from({ length: Math.max(0, settings.nBars) }, (_, index) => {

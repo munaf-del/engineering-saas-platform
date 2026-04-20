@@ -100,7 +100,9 @@ export class CalculationsController {
     return this.orchestrationService.submitCalculation(projectId, user.id, dto);
   }
 
-  private requireOrgContext(user: RequestUser): asserts user is RequestUser & { organisationId: string } {
+  private requireOrgContext(
+    user: RequestUser,
+  ): asserts user is RequestUser & { organisationId: string } {
     if (!user.organisationId) {
       throw new ForbiddenException('Organisation context required.');
     }

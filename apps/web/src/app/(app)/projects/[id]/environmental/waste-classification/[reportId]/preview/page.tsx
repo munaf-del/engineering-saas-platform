@@ -58,11 +58,5 @@ export default function ProjectWasteClassificationPreviewPage({
     );
   }
 
-  return (
-    <WasteClassificationPreview
-      projectId={projectId}
-      reportId={reportId}
-      project={project}
-    />
-  );
+  return <WasteClassificationPreview projectId={projectId} reportId={reportId} project={project} />;
 }

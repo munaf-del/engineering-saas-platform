@@ -145,9 +145,16 @@ export class SubmitCalculationDto {
   @ApiProperty({
     example: 'pile_capacity',
     enum: [
-      'pile_capacity', 'pile_settlement', 'pile_lateral', 'pile_group',
-      'beam_check', 'column_check', 'connection_check', 'footing_check',
-      'retaining_wall', 'bearing_capacity',
+      'pile_capacity',
+      'pile_settlement',
+      'pile_lateral',
+      'pile_group',
+      'beam_check',
+      'column_check',
+      'connection_check',
+      'footing_check',
+      'retaining_wall',
+      'bearing_capacity',
     ],
   })
   @IsString()

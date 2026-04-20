@@ -29,10 +29,10 @@ export function defaultProjectLoadDefinition(): ProjectLoadDefinition {
 export function extractProjectLoadDefinition(project?: Project | null): ProjectLoadDefinition {
   const metadata = project?.metadata;
   if (
-    metadata
-    && typeof metadata === 'object'
-    && !Array.isArray(metadata)
-    && 'projectLoadDefinition' in metadata
+    metadata &&
+    typeof metadata === 'object' &&
+    !Array.isArray(metadata) &&
+    'projectLoadDefinition' in metadata
   ) {
     const parsed = ProjectLoadDefinitionSchema.safeParse(metadata.projectLoadDefinition);
     if (parsed.success) {

@@ -59,10 +59,6 @@ export default function ProjectEnvironmentalMonitoringDetailPage({
   }
 
   return (
-    <EnvironmentalMonitoringWorkspace
-      projectId={projectId}
-      reportId={reportId}
-      project={project}
-    />
+    <EnvironmentalMonitoringWorkspace projectId={projectId} reportId={reportId} project={project} />
   );
 }

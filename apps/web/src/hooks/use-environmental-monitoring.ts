@@ -26,7 +26,8 @@ export function useEnvironmentalMonitoringReports(projectId: string) {
 export function useEnvironmentalMonitoringReport(projectId: string, reportId: string) {
   return useQuery({
     queryKey: monitoringDetailQueryKey(projectId, reportId),
-    queryFn: () => api<ProjectEnvironmentalMonitoringReport>(monitoringReportPath(projectId, reportId)),
+    queryFn: () =>
+      api<ProjectEnvironmentalMonitoringReport>(monitoringReportPath(projectId, reportId)),
     enabled: !!projectId && !!reportId,
   });
 }
@@ -90,17 +91,17 @@ export function useCreateEnvironmentalMonitoringReference(projectId: string, rep
 }
 
 export function useUpdateEnvironmentalMonitoringReference(projectId: string, reportId: string) {
-  return useMonitoringDetailMutation<{ id: string; data: ProjectEnvironmentalMonitoringReferenceInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectEnvironmentalMonitoringReport>(
-        `${monitoringReportPath(projectId, reportId)}/references/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useMonitoringDetailMutation<{
+    id: string;
+    data: ProjectEnvironmentalMonitoringReferenceInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/references/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -129,17 +130,17 @@ export function useCreateEnvironmentalMonitoringLocation(projectId: string, repo
 }
 
 export function useUpdateEnvironmentalMonitoringLocation(projectId: string, reportId: string) {
-  return useMonitoringDetailMutation<{ id: string; data: ProjectEnvironmentalMonitoringLocationInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectEnvironmentalMonitoringReport>(
-        `${monitoringReportPath(projectId, reportId)}/locations/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useMonitoringDetailMutation<{
+    id: string;
+    data: ProjectEnvironmentalMonitoringLocationInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/locations/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 
@@ -294,17 +295,17 @@ export function useCreateEnvironmentalMonitoringObservation(projectId: string, r
 }
 
 export function useUpdateEnvironmentalMonitoringObservation(projectId: string, reportId: string) {
-  return useMonitoringDetailMutation<{ id: string; data: ProjectEnvironmentalMonitoringObservationInput }>(
-    projectId,
-    reportId,
-    ({ id, data }) =>
-      api<ProjectEnvironmentalMonitoringReport>(
-        `${monitoringReportPath(projectId, reportId)}/observations/${id}`,
-        {
-          method: 'PATCH',
-          body: data,
-        },
-      ),
+  return useMonitoringDetailMutation<{
+    id: string;
+    data: ProjectEnvironmentalMonitoringObservationInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/observations/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
   );
 }
 

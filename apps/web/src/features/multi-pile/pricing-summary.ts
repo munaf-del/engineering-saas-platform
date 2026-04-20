@@ -154,7 +154,9 @@ export function buildPricingSummaryData({
 
   const pileRows = derivedRows.map((row) => {
     const pileType = pileTypesById.get(row.pileTypeId) ?? null;
-    const rawStructSelection = pileType ? (storedStructSelectionsByTypeId[pileType.id] ?? null) : null;
+    const rawStructSelection = pileType
+      ? (storedStructSelectionsByTypeId[pileType.id] ?? null)
+      : null;
     const hasStoredStructSelection = hasStoredStructSelectionValue(rawStructSelection);
     const settings =
       pileType && hasStoredStructSelection
@@ -228,9 +230,7 @@ export function buildPricingSummaryData({
       typicalSocketMaterial: mostCommon(rowsForType.map((row) => row.foundingSocketMaterial)),
       typicalSocketLength: mostCommon(rowsForType.map((row) => row.adoptedSocketLength)),
       typicalCageLength: mostCommon(rowsForType.map((row) => row.cageLength)),
-      structuralSectionSummary: mostCommon(
-        rowsForType.map((row) => row.structuralSectionSummary),
-      ),
+      structuralSectionSummary: mostCommon(rowsForType.map((row) => row.structuralSectionSummary)),
       elevationSummary: mostCommon(rowsForType.map((row) => row.elevationSummary)),
     };
   });
@@ -427,11 +427,11 @@ function resolveStructInputs(
   projectSpecifics: MultiPileProjectSpecifics,
   settings: MultiPileStructTypeSettings,
 ): RawPricingStructInputs {
-  const concreteRows = projectSpecifics.structuralDefaults.concreteClasses.map(
-    (row) => resolvePricingConcreteClass(row),
+  const concreteRows = projectSpecifics.structuralDefaults.concreteClasses.map((row) =>
+    resolvePricingConcreteClass(row),
   );
-  const tendonRows = projectSpecifics.structuralDefaults.tendonGrades.map(
-    (row) => resolvePricingTendonGrade(row),
+  const tendonRows = projectSpecifics.structuralDefaults.tendonGrades.map((row) =>
+    resolvePricingTendonGrade(row),
   );
   const coverRows = projectSpecifics.structuralDefaults.coverDurabilityClasses.map((row) =>
     normalizeProjectCoverClass(row),
@@ -587,7 +587,9 @@ function deriveCageLengthSummary(settings: MultiPileStructTypeSettings): CageLen
     return {
       label: 'No cage',
       belowHeadLabel: 'None',
-      centralContinuation: hasCentral ? 'Central bars only (no perimeter cage)' : 'No reinforcement',
+      centralContinuation: hasCentral
+        ? 'Central bars only (no perimeter cage)'
+        : 'No reinforcement',
     };
   }
 
@@ -599,9 +601,7 @@ function deriveCageLengthSummary(settings: MultiPileStructTypeSettings): CageLen
       return {
         label: `${formatMeters(cutDepth + developmentLength)} (cut-off ${formatMaybeNumber(cutDepth)} + Ld ${formatMaybeNumber(developmentLength)})`,
         belowHeadLabel: formatMeters(cutDepth + developmentLength),
-        centralContinuation: hasCentral
-          ? 'Central bars continue below perimeter cage'
-          : '',
+        centralContinuation: hasCentral ? 'Central bars continue below perimeter cage' : '',
       };
     }
 
@@ -609,18 +609,14 @@ function deriveCageLengthSummary(settings: MultiPileStructTypeSettings): CageLen
       return {
         label: 'Partially defined (Ld missing)',
         belowHeadLabel: 'Partially defined',
-        centralContinuation: hasCentral
-          ? 'Central bars continue below perimeter cage'
-          : '',
+        centralContinuation: hasCentral ? 'Central bars continue below perimeter cage' : '',
       };
     }
 
     return {
       label: 'Not fully defined',
       belowHeadLabel: 'Not fully defined',
-      centralContinuation: hasCentral
-        ? 'Central bars continue below perimeter cage'
-        : '',
+      centralContinuation: hasCentral ? 'Central bars continue below perimeter cage' : '',
     };
   }
 
@@ -713,12 +709,7 @@ type GeoPricingInputs = {
     | 'authored-material'
     | 'missing-project-material'
     | 'unresolved';
-  socketLengthSource:
-    | 'stored-result'
-    | 'manual'
-    | 'adopted'
-    | 'solved'
-    | 'unresolved';
+  socketLengthSource: 'stored-result' | 'manual' | 'adopted' | 'solved' | 'unresolved';
   hasFoundingMaterialSource: boolean;
   hasSocketLengthSource: boolean;
   usesStoredGeoResult: boolean;
@@ -754,13 +745,12 @@ function resolveGeoPricingInputs({
       : authoredFoundingMaterial.selectedMaterialId
         ? 'missing-project-material'
         : 'unresolved';
-  const socketLengthSource = storedSocketLength
-    ? 'stored-result'
-    : authoredSocketLength.source;
-  const foundingSocketMaterialLabel = storedFoundingMaterialLabel
-    || authoredFoundingMaterial.label
-    || authoredFoundingMaterial.selectedMaterialId
-    || PENDING_VALUE;
+  const socketLengthSource = storedSocketLength ? 'stored-result' : authoredSocketLength.source;
+  const foundingSocketMaterialLabel =
+    storedFoundingMaterialLabel ||
+    authoredFoundingMaterial.label ||
+    authoredFoundingMaterial.selectedMaterialId ||
+    PENDING_VALUE;
   const adoptedSocketLengthLabel =
     storedSocketLength || authoredSocketLength.label || PENDING_VALUE;
 
@@ -852,8 +842,8 @@ function buildStatusNotes({
     notes.push(FOUNDING_MATERIAL_PENDING);
   }
   if (
-    geoPricingInputs.socketLengthSource === 'unresolved'
-    || (geoResult?.status === 'pending' && !geoPricingInputs.usesStoredGeoResult)
+    geoPricingInputs.socketLengthSource === 'unresolved' ||
+    (geoResult?.status === 'pending' && !geoPricingInputs.usesStoredGeoResult)
   ) {
     notes.push(SOCKET_PENDING_STATUS);
   }

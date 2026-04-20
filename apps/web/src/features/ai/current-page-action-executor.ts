@@ -15,8 +15,7 @@ export const CURRENT_PAGE_ACTION_EXECUTION_RESULT_STATUSES = [
   'failed_apply',
 ] as const;
 
-export type CurrentPageActionOverwriteMode =
-  (typeof CURRENT_PAGE_ACTION_OVERWRITE_MODES)[number];
+export type CurrentPageActionOverwriteMode = (typeof CURRENT_PAGE_ACTION_OVERWRITE_MODES)[number];
 
 export type CurrentPageActionExecutionResultStatus =
   (typeof CURRENT_PAGE_ACTION_EXECUTION_RESULT_STATUSES)[number];
@@ -64,9 +63,7 @@ export type CurrentPageActionExecutionBatchResult = {
 
 export type CurrentPageActionExecutor = {
   getCurrentValue: (fieldKey: string) => AiAssistantDraftActionValue | null;
-  evaluateDraftAction: (
-    candidate: CurrentPageActionCandidate,
-  ) => CurrentPageActionEvaluation;
+  evaluateDraftAction: (candidate: CurrentPageActionCandidate) => CurrentPageActionEvaluation;
   executeDraftActions: (
     candidates: CurrentPageActionCandidate[],
   ) => CurrentPageActionExecutionBatchResult;

@@ -121,8 +121,8 @@ export function summarizeProjectReferences(projectSpecifics: MultiPileProjectSpe
 
 export function summarizeProjectStructuralDefaults(projectSpecifics: MultiPileProjectSpecifics) {
   const { structuralDefaults } = projectSpecifics;
-  const resolvedConcreteClasses = structuralDefaults.concreteClasses.map((row) =>
-    resolveProjectConcreteClass(row).row,
+  const resolvedConcreteClasses = structuralDefaults.concreteClasses.map(
+    (row) => resolveProjectConcreteClass(row).row,
   );
   const concreteClasses = summarizeStructuralLibrary(
     resolvedConcreteClasses,
@@ -539,7 +539,9 @@ function buildProjectReferenceGapLines(projectSpecifics: MultiPileProjectSpecifi
         missingFields.push('Author / Organisation');
       }
       if (
-        (reference.primaryGeotechnical || reference.primaryStructuralReference || reference.includeInReport) &&
+        (reference.primaryGeotechnical ||
+          reference.primaryStructuralReference ||
+          reference.includeInReport) &&
         isBlank(reference.notes)
       ) {
         missingFields.push('Notes');
@@ -572,14 +574,12 @@ function buildProjectReferenceGapLines(projectSpecifics: MultiPileProjectSpecifi
       ? 'Project References: no active Geotechnical Report row is recorded yet.'
       : activeGeotechnicalReferences.some((reference) => reference.primaryGeotechnical)
         ? null
-        : 'Project References: Primary geotechnical reference is not selected.'
-      ,
+        : 'Project References: Primary geotechnical reference is not selected.',
     activeStructuralReferences.length === 0
       ? 'Project References: no active Structural Drawing row is recorded yet.'
       : activeStructuralReferences.some((reference) => reference.primaryStructuralReference)
         ? null
-        : 'Project References: Primary structural reference is not selected.'
-      ,
+        : 'Project References: Primary structural reference is not selected.',
   ]);
 }
 
@@ -789,7 +789,9 @@ function buildProjectAssistantNextEdits({
   const geotechnicalSummary = summarizeProjectGeotechnical(projectSpecifics);
   if (!geotechnicalSummary.hasGeotechnicalReferences) {
     geotechnicalTargets.push('add a geotechnical report row in Project References');
-  } else if (geotechnicalSummary.activeReferenceTitle === 'No active geotechnical report selected') {
+  } else if (
+    geotechnicalSummary.activeReferenceTitle === 'No active geotechnical report selected'
+  ) {
     geotechnicalTargets.push('select the Active Geotechnical Report');
   }
   if (isBlank(projectSpecifics.geotechnicalBasis.groundwaterDesignNotes)) {
@@ -863,9 +865,7 @@ function formatLabelList(labels: string[], limit = labels.length) {
     return '';
   }
   if (visibleLabels.length === 1) {
-    return remainder > 0
-      ? `${visibleLabels[0]} (+${remainder} more)`
-      : visibleLabels[0];
+    return remainder > 0 ? `${visibleLabels[0]} (+${remainder} more)` : visibleLabels[0];
   }
   if (visibleLabels.length === 2) {
     return remainder > 0

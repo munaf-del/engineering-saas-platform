@@ -2,13 +2,13 @@
 
 ## Quick Reference
 
-| Scenario | Action | Time to recover |
-|----------|--------|----------------|
-| Bad code deploy | Roll back Cloud Run revision | < 2 min |
-| Bad migration | Restore DB from backup + redeploy | 10–30 min |
-| Secret compromised | Rotate in Secret Manager + redeploy | < 5 min |
-| Infrastructure drift | Re-run Terraform apply | 5–15 min |
-| Full outage | Follow disaster recovery procedure | 30–60 min |
+| Scenario             | Action                              | Time to recover |
+| -------------------- | ----------------------------------- | --------------- |
+| Bad code deploy      | Roll back Cloud Run revision        | < 2 min         |
+| Bad migration        | Restore DB from backup + redeploy   | 10–30 min       |
+| Secret compromised   | Rotate in Secret Manager + redeploy | < 5 min         |
+| Infrastructure drift | Re-run Terraform apply              | 5–15 min        |
+| Full outage          | Follow disaster recovery procedure  | 30–60 min       |
 
 ---
 
@@ -54,6 +54,7 @@ Repeat for `engplatform-web` and `engplatform-calc-engine` if needed.
 ### If the migration is destructive
 
 1. **Stop traffic** to the API:
+
    ```bash
    gcloud run services update-traffic engplatform-api \
      --to-revisions=LATEST=0 \
@@ -61,6 +62,7 @@ Repeat for `engplatform-web` and `engplatform-calc-engine` if needed.
    ```
 
 2. **Restore the database** from the most recent backup:
+
    ```bash
    # List available backups
    gcloud sql backups list --instance=engplatform-db-prod
@@ -72,12 +74,14 @@ Repeat for `engplatform-web` and `engplatform-calc-engine` if needed.
    ```
 
    Or use point-in-time recovery:
+
    ```bash
    gcloud sql instances clone engplatform-db-prod engplatform-db-restore \
      --point-in-time="2026-03-20T09:55:00Z"
    ```
 
 3. **Redeploy** the previous API revision:
+
    ```bash
    gcloud run services update-traffic engplatform-api \
      --to-revisions=engplatform-api-<previous>=100 \

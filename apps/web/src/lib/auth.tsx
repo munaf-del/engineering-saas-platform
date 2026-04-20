@@ -33,7 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUser = useCallback(async () => {
     try {
       const data = await api<{ user: AuthUser; organisations: Organisation[] }>('/auth/me');
-      setState({ user: data.user, organisations: data.organisations ?? [], loading: false, error: null });
+      setState({
+        user: data.user,
+        organisations: data.organisations ?? [],
+        loading: false,
+        error: null,
+      });
     } catch {
       setState({ user: null, organisations: [], loading: false, error: null });
     }
@@ -106,7 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       organisations: Organisation[];
     }>('/auth/switch-org', { method: 'POST', body: { organisationId } });
     setTokens(data.accessToken, data.refreshToken);
-    setState({ user: data.user, organisations: data.organisations ?? [], loading: false, error: null });
+    setState({
+      user: data.user,
+      organisations: data.organisations ?? [],
+      loading: false,
+      error: null,
+    });
   }, []);
 
   const currentOrg = useMemo(() => {
@@ -123,7 +133,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ...state, signIn, signOut, switchOrg, refreshUser: fetchUser, currentOrg, hasOrgRole }),
+    () => ({
+      ...state,
+      signIn,
+      signOut,
+      switchOrg,
+      refreshUser: fetchUser,
+      currentOrg,
+      hasOrgRole,
+    }),
     [state, signIn, signOut, switchOrg, fetchUser, currentOrg, hasOrgRole],
   );
 

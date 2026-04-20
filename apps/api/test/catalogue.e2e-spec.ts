@@ -34,9 +34,7 @@ describe('Catalogue & Snapshot E2E Tests', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const regRes = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send(testUser);
+    const regRes = await request(app.getHttpServer()).post('/api/v1/auth/register').send(testUser);
     accessToken = regRes.body.accessToken;
 
     const orgRes = await request(app.getHttpServer())

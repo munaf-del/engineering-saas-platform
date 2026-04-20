@@ -56,4 +56,3 @@ export default function ProjectSpatialPage({ params }: { params: Promise<{ id: s
 
   return <ProjectSpatialWorkspace projectId={projectId} project={project} />;
 }
-

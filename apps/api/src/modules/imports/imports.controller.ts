@@ -21,10 +21,7 @@ import { RulePackIngestionService } from './rule-pack-ingestion.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CreateImportJobDto } from './dto/import.dto';
 
@@ -41,10 +38,7 @@ export class ImportsController {
 
   @Get()
   @ApiOperation({ summary: 'List import jobs for the current organisation' })
-  async findAll(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findAll(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
     this.requireOrgContext(user);
     return this.importsService.findAll(user.organisationId!, pagination);
   }
@@ -57,10 +51,7 @@ export class ImportsController {
 
   @Get('templates/:entityType')
   @ApiOperation({ summary: 'Download import template CSV' })
-  async downloadTemplate(
-    @Param('entityType') entityType: string,
-    @Res() res: Response,
-  ) {
+  async downloadTemplate(@Param('entityType') entityType: string, @Res() res: Response) {
     const template = this.templatesService.getTemplate(entityType);
     if (!template) {
       res.status(404).json({ message: `No template for entity type: ${entityType}` });
@@ -68,10 +59,7 @@ export class ImportsController {
     }
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${template.info.fileName}"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="${template.info.fileName}"`);
     res.send(template.content);
   }
 
@@ -83,10 +71,7 @@ export class ImportsController {
 
   @Get(':id/errors')
   @ApiOperation({ summary: 'List validation errors for an import job' })
-  async getErrors(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query() pagination: PaginationDto,
-  ) {
+  async getErrors(@Param('id', ParseUUIDPipe) id: string, @Query() pagination: PaginationDto) {
     return this.importsService.getErrors(id, pagination);
   }
 
@@ -108,22 +93,17 @@ export class ImportsController {
       throw new ForbiddenException('File is required');
     }
 
-    return this.importsService.uploadAndValidate(
-      user.organisationId!,
-      user.id,
-      dto,
-      { buffer: file.buffer, originalname: file.originalname },
-    );
+    return this.importsService.uploadAndValidate(user.organisationId!, user.id, dto, {
+      buffer: file.buffer,
+      originalname: file.originalname,
+    });
   }
 
   @Post(':id/apply')
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Apply a validated import (creates versioned snapshot)' })
-  async apply(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async apply(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.importsService.apply(id, user.id);
   }
 
@@ -131,10 +111,7 @@ export class ImportsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Rollback an applied import (deletes the snapshot)' })
-  async rollback(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async rollback(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.importsService.rollback(id, user.id);
   }
 
@@ -174,10 +151,7 @@ export class ImportsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Activate an approved import (applies and activates data)' })
-  async activateImport(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async activateImport(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     return this.importsService.activate(id, user.id);
   }
 

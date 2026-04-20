@@ -21,7 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
@@ -164,7 +171,10 @@ export function ProjectGeotechnicalMaterialsEditor({
             </div>
             <SummaryText label="Active report" value={summary.activeReferenceTitle} />
             <SummaryText label="Visible in project" value={`${summary.activeMaterials}`} />
-            <SummaryText label="Material preview" value={summary.materialPreviewLabels.join(', ') || 'None yet'} />
+            <SummaryText
+              label="Material preview"
+              value={summary.materialPreviewLabels.join(', ') || 'None yet'}
+            />
           </div>
         </div>
 
@@ -193,338 +203,336 @@ export function ProjectGeotechnicalMaterialsEditor({
 
                   return (
                     <>
-                <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-sm font-semibold">
-                        {visibleMaterialLabel}
+                      <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-sm font-semibold">{visibleMaterialLabel}</div>
+                            {material.includeInProject ? (
+                              <Badge variant="success">In Project</Badge>
+                            ) : (
+                              <Badge variant="secondary">Excluded</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {material.sourceDocument || 'Project geotechnical material'}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeMaterial(index)}
+                          aria-label={`Remove ${visibleMaterialLabel}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
-                      {material.includeInProject ? (
-                        <Badge variant="success">In Project</Badge>
-                      ) : (
-                        <Badge variant="secondary">Excluded</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {material.sourceDocument || 'Project geotechnical material'}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeMaterial(index)}
-                    aria-label={`Remove ${visibleMaterialLabel}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <LabeledField label="Material / Unit Code">
-                    <Input
-                      value={material.unitCode}
-                      placeholder="e.g. 4b"
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          unitCode: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Material / Unit Name">
-                    <Input
-                      value={material.displayName}
-                      placeholder="Material / geological unit"
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          displayName: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Source Reference">
-                    <Select
-                      value={material.sourceReferenceId || '__active__'}
-                      onValueChange={(nextValue) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceReferenceId: nextValue === '__active__' ? '' : nextValue,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Use active geotechnical report" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__active__">
-                          Use active geotechnical report
-                        </SelectItem>
-                        {geotechnicalReferences.map((reference) => (
-                          <SelectItem key={reference.id} value={reference.id}>
-                            {resolveProjectReferenceLabel(reference)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </LabeledField>
-                  <ToggleField
-                    label="Include in project"
-                    checked={material.includeInProject}
-                    onChange={(checked) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        includeInProject: checked,
-                      }))
-                    }
-                  />
-                </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <LabeledField label="Material / Unit Code">
+                          <Input
+                            value={material.unitCode}
+                            placeholder="e.g. 4b"
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                unitCode: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Material / Unit Name">
+                          <Input
+                            value={material.displayName}
+                            placeholder="Material / geological unit"
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                displayName: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Source Reference">
+                          <Select
+                            value={material.sourceReferenceId || '__active__'}
+                            onValueChange={(nextValue) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceReferenceId: nextValue === '__active__' ? '' : nextValue,
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Use active geotechnical report" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__active__">
+                                Use active geotechnical report
+                              </SelectItem>
+                              {geotechnicalReferences.map((reference) => (
+                                <SelectItem key={reference.id} value={reference.id}>
+                                  {resolveProjectReferenceLabel(reference)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </LabeledField>
+                        <ToggleField
+                          label="Include in project"
+                          checked={material.includeInProject}
+                          onChange={(checked) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              includeInProject: checked,
+                            }))
+                          }
+                        />
+                      </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  <LabeledField label="Source Document">
-                    <Input
-                      value={material.sourceDocument}
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceDocument: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Source Project">
-                    <Input
-                      value={material.sourceProject}
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceProject: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Source Site">
-                    <Input
-                      value={material.sourceSite}
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceSite: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Source Section">
-                    <Input
-                      value={material.sourceSection}
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceSection: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                  <LabeledField label="Source Table">
-                    <Input
-                      value={material.sourceTable}
-                      onChange={(event) =>
-                        updateMaterial(index, (current) => ({
-                          ...current,
-                          sourceTable: event.target.value,
-                        }))
-                      }
-                    />
-                  </LabeledField>
-                </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        <LabeledField label="Source Document">
+                          <Input
+                            value={material.sourceDocument}
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceDocument: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Source Project">
+                          <Input
+                            value={material.sourceProject}
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceProject: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Source Site">
+                          <Input
+                            value={material.sourceSite}
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceSite: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Source Section">
+                          <Input
+                            value={material.sourceSection}
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceSection: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                        <LabeledField label="Source Table">
+                          <Input
+                            value={material.sourceTable}
+                            onChange={(event) =>
+                              updateMaterial(index, (current) => ({
+                                ...current,
+                                sourceTable: event.target.value,
+                              }))
+                            }
+                          />
+                        </LabeledField>
+                      </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <NumberField
-                    label="γ_b (kN/m3)"
-                    value={material.gamma_b}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        gamma_b: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="φ' (deg)"
-                    value={material.phi_prime}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        phi_prime: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="c' (kPa)"
-                    value={material.c_prime}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        c_prime: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="c_u (kPa)"
-                    value={material.cu}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        cu: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="E (MPa)"
-                    value={material.E_MPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        E_MPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="ν"
-                    value={material.nu}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        nu: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="K_a"
-                    value={material.Ka}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        Ka: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="K_o"
-                    value={material.Ko}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        Ko: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="K_p"
-                    value={material.Kp}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        Kp: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="Wall Int. Active"
-                    value={material.wallInterfaceActive}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        wallInterfaceActive: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="Wall Int. Passive"
-                    value={material.wallInterfacePassive}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        wallInterfacePassive: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="f_m,s comp. (kPa)"
-                    value={material.pile_fms_comp_kPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        pile_fms_comp_kPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="f_m,s tension (kPa)"
-                    value={material.pile_fms_tension_kPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        pile_fms_tension_kPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="f_b ult. (kPa)"
-                    value={material.pile_fb_ult_kPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        pile_fb_ult_kPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="f_m,s allow (kPa)"
-                    value={material.pile_fms_allow_kPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        pile_fms_allow_kPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="f_b allow (kPa)"
-                    value={material.pile_fb_allow_kPa}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        pile_fb_allow_kPa: nextValue,
-                      }))
-                    }
-                  />
-                  <NumberField
-                    label="CFA uplift tension factor"
-                    value={material.cfaUpliftTensionFactor}
-                    onChange={(nextValue) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        cfaUpliftTensionFactor: nextValue,
-                      }))
-                    }
-                  />
-                </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <NumberField
+                          label="γ_b (kN/m3)"
+                          value={material.gamma_b}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              gamma_b: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="φ' (deg)"
+                          value={material.phi_prime}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              phi_prime: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="c' (kPa)"
+                          value={material.c_prime}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              c_prime: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="c_u (kPa)"
+                          value={material.cu}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              cu: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="E (MPa)"
+                          value={material.E_MPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              E_MPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="ν"
+                          value={material.nu}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              nu: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="K_a"
+                          value={material.Ka}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              Ka: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="K_o"
+                          value={material.Ko}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              Ko: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="K_p"
+                          value={material.Kp}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              Kp: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="Wall Int. Active"
+                          value={material.wallInterfaceActive}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              wallInterfaceActive: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="Wall Int. Passive"
+                          value={material.wallInterfacePassive}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              wallInterfacePassive: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="f_m,s comp. (kPa)"
+                          value={material.pile_fms_comp_kPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              pile_fms_comp_kPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="f_m,s tension (kPa)"
+                          value={material.pile_fms_tension_kPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              pile_fms_tension_kPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="f_b ult. (kPa)"
+                          value={material.pile_fb_ult_kPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              pile_fb_ult_kPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="f_m,s allow (kPa)"
+                          value={material.pile_fms_allow_kPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              pile_fms_allow_kPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="f_b allow (kPa)"
+                          value={material.pile_fb_allow_kPa}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              pile_fb_allow_kPa: nextValue,
+                            }))
+                          }
+                        />
+                        <NumberField
+                          label="CFA uplift tension factor"
+                          value={material.cfaUpliftTensionFactor}
+                          onChange={(nextValue) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              cfaUpliftTensionFactor: nextValue,
+                            }))
+                          }
+                        />
+                      </div>
 
-                <LabeledField label="Notes" className="mt-4">
-                  <Textarea
-                    value={material.notes}
-                    placeholder="Adopted strength notes, report comments, provenance notes..."
-                    onChange={(event) =>
-                      updateMaterial(index, (current) => ({
-                        ...current,
-                        notes: event.target.value,
-                      }))
-                    }
-                  />
-                </LabeledField>
+                      <LabeledField label="Notes" className="mt-4">
+                        <Textarea
+                          value={material.notes}
+                          placeholder="Adopted strength notes, report comments, provenance notes..."
+                          onChange={(event) =>
+                            updateMaterial(index, (current) => ({
+                              ...current,
+                              notes: event.target.value,
+                            }))
+                          }
+                        />
+                      </LabeledField>
                     </>
                   );
                 })()}
@@ -583,7 +591,9 @@ export function ProjectGeotechnicalBasisEditor({
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{summary.cfaUpliftSummary}</Badge>
           <Badge variant="outline">ARR {summary.arrValueSummary}</Badge>
-          <Badge variant="outline">phi_g {summary.phiGLowSummary} / {summary.phiGHighSummary}</Badge>
+          <Badge variant="outline">
+            phi_g {summary.phiGLowSummary} / {summary.phiGHighSummary}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
@@ -676,9 +686,18 @@ export function ProjectGeotechnicalBasisEditor({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-4">
-            <MetricSummaryCard label="Total weighting" value={summaryFromNumber(arrAssessment.weightTotal)} />
-            <MetricSummaryCard label="Total weighted score" value={summaryFromNumber(arrAssessment.weightedScore)} />
-            <MetricSummaryCard label="ARR (weighted average)" value={summaryFromNumber(arrAssessment.arrValue)} />
+            <MetricSummaryCard
+              label="Total weighting"
+              value={summaryFromNumber(arrAssessment.weightTotal)}
+            />
+            <MetricSummaryCard
+              label="Total weighted score"
+              value={summaryFromNumber(arrAssessment.weightedScore)}
+            />
+            <MetricSummaryCard
+              label="ARR (weighted average)"
+              value={summaryFromNumber(arrAssessment.arrValue)}
+            />
             <MetricSummaryCard label="ARR range (Table 4.3.2(B))" value={arrAssessment.arrBand} />
           </div>
 
@@ -691,11 +710,11 @@ export function ProjectGeotechnicalBasisEditor({
                   updateArrAssessment((current) => ({
                     ...current,
                     testType:
-                      nextValue === 'STATIC'
-                      || nextValue === 'RAPID'
-                      || nextValue === 'DYN_PREF'
-                      || nextValue === 'DYN_OTHER'
-                      || nextValue === 'BIDIR'
+                      nextValue === 'STATIC' ||
+                      nextValue === 'RAPID' ||
+                      nextValue === 'DYN_PREF' ||
+                      nextValue === 'DYN_OTHER' ||
+                      nextValue === 'BIDIR'
                         ? nextValue
                         : 'NONE',
                   }))

@@ -13,11 +13,9 @@ export const AI_ASSISTANT_DRAFT_ACTION_STATUSES = [
   'skipped_existing_value',
 ] as const;
 
-export type AiAssistantDraftActionType =
-  (typeof AI_ASSISTANT_DRAFT_ACTION_TYPES)[number];
+export type AiAssistantDraftActionType = (typeof AI_ASSISTANT_DRAFT_ACTION_TYPES)[number];
 
-export type AiAssistantDraftActionStatus =
-  (typeof AI_ASSISTANT_DRAFT_ACTION_STATUSES)[number];
+export type AiAssistantDraftActionStatus = (typeof AI_ASSISTANT_DRAFT_ACTION_STATUSES)[number];
 
 export type AiAssistantDraftActionValue = string | boolean;
 

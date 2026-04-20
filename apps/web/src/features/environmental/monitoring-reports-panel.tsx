@@ -7,14 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLoading } from '@/components/loading';
-import { useCreateEnvironmentalMonitoringReport, useEnvironmentalMonitoringReports } from '@/hooks/use-environmental-monitoring';
+import {
+  useCreateEnvironmentalMonitoringReport,
+  useEnvironmentalMonitoringReports,
+} from '@/hooks/use-environmental-monitoring';
 import type {
   EnvironmentalMonitoringReportSummary,
   EnvironmentalMonitoringReportType,
 } from './environmental-monitoring-types';
-import {
-  ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS,
-} from './environmental-monitoring-types';
+import { ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS } from './environmental-monitoring-types';
 import { toast } from 'sonner';
 
 type MonitoringReportsPanelProps = {
@@ -102,20 +103,23 @@ export function MonitoringReportsPanel({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <CardDescription>
-                    {labelForReportType(report.reportType)}
-                  </CardDescription>
+                  <CardDescription>{labelForReportType(report.reportType)}</CardDescription>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {report.documentStatus ? (
                       <Badge variant="outline">{report.documentStatus}</Badge>
                     ) : null}
-                    {report.revision ? <Badge variant="outline">Rev {report.revision}</Badge> : null}
+                    {report.revision ? (
+                      <Badge variant="outline">Rev {report.revision}</Badge>
+                    ) : null}
                     {report.issueDate ? (
-                      <Badge variant="outline">{new Date(report.issueDate).toLocaleDateString()}</Badge>
+                      <Badge variant="outline">
+                        {new Date(report.issueDate).toLocaleDateString()}
+                      </Badge>
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {report._count.locations} locations · {report._count.selectedCriteria} criteria ·{' '}
+                    {report._count.locations} locations · {report._count.selectedCriteria} criteria
+                    ·{' '}
                     {report.reportType === 'noise_monitoring'
                       ? `${report._count.noiseResults} noise results`
                       : `${report._count.vibrationResults} vibration results`}

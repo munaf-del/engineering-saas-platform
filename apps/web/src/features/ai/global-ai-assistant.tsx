@@ -149,14 +149,12 @@ export function GlobalAiAssistant() {
     pathname,
     draftActionAdapter,
   );
-  const assistantActionDraftAdapter =
-    mode === 'assistant' ? routeScopedDraftActionAdapter : null;
+  const assistantActionDraftAdapter = mode === 'assistant' ? routeScopedDraftActionAdapter : null;
   const routeScopedSuggestionAdapter =
     assistantActionDraftAdapter != null ? suggestionAdapter : null;
   const routeScopedCurrentPageActionExecutor =
     assistantActionDraftAdapter != null ? currentPageActionExecutor : null;
-  const supportsProjectDraftActions =
-    assistantActionDraftAdapter?.kind === 'project';
+  const supportsProjectDraftActions = assistantActionDraftAdapter?.kind === 'project';
   const supportsFieldDraftActions = false;
 
   async function sendMessage({
@@ -281,8 +279,7 @@ export function GlobalAiAssistant() {
                 </p>
                 {activeModel ? (
                   <p className="mt-1 text-[11px] text-slate-300">
-                    Provider: {AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} | Model:{' '}
-                    {activeModel}
+                    Provider: {AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} | Model: {activeModel}
                   </p>
                 ) : null}
                 {assistantRuntimeNotice ? (
@@ -317,9 +314,7 @@ export function GlobalAiAssistant() {
                   >
                     <span>{getAssistantModeLabel(candidateMode)}</span>
                     {candidateMode === 'agent' ? (
-                      <span className="text-[10px] uppercase tracking-[0.16em]">
-                        OpenAI-only
-                      </span>
+                      <span className="text-[10px] uppercase tracking-[0.16em]">OpenAI-only</span>
                     ) : null}
                   </Button>
                 ))}
@@ -394,9 +389,9 @@ export function GlobalAiAssistant() {
             <div className="space-y-4">
               {messages.length === 0 ? (
                 <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                  Ask about what this page is showing, what looks incomplete, or what to do next.
-                  On supported pages, I can also suggest current-page draft changes for you to
-                  review and apply manually.
+                  Ask about what this page is showing, what looks incomplete, or what to do next. On
+                  supported pages, I can also suggest current-page draft changes for you to review
+                  and apply manually.
                 </div>
               ) : null}
 
@@ -531,8 +526,7 @@ function AssistantMessageCard({
     () => new Set(applicableSuggestionKeys),
   );
   const selectedApplicableSuggestionCount = useMemo(
-    () =>
-      applicableSuggestionKeys.filter((key) => selectedSuggestionKeys.has(key)).length,
+    () => applicableSuggestionKeys.filter((key) => selectedSuggestionKeys.has(key)).length,
     [applicableSuggestionKeys, selectedSuggestionKeys],
   );
   const applicableSuggestionKeysRef = useRef(applicableSuggestionKeys);
@@ -652,9 +646,10 @@ function AssistantMessageCard({
                 Suggestion Review List
               </div>
               <p className="text-xs text-muted-foreground">
-                {selectedApplicableSuggestionCount} of {applicableSuggestionCount} applicable suggestion
-                {applicableSuggestionCount === 1 ? '' : 's'} selected. Applying updates the current form
-                draft only.
+                {selectedApplicableSuggestionCount} of {applicableSuggestionCount} applicable
+                suggestion
+                {applicableSuggestionCount === 1 ? '' : 's'} selected. Applying updates the current
+                form draft only.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -791,8 +786,7 @@ function buildAssistantRuntimeNotice({
   if (selectedProvider !== activeProvider) {
     if (
       selectedProviderStatus.statusReason === 'credential_unusable' &&
-      selectedProviderStatus.credentialIssueReason ===
-        'stored_credential_cannot_be_decrypted'
+      selectedProviderStatus.credentialIssueReason === 'stored_credential_cannot_be_decrypted'
     ) {
       return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, so chat is falling back to ${AI_ASSISTANT_PROVIDER_LABELS[activeProvider]} with ${activeModel} right now.`;
     }
@@ -811,16 +805,11 @@ function buildAssistantRuntimeNotice({
     selectedProviderStatus.statusReason === 'credential_unusable' &&
     selectedProviderStatus.available
   ) {
-    if (
-      selectedProviderStatus.credentialIssueReason ===
-      'stored_credential_cannot_be_decrypted'
-    ) {
+    if (selectedProviderStatus.credentialIssueReason === 'stored_credential_cannot_be_decrypted') {
       return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, so assistant chat is using environment fallback right now.`;
     }
 
-    if (
-      selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
-    ) {
+    if (selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable') {
       return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable, so assistant chat is using environment fallback right now.`;
     }
 
@@ -832,16 +821,11 @@ function buildAssistantRuntimeNotice({
   }
 
   if (selectedProviderStatus.statusReason === 'credential_unusable') {
-    if (
-      selectedProviderStatus.credentialIssueReason ===
-      'stored_credential_cannot_be_decrypted'
-    ) {
+    if (selectedProviderStatus.credentialIssueReason === 'stored_credential_cannot_be_decrypted') {
       return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential that cannot currently be decrypted, and no environment fallback is available right now.`;
     }
 
-    if (
-      selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable'
-    ) {
+    if (selectedProviderStatus.credentialIssueReason === 'encryption_secret_unavailable') {
       return `${AI_ASSISTANT_PROVIDER_LABELS[selectedProvider]} has a stored organisation credential, but the organisation encryption secret is currently unavailable, and no environment fallback is available right now.`;
     }
 

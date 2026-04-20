@@ -76,9 +76,7 @@ export class CalcEngineClient {
           };
         }
 
-        throw new ServiceUnavailableException(
-          `Calc engine returned HTTP ${response.status}`,
-        );
+        throw new ServiceUnavailableException(`Calc engine returned HTTP ${response.status}`);
       }
 
       const result = (await response.json()) as CalcEngineResult;

@@ -42,7 +42,10 @@ export const assistantDraftActionSchema = z
     actionType: z.enum(ASSISTANT_DRAFT_ACTION_TYPES),
     proposedValue: z.union([z.string().min(1).max(500), z.boolean()]),
     label: z.string().min(1).max(160).optional(),
-    currentValue: z.union([z.string().max(500), z.boolean()]).nullable().optional(),
+    currentValue: z
+      .union([z.string().max(500), z.boolean()])
+      .nullable()
+      .optional(),
     reason: z.string().min(1).max(500).nullable().optional(),
     status: z.enum(ASSISTANT_DRAFT_ACTION_STATUSES),
     message: z.string().min(1).max(500).nullable().optional(),

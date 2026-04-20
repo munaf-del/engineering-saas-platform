@@ -13,12 +13,12 @@ We are building a multi-tenant SaaS platform for Australian structural and geote
 
 The platform is structured as a **pnpm + Turborepo monorepo** with three deployable services and one shared library:
 
-| Component | Tech | Role |
-|-----------|------|------|
-| `apps/web` | Next.js 15 + Tailwind + shadcn/ui | Tenant-facing UI, SSR/SSG |
-| `apps/api` | NestJS + Prisma + PostgreSQL | Auth, RBAC, CRUD, orchestration |
-| `apps/calc-engine` | Python 3.12 + FastAPI + Pydantic + NumPy | Deterministic engineering calculations |
-| `packages/shared` | TypeScript | Shared types, units, schemas, API client |
+| Component          | Tech                                     | Role                                     |
+| ------------------ | ---------------------------------------- | ---------------------------------------- |
+| `apps/web`         | Next.js 15 + Tailwind + shadcn/ui        | Tenant-facing UI, SSR/SSG                |
+| `apps/api`         | NestJS + Prisma + PostgreSQL             | Auth, RBAC, CRUD, orchestration          |
+| `apps/calc-engine` | Python 3.12 + FastAPI + Pydantic + NumPy | Deterministic engineering calculations   |
+| `packages/shared`  | TypeScript                               | Shared types, units, schemas, API client |
 
 ### Why Three Services?
 
@@ -34,16 +34,16 @@ The platform is structured as a **pnpm + Turborepo monorepo** with three deploya
 
 ### Google Cloud Deployment
 
-| GCP Service | Purpose |
-|-------------|---------|
-| Cloud Run | Host all three services |
-| Cloud SQL (PostgreSQL 16) | Primary database |
-| Cloud Storage | Reports, imports, documents |
-| Secret Manager | Credentials and API keys |
-| Artifact Registry | Docker images |
-| Cloud Build + Cloud Deploy | CI/CD pipeline |
-| Cloud Tasks | Async calculation queues |
-| Pub/Sub | Domain event bus (optional) |
+| GCP Service                | Purpose                     |
+| -------------------------- | --------------------------- |
+| Cloud Run                  | Host all three services     |
+| Cloud SQL (PostgreSQL 16)  | Primary database            |
+| Cloud Storage              | Reports, imports, documents |
+| Secret Manager             | Credentials and API keys    |
+| Artifact Registry          | Docker images               |
+| Cloud Build + Cloud Deploy | CI/CD pipeline              |
+| Cloud Tasks                | Async calculation queues    |
+| Pub/Sub                    | Domain event bus (optional) |
 
 Primary region: `australia-southeast1` (Sydney).
 Staging: `australia-southeast2` (Melbourne).

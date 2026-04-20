@@ -20,10 +20,7 @@ describe('RulePackIngestionService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RulePackIngestionService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [RulePackIngestionService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get(RulePackIngestionService);
@@ -32,9 +29,9 @@ describe('RulePackIngestionService', () => {
 
   describe('validateAndPreview', () => {
     it('should fail on empty rows', async () => {
-      await expect(
-        service.validateAndPreview([], 'load_combination_rules'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.validateAndPreview([], 'load_combination_rules')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should fail when standardCode is missing from metadata', async () => {
@@ -51,9 +48,9 @@ describe('RulePackIngestionService', () => {
         },
       ];
 
-      await expect(
-        service.validateAndPreview(rows, 'load_combination_rules'),
-      ).rejects.toThrow('standardCode is required');
+      await expect(service.validateAndPreview(rows, 'load_combination_rules')).rejects.toThrow(
+        'standardCode is required',
+      );
     });
 
     it('should fail when version is missing from metadata', async () => {
@@ -65,14 +62,18 @@ describe('RulePackIngestionService', () => {
             clauseRef: '4.2.2',
             description: 'Permanent action factor',
             value: 1.35,
-            _yamlMeta: { standardCode: 'AS/NZS 1170.0', effectiveDate: '2024-01-01', sourceDataset: 'test' },
+            _yamlMeta: {
+              standardCode: 'AS/NZS 1170.0',
+              effectiveDate: '2024-01-01',
+              sourceDataset: 'test',
+            },
           },
         },
       ];
 
-      await expect(
-        service.validateAndPreview(rows, 'load_combination_rules'),
-      ).rejects.toThrow('version is required');
+      await expect(service.validateAndPreview(rows, 'load_combination_rules')).rejects.toThrow(
+        'version is required',
+      );
     });
 
     it('should detect conflicts with active rule packs', async () => {

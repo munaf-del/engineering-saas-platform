@@ -282,7 +282,7 @@ export function PricingSummaryTab({
     setExpandedVisualTypeId(
       data.sectionElevationRows.length > VISUAL_COLLAPSE_THRESHOLD
         ? null
-        : data.sectionElevationRows[0]?.pileTypeId ?? null,
+        : (data.sectionElevationRows[0]?.pileTypeId ?? null),
     );
   }, [data.sectionElevationRows, expandedVisualTypeId]);
 
@@ -577,12 +577,18 @@ export function PricingSummaryTab({
                               aria-selected={isSelected}
                               tabIndex={0}
                               onClick={() => setSelectedPileId(row.pileId)}
-                              onKeyDown={(event) => handleSelectableRowKeyDown(event, () => setSelectedPileId(row.pileId))}
+                              onKeyDown={(event) =>
+                                handleSelectableRowKeyDown(event, () =>
+                                  setSelectedPileId(row.pileId),
+                                )
+                              }
                             >
                               <td className="border-b px-3 py-3 align-top">
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="font-semibold text-foreground">{row.pileId}</div>
+                                    <div className="font-semibold text-foreground">
+                                      {row.pileId}
+                                    </div>
                                     <div className="text-xs text-muted-foreground">
                                       {row.parentJoint}
                                     </div>
@@ -764,9 +770,7 @@ export function PricingSummaryTab({
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div className="space-y-1">
               <CardTitle className="text-base">Type Quantity Summary</CardTitle>
-              <CardDescription>
-                Primary compact takeoff table grouped by pile type.
-              </CardDescription>
+              <CardDescription>Primary compact takeoff table grouped by pile type.</CardDescription>
             </div>
             <div className="w-full max-w-xs">
               <ControlField label="Sort rows">
@@ -820,7 +824,9 @@ export function PricingSummaryTab({
                           tabIndex={0}
                           onClick={() => setSelectedTypeId(row.pileTypeId)}
                           onKeyDown={(event) =>
-                            handleSelectableRowKeyDown(event, () => setSelectedTypeId(row.pileTypeId))
+                            handleSelectableRowKeyDown(event, () =>
+                              setSelectedTypeId(row.pileTypeId),
+                            )
                           }
                         >
                           <td className="border-b px-3 py-3 align-top">
@@ -930,10 +936,7 @@ export function PricingSummaryTab({
 
               <div className="grid gap-3 lg:grid-cols-2">
                 <DetailField label="Concrete Grade" value={selectedTypeRow.concreteGrade} />
-                <DetailField
-                  label="Cover / Durability"
-                  value={selectedTypeRow.coverDurability}
-                />
+                <DetailField label="Cover / Durability" value={selectedTypeRow.coverDurability} />
                 <DetailField
                   label="Reinforcement Summary"
                   value={selectedTypeRow.reinforcementSummary}
@@ -964,10 +967,7 @@ export function PricingSummaryTab({
                   label="Structural Section Summary"
                   value={selectedTypeRow.structuralSectionSummary}
                 />
-                <DetailField
-                  label="Elevation Summary"
-                  value={selectedTypeRow.elevationSummary}
-                />
+                <DetailField label="Elevation Summary" value={selectedTypeRow.elevationSummary} />
               </div>
             </div>
           ) : null}
@@ -1078,13 +1078,7 @@ function ControlField({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-function StickyTableHead({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+function StickyTableHead({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <th
       className={cn(
@@ -1156,13 +1150,7 @@ function CompactBadgeGroup({
   );
 }
 
-function CompactStatusBadges({
-  value,
-  maxVisible = 2,
-}: {
-  value: string;
-  maxVisible?: number;
-}) {
+function CompactStatusBadges({ value, maxVisible = 2 }: { value: string; maxVisible?: number }) {
   const tokens = buildStatusTokens(value);
   const visibleTokens = tokens.slice(0, maxVisible);
   const hiddenCount = Math.max(0, tokens.length - visibleTokens.length);
@@ -1361,11 +1349,11 @@ function statusBadgeVariant(token: string) {
   }
   const normalized = token.toLowerCase();
   if (
-    normalized.includes('pending')
-    || normalized.includes('missing')
-    || normalized.includes('no stored')
-    || normalized.startsWith('no ')
-    || normalized.includes('unresolved')
+    normalized.includes('pending') ||
+    normalized.includes('missing') ||
+    normalized.includes('no stored') ||
+    normalized.startsWith('no ') ||
+    normalized.includes('unresolved')
   ) {
     return 'warning' as const;
   }
@@ -1421,7 +1409,10 @@ function primaryCommercialLabel(value: string) {
   if (value === PENDING_VALUE) {
     return 'Pending';
   }
-  const [primary] = value.split('·').map((part) => part.trim()).filter(Boolean);
+  const [primary] = value
+    .split('·')
+    .map((part) => part.trim())
+    .filter(Boolean);
   return primary || value;
 }
 
@@ -1471,11 +1462,7 @@ function compactTendonLabel(value: string) {
 }
 
 function formatDetailValue(
-  field:
-    | 'tendon'
-    | 'foundingSocketMaterial'
-    | 'adoptedSocketLength'
-    | 'default',
+  field: 'tendon' | 'foundingSocketMaterial' | 'adoptedSocketLength' | 'default',
   value: string,
 ) {
   if (field === 'tendon') {

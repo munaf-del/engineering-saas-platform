@@ -17,44 +17,53 @@ Use it together with:
 Use these legacy artifacts in this order:
 
 ### 1. Runtime / feature oracle
+
 - `Multi-Pile_Load_Calculator_v102c_pricing_print_safe_backup102c_printfix.html`
 - `Multi-Pile_Load_Calculator_v102c_pricing_print_safe_backup102c.html`
 
 These are the best stable references for:
+
 - pricing summary logic
 - pricing XLSX export logic
 - late-stage report/pricing behavior
 - current authored workflow shape
 
 ### 2. Navigation / refactor oracle
+
 - `Multi-Pile_Load_Calculator_v102c_modular_cleanup_base.html`
 - `v102c_modular_assets/MODULE_MAP.md`
 - `Multi-Pile_Load_Calculator_v102c_modular_cleanup_README.md`
 
 These are the safest references for:
+
 - tab/screen layout
 - runtime section boundaries
 - extraction order
 - safe modularisation
 
 ### 3. Report / evidence oracle
+
 - `ASHMORE BUILDING G & H — Design Note.pdf`
 
 Use this for:
+
 - actual report structure
 - section ordering
 - envelope / ARR / GEO / STRUCT output expectations
 - naming and provenance expectations
 
 ### 4. Earlier stable structural basis reference
+
 - `Multi-Pile_Load_Calculator_v89_structural_library_normalization.html`
 
 Use this only when you need to understand the structural-library split that happened before the late v102c cleanup path.
 
 ### 5. Geotechnical source / project seed reference
+
 - `221715.00.R.007.Rev1.GI_Phase6 (1).pdf`
 
 Use this for:
+
 - Ashmore project geology
 - geotechnical unit names
 - indicative geotechnical parameters
@@ -135,6 +144,7 @@ Owns:
 - project geotechnical basis / global notes
 
 ### Why it matters
+
 This is the authored **design basis** and should become the SaaS `ProjectDesignBasis` aggregate.
 
 ---
@@ -151,6 +161,7 @@ Owns the lightweight type registry:
 - ordering
 
 ### Why it matters
+
 This is not the full solver model. It is the type registry that other tabs resolve against.
 
 ---
@@ -166,6 +177,7 @@ Owns:
 - auto-generated linked pile rows
 
 ### Important behavior
+
 Piles are not authored separately first.  
 They are generated from joint definitions and support counts.
 
@@ -191,6 +203,7 @@ Owns the matrix:
 - joint × pattern × (P, Vx, Vy, Mx, My, Mz)
 
 ### Important behavior
+
 Every joint exposes every pattern.  
 Loads are authored at the **joint** level, not the pile level.
 
@@ -235,6 +248,7 @@ This is authored workflow state, not a one-off calculation input.
 ## 5.8 GEO workflow
 
 ### Inputs resolved from:
+
 - project geotechnical material library
 - type-level geotechnical mapping
 - global geo notes/basis
@@ -242,6 +256,7 @@ This is authored workflow state, not a one-off calculation input.
 - ARR / φg
 
 ### Outputs include:
+
 - design compression capacity
 - uplift capacity
 - adopted socket length
@@ -253,7 +268,9 @@ This is authored workflow state, not a one-off calculation input.
 - per-type and all-piles GEO summaries
 
 ### Notes
+
 The later fixes in the v94–v101 range were mainly about:
+
 - target selection
 - stale display state
 - per-type GEO refresh
@@ -266,11 +283,13 @@ Use late v102c or modular base as reference, not the broken intermediate experim
 ## 5.9 STRUCT workflow
 
 ### Inputs resolved from:
+
 - project structural default libraries
 - type-owned detailing and geometry
 - governing load-engine actions
 
 ### Outputs include:
+
 - material and section properties
 - axial and bending checks
 - shear checks
@@ -280,6 +299,7 @@ Use late v102c or modular base as reference, not the broken intermediate experim
 - pile schedule summaries
 
 The full report sample clearly shows structural outputs grouped by:
+
 - material/section properties
 - axial/bending
 - shear
@@ -293,18 +313,21 @@ The full report sample clearly shows structural outputs grouped by:
 The calculator has at least two report families:
 
 ### Technical report path
+
 - full report
 - summary preview
 - plain text
 - AI prompt
 
 ### Estimator / pricing path
+
 - pricing summary preview
 - pricing XLSX export
 - later section/elevation visuals for estimators
 - pricing print/PDF experiments
 
 ### Important rule
+
 Pricing outputs are **separate** from the technical report path and should stay separate in the SaaS.
 
 ---
@@ -433,6 +456,7 @@ This is useful when later rebuilding report APIs in the SaaS.
 The pricing summary logic builds an estimator-facing view from `buildReportData()` and includes:
 
 ### Per pile schedule
+
 - pile ID
 - parent joint
 - pile type
@@ -446,6 +470,7 @@ The pricing summary logic builds an estimator-facing view from `buildReportData(
 - structural section
 
 ### Type quantity summary
+
 - pile type
 - count
 - diameter
@@ -455,6 +480,7 @@ The pricing summary logic builds an estimator-facing view from `buildReportData(
 - typical adopted socket length
 
 ### Visual type summary
+
 - section sketch
 - reinforcement elevation
 - compact type metadata
@@ -468,6 +494,7 @@ This is separate from standards-heavy technical reporting.
 When Codex works in the SaaS repo, use this document as the “what exists in legacy” map.
 
 ### Use the legacy calculator for:
+
 - domain truth
 - parity checking
 - workflow order
@@ -476,6 +503,7 @@ When Codex works in the SaaS repo, use this document as the “what exists in le
 - pricing output shape
 
 ### Do not copy directly:
+
 - browser storage
 - print-window hacks
 - DOM-coupled tab state
@@ -494,4 +522,3 @@ For migration purposes, the **single most important upstream dependency** is:
 - **governing envelope snapshot**
 
 That is the dependency chain both GEO and STRUCT sit on top of.
-

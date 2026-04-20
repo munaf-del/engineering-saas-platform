@@ -256,14 +256,18 @@ The review identified these real gaps:
 ## 8.1 Short-term target
 
 ### Project
+
 Owns:
+
 - project metadata
 - client / address / report identity
 - references
 - design-basis aggregate
 
 ### PileGroup
+
 Owns:
+
 - multi-pile authored model
 - pile types
 - joints
@@ -274,14 +278,18 @@ Owns:
 - GEO / STRUCT authored settings
 
 ### CalculationRun / CalculationSnapshot
+
 Own:
+
 - run request
 - deterministic result payload
 - governing envelopes
 - audit trail
 
 ### CalculationReport
+
 Owns:
+
 - full technical report
 - pricing summary
 - export metadata
@@ -301,14 +309,18 @@ Do **not** normalize everything at once.
 ## 9. Recommended migration phases
 
 ## Phase 1 — domain model + first authored slice
+
 Move first:
+
 - load patterns
 - joint-load matrix
 - built-in/custom combinations
 - envelope snapshot
 
 ## Phase 2 — project design basis
+
 Move:
+
 - project references
 - report metadata
 - structural default libraries
@@ -316,21 +328,27 @@ Move:
 - geo basis / notes
 
 ## Phase 3 — pile authoring model
+
 Move:
+
 - pile type definitions
 - joints
 - generated piles
 - linkage rules
 
 ## Phase 4 — GEO + STRUCT parity
+
 Move:
+
 - type geo input resolution
 - GEO solver parity
 - structural input resolution
 - STRUCT parity
 
 ## Phase 5 — reports and exports
+
 Move:
+
 - full report data assembly
 - pricing summary
 - JSON / XLSX / PDF export services
@@ -412,4 +430,3 @@ Create the first slice implementation plan in the SaaS repo:
 
 **Do not move everything into the SaaS yet.**  
 Move the **first slice** into the SaaS now, using the legacy calculator as the parity oracle.
-

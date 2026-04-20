@@ -24,8 +24,7 @@ export function SettingsSectionNav() {
   return (
     <div className="mb-6 flex flex-wrap gap-2">
       {SETTINGS_SECTIONS.map((section) => {
-        const active =
-          pathname === section.href || pathname.startsWith(`${section.href}/`);
+        const active = pathname === section.href || pathname.startsWith(`${section.href}/`);
 
         return (
           <Link

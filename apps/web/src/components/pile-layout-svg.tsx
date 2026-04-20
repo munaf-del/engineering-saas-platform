@@ -9,7 +9,12 @@ interface PileLayoutSVGProps {
   reactions?: Record<string, { value: number; unit: string }>;
 }
 
-export function PileLayoutSVG({ points, width = 400, height = 400, reactions }: PileLayoutSVGProps) {
+export function PileLayoutSVG({
+  points,
+  width = 400,
+  height = 400,
+  reactions,
+}: PileLayoutSVGProps) {
   if (!points.length) {
     return (
       <div
@@ -52,26 +57,68 @@ export function PileLayoutSVG({ points, width = 400, height = 400, reactions }: 
       className="rounded-md border bg-white"
     >
       <defs>
-        <marker id="grid-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <marker
+          id="grid-arrow"
+          viewBox="0 0 10 10"
+          refX="10"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto"
+        >
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
         </marker>
       </defs>
 
       {/* Axes */}
-      <line x1={padding - 10} y1={height - padding + 10} x2={width - padding + 10} y2={height - padding + 10}
-        stroke="#94a3b8" strokeWidth="1" markerEnd="url(#grid-arrow)" />
-      <line x1={padding - 10} y1={height - padding + 10} x2={padding - 10} y2={padding - 10}
-        stroke="#94a3b8" strokeWidth="1" markerEnd="url(#grid-arrow)" />
-      <text x={width - padding + 15} y={height - padding + 14} fontSize="10" fill="#64748b">X (m)</text>
-      <text x={padding - 24} y={padding - 14} fontSize="10" fill="#64748b">Y (m)</text>
+      <line
+        x1={padding - 10}
+        y1={height - padding + 10}
+        x2={width - padding + 10}
+        y2={height - padding + 10}
+        stroke="#94a3b8"
+        strokeWidth="1"
+        markerEnd="url(#grid-arrow)"
+      />
+      <line
+        x1={padding - 10}
+        y1={height - padding + 10}
+        x2={padding - 10}
+        y2={padding - 10}
+        stroke="#94a3b8"
+        strokeWidth="1"
+        markerEnd="url(#grid-arrow)"
+      />
+      <text x={width - padding + 15} y={height - padding + 14} fontSize="10" fill="#64748b">
+        X (m)
+      </text>
+      <text x={padding - 24} y={padding - 14} fontSize="10" fill="#64748b">
+        Y (m)
+      </text>
 
       {/* Grid lines */}
       {points.map((pt) => {
         const [cx, cy] = toSvg(pt.x, pt.y);
         return (
           <g key={pt.id}>
-            <line x1={cx} y1={padding} x2={cx} y2={height - padding} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="2,2" />
-            <line x1={padding} y1={cy} x2={width - padding} y2={cy} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="2,2" />
+            <line
+              x1={cx}
+              y1={padding}
+              x2={cx}
+              y2={height - padding}
+              stroke="#e2e8f0"
+              strokeWidth="0.5"
+              strokeDasharray="2,2"
+            />
+            <line
+              x1={padding}
+              y1={cy}
+              x2={width - padding}
+              y2={cy}
+              stroke="#e2e8f0"
+              strokeWidth="0.5"
+              strokeDasharray="2,2"
+            />
           </g>
         );
       })}
@@ -95,7 +142,14 @@ export function PileLayoutSVG({ points, width = 400, height = 400, reactions }: 
               {pt.label ?? `(${pt.x}, ${pt.y})`}
             </text>
             {reaction && (
-              <text x={cx} y={cy + radius + 12} textAnchor="middle" fontSize="8" fill="#64748b" fontFamily="monospace">
+              <text
+                x={cx}
+                y={cy + radius + 12}
+                textAnchor="middle"
+                fontSize="8"
+                fill="#64748b"
+                fontFamily="monospace"
+              >
                 {reaction.value.toFixed(1)} {reaction.unit}
               </text>
             )}

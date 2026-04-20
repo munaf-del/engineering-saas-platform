@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
@@ -56,7 +63,9 @@ export function DataTable<T extends Record<string, unknown>>({
 
   const total = isServerPaginated ? totalFromServer : filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const pageData = isServerPaginated ? data : filtered.slice((page - 1) * pageSize, page * pageSize);
+  const pageData = isServerPaginated
+    ? data
+    : filtered.slice((page - 1) * pageSize, page * pageSize);
 
   function goToPage(p: number) {
     const clamped = Math.max(1, Math.min(totalPages, p));
@@ -98,7 +107,10 @@ export function DataTable<T extends Record<string, unknown>>({
           <TableBody>
             {pageData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-muted-foreground"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -127,7 +139,12 @@ export function DataTable<T extends Record<string, unknown>>({
             Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
           </span>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="px-2">

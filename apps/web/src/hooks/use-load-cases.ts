@@ -59,7 +59,8 @@ export function useUpdateLoadCase(projectId: string, id: string) {
 export function useDeleteLoadCase(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/projects/${projectId}/load-cases/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      api(`/projects/${projectId}/load-cases/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-cases'] }),
   });
 }
@@ -68,7 +69,10 @@ export function useAddLoadAction(projectId: string, loadCaseId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; direction: string; magnitude: number; unit: string }) =>
-      api(`/projects/${projectId}/load-cases/${loadCaseId}/actions`, { method: 'POST', body: data }),
+      api(`/projects/${projectId}/load-cases/${loadCaseId}/actions`, {
+        method: 'POST',
+        body: data,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'load-cases'] }),
   });
 }

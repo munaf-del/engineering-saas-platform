@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
@@ -15,10 +10,7 @@ import { LoginDto } from './dto/login.dto';
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
-type AuthTransactionClient = Pick<
-  PrismaService,
-  'user' | 'organisation' | 'organisationMember'
->;
+type AuthTransactionClient = Pick<PrismaService, 'user' | 'organisation' | 'organisationMember'>;
 
 const ORGANISATION_AUTH_SELECT = {
   id: true,
@@ -99,9 +91,7 @@ export class AuthService {
         organisationId: org.id,
         orgRole,
       },
-      organisations: [
-        { id: org.id, name: org.name, slug: org.slug, role: orgRole },
-      ],
+      organisations: [{ id: org.id, name: org.name, slug: org.slug, role: orgRole }],
     };
   }
 
@@ -145,12 +135,7 @@ export class AuthService {
       orgRole = user.orgMemberships[0]!.role;
     }
 
-    const accessToken = this.signAccessToken(
-      user.id,
-      user.email,
-      orgId,
-      orgRole,
-    );
+    const accessToken = this.signAccessToken(user.id, user.email, orgId, orgRole);
     const refreshToken = await this.createRefreshToken(user.id);
 
     this.writeAuthAudit(user.id, orgId, 'login', requestId);
@@ -182,11 +167,7 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (
-      !storedToken ||
-      storedToken.revokedAt ||
-      storedToken.expiresAt < new Date()
-    ) {
+    if (!storedToken || storedToken.revokedAt || storedToken.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
@@ -302,12 +283,7 @@ export class AuthService {
     };
   }
 
-  private signAccessToken(
-    userId: string,
-    email: string,
-    orgId?: string,
-    orgRole?: string,
-  ): string {
+  private signAccessToken(userId: string, email: string, orgId?: string, orgRole?: string): string {
     const payload: Record<string, unknown> = { sub: userId, email };
     if (orgId) payload['orgId'] = orgId;
     if (orgRole) payload['orgRole'] = orgRole;

@@ -19,10 +19,7 @@ import { AddProjectMemberDto } from './dto/add-project-member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ProjectRolesGuard } from '../auth/guards/project-role.guard';
-import {
-  CurrentUser,
-  RequestUser,
-} from '../auth/decorators/current-user.decorator';
+import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ProjectRoles } from '../auth/decorators/project-roles.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -36,20 +33,14 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: 'List projects in current organisation' })
-  async findAll(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findAll(@CurrentUser() user: RequestUser, @Query() pagination: PaginationDto) {
     this.requireOrgContext(user);
     return this.projectsService.findAll(user.organisationId!, pagination);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get project by ID (requires project membership or org admin/owner)' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.projectsService.findById(id, user.organisationId!, user.id, user.orgRole);
   }
@@ -58,10 +49,7 @@ export class ProjectsController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a new project (viewers cannot create)' })
-  async create(
-    @Body() dto: CreateProjectDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async create(@Body() dto: CreateProjectDto, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.projectsService.create(user.organisationId!, user.id, dto);
   }
@@ -83,20 +71,16 @@ export class ProjectsController {
   @UseGuards(ProjectRolesGuard)
   @ProjectRoles('lead')
   @ApiOperation({ summary: 'Delete a project' })
-  async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.projectsService.remove(id, user.organisationId!);
   }
 
   @Get(':id/members')
-  @ApiOperation({ summary: 'List project members (requires project membership or org admin/owner)' })
-  async listMembers(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: RequestUser,
-  ) {
+  @ApiOperation({
+    summary: 'List project members (requires project membership or org admin/owner)',
+  })
+  async listMembers(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
     this.requireOrgContext(user);
     return this.projectsService.listMembers(id, user.organisationId!, user.id, user.orgRole);
   }

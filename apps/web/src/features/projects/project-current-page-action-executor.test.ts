@@ -214,9 +214,7 @@ describe('project current-page action executor', () => {
   });
 });
 
-function requireAppliedDraft(
-  value: MultiPileProjectSpecifics | null,
-): MultiPileProjectSpecifics {
+function requireAppliedDraft(value: MultiPileProjectSpecifics | null): MultiPileProjectSpecifics {
   if (!value) {
     throw new Error('Expected applied draft');
   }

@@ -18,7 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   resolveProjectGeotechnicalMaterialLabel,
   selectProjectGeotechnicalMaterials,
@@ -52,7 +59,9 @@ export function LoadEngineBasisTab({
 }: LoadEngineBasisTabProps) {
   const allProjectMaterials = projectSpecifics.geotechnicalMaterials.materials;
   const projectArrAssessment = projectSpecifics.geotechnicalBasis.arrAssessment;
-  const projectMaterialById = new Map(allProjectMaterials.map((material) => [material.id, material]));
+  const projectMaterialById = new Map(
+    allProjectMaterials.map((material) => [material.id, material]),
+  );
   const activeProjectMaterials = selectProjectGeotechnicalMaterials(projectSpecifics);
 
   function updatePileTypes(
@@ -74,16 +83,17 @@ export function LoadEngineBasisTab({
           candidateId = `${normalized.id}_${suffix++}`;
         }
         seenIds.add(candidateId);
-        const nextRow = candidateId === normalized.id
-          ? normalized
-          : {
-              ...normalized,
-              id: candidateId,
-              displayName:
-                normalized.displayName === previousId || normalized.displayName === normalized.id
-                  ? candidateId
-                  : normalized.displayName,
-            };
+        const nextRow =
+          candidateId === normalized.id
+            ? normalized
+            : {
+                ...normalized,
+                id: candidateId,
+                displayName:
+                  normalized.displayName === previousId || normalized.displayName === normalized.id
+                    ? candidateId
+                    : normalized.displayName,
+              };
         if (previousId && previousId !== nextRow.id) {
           renamePairs.push({ oldId: previousId, newId: nextRow.id });
         }
@@ -109,7 +119,9 @@ export function LoadEngineBasisTab({
 
   function updateGeoTypeSettings(
     pileTypeId: string,
-    updater: (settings: MultiPileState['geoTypeSettings'][string]) => MultiPileState['geoTypeSettings'][string],
+    updater: (
+      settings: MultiPileState['geoTypeSettings'][string],
+    ) => MultiPileState['geoTypeSettings'][string],
   ) {
     updateDraft((current) => {
       const pileType = current.pileTypes.find((row) => row.id === pileTypeId);
@@ -148,256 +160,277 @@ export function LoadEngineBasisTab({
         <CardContent>
           <div className="overflow-x-auto">
             <Table className="min-w-[1600px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type ID</TableHead>
-                <TableHead>Display Name</TableHead>
-                <TableHead className="w-28">Active</TableHead>
-                <TableHead className="w-40">Standard Size (mm)</TableHead>
-                <TableHead className="w-28">Use Custom</TableHead>
-                <TableHead className="w-40">Custom Size (mm)</TableHead>
-                <TableHead className="w-32">D (m)</TableHead>
-                <TableHead className="w-32">e_oop (m)</TableHead>
-                <TableHead className="w-40">Compression range min (kN)</TableHead>
-                <TableHead className="w-40">Compression range max (kN)</TableHead>
-                <TableHead className="w-40">Tension / uplift range min (kN)</TableHead>
-                <TableHead className="w-40">Tension / uplift range max (kN)</TableHead>
-                <TableHead className="w-40">Range status</TableHead>
-                <TableHead className="w-16" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {draft.pileTypes.map((pileType, index) => {
-                const rangeSummary = summarizePileTypeUltimateRange(pileType);
-
-                return (
-                <TableRow key={pileType.id}>
-                  <TableCell>
-                    <Input
-                      className="font-mono text-xs"
-                      value={pileType.id}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index ? { ...row, id: event.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={pileType.displayName}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index ? { ...row, displayName: event.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-input"
-                      checked={pileType.active}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index ? { ...row, active: event.target.checked } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={pileType.sizePreset}
-                      onValueChange={(value) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index ? { ...row, sizePreset: value } : row,
-                          ),
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MULTI_PILE_STANDARD_PILE_DIAMETERS_MM.map((diameterMm) => (
-                          <SelectItem key={diameterMm} value={String(diameterMm)}>
-                            {diameterMm}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-input"
-                      checked={pileType.useCustom}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index ? { ...row, useCustom: event.target.checked } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="50"
-                      disabled={!pileType.useCustom}
-                      value={pileType.customMm}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  customMm: Math.max(
-                                    50,
-                                    Math.round(numberFromInput(event.target.value, row.customMm)),
-                                  ),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input value={(pileType.Dmm / 1000).toFixed(3)} readOnly />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.001"
-                      min="0"
-                      value={pileType.eoop}
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? { ...row, eoop: Math.max(0, numberFromInput(event.target.value)) }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={nullableNumberToInput(pileType.compressionUltimateMin)}
-                      placeholder="Open"
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  compressionUltimateMin: nullableNumberFromInput(event.target.value),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={nullableNumberToInput(pileType.compressionUltimateMax)}
-                      placeholder="Open"
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  compressionUltimateMax: nullableNumberFromInput(event.target.value),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={nullableNumberToInput(pileType.tensionUltimateMin)}
-                      placeholder="Open"
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  tensionUltimateMin: nullableNumberFromInput(event.target.value),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={nullableNumberToInput(pileType.tensionUltimateMax)}
-                      placeholder="Open"
-                      onChange={(event) =>
-                        updatePileTypes((currentPileTypes) =>
-                          currentPileTypes.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  tensionUltimateMax: nullableNumberFromInput(event.target.value),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <Badge variant={rangeSummary.participatesInAutoMatching ? 'success' : 'outline'}>
-                        {rangeSummary.label}
-                      </Badge>
-                      <div className="text-xs text-muted-foreground">{rangeSummary.detail}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={draft.pileTypes.length <= 1}
-                      onClick={() => removePileType(pileType.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type ID</TableHead>
+                  <TableHead>Display Name</TableHead>
+                  <TableHead className="w-28">Active</TableHead>
+                  <TableHead className="w-40">Standard Size (mm)</TableHead>
+                  <TableHead className="w-28">Use Custom</TableHead>
+                  <TableHead className="w-40">Custom Size (mm)</TableHead>
+                  <TableHead className="w-32">D (m)</TableHead>
+                  <TableHead className="w-32">e_oop (m)</TableHead>
+                  <TableHead className="w-40">Compression range min (kN)</TableHead>
+                  <TableHead className="w-40">Compression range max (kN)</TableHead>
+                  <TableHead className="w-40">Tension / uplift range min (kN)</TableHead>
+                  <TableHead className="w-40">Tension / uplift range max (kN)</TableHead>
+                  <TableHead className="w-40">Range status</TableHead>
+                  <TableHead className="w-16" />
                 </TableRow>
-                );
-              })}
-            </TableBody>
+              </TableHeader>
+              <TableBody>
+                {draft.pileTypes.map((pileType, index) => {
+                  const rangeSummary = summarizePileTypeUltimateRange(pileType);
+
+                  return (
+                    <TableRow key={pileType.id}>
+                      <TableCell>
+                        <Input
+                          className="font-mono text-xs"
+                          value={pileType.id}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, id: event.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.displayName}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, displayName: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border border-input"
+                          checked={pileType.active}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, active: event.target.checked } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={pileType.sizePreset}
+                          onValueChange={(value) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, sizePreset: value } : row,
+                              ),
+                            )
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MULTI_PILE_STANDARD_PILE_DIAMETERS_MM.map((diameterMm) => (
+                              <SelectItem key={diameterMm} value={String(diameterMm)}>
+                                {diameterMm}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border border-input"
+                          checked={pileType.useCustom}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, useCustom: event.target.checked }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="50"
+                          disabled={!pileType.useCustom}
+                          value={pileType.customMm}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      customMm: Math.max(
+                                        50,
+                                        Math.round(
+                                          numberFromInput(event.target.value, row.customMm),
+                                        ),
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input value={(pileType.Dmm / 1000).toFixed(3)} readOnly />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          value={pileType.eoop}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      eoop: Math.max(0, numberFromInput(event.target.value)),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.compressionUltimateMin)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      compressionUltimateMin: nullableNumberFromInput(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.compressionUltimateMax)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      compressionUltimateMax: nullableNumberFromInput(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.tensionUltimateMin)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      tensionUltimateMin: nullableNumberFromInput(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.tensionUltimateMax)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      tensionUltimateMax: nullableNumberFromInput(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge
+                            variant={
+                              rangeSummary.participatesInAutoMatching ? 'success' : 'outline'
+                            }
+                          >
+                            {rangeSummary.label}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground">{rangeSummary.detail}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={draft.pileTypes.length <= 1}
+                          onClick={() => removePileType(pileType.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
             </Table>
           </div>
         </CardContent>
@@ -414,7 +447,9 @@ export function LoadEngineBasisTab({
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{activeProjectMaterials.length} active project materials</Badge>
+            <Badge variant="outline">
+              {activeProjectMaterials.length} active project materials
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -428,7 +463,9 @@ export function LoadEngineBasisTab({
           {draft.pileTypes.map((pileType) => {
             const settings = draft.geoTypeSettings[pileType.id] ?? defaultGeoTypeSettings(pileType);
             const adoptedPhi = adoptedPhiForRedundancy(projectArrAssessment, settings.redundancy);
-            const linkedJointCount = draft.joints.filter((joint) => joint.pileTypeId === pileType.id).length;
+            const linkedJointCount = draft.joints.filter(
+              (joint) => joint.pileTypeId === pileType.id,
+            ).length;
             const lsModeLabel =
               settings.LsMode === 'manual'
                 ? 'Manual override'
@@ -459,7 +496,7 @@ export function LoadEngineBasisTab({
               },
             ];
             const foundingMaterial = settings.foundingMaterialId
-              ? projectMaterialById.get(settings.foundingMaterialId) ?? null
+              ? (projectMaterialById.get(settings.foundingMaterialId) ?? null)
               : null;
 
             return (
@@ -501,7 +538,8 @@ export function LoadEngineBasisTab({
                       Adopted phi_g from project ARR assessment: {adoptedPhi.toFixed(3)}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Project LOW / HIGH phi_g = {projectArrAssessment.phiGLow.toFixed(3)} / {projectArrAssessment.phiGHigh.toFixed(3)}
+                      Project LOW / HIGH phi_g = {projectArrAssessment.phiGLow.toFixed(3)} /{' '}
+                      {projectArrAssessment.phiGHigh.toFixed(3)}
                     </div>
                   </div>
 
@@ -602,9 +640,7 @@ export function LoadEngineBasisTab({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      Ls mode: {lsModeLabel}
-                    </div>
+                    <div className="mt-3 text-sm text-muted-foreground">Ls mode: {lsModeLabel}</div>
                     <div className="text-sm text-muted-foreground">
                       Ls solved {settings.LsSolved > 0 ? settings.LsSolved.toFixed(2) : '—'} m
                     </div>
@@ -617,7 +653,7 @@ export function LoadEngineBasisTab({
                 <div className="mt-4 space-y-3">
                   {layerRows.map((layer) => {
                     const selectedMaterial = layer.materialId
-                      ? projectMaterialById.get(layer.materialId) ?? null
+                      ? (projectMaterialById.get(layer.materialId) ?? null)
                       : null;
                     const selectorOptions = selectProjectGeotechnicalMaterials(projectSpecifics, {
                       selectedId: layer.materialId,
@@ -642,10 +678,7 @@ export function LoadEngineBasisTab({
                             onChange={(event) =>
                               updateGeoTypeSettings(pileType.id, (current) => ({
                                 ...current,
-                                [layer.heightKey]: Math.max(
-                                  0,
-                                  numberFromInput(event.target.value),
-                                ),
+                                [layer.heightKey]: Math.max(0, numberFromInput(event.target.value)),
                               }))
                             }
                           />
@@ -665,7 +698,9 @@ export function LoadEngineBasisTab({
                               <SelectValue placeholder="Select project geo material" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__none__">No project geo material selected</SelectItem>
+                              <SelectItem value="__none__">
+                                No project geo material selected
+                              </SelectItem>
                               {layer.materialId && !selectedMaterial ? (
                                 <SelectItem value={layer.materialId}>
                                   Missing material ({layer.materialId})
@@ -717,7 +752,9 @@ export function LoadEngineBasisTab({
                         <SelectValue placeholder="Select founding / socket material" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">No founding / socket material selected</SelectItem>
+                        <SelectItem value="__none__">
+                          No founding / socket material selected
+                        </SelectItem>
                         {settings.foundingMaterialId && !foundingMaterial ? (
                           <SelectItem value={settings.foundingMaterialId}>
                             Missing material ({settings.foundingMaterialId})
@@ -822,7 +859,8 @@ export function LoadEngineBasisTab({
                           return {
                             ...current,
                             LsManual: manual,
-                            LsMode: current.socketOverrideEnabled && manual > 0 ? 'manual' : 'pending',
+                            LsMode:
+                              current.socketOverrideEnabled && manual > 0 ? 'manual' : 'pending',
                             LsAdopted: current.socketOverrideEnabled && manual > 0 ? manual : 0,
                             Ls: current.socketOverrideEnabled && manual > 0 ? manual : 0,
                           };
@@ -848,9 +886,7 @@ export function LoadEngineBasisTab({
                     <div className="mt-2 text-lg font-semibold">
                       {settings.LsAdopted > 0 ? settings.LsAdopted.toFixed(2) : '—'}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {lsModeLabel}
-                    </div>
+                    <div className="text-sm text-muted-foreground">{lsModeLabel}</div>
                   </div>
                 </div>
               </div>

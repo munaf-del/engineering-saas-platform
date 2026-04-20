@@ -725,9 +725,7 @@ function normalizeProjectGeotechnicalMaterials(
           row.pileAllowableShaftCompression_kPa,
       ),
       pile_fb_allow_kPa: nullableNumberValue(
-        row.pile_fb_allow_kPa ??
-          row.pileAllowableEndBearingKPa ??
-          row.pileAllowableEndBearing_kPa,
+        row.pile_fb_allow_kPa ?? row.pileAllowableEndBearingKPa ?? row.pileAllowableEndBearing_kPa,
       ),
       cfaUpliftTensionFactor: nullableNumberValue(row.cfaUpliftTensionFactor),
       includeInProject: row.includeInProject === undefined ? true : Boolean(row.includeInProject),
