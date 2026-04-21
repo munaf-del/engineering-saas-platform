@@ -75,9 +75,94 @@
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
+  @page sheet-a3-landscape {
+    size: A3 landscape;
+    margin: 0;
+  }
+
+  @page sheet-a3-portrait {
+    size: A3 portrait;
+    margin: 0;
+  }
+
+  @page sheet-a4-landscape {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  @page sheet-a4-portrait {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: white !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body {
+    overflow: visible !important;
+  }
+
+  .h-screen {
+    height: auto !important;
+  }
+
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+
   [data-sonner-toaster],
   [data-sonner-toast],
   [data-sonner-toast-wrapper] {
     display: none !important;
+  }
+
+  .report-package-preview {
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  .report-package-preview[data-preview-mode='package'],
+  .report-package-preview[data-preview-mode='package'] > article {
+    display: contents;
+  }
+
+  .report-package-preview[data-preview-mode='focused-annexure'],
+  .report-package-preview[data-preview-mode='focused-annexure'] > article {
+    display: block;
+  }
+
+  .package-print-page {
+    break-inside: avoid;
+    overflow: hidden !important;
+    page-break-inside: avoid;
+  }
+
+  .package-print-page[data-print-page-size='a3'][data-print-orientation='landscape'] {
+    page: sheet-a3-landscape;
+  }
+
+  .package-print-page[data-print-page-size='a3'][data-print-orientation='portrait'] {
+    page: sheet-a3-portrait;
+  }
+
+  .package-print-page[data-print-page-size='a4'][data-print-orientation='landscape'] {
+    page: sheet-a4-landscape;
+  }
+
+  .package-print-page[data-print-page-size='a4'][data-print-orientation='portrait'] {
+    page: sheet-a4-portrait;
+  }
+
+  .template-canvas-surface {
+    zoom: var(--template-print-scale, 1);
+    transform-origin: top left;
   }
 }

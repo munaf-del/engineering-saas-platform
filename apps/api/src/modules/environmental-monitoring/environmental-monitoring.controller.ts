@@ -17,14 +17,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import {
   CreateProjectEnvironmentalMonitoringLocationDto,
+  CreateProjectEnvironmentalMonitoringAnnexureDto,
   CreateProjectEnvironmentalMonitoringObservationDto,
+  CreateProjectEnvironmentalMonitoringReportPackageIssueDto,
   CreateProjectEnvironmentalMonitoringRecommendationDto,
   CreateProjectEnvironmentalMonitoringReferenceDto,
   CreateProjectEnvironmentalMonitoringReportDto,
   CreateProjectEnvironmentalMonitoringSelectedCriterionDto,
   CreateProjectEnvironmentalNoiseResultRowDto,
   CreateProjectEnvironmentalVibrationResultRowDto,
+  ImportProjectEnvironmentalMonitoringLocationsFromViewDto,
+  ReorderProjectEnvironmentalMonitoringAnnexuresDto,
   UpdateProjectEnvironmentalMonitoringLocationDto,
+  UpdateProjectEnvironmentalMonitoringAnnexureDto,
   UpdateProjectEnvironmentalMonitoringObservationDto,
   UpdateProjectEnvironmentalMonitoringRecommendationDto,
   UpdateProjectEnvironmentalMonitoringReferenceDto,
@@ -65,6 +70,21 @@ export class ProjectEnvironmentalMonitoringController {
     return this.projectEnvironmentalMonitoringService.createReport(
       this.access(projectId, user),
       dto,
+    );
+  }
+
+  @Post(':reportId/duplicate')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Duplicate an environmental monitoring report' })
+  async duplicateReport(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.duplicateReport(
+      this.access(projectId, user),
+      reportId,
     );
   }
 
@@ -110,6 +130,108 @@ export class ProjectEnvironmentalMonitoringController {
     return this.projectEnvironmentalMonitoringService.deleteReport(
       this.access(projectId, user),
       reportId,
+    );
+  }
+
+  @Post(':reportId/package-issues')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Create a frozen report package issue snapshot' })
+  async createPackageIssue(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringReportPackageIssueDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createPackageIssue(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Get(':reportId/package-issues/:issueId')
+  @ApiOperation({ summary: 'Get a frozen report package issue snapshot' })
+  async findPackageIssue(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('issueId', ParseUUIDPipe) issueId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.findPackageIssue(
+      this.access(projectId, user),
+      reportId,
+      issueId,
+    );
+  }
+
+  @Post(':reportId/annexures')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Add an annexure to an environmental monitoring report' })
+  async createAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringAnnexureDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createAnnexure(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Put(':reportId/annexures/reorder')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Reorder annexures on an environmental monitoring report' })
+  async reorderAnnexures(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ReorderProjectEnvironmentalMonitoringAnnexuresDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.reorderAnnexures(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Patch(':reportId/annexures/:id')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Update an annexure on an environmental monitoring report' })
+  async updateAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProjectEnvironmentalMonitoringAnnexureDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.updateAnnexure(
+      this.access(projectId, user),
+      reportId,
+      id,
+      dto,
+    );
+  }
+
+  @Delete(':reportId/annexures/:id')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Delete an annexure from an environmental monitoring report' })
+  async deleteAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.deleteAnnexure(
+      this.access(projectId, user),
+      reportId,
+      id,
     );
   }
 
@@ -216,6 +338,25 @@ export class ProjectEnvironmentalMonitoringController {
       this.access(projectId, user),
       reportId,
       id,
+    );
+  }
+
+  @Post(':reportId/locations/import-from-view')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Import or refresh monitoring locations from a Project Spatial View',
+  })
+  async importLocationsFromView(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ImportProjectEnvironmentalMonitoringLocationsFromViewDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.importLocationsFromView(
+      this.access(projectId, user),
+      reportId,
+      dto,
     );
   }
 

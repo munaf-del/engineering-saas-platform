@@ -11,6 +11,7 @@ import {
   FolderOpen,
   History,
   Import,
+  Layers,
   Package,
   Settings,
   Users,
@@ -30,6 +31,7 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { label: 'Projects', href: '/projects', icon: FolderOpen },
+  { label: 'Templates', href: '/templates', icon: Layers },
   { label: 'Calculators', href: '/calculators', icon: Calculator },
 ];
 

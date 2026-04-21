@@ -2,6 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { PageLoading } from '@/components/loading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -11,7 +12,11 @@ import { ApiError } from '@/lib/api-client';
 
 export default function ProjectSpatialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const searchParams = useSearchParams();
   const { data: project, isLoading, error } = useProject(projectId);
+  const returnToHref = normalizeSpatialReturnTo(searchParams.get('returnTo'));
+  const source = searchParams.get('source');
+  const entryIntent = source === 'monitoring-annexure' ? 'monitoring-annexure' : null;
 
   if (isLoading) {
     return <PageLoading />;
@@ -54,5 +59,22 @@ export default function ProjectSpatialPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  return <ProjectSpatialWorkspace projectId={projectId} project={project} />;
+  return (
+    <ProjectSpatialWorkspace
+      entryIntent={entryIntent}
+      key={`spatial-map-${projectId}`}
+      mode="map"
+      projectId={projectId}
+      project={project}
+      returnToHref={returnToHref}
+    />
+  );
+}
+
+function normalizeSpatialReturnTo(value: string | null) {
+  if (!value || !value.startsWith('/')) {
+    return null;
+  }
+
+  return value.startsWith('//') ? null : value;
 }

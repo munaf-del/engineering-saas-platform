@@ -30,6 +30,7 @@ model Organisation {
   documents            Document[]
   aiDocuments          AiDocument[]
   assistantProviderCredentials OrganisationAiAssistantProviderCredential[]
+  rootSheetTemplates   RootSheetTemplate[]
 
   @@map("organisations")
 }
@@ -117,6 +118,8 @@ model Project {
   environmentalMonitoringReports ProjectEnvironmentalMonitoringReport[]
   wasteClassificationReports     ProjectWasteClassificationReport[]
   spatialFeatures                ProjectSpatialFeature[]
+  spatialViews                   ProjectSpatialView[]
+  spatialSheets                  ProjectSpatialSheet[]
 
   @@unique([organisationId, code])
   @@map("projects")
@@ -693,9 +696,20 @@ enum ProjectEnvironmentalMonitoringReportType {
 
 enum ProjectEnvironmentalMonitoringComplianceStatus {
   not_assessed
+  compliant
+  trigger_exceeded
+  criterion_exceeded
+  not_applicable
   complies
   exceeds
   review_required
+}
+
+enum ProjectEnvironmentalMonitoringCriterionApplicabilityStatus {
+  applicable
+  reference_only
+  superseded_by_project_condition
+  not_applicable
 }
 
 enum ProjectEnvironmentalMonitoringMetricType {
@@ -703,6 +717,67 @@ enum ProjectEnvironmentalMonitoringMetricType {
   vdv
   lin_peak
   other
+}
+
+enum ProjectEnvironmentalMonitoringAnnexureType {
+  spatial_sheet
+}
+
+enum RootSheetTemplateScopeType {
+  global
+  org
+  project
+}
+
+enum SheetTemplateSourceKind {
+  root_sheet_template
+  built_in_sheet_template
+  legacy_spatial_layout
+}
+
+model RootSheetTemplate {
+  id               String                     @id @default(uuid()) @db.Uuid
+  organisationId   String?                    @map("organisation_id") @db.Uuid
+  scopeType        RootSheetTemplateScopeType @map("scope_type")
+  scopeId          String?                    @map("scope_id")
+  key              String
+  label            String
+  category         String?
+  archivedAt       DateTime?                  @map("archived_at")
+  currentVersionId String?                    @unique @map("current_version_id") @db.Uuid
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+  createdBy        String?                    @map("created_by") @db.Uuid
+
+  organisation  Organisation?                     @relation(fields: [organisationId], references: [id], onDelete: Cascade, map: "root_sheet_templates_organisation_fkey")
+  currentVersion RootSheetTemplateVersion?        @relation("RootSheetTemplateCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, map: "root_sheet_templates_current_version_fkey")
+  versions       RootSheetTemplateVersion[]       @relation("RootSheetTemplateVersions")
+  spatialSheets  ProjectSpatialSheet[]
+  annexures      ProjectEnvironmentalMonitoringAnnexure[]
+
+  @@unique([scopeType, scopeId, key], map: "root_sheet_templates_scope_key")
+  @@index([organisationId, archivedAt, updatedAt], map: "root_sheet_templates_org_updated_idx")
+  @@index([scopeType, scopeId, archivedAt], map: "root_sheet_templates_scope_archived_idx")
+  @@map("root_sheet_templates")
+}
+
+model RootSheetTemplateVersion {
+  id                  String    @id @default(uuid()) @db.Uuid
+  rootSheetTemplateId String    @map("root_sheet_template_id") @db.Uuid
+  versionLabel        String    @map("version_label")
+  schemaVersion       Int       @default(1) @map("schema_version")
+  definitionJson      Json      @map("definition_json")
+  publishedAt         DateTime? @map("published_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  createdBy           String?   @map("created_by") @db.Uuid
+
+  rootSheetTemplate RootSheetTemplate                   @relation("RootSheetTemplateVersions", fields: [rootSheetTemplateId], references: [id], onDelete: Cascade, map: "root_sheet_template_versions_template_fkey")
+  currentForTemplate RootSheetTemplate?                 @relation("RootSheetTemplateCurrentVersion")
+  spatialSheets      ProjectSpatialSheet[]
+  annexures          ProjectEnvironmentalMonitoringAnnexure[]
+
+  @@index([rootSheetTemplateId, createdAt], map: "root_sheet_template_versions_template_created_idx")
+  @@map("root_sheet_template_versions")
 }
 
 model ProjectEnvironmentalMonitoringReport {
@@ -737,10 +812,60 @@ model ProjectEnvironmentalMonitoringReport {
   vibrationResults ProjectEnvironmentalVibrationResultRow[]
   observations     ProjectEnvironmentalMonitoringObservation[]
   recommendations  ProjectEnvironmentalMonitoringRecommendation[]
+  annexures        ProjectEnvironmentalMonitoringAnnexure[]
+  packageIssues    ProjectEnvironmentalMonitoringReportPackageIssue[]
 
   @@index([projectId, createdAt])
   @@index([projectId, reportType])
   @@map("project_environmental_monitoring_reports")
+}
+
+model ProjectEnvironmentalMonitoringReportPackageIssue {
+  id                String    @id @default(uuid()) @db.Uuid
+  monitoringReportId String   @map("monitoring_report_id") @db.Uuid
+  issueLabel        String    @map("issue_label")
+  revision          String?   @map("revision")
+  documentStatus    String?   @map("document_status")
+  issueDate         DateTime? @map("issue_date")
+  preparedBy        String?   @map("prepared_by")
+  checkedBy         String?   @map("checked_by")
+  approvedBy        String?   @map("approved_by")
+  reportSnapshotJson Json     @map("report_snapshot_json")
+  packageSnapshotJson Json    @map("package_snapshot_json")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         String?   @map("created_by") @db.Uuid
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade, map: "pem_report_package_issues_report_fkey")
+
+  @@unique([monitoringReportId, issueLabel], map: "pem_report_package_issues_report_label_key")
+  @@index([monitoringReportId, createdAt], map: "pem_report_package_issues_report_created_idx")
+  @@map("project_environmental_monitoring_report_package_issues")
+}
+
+model ProjectEnvironmentalMonitoringAnnexure {
+  id                 String                                   @id @default(uuid()) @db.Uuid
+  monitoringReportId String                                   @map("monitoring_report_id") @db.Uuid
+  title              String
+  annexureType       ProjectEnvironmentalMonitoringAnnexureType @map("annexure_type")
+  templateSourceKind SheetTemplateSourceKind                  @default(built_in_sheet_template) @map("template_source_kind")
+  templateReferenceId String?                                 @map("template_reference_id")
+  rootSheetTemplateId String?                                 @map("root_sheet_template_id") @db.Uuid
+  rootSheetTemplateVersionId String?                          @map("root_sheet_template_version_id") @db.Uuid
+  templateSnapshotJson Json?                                  @map("template_snapshot_json")
+  sourceLabel        String?                                  @map("source_label")
+  bindingJson        Json?                                    @map("binding_json")
+  sortOrder          Int                                      @default(0) @map("sort_order")
+  createdAt          DateTime                                 @default(now()) @map("created_at")
+  updatedAt          DateTime                                 @updatedAt @map("updated_at")
+
+  monitoringReport         ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
+  rootSheetTemplate        RootSheetTemplate?                   @relation(fields: [rootSheetTemplateId], references: [id], onDelete: SetNull, map: "pem_annexures_template_fkey")
+  rootSheetTemplateVersion RootSheetTemplateVersion?            @relation(fields: [rootSheetTemplateVersionId], references: [id], onDelete: SetNull, map: "pem_annexures_template_ver_fkey")
+
+  @@unique([monitoringReportId, sortOrder], map: "project_environmental_monitoring_annexures_report_order_key")
+  @@index([rootSheetTemplateId], map: "project_environmental_monitoring_annexures_template_idx")
+  @@index([rootSheetTemplateVersionId], map: "project_environmental_monitoring_annexures_template_version_idx")
+  @@map("project_environmental_monitoring_annexures")
 }
 
 model ProjectEnvironmentalMonitoringReference {
@@ -764,7 +889,12 @@ model ProjectEnvironmentalMonitoringLocation {
   id                      String                       @id @default(uuid()) @db.Uuid
   monitoringReportId      String                       @map("monitoring_report_id") @db.Uuid
   label                   String
-  receiverType            NoiseVibrationReceiverType   @map("receiver_type")
+  receiverType            NoiseVibrationReceiverType?  @map("receiver_type")
+  sourceSpatialViewId     String?                      @map("source_spatial_view_id") @db.Uuid
+  sourceSpatialViewLabel  String?                      @map("source_spatial_view_label")
+  sourceSpatialFeatureId  String?                      @map("source_spatial_feature_id") @db.Uuid
+  sourceSpatialFeatureLabel String?                    @map("source_spatial_feature_label")
+  sourceSpatialFeatureType ProjectSpatialFeatureType?  @map("source_spatial_feature_type")
   locationDescription     String?                      @map("location_description")
   distanceNote            String?                      @map("distance_note")
   chainageNote            String?                      @map("chainage_note")
@@ -778,6 +908,7 @@ model ProjectEnvironmentalMonitoringLocation {
 
   @@index([monitoringReportId, sortOrder])
   @@index([receiverType])
+  @@index([sourceSpatialFeatureId], map: "pem_locations_source_feature_idx")
   @@map("project_environmental_monitoring_locations")
 }
 
@@ -786,6 +917,7 @@ model ProjectEnvironmentalMonitoringSelectedCriterion {
   monitoringReportId         String                       @map("monitoring_report_id") @db.Uuid
   criterionRowId             String                       @map("criterion_row_id") @db.Uuid
   selectionPurpose           ProjectCnvmpSelectionPurpose @map("selection_purpose")
+  applicabilityStatus        ProjectEnvironmentalMonitoringCriterionApplicabilityStatus @default(applicable) @map("applicability_status")
   isEnforceableOnThisProject Boolean                      @default(false) @map("is_enforceable_on_this_project")
   projectConditionReference  String?                      @map("project_condition_reference")
   selectionNote              String?                      @map("selection_note")
@@ -808,10 +940,14 @@ model ProjectEnvironmentalNoiseResultRow {
   activityLabel         String                                         @map("activity_label")
   instrumentNote        String?                                        @map("instrument_note")
   measurementPeriodNote String?                                        @map("measurement_period_note")
+  descriptorMetric      String?                                        @map("descriptor_metric")
+  measuredValue         Decimal?                                       @map("measured_value") @db.Decimal(12, 3)
+  measuredUnit          String?                                        @map("measured_unit")
   laeq15min             Decimal?                                       @map("laeq_15min") @db.Decimal(12, 3)
   lamax                 Decimal?                                       @map("lamax") @db.Decimal(12, 3)
   laf1_1min             Decimal?                                       @map("laf1_1min") @db.Decimal(12, 3)
   backgroundNote        String?                                        @map("background_note")
+  selectedCriterionId   String?                                        @map("selected_criterion_id") @db.Uuid
   criterionRowId        String?                                        @map("criterion_row_id") @db.Uuid
   complianceStatus      ProjectEnvironmentalMonitoringComplianceStatus @default(not_assessed) @map("compliance_status")
   resultNote            String?                                        @map("result_note")
@@ -823,6 +959,7 @@ model ProjectEnvironmentalNoiseResultRow {
 
   @@index([monitoringReportId, sortOrder])
   @@index([locationId])
+  @@index([selectedCriterionId])
   @@index([criterionRowId])
   @@map("project_environmental_noise_result_rows")
 }
@@ -859,13 +996,19 @@ model ProjectEnvironmentalMonitoringObservation {
   id                 String  @id @default(uuid()) @db.Uuid
   monitoringReportId String  @map("monitoring_report_id") @db.Uuid
   category           String
+  locationId         String? @map("location_id") @db.Uuid
+  noiseResultId      String? @map("noise_result_id") @db.Uuid
   observation        String
   implicationNote    String? @map("implication_note")
+  implicationSeverity String? @map("implication_severity")
+  followUpRequired   Boolean @default(false) @map("follow_up_required")
   sortOrder          Int     @default(0) @map("sort_order")
 
   monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
 
   @@index([monitoringReportId, sortOrder])
+  @@index([locationId], map: "pem_observations_location_idx")
+  @@index([noiseResultId], map: "pem_observations_noise_result_idx")
   @@map("project_environmental_monitoring_observations")
 }
 
@@ -873,15 +1016,21 @@ model ProjectEnvironmentalMonitoringRecommendation {
   id                 String  @id @default(uuid()) @db.Uuid
   monitoringReportId String  @map("monitoring_report_id") @db.Uuid
   category           String
+  observationId      String? @map("observation_id") @db.Uuid
+  noiseResultId      String? @map("noise_result_id") @db.Uuid
   recommendation     String
   priority           String?
   responsibility     String?
   timingNote         String? @map("timing_note")
+  dueDate            DateTime? @map("due_date")
+  status             String?
   sortOrder          Int     @default(0) @map("sort_order")
 
   monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade)
 
   @@index([monitoringReportId, sortOrder])
+  @@index([observationId], map: "pem_recommendations_observation_idx")
+  @@index([noiseResultId], map: "pem_recommendations_noise_result_idx")
   @@map("project_environmental_monitoring_recommendations")
 }
 
@@ -1214,6 +1363,59 @@ model ProjectSpatialFeature {
   @@index([projectId, linkedDeliverableType])
   @@index([linkedAiDocumentId])
   @@map("project_spatial_features")
+}
+
+model ProjectSpatialView {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @map("project_id") @db.Uuid
+  name              String
+  description       String?
+  basemap           String
+  viewStateJson     Json     @map("view_state_json")
+  visibleLayersJson Json     @map("visible_layers_json")
+  filtersJson       Json?    @map("filters_json")
+  labelsOrStyleJson Json?    @map("labels_or_style_json")
+  annotationsJson   Json?    @map("annotations_json")
+  capturedAt        DateTime @default(now()) @map("captured_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdBy         String?  @map("created_by") @db.Uuid
+
+  project       Project               @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "project_spatial_views_project_fkey")
+  spatialSheets ProjectSpatialSheet[]
+
+  @@index([projectId, updatedAt], map: "project_spatial_views_project_updated_idx")
+  @@map("project_spatial_views")
+}
+
+model ProjectSpatialSheet {
+  id                        String                  @id @default(uuid()) @db.Uuid
+  projectId                 String                  @map("project_id") @db.Uuid
+  name                      String
+  templateSourceKind        SheetTemplateSourceKind @default(root_sheet_template) @map("template_source_kind")
+  templateReferenceId       String?                 @map("template_reference_id")
+  rootSheetTemplateId       String?                 @map("root_sheet_template_id") @db.Uuid
+  rootSheetTemplateVersionId String?                @map("root_sheet_template_version_id") @db.Uuid
+  templateSnapshotJson      Json?                   @map("template_snapshot_json")
+  assignedViewId            String?                 @map("assigned_view_id") @db.Uuid
+  assignedViewSnapshotJson  Json?                   @map("assigned_view_snapshot_json")
+  bindingSnapshotJson       Json?                   @map("binding_snapshot_json")
+  paperSize                 String                  @map("paper_size")
+  orientation               String
+  createdAt                 DateTime                @default(now()) @map("created_at")
+  updatedAt                 DateTime                @updatedAt @map("updated_at")
+  createdBy                 String?                 @map("created_by") @db.Uuid
+
+  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "project_spatial_sheets_project_fkey")
+  rootSheetTemplate        RootSheetTemplate?        @relation(fields: [rootSheetTemplateId], references: [id], onDelete: SetNull, map: "ps_sheets_template_fkey")
+  rootSheetTemplateVersion RootSheetTemplateVersion? @relation(fields: [rootSheetTemplateVersionId], references: [id], onDelete: SetNull, map: "ps_sheets_template_ver_fkey")
+  assignedView             ProjectSpatialView?       @relation(fields: [assignedViewId], references: [id], onDelete: SetNull, map: "project_spatial_sheets_view_fkey")
+
+  @@index([projectId, updatedAt], map: "project_spatial_sheets_project_updated_idx")
+  @@index([assignedViewId], map: "project_spatial_sheets_view_idx")
+  @@index([rootSheetTemplateId], map: "project_spatial_sheets_template_idx")
+  @@index([rootSheetTemplateVersionId], map: "project_spatial_sheets_template_version_idx")
+  @@map("project_spatial_sheets")
 }
 
 // ─── Materials ────────────────────────────────────────────────────

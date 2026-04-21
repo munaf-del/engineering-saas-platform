@@ -16,8 +16,18 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type {
   CreateProjectSpatialFeatureDto,
+  CreateProjectSpatialSheetDto,
+  CreateProjectSpatialViewDto,
   ProjectSpatialFeatureFiltersDto,
   UpdateProjectSpatialFeatureDto,
+  UpdateProjectSpatialSheetDto,
+  UpdateProjectSpatialViewDto,
+} from './dto/project-spatial.dto';
+import {
+  PROJECT_SPATIAL_BASEMAPS,
+  SHEET_TEMPLATE_SOURCE_KINDS,
+  TEMPLATE_PAGE_ORIENTATIONS,
+  TEMPLATE_PAPER_SIZES,
 } from './dto/project-spatial.dto';
 
 type ProjectAccess = {
@@ -30,6 +40,8 @@ type ProjectAccess = {
 type ProjectSpatialFeatureWithContext = Prisma.ProjectSpatialFeatureGetPayload<{
   include: typeof projectSpatialFeatureInclude;
 }>;
+type ProjectSpatialViewRecord = Prisma.ProjectSpatialViewGetPayload<Record<string, never>>;
+type ProjectSpatialSheetRecord = Prisma.ProjectSpatialSheetGetPayload<Record<string, never>>;
 
 @Injectable()
 export class ProjectSpatialService {
@@ -147,6 +159,99 @@ export class ProjectSpatialService {
     return { id: featureId, deleted: true };
   }
 
+  async listViews(access: ProjectAccess) {
+    await this.assertProjectReadAccess(access);
+
+    const views = await this.prisma.projectSpatialView.findMany({
+      where: { projectId: access.projectId },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { name: 'asc' }],
+    });
+
+    return views.map(serializeProjectSpatialView);
+  }
+
+  async createView(access: ProjectAccess, dto: CreateProjectSpatialViewDto) {
+    await this.assertProjectWriteAccess(access);
+
+    const view = await this.prisma.projectSpatialView.create({
+      data: buildProjectSpatialViewCreateData(access, dto),
+    });
+
+    return serializeProjectSpatialView(view);
+  }
+
+  async updateView(access: ProjectAccess, viewId: string, dto: UpdateProjectSpatialViewDto) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertViewExists(access.projectId, viewId);
+
+    const view = await this.prisma.projectSpatialView.update({
+      where: { id: viewId },
+      data: buildProjectSpatialViewUpdateData(dto),
+    });
+
+    return serializeProjectSpatialView(view);
+  }
+
+  async deleteView(access: ProjectAccess, viewId: string) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertViewExists(access.projectId, viewId);
+    await this.prisma.projectSpatialView.delete({ where: { id: viewId } });
+    return { id: viewId, deleted: true };
+  }
+
+  async listSheets(access: ProjectAccess) {
+    await this.assertProjectReadAccess(access);
+
+    const sheets = await this.prisma.projectSpatialSheet.findMany({
+      where: {
+        projectId: access.projectId,
+        rootSheetTemplate: {
+          is: {
+            archivedAt: null,
+          },
+        },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { name: 'asc' }],
+    });
+
+    return sheets.map(serializeProjectSpatialSheet);
+  }
+
+  async createSheet(access: ProjectAccess, dto: CreateProjectSpatialSheetDto) {
+    await this.assertProjectWriteAccess(access);
+    const data = await this.resolveProjectSpatialSheetWriteData(access, dto);
+
+    const sheet = await this.prisma.projectSpatialSheet.create({
+      data: {
+        ...data,
+        createdBy: access.userId,
+        projectId: access.projectId,
+      },
+    });
+
+    return serializeProjectSpatialSheet(sheet);
+  }
+
+  async updateSheet(access: ProjectAccess, sheetId: string, dto: UpdateProjectSpatialSheetDto) {
+    await this.assertProjectWriteAccess(access);
+    const existing = await this.findExistingSheet(access.projectId, sheetId);
+    const data = await this.resolveProjectSpatialSheetWriteData(access, dto, existing);
+
+    const sheet = await this.prisma.projectSpatialSheet.update({
+      where: { id: sheetId },
+      data,
+    });
+
+    return serializeProjectSpatialSheet(sheet);
+  }
+
+  async deleteSheet(access: ProjectAccess, sheetId: string) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertSheetExists(access.projectId, sheetId);
+    await this.prisma.projectSpatialSheet.delete({ where: { id: sheetId } });
+    return { id: sheetId, deleted: true };
+  }
+
   private async findExistingFeature(projectId: string, featureId: string) {
     const feature = await this.prisma.projectSpatialFeature.findFirst({
       where: { id: featureId, projectId },
@@ -169,6 +274,192 @@ export class ProjectSpatialService {
     if (!feature) {
       throw new NotFoundException('Project spatial feature not found');
     }
+  }
+
+  private async findExistingView(projectId: string, viewId: string) {
+    const view = await this.prisma.projectSpatialView.findFirst({
+      where: { id: viewId, projectId },
+    });
+
+    if (!view) {
+      throw new NotFoundException('Project Spatial View not found');
+    }
+
+    return view;
+  }
+
+  private async assertViewExists(projectId: string, viewId: string) {
+    const view = await this.prisma.projectSpatialView.findFirst({
+      where: { id: viewId, projectId },
+      select: { id: true },
+    });
+
+    if (!view) {
+      throw new NotFoundException('Project Spatial View not found');
+    }
+  }
+
+  private async findExistingSheet(projectId: string, sheetId: string) {
+    const sheet = await this.prisma.projectSpatialSheet.findFirst({
+      where: { id: sheetId, projectId },
+    });
+
+    if (!sheet) {
+      throw new NotFoundException('Project Spatial Sheet not found');
+    }
+
+    return sheet;
+  }
+
+  private async assertSheetExists(projectId: string, sheetId: string) {
+    const sheet = await this.prisma.projectSpatialSheet.findFirst({
+      where: { id: sheetId, projectId },
+      select: { id: true },
+    });
+
+    if (!sheet) {
+      throw new NotFoundException('Project Spatial Sheet not found');
+    }
+  }
+
+  private async resolveProjectSpatialSheetWriteData(
+    access: ProjectAccess,
+    dto: CreateProjectSpatialSheetDto | UpdateProjectSpatialSheetDto,
+    existing?: ProjectSpatialSheetRecord,
+  ) {
+    const templateSourceKind = (dto.templateSourceKind ??
+      existing?.templateSourceKind ??
+      'root_sheet_template') as (typeof SHEET_TEMPLATE_SOURCE_KINDS)[number];
+    if (templateSourceKind !== 'root_sheet_template') {
+      throw new BadRequestException(
+        'Project Spatial Sheets must use a Root Sheet Template from /templates',
+      );
+    }
+    const templateReferenceId =
+      normalizeNullableString(dto.templateReferenceId) ?? existing?.templateReferenceId ?? null;
+    const paperSize = resolveTemplatePaperSize(dto.paperSize ?? existing?.paperSize);
+    const orientation = resolveTemplateOrientation(dto.orientation ?? existing?.orientation);
+
+    let rootSheetTemplateId =
+      dto.rootSheetTemplateId !== undefined
+        ? dto.rootSheetTemplateId
+        : (existing?.rootSheetTemplateId ?? null);
+    let rootSheetTemplateVersionId =
+      dto.rootSheetTemplateVersionId !== undefined
+        ? dto.rootSheetTemplateVersionId
+        : (existing?.rootSheetTemplateVersionId ?? null);
+    let templateSnapshotJson =
+      dto.templateSnapshotJson !== undefined
+        ? normalizeJsonObject(dto.templateSnapshotJson)
+        : normalizeJsonObject(existing?.templateSnapshotJson);
+
+    const resolvedTemplate = await this.resolveRootSheetTemplateSelection(access, {
+      rootSheetTemplateId,
+      rootSheetTemplateVersionId,
+    });
+
+    rootSheetTemplateId = resolvedTemplate.template.id;
+    rootSheetTemplateVersionId = resolvedTemplate.version.id;
+    templateSnapshotJson =
+      templateSnapshotJson ?? (resolvedTemplate.version.definitionJson as Record<string, unknown>);
+    assertSpatialRootSheetTemplateCompatibility(templateSnapshotJson);
+
+    const assignedViewId =
+      dto.assignedViewId !== undefined ? dto.assignedViewId : (existing?.assignedViewId ?? null);
+    const assignedView =
+      assignedViewId !== null
+        ? await this.findExistingView(access.projectId, assignedViewId)
+        : null;
+    const assignedViewSnapshotJson =
+      dto.assignedViewSnapshotJson !== undefined
+        ? normalizeJsonObject(dto.assignedViewSnapshotJson)
+        : normalizeJsonObject(existing?.assignedViewSnapshotJson);
+    const bindingSnapshotJson =
+      dto.bindingSnapshotJson !== undefined
+        ? normalizeJsonObject(dto.bindingSnapshotJson)
+        : normalizeJsonObject(existing?.bindingSnapshotJson);
+    const name = dto.name !== undefined ? dto.name.trim() : (existing?.name?.trim() ?? '');
+
+    if (!name) {
+      throw new BadRequestException('Project Spatial Sheet name is required');
+    }
+
+    return {
+      name,
+      assignedViewId,
+      assignedViewSnapshotJson: assignedView
+        ? (serializeProjectSpatialViewSnapshot(assignedView) as Prisma.InputJsonValue)
+        : assignedViewSnapshotJson
+          ? (assignedViewSnapshotJson as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      bindingSnapshotJson:
+        bindingSnapshotJson === undefined
+          ? undefined
+          : bindingSnapshotJson === null
+            ? Prisma.JsonNull
+            : (bindingSnapshotJson as Prisma.InputJsonValue),
+      orientation,
+      paperSize,
+      rootSheetTemplateId,
+      rootSheetTemplateVersionId,
+      templateReferenceId,
+      templateSnapshotJson:
+        templateSnapshotJson === undefined
+          ? undefined
+          : templateSnapshotJson === null
+            ? Prisma.JsonNull
+            : (templateSnapshotJson as Prisma.InputJsonValue),
+      templateSourceKind,
+    } satisfies Prisma.ProjectSpatialSheetUncheckedUpdateInput;
+  }
+
+  private async resolveRootSheetTemplateSelection(
+    access: ProjectAccess,
+    args: {
+      rootSheetTemplateId: string | null | undefined;
+      rootSheetTemplateVersionId: string | null | undefined;
+    },
+  ) {
+    if (!args.rootSheetTemplateId) {
+      throw new BadRequestException('Root Sheet Template selection requires rootSheetTemplateId');
+    }
+
+    const template = await this.prisma.rootSheetTemplate.findFirst({
+      where: {
+        id: args.rootSheetTemplateId,
+        archivedAt: null,
+        OR: [
+          { scopeType: 'global' },
+          { scopeType: 'org', scopeId: access.organisationId },
+          { scopeType: 'project', scopeId: access.projectId },
+        ],
+      },
+      include: {
+        currentVersion: true,
+      },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Root Sheet Template not found');
+    }
+
+    const versionId = args.rootSheetTemplateVersionId ?? template.currentVersionId;
+    if (!versionId) {
+      throw new BadRequestException('Root Sheet Template has no current version');
+    }
+
+    const version = await this.prisma.rootSheetTemplateVersion.findFirst({
+      where: {
+        id: versionId,
+        rootSheetTemplateId: template.id,
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('Root Sheet Template Version not found');
+    }
+
+    return { template, version };
   }
 
   private async assertProjectReadAccess(access: ProjectAccess) {
@@ -314,6 +605,47 @@ function serializeProjectSpatialFeature(
   };
 }
 
+function serializeProjectSpatialView(view: ProjectSpatialViewRecord) {
+  return {
+    annotationsJson: (view.annotationsJson as Record<string, unknown> | null) ?? null,
+    basemap: view.basemap,
+    capturedAt: view.capturedAt.toISOString(),
+    createdAt: view.createdAt.toISOString(),
+    createdBy: view.createdBy ?? null,
+    description: view.description ?? null,
+    filtersJson: (view.filtersJson as Record<string, unknown> | null) ?? null,
+    id: view.id,
+    labelsOrStyleJson: (view.labelsOrStyleJson as Record<string, unknown> | null) ?? null,
+    name: view.name,
+    projectId: view.projectId,
+    updatedAt: view.updatedAt.toISOString(),
+    viewStateJson: view.viewStateJson as Record<string, unknown>,
+    visibleLayersJson: view.visibleLayersJson as Record<string, unknown>,
+  };
+}
+
+function serializeProjectSpatialSheet(sheet: ProjectSpatialSheetRecord) {
+  return {
+    assignedViewId: sheet.assignedViewId ?? null,
+    assignedViewSnapshotJson:
+      (sheet.assignedViewSnapshotJson as Record<string, unknown> | null) ?? null,
+    bindingSnapshotJson: (sheet.bindingSnapshotJson as Record<string, unknown> | null) ?? null,
+    createdAt: sheet.createdAt.toISOString(),
+    createdBy: sheet.createdBy ?? null,
+    id: sheet.id,
+    name: sheet.name,
+    orientation: sheet.orientation,
+    paperSize: sheet.paperSize,
+    projectId: sheet.projectId,
+    rootSheetTemplateId: sheet.rootSheetTemplateId ?? null,
+    rootSheetTemplateVersionId: sheet.rootSheetTemplateVersionId ?? null,
+    templateReferenceId: sheet.templateReferenceId ?? null,
+    templateSnapshotJson: (sheet.templateSnapshotJson as Record<string, unknown> | null) ?? null,
+    templateSourceKind: sheet.templateSourceKind,
+    updatedAt: sheet.updatedAt.toISOString(),
+  };
+}
+
 function normalizeNullableString(value: string | null | undefined) {
   if (value === undefined) {
     return undefined;
@@ -333,6 +665,183 @@ function toNullableJsonInput(value: Record<string, unknown> | null | undefined) 
   }
 
   return value as Prisma.InputJsonValue;
+}
+
+function buildProjectSpatialViewCreateData(
+  access: ProjectAccess,
+  dto: CreateProjectSpatialViewDto,
+): Prisma.ProjectSpatialViewUncheckedCreateInput {
+  return {
+    annotationsJson: toNullableJsonInput(normalizeJsonObject(dto.annotationsJson)),
+    basemap: resolveProjectSpatialBasemap(dto.basemap),
+    capturedAt: resolveOptionalDate(dto.capturedAt) ?? new Date(),
+    createdBy: access.userId,
+    description: normalizeNullableString(dto.description),
+    filtersJson: toNullableJsonInput(normalizeJsonObject(dto.filtersJson)),
+    labelsOrStyleJson: toNullableJsonInput(normalizeJsonObject(dto.labelsOrStyleJson)),
+    name: dto.name.trim(),
+    projectId: access.projectId,
+    viewStateJson: validateProjectSpatialViewState(dto.viewStateJson) as Prisma.InputJsonValue,
+    visibleLayersJson: validateProjectSpatialVisibleLayers(
+      dto.visibleLayersJson,
+    ) as Prisma.InputJsonValue,
+  };
+}
+
+function buildProjectSpatialViewUpdateData(dto: UpdateProjectSpatialViewDto) {
+  const capturedAt = dto.capturedAt !== undefined ? resolveOptionalDate(dto.capturedAt) : undefined;
+
+  return {
+    ...(dto.annotationsJson !== undefined && {
+      annotationsJson: toNullableJsonInput(normalizeJsonObject(dto.annotationsJson)),
+    }),
+    ...(dto.basemap !== undefined && { basemap: resolveProjectSpatialBasemap(dto.basemap) }),
+    ...(capturedAt ? { capturedAt } : {}),
+    ...(dto.description !== undefined && { description: normalizeNullableString(dto.description) }),
+    ...(dto.filtersJson !== undefined && {
+      filtersJson: toNullableJsonInput(normalizeJsonObject(dto.filtersJson)),
+    }),
+    ...(dto.labelsOrStyleJson !== undefined && {
+      labelsOrStyleJson: toNullableJsonInput(normalizeJsonObject(dto.labelsOrStyleJson)),
+    }),
+    ...(dto.name !== undefined && { name: dto.name.trim() }),
+    ...(dto.viewStateJson !== undefined && {
+      viewStateJson: validateProjectSpatialViewState(dto.viewStateJson) as Prisma.InputJsonValue,
+    }),
+    ...(dto.visibleLayersJson !== undefined && {
+      visibleLayersJson: validateProjectSpatialVisibleLayers(
+        dto.visibleLayersJson,
+      ) as Prisma.InputJsonValue,
+    }),
+  } satisfies Prisma.ProjectSpatialViewUncheckedUpdateInput;
+}
+
+function validateProjectSpatialViewState(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('viewStateJson must be an object');
+  }
+
+  const record = value as Record<string, unknown>;
+  const center = Array.isArray(record.centerLonLat) ? record.centerLonLat : [];
+  const longitude = Number(center[0]);
+  const latitude = Number(center[1]);
+  const rotation = Number(record.rotation);
+  const zoomValue = record.zoom;
+  const zoom =
+    zoomValue === undefined || zoomValue === null || zoomValue === ''
+      ? undefined
+      : Number(zoomValue);
+
+  if (
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180 ||
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(rotation) ||
+    (zoom !== undefined && !Number.isFinite(zoom))
+  ) {
+    throw new BadRequestException(
+      'viewStateJson must include a valid centerLonLat, rotation, and optional zoom',
+    );
+  }
+
+  return {
+    centerLonLat: [longitude, latitude],
+    rotation,
+    ...(zoom !== undefined ? { zoom } : {}),
+  };
+}
+
+function validateProjectSpatialVisibleLayers(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('visibleLayersJson must be an object');
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function normalizeJsonObject(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('JSON payloads in this request must be objects');
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function resolveOptionalDate(value: string | null | undefined) {
+  const normalized = normalizeNullableString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BadRequestException('Invalid date value');
+  }
+
+  return parsed;
+}
+
+function resolveProjectSpatialBasemap(value: string): (typeof PROJECT_SPATIAL_BASEMAPS)[number] {
+  if ((PROJECT_SPATIAL_BASEMAPS as readonly string[]).includes(value)) {
+    return value as (typeof PROJECT_SPATIAL_BASEMAPS)[number];
+  }
+
+  throw new BadRequestException('Invalid Project Spatial View basemap');
+}
+
+function resolveTemplatePaperSize(value: string | null | undefined) {
+  if ((TEMPLATE_PAPER_SIZES as readonly string[]).includes(value ?? '')) {
+    return value as (typeof TEMPLATE_PAPER_SIZES)[number];
+  }
+
+  throw new BadRequestException('Invalid Project Spatial Sheet paper size');
+}
+
+function resolveTemplateOrientation(value: string | null | undefined) {
+  if ((TEMPLATE_PAGE_ORIENTATIONS as readonly string[]).includes(value ?? '')) {
+    return value as (typeof TEMPLATE_PAGE_ORIENTATIONS)[number];
+  }
+
+  throw new BadRequestException('Invalid Project Spatial Sheet orientation');
+}
+
+function serializeProjectSpatialViewSnapshot(view: ProjectSpatialViewRecord) {
+  return {
+    annotationsJson: (view.annotationsJson as Record<string, unknown> | null) ?? null,
+    basemap: view.basemap,
+    capturedAt: view.capturedAt.toISOString(),
+    description: view.description ?? null,
+    filtersJson: (view.filtersJson as Record<string, unknown> | null) ?? null,
+    labelsOrStyleJson: (view.labelsOrStyleJson as Record<string, unknown> | null) ?? null,
+    name: view.name,
+    viewStateJson: view.viewStateJson as Record<string, unknown>,
+    visibleLayersJson: view.visibleLayersJson as Record<string, unknown>,
+  };
+}
+
+function assertSpatialRootSheetTemplateCompatibility(
+  templateSnapshotJson: Record<string, unknown> | null,
+) {
+  const objects = Array.isArray(templateSnapshotJson?.objects)
+    ? (templateSnapshotJson?.objects as Array<Record<string, unknown>>)
+    : [];
+
+  if (!objects.some((object) => object?.type === 'mapFrame')) {
+    throw new BadRequestException(
+      'Selected Root Sheet Template must include a mapFrame block for spatial use',
+    );
+  }
 }
 
 function validateGeometry(

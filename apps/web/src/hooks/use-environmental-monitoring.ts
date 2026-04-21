@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import type {
   DeleteEnvironmentalMonitoringReportResult,
+  ProjectEnvironmentalMonitoringAnnexureInput,
+  ProjectEnvironmentalMonitoringLocationImportInput,
   EnvironmentalMonitoringReportSummary,
   ProjectEnvironmentalMonitoringLocationInput,
   ProjectEnvironmentalMonitoringObservationInput,
   ProjectEnvironmentalMonitoringRecommendationInput,
   ProjectEnvironmentalMonitoringReferenceInput,
   ProjectEnvironmentalMonitoringReport,
+  ProjectEnvironmentalMonitoringReportPackageIssue,
+  ProjectEnvironmentalMonitoringReportPackageIssueCreateInput,
   ProjectEnvironmentalMonitoringReportCreateInput,
   ProjectEnvironmentalMonitoringReportRootInput,
   ProjectEnvironmentalMonitoringSelectedCriterionInput,
@@ -32,6 +36,21 @@ export function useEnvironmentalMonitoringReport(projectId: string, reportId: st
   });
 }
 
+export function useEnvironmentalMonitoringReportPackageIssue(
+  projectId: string,
+  reportId: string,
+  issueId: string,
+) {
+  return useQuery({
+    queryKey: monitoringIssueDetailQueryKey(projectId, reportId, issueId),
+    queryFn: () =>
+      api<ProjectEnvironmentalMonitoringReportPackageIssue>(
+        `${monitoringReportPath(projectId, reportId)}/package-issues/${issueId}`,
+      ),
+    enabled: !!projectId && !!reportId && !!issueId,
+  });
+}
+
 export function useCreateEnvironmentalMonitoringReport(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -41,6 +60,24 @@ export function useCreateEnvironmentalMonitoringReport(projectId: string) {
         method: 'POST',
         body: payload,
       }),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(monitoringDetailQueryKey(projectId, data.id), data);
+      await queryClient.invalidateQueries({ queryKey: monitoringListQueryKey(projectId) });
+    },
+  });
+}
+
+export function useDuplicateEnvironmentalMonitoringReport(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (reportId: string) =>
+      api<ProjectEnvironmentalMonitoringReport>(
+        `${monitoringReportPath(projectId, reportId)}/duplicate`,
+        {
+          method: 'POST',
+        },
+      ),
     onSuccess: async (data) => {
       queryClient.setQueryData(monitoringDetailQueryKey(projectId, data.id), data);
       await queryClient.invalidateQueries({ queryKey: monitoringListQueryKey(projectId) });
@@ -63,6 +100,31 @@ export function useDeleteEnvironmentalMonitoringReport(projectId: string) {
   });
 }
 
+export function useCreateEnvironmentalMonitoringReportPackageIssue(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ProjectEnvironmentalMonitoringReportPackageIssueCreateInput) =>
+      api<ProjectEnvironmentalMonitoringReportPackageIssue>(
+        `${monitoringReportPath(projectId, reportId)}/package-issues`,
+        {
+          method: 'POST',
+          body: payload,
+        },
+      ),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(monitoringIssueDetailQueryKey(projectId, reportId, data.id), data);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: monitoringDetailQueryKey(projectId, reportId) }),
+        queryClient.invalidateQueries({ queryKey: monitoringListQueryKey(projectId) }),
+      ]);
+    },
+  });
+}
+
 export function useUpdateEnvironmentalMonitoringReport(projectId: string, reportId: string) {
   return useMonitoringDetailMutation<ProjectEnvironmentalMonitoringReportRootInput>(
     projectId,
@@ -72,6 +134,57 @@ export function useUpdateEnvironmentalMonitoringReport(projectId: string, report
         method: 'PUT',
         body: payload,
       }),
+  );
+}
+
+export function useCreateEnvironmentalMonitoringAnnexure(projectId: string, reportId: string) {
+  return useMonitoringDetailMutation<ProjectEnvironmentalMonitoringAnnexureInput>(
+    projectId,
+    reportId,
+    (payload) =>
+      api<ProjectEnvironmentalMonitoringReport>(
+        `${monitoringReportPath(projectId, reportId)}/annexures`,
+        {
+          method: 'POST',
+          body: payload,
+        },
+      ),
+  );
+}
+
+export function useReorderEnvironmentalMonitoringAnnexures(projectId: string, reportId: string) {
+  return useMonitoringDetailMutation<{ orderedIds: string[] }>(projectId, reportId, (payload) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/annexures/reorder`,
+      {
+        method: 'PUT',
+        body: payload,
+      },
+    ),
+  );
+}
+
+export function useUpdateEnvironmentalMonitoringAnnexure(projectId: string, reportId: string) {
+  return useMonitoringDetailMutation<{
+    id: string;
+    data: ProjectEnvironmentalMonitoringAnnexureInput;
+  }>(projectId, reportId, ({ id, data }) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/annexures/${id}`,
+      {
+        method: 'PATCH',
+        body: data,
+      },
+    ),
+  );
+}
+
+export function useDeleteEnvironmentalMonitoringAnnexure(projectId: string, reportId: string) {
+  return useMonitoringDetailMutation<string>(projectId, reportId, (id) =>
+    api<ProjectEnvironmentalMonitoringReport>(
+      `${monitoringReportPath(projectId, reportId)}/annexures/${id}`,
+      { method: 'DELETE' },
+    ),
   );
 }
 
@@ -150,6 +263,24 @@ export function useDeleteEnvironmentalMonitoringLocation(projectId: string, repo
       `${monitoringReportPath(projectId, reportId)}/locations/${id}`,
       { method: 'DELETE' },
     ),
+  );
+}
+
+export function useImportEnvironmentalMonitoringLocationsFromView(
+  projectId: string,
+  reportId: string,
+) {
+  return useMonitoringDetailMutation<ProjectEnvironmentalMonitoringLocationImportInput>(
+    projectId,
+    reportId,
+    (payload) =>
+      api<ProjectEnvironmentalMonitoringReport>(
+        `${monitoringReportPath(projectId, reportId)}/locations/import-from-view`,
+        {
+          method: 'POST',
+          body: payload,
+        },
+      ),
   );
 }
 
@@ -399,4 +530,16 @@ function monitoringListQueryKey(projectId: string) {
 
 function monitoringDetailQueryKey(projectId: string, reportId: string) {
   return ['projects', projectId, 'environmental', 'monitoring', reportId] as const;
+}
+
+function monitoringIssueDetailQueryKey(projectId: string, reportId: string, issueId: string) {
+  return [
+    'projects',
+    projectId,
+    'environmental',
+    'monitoring',
+    reportId,
+    'package-issues',
+    issueId,
+  ] as const;
 }
