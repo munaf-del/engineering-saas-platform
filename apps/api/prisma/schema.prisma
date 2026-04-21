@@ -31,6 +31,9 @@ model Organisation {
   aiDocuments                  AiDocument[]
   assistantProviderCredentials OrganisationAiAssistantProviderCredential[]
   rootSheetTemplates           RootSheetTemplate[]
+  omnidotsProviderConnections  OmnidotsProviderConnection[]
+  monitoringSeries             MonitoringSeries[]
+  monitoringImportJobs         MonitoringImportJob[]
 
   @@map("organisations")
 }
@@ -725,6 +728,45 @@ enum ProjectEnvironmentalMonitoringAnnexureType {
   spatial_sheet
 }
 
+enum MonitoringProviderKey {
+  omnidots
+}
+
+enum MonitoringProviderConnectionStatus {
+  pending
+  active
+  invalid
+  disabled
+  error
+}
+
+enum MonitoringProviderAuthType {
+  api_token
+}
+
+enum MonitoringImportJobType {
+  validate_token
+  sync_measuring_points
+  import_peak_records
+  import_vdv_records
+  import_veff_records
+  build_report_dataset
+}
+
+enum MonitoringImportJobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum ProjectEnvironmentalMonitoringDatasetSourceType {
+  omnidots_api
+  omnidots_upload
+  manual
+}
+
 enum RootSheetTemplateScopeType {
   global
   org
@@ -816,6 +858,7 @@ model ProjectEnvironmentalMonitoringReport {
   recommendations  ProjectEnvironmentalMonitoringRecommendation[]
   annexures        ProjectEnvironmentalMonitoringAnnexure[]
   packageIssues    ProjectEnvironmentalMonitoringReportPackageIssue[]
+  datasets         ProjectEnvironmentalMonitoringDataset[]
 
   @@index([projectId, createdAt])
   @@index([projectId, reportType])
@@ -1034,6 +1077,172 @@ model ProjectEnvironmentalMonitoringRecommendation {
   @@index([observationId], map: "pem_recommendations_observation_idx")
   @@index([noiseResultId], map: "pem_recommendations_noise_result_idx")
   @@map("project_environmental_monitoring_recommendations")
+}
+
+model OmnidotsProviderConnection {
+  id                   String                             @id @default(uuid()) @db.Uuid
+  organisationId       String                             @map("organisation_id") @db.Uuid
+  providerKey          MonitoringProviderKey              @default(omnidots) @map("provider_key")
+  displayName          String                             @default("Omnidots Honeycomb") @map("display_name")
+  status               MonitoringProviderConnectionStatus @default(pending)
+  authType             MonitoringProviderAuthType         @default(api_token) @map("auth_type")
+  encryptedCredentials Json                               @map("encrypted_credentials")
+  lastValidatedAt      DateTime?                          @map("last_validated_at")
+  lastSyncAt           DateTime?                          @map("last_sync_at")
+  lastError            String?                            @map("last_error")
+  createdBy            String?                            @map("created_by") @db.Uuid
+  createdAt            DateTime                           @default(now()) @map("created_at")
+  updatedAt            DateTime                           @updatedAt @map("updated_at")
+
+  organisation    Organisation                            @relation(fields: [organisationId], references: [id], onDelete: Cascade, map: "omnidots_provider_connections_organisation_id_fkey")
+  measuringPoints OmnidotsMeasuringPoint[]
+  importJobs      MonitoringImportJob[]
+  datasets        ProjectEnvironmentalMonitoringDataset[]
+
+  @@index([organisationId, createdAt], map: "omnidots_provider_connections_organisation_id_created_at_idx")
+  @@index([organisationId, providerKey, status], map: "omnidots_provider_connections_org_provider_status_idx")
+  @@map("omnidots_provider_connections")
+}
+
+model OmnidotsMeasuringPoint {
+  id                       String    @id @default(uuid()) @db.Uuid
+  connectionId             String    @map("connection_id") @db.Uuid
+  externalMeasuringPointId String    @map("external_measuring_point_id")
+  name                     String
+  active                   Boolean
+  timezone                 String?
+  guideLine                String?   @map("guide_line")
+  category                 String?
+  measuringType            String?   @map("measuring_type")
+  vibrationType            String?   @map("vibration_type")
+  userLatitude             Float?    @map("user_latitude")
+  userLongitude            Float?    @map("user_longitude")
+  sensorName               String?   @map("sensor_name")
+  sensorOnline             Boolean?  @map("sensor_online")
+  sensorLastseenAt         DateTime? @map("sensor_lastseen_at")
+  sensorConnectedUsing     String?   @map("sensor_connected_using")
+  sensorBatteryCharge      Float?    @map("sensor_battery_charge")
+  sensorLatitude           Float?    @map("sensor_latitude")
+  sensorLongitude          Float?    @map("sensor_longitude")
+  deepLinkUrl              String?   @map("deep_link_url")
+  rawPayloadJson           Json      @map("raw_payload_json")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  connection        OmnidotsProviderConnection              @relation(fields: [connectionId], references: [id], onDelete: Cascade, map: "omnidots_measuring_points_connection_id_fkey")
+  monitoringSeries  MonitoringSeries[]
+  monitoringSamples MonitoringSample[]
+  datasets          ProjectEnvironmentalMonitoringDataset[]
+
+  @@unique([connectionId, externalMeasuringPointId], map: "omnidots_measuring_points_conn_external_id_key")
+  @@index([connectionId, createdAt], map: "omnidots_measuring_points_connection_id_created_at_idx")
+  @@index([connectionId, active], map: "omnidots_measuring_points_connection_id_active_idx")
+  @@map("omnidots_measuring_points")
+}
+
+model MonitoringSeries {
+  id               String                @id @default(uuid()) @db.Uuid
+  organisationId   String                @map("organisation_id") @db.Uuid
+  measuringPointId String                @map("measuring_point_id") @db.Uuid
+  providerKey      MonitoringProviderKey @default(omnidots) @map("provider_key")
+  metricKey        String                @map("metric_key")
+  metricLabel      String                @map("metric_label")
+  unit             String
+  axisMode         String                @map("axis_mode")
+  sourceEndpoint   String                @map("source_endpoint")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  organisation   Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade, map: "monitoring_series_organisation_id_fkey")
+  measuringPoint OmnidotsMeasuringPoint @relation(fields: [measuringPointId], references: [id], onDelete: Cascade, map: "monitoring_series_measuring_point_id_fkey")
+  samples        MonitoringSample[]
+
+  @@unique([measuringPointId, metricKey, sourceEndpoint], map: "monitoring_series_point_metric_endpoint_key")
+  @@index([organisationId, metricKey], map: "monitoring_series_organisation_id_metric_key_idx")
+  @@index([measuringPointId, createdAt], map: "monitoring_series_measuring_point_id_created_at_idx")
+  @@map("monitoring_series")
+}
+
+model MonitoringSample {
+  id               String   @id @default(uuid()) @db.Uuid
+  seriesId         String   @map("series_id") @db.Uuid
+  measuringPointId String   @map("measuring_point_id") @db.Uuid
+  sampledAt        DateTime @map("sampled_at")
+  sourceTimezone   String?  @map("source_timezone")
+  metricKey        String   @map("metric_key")
+  xValue           Float?   @map("x_value")
+  yValue           Float?   @map("y_value")
+  zValue           Float?   @map("z_value")
+  pvsValue         Float?   @map("pvs_value")
+  fdomX            Float?   @map("fdom_x")
+  fdomY            Float?   @map("fdom_y")
+  fdomZ            Float?   @map("fdom_z")
+  category         String?
+  guideLine        String?  @map("guide_line")
+  measuringType    String?  @map("measuring_type")
+  vibrationType    String?  @map("vibration_type")
+  rawPayloadJson   Json     @map("raw_payload_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  series         MonitoringSeries       @relation(fields: [seriesId], references: [id], onDelete: Cascade, map: "monitoring_samples_series_id_fkey")
+  measuringPoint OmnidotsMeasuringPoint @relation(fields: [measuringPointId], references: [id], onDelete: Cascade, map: "monitoring_samples_measuring_point_id_fkey")
+
+  @@unique([seriesId, sampledAt], map: "monitoring_samples_series_id_sampled_at_key")
+  @@index([measuringPointId, sampledAt], map: "monitoring_samples_measuring_point_id_sampled_at_idx")
+  @@index([seriesId, sampledAt], map: "monitoring_samples_series_id_sampled_at_idx")
+  @@index([measuringPointId, metricKey, sampledAt], map: "monitoring_samples_measuring_point_id_metric_key_sampled_at_idx")
+  @@map("monitoring_samples")
+}
+
+model MonitoringImportJob {
+  id                String                    @id @default(uuid()) @db.Uuid
+  connectionId      String                    @map("connection_id") @db.Uuid
+  organisationId    String                    @map("organisation_id") @db.Uuid
+  jobType           MonitoringImportJobType   @map("job_type")
+  status            MonitoringImportJobStatus @default(pending)
+  dateFrom          DateTime?                 @map("date_from")
+  dateTo            DateTime?                 @map("date_to")
+  requestParamsJson Json?                     @map("request_params_json")
+  resultSummaryJson Json?                     @map("result_summary_json")
+  errorMessage      String?                   @map("error_message")
+  completedAt       DateTime?                 @map("completed_at")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  connection   OmnidotsProviderConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade, map: "monitoring_import_jobs_connection_id_fkey")
+  organisation Organisation               @relation(fields: [organisationId], references: [id], onDelete: Cascade, map: "monitoring_import_jobs_organisation_id_fkey")
+
+  @@index([organisationId, createdAt], map: "monitoring_import_jobs_organisation_id_created_at_idx")
+  @@index([connectionId, createdAt], map: "monitoring_import_jobs_connection_id_created_at_idx")
+  @@index([connectionId, status], map: "monitoring_import_jobs_connection_id_status_idx")
+  @@map("monitoring_import_jobs")
+}
+
+model ProjectEnvironmentalMonitoringDataset {
+  id                 String                                          @id @default(uuid()) @db.Uuid
+  monitoringReportId String                                          @map("monitoring_report_id") @db.Uuid
+  sourceType         ProjectEnvironmentalMonitoringDatasetSourceType @map("source_type")
+  connectionId       String?                                         @map("connection_id") @db.Uuid
+  measuringPointId   String?                                         @map("measuring_point_id") @db.Uuid
+  dateFrom           DateTime                                        @map("date_from")
+  dateTo             DateTime                                        @map("date_to")
+  timezone           String
+  datasetHash        String                                          @map("dataset_hash")
+  snapshotJson       Json                                            @map("snapshot_json")
+  createdAt          DateTime                                        @default(now()) @map("created_at")
+  updatedAt          DateTime                                        @updatedAt @map("updated_at")
+
+  monitoringReport ProjectEnvironmentalMonitoringReport @relation(fields: [monitoringReportId], references: [id], onDelete: Cascade, map: "pem_datasets_report_fkey")
+  connection       OmnidotsProviderConnection?          @relation(fields: [connectionId], references: [id], onDelete: SetNull, map: "pem_datasets_connection_fkey")
+  measuringPoint   OmnidotsMeasuringPoint?              @relation(fields: [measuringPointId], references: [id], onDelete: SetNull, map: "pem_datasets_measuring_point_fkey")
+
+  @@unique([monitoringReportId, datasetHash], map: "pem_datasets_report_hash_key")
+  @@index([monitoringReportId, createdAt], map: "pem_datasets_report_created_idx")
+  @@index([connectionId], map: "pem_datasets_connection_idx")
+  @@index([measuringPointId], map: "pem_datasets_measuring_point_idx")
+  @@index([datasetHash], map: "pem_datasets_hash_idx")
+  @@map("project_environmental_monitoring_datasets")
 }
 
 // ─── Project Waste Classification Reports ────────────────────────

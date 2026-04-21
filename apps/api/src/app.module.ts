@@ -30,6 +30,7 @@ import { ProjectWasteClassificationModule } from './modules/waste-classification
 import { ProjectSpatialModule } from './modules/project-spatial/project-spatial.module';
 import { RootSheetTemplatesModule } from './modules/root-sheet-templates/root-sheet-templates.module';
 import { DraftingModule } from './modules/drafting/drafting.module';
+import { OmnidotsModule } from './modules/omnidots/omnidots.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { DraftingModule } from './modules/drafting/drafting.module';
     ProjectSpatialModule,
     RootSheetTemplatesModule,
     DraftingModule,
+    OmnidotsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
