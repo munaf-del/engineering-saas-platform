@@ -29,6 +29,7 @@ import { ProjectEnvironmentalMonitoringModule } from './modules/environmental-mo
 import { ProjectWasteClassificationModule } from './modules/waste-classification/waste-classification.module';
 import { ProjectSpatialModule } from './modules/project-spatial/project-spatial.module';
 import { RootSheetTemplatesModule } from './modules/root-sheet-templates/root-sheet-templates.module';
+import { DraftingModule } from './modules/drafting/drafting.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { RootSheetTemplatesModule } from './modules/root-sheet-templates/root-sh
     ProjectWasteClassificationModule,
     ProjectSpatialModule,
     RootSheetTemplatesModule,
+    DraftingModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },

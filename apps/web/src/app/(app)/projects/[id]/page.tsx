@@ -10,6 +10,7 @@ import {
   FileText,
   Layers,
   Map,
+  PenTool,
   Save,
   Settings,
   Sparkles,
@@ -417,6 +418,12 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
       icon: Map,
       title: 'Spatial',
       desc: 'Project master map, boundaries, monitoring locations, boreholes, wells, and reusable spatial features',
+    },
+    {
+      href: `/projects/${projectId}/drafting`,
+      icon: PenTool,
+      title: 'Drafting',
+      desc: 'Project-native drawings, underlays, semantic engineering objects, revisions, and exports',
     },
     { href: `/projects/${projectId}/members`, icon: Users, title: 'Members', desc: 'Project team' },
     {
