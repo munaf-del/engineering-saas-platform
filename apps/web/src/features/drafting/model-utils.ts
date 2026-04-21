@@ -1,18 +1,17 @@
 import {
-  type DraftingExcavationLineObject,
   type DraftingImplementedObjectType,
   type DraftingLayer,
-  type DraftingLeaderNoteObject,
   type DraftingModel,
-  type DraftingMonitoringPointObject,
   type DraftingObject,
-  type DraftingPileObject,
   type DraftingPoint,
   createEmptyDraftingModel,
-  defaultLayerIdForDraftingObjectType,
 } from '@eng/shared';
+import { createExcavationLineObject } from './tools/excavation-line-tool';
+import { createLeaderNoteObject } from './tools/leader-note-tool';
+import { createMonitoringPointObject } from './tools/monitoring-point-tool';
+import { createPileObject } from './tools/pile-tool';
 
-type Bounds = {
+export type DraftingBounds = {
   minX: number;
   minY: number;
   maxX: number;
@@ -29,121 +28,18 @@ export function createDraftingObject(
   model: DraftingModel,
   pendingLinePoints: DraftingPoint[] = [],
 ): DraftingObject {
-  const now = new Date().toISOString();
-  const sequence = nextObjectSequence(model.objects, type);
-
-  if (type === 'pile') {
-    const pile: DraftingPileObject = {
-      id: crypto.randomUUID(),
-      type,
-      layerId: defaultLayerIdForDraftingObjectType(type),
-      name: `Pile ${sequence}`,
-      visible: true,
-      locked: false,
-      style: {
-        stroke: '#1d4ed8',
-        fill: 'rgba(59, 130, 246, 0.2)',
-        lineWeight: 2,
-      },
-      geometry: {
-        centre: point,
-        diameterMm: 600,
-      },
-      metadata: {
-        pileId: `P${sequence}`,
-        pileType: 'bored',
-        material: 'reinforced_concrete',
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return pile;
+  switch (type) {
+    case 'pile':
+      return createPileObject(point, model);
+    case 'monitoring_point':
+      return createMonitoringPointObject(point, model);
+    case 'leader_note':
+      return createLeaderNoteObject(point, model);
+    case 'excavation_line':
+      return createExcavationLineObject(point, model, pendingLinePoints);
+    default:
+      return createPileObject(point, model);
   }
-
-  if (type === 'monitoring_point') {
-    const monitoringPoint: DraftingMonitoringPointObject = {
-      id: crypto.randomUUID(),
-      type,
-      layerId: defaultLayerIdForDraftingObjectType(type),
-      name: `Monitoring Point ${sequence}`,
-      visible: true,
-      locked: false,
-      style: {
-        stroke: '#7c3aed',
-        fill: '#ffffff',
-        lineWeight: 2,
-      },
-      geometry: {
-        point,
-      },
-      metadata: {
-        pointId: `MP${sequence}`,
-        monitoringType: 'vibration',
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return monitoringPoint;
-  }
-
-  if (type === 'leader_note') {
-    const leaderNote: DraftingLeaderNoteObject = {
-      id: crypto.randomUUID(),
-      type,
-      layerId: defaultLayerIdForDraftingObjectType(type),
-      name: `Note ${sequence}`,
-      visible: true,
-      locked: false,
-      style: {
-        stroke: '#111827',
-        fill: '#ffffff',
-        lineWeight: 1,
-        textSize: 250,
-      },
-      geometry: {
-        anchor: point,
-        textPoint: {
-          x: point.x + 1200,
-          y: point.y - 600,
-        },
-      },
-      metadata: {
-        text: `Draft note ${sequence}`,
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return leaderNote;
-  }
-
-  const excavationLine: DraftingExcavationLineObject = {
-    id: crypto.randomUUID(),
-    type: 'excavation_line',
-    layerId: defaultLayerIdForDraftingObjectType('excavation_line'),
-    name: `Excavation ${sequence}`,
-    visible: true,
-    locked: false,
-    style: {
-      stroke: '#b91c1c',
-      lineWeight: 2,
-      lineStyle: 'solid',
-    },
-    geometry: {
-      points: pendingLinePoints.length >= 2 ? pendingLinePoints : [point, { x: point.x + 3000, y: point.y }],
-      closed: false,
-    },
-    metadata: {
-      excavationId: `EX${sequence}`,
-      stage: 'Stage 1',
-    },
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  return excavationLine;
 }
 
 export function replaceDraftingObject(
@@ -277,13 +173,13 @@ export function fitDraftingModelView(
 export function getDraftingModelBounds(objects: DraftingObject[]) {
   const allBounds = objects
     .map((object) => getDraftingObjectBounds(object))
-    .filter((value): value is Bounds => Boolean(value));
+    .filter((value): value is DraftingBounds => Boolean(value));
 
   if (allBounds.length === 0) {
     return null;
   }
 
-  return allBounds.reduce<Bounds>(
+  return allBounds.reduce<DraftingBounds>(
     (accumulator, bounds) => ({
       minX: Math.min(accumulator.minX, bounds.minX),
       minY: Math.min(accumulator.minY, bounds.minY),
@@ -294,7 +190,7 @@ export function getDraftingModelBounds(objects: DraftingObject[]) {
   );
 }
 
-export function getDraftingObjectBounds(object: DraftingObject): Bounds | null {
+export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds | null {
   switch (object.type) {
     case 'pile': {
       const radius = object.geometry.diameterMm / 2;
@@ -342,9 +238,21 @@ export function isLayerLocked(model: DraftingModel, layerId: string) {
   return getLayerById(model, layerId)?.locked ?? false;
 }
 
-export function getGridStep(scale: number) {
-  const candidates = [100, 250, 500, 1000, 2000, 5000, 10000, 20000];
-  return candidates.find((candidate) => candidate * scale >= 24) ?? candidates[candidates.length - 1]!;
+export function canEditDraftingObject(model: DraftingModel, object: DraftingObject) {
+  return !object.locked && !isLayerLocked(model, object.layerId);
+}
+
+export function isDraftingObjectVisible(model: DraftingModel, object: DraftingObject) {
+  if (object.visible === false) {
+    return false;
+  }
+
+  const layer = getLayerById(model, object.layerId);
+  return layer?.visible !== false;
+}
+
+export function getVisibleDraftingObjects(model: DraftingModel) {
+  return model.objects.filter((object) => isDraftingObjectVisible(model, object));
 }
 
 export function updateLayer(model: DraftingModel, nextLayer: DraftingLayer) {
@@ -373,8 +281,4 @@ export function buildDraftingExportFilename(title: string) {
 
 export function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function nextObjectSequence(objects: DraftingObject[], type: DraftingImplementedObjectType) {
-  return objects.filter((object) => object.type === type).length + 1;
 }
