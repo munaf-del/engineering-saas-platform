@@ -43,6 +43,33 @@ export function DraftingToolPalette({
           Add Pile
         </ToolButton>
         <ToolButton
+          active={activeTool === 'secant_pile_wall'}
+          onClick={() => onToolChange('secant_pile_wall')}
+        >
+          Add Secant Pile Wall
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'soldier_pile_wall'}
+          onClick={() => onToolChange('soldier_pile_wall')}
+        >
+          Add Soldier Pile Wall
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'anchor_tieback'}
+          onClick={() => onToolChange('anchor_tieback')}
+        >
+          Add Anchor / Tieback
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'capping_beam'}
+          onClick={() => onToolChange('capping_beam')}
+        >
+          Add Capping Beam
+        </ToolButton>
+        <ToolButton active={activeTool === 'waler'} onClick={() => onToolChange('waler')}>
+          Add Waler
+        </ToolButton>
+        <ToolButton
           active={activeTool === 'excavation_line'}
           onClick={() => onToolChange('excavation_line')}
         >
@@ -54,7 +81,10 @@ export function DraftingToolPalette({
         >
           Add Monitoring Point
         </ToolButton>
-        <ToolButton active={activeTool === 'leader_note'} onClick={() => onToolChange('leader_note')}>
+        <ToolButton
+          active={activeTool === 'leader_note'}
+          onClick={() => onToolChange('leader_note')}
+        >
           Add Leader Note
         </ToolButton>
 
@@ -100,7 +130,11 @@ function ToolButton({
   onClick: () => void;
 }) {
   return (
-    <Button className="w-full justify-start" variant={active ? 'default' : 'outline'} onClick={onClick}>
+    <Button
+      className="w-full justify-start"
+      variant={active ? 'default' : 'outline'}
+      onClick={onClick}
+    >
       {children}
     </Button>
   );

@@ -136,6 +136,39 @@ export function NumberField({
   );
 }
 
+export function OptionalNumberField({
+  disabled,
+  label,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  label: string;
+  onChange: (value: number | undefined) => void;
+  value: number | string | undefined;
+}) {
+  return (
+    <Field label={label}>
+      <Input
+        type="number"
+        value={value ?? ''}
+        disabled={disabled}
+        onChange={(event) => {
+          if (event.target.value === '') {
+            onChange(undefined);
+            return;
+          }
+
+          const nextValue = Number(event.target.value);
+          if (Number.isFinite(nextValue)) {
+            onChange(nextValue);
+          }
+        }}
+      />
+    </Field>
+  );
+}
+
 export function normalizeColorInput(value: string | undefined, fallback: string) {
   if (!value) {
     return fallback;

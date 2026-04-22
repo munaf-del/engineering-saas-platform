@@ -5,6 +5,47 @@ import { serializeDraftingModelJson } from './export-utils';
 describe('drafting export utils', () => {
   it('serializes underlay metadata without embedding binary content', () => {
     const model = createEmptyDraftingModel('drawing-1');
+    model.objects.push({
+      id: 'secant-wall-1',
+      type: 'secant_pile_wall',
+      layerId: 'shoring',
+      name: 'Secant Wall 1',
+      visible: true,
+      locked: false,
+      style: {
+        stroke: '#9a3412',
+        fill: '#fdba74',
+        lineWeight: 2,
+      },
+      geometry: {
+        baselinePoints: [
+          { x: 0, y: 0 },
+          { x: 6000, y: 0 },
+        ],
+        pileCentres: [
+          { x: 0, y: 0 },
+          { x: 1500, y: 0 },
+          { x: 3000, y: 0 },
+          { x: 4500, y: 0 },
+          { x: 6000, y: 0 },
+        ],
+      },
+      parameters: {
+        pileDiameterMm: 900,
+        spacingMm: 1500,
+        overlapMm: 100,
+        secantType: 'overlapping',
+        primarySecondaryPattern: 'hard_soft',
+      },
+      metadata: {
+        wallId: 'SEC1',
+        constructionMethod: 'secant bored piles',
+        pileCount: 5,
+        designNotes: 'Draft export coverage',
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+    });
     model.underlays.push({
       id: 'underlay-1',
       name: 'Calibrated PDF',
@@ -44,6 +85,8 @@ describe('drafting export utils', () => {
     const parsed = JSON.parse(exported);
 
     expect(parsed).toEqual(model);
+    expect(exported).toContain('"type": "secant_pile_wall"');
+    expect(exported).toContain('"wallId": "SEC1"');
     expect(exported).toContain('"fileId": "document-1"');
     expect(exported).not.toContain('data:application/pdf');
     expect(exported).not.toContain('"buffer"');

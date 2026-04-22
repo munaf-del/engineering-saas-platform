@@ -8,6 +8,8 @@ import {
   DRAFTING_OBJECT_TYPES,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
+  DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS,
+  DRAFTING_SECANT_TYPES,
 } from '../types/drafting.js';
 
 const DraftingPointSchema = z.object({
@@ -143,19 +145,157 @@ export const DraftingLeaderNoteObjectSchema = DraftingObjectBaseSchema.extend({
   }),
 });
 
+export const DraftingSecantPileWallObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('secant_pile_wall'),
+  geometry: z.object({
+    baselinePoints: z.array(DraftingPointSchema).min(2),
+    pileCentres: z.array(DraftingPointSchema).min(1),
+  }),
+  parameters: z
+    .object({
+      pileDiameterMm: z.number().positive(),
+      spacingMm: z.number().positive(),
+      overlapMm: z.number().positive().optional(),
+      secantType: z.enum(DRAFTING_SECANT_TYPES).optional(),
+      primarySecondaryPattern: z.enum(DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS),
+    })
+    .refine((value) => value.overlapMm !== undefined || value.secantType !== undefined, {
+      message: 'Secant pile wall requires overlapMm or secantType',
+      path: ['overlapMm'],
+    }),
+  metadata: z.object({
+    wallId: z.string().min(1),
+    constructionMethod: z.string().min(1),
+    pileCount: z.number().int().positive(),
+    designNotes: z.string().optional(),
+  }),
+});
+
+export const DraftingSoldierPileWallObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('soldier_pile_wall'),
+  geometry: z.object({
+    baselinePoints: z.array(DraftingPointSchema).min(2),
+    pilePositions: z.array(DraftingPointSchema).min(1),
+  }),
+  parameters: z
+    .object({
+      pileDiameterMm: z.number().positive().optional(),
+      sectionLabel: z.string().min(1).optional(),
+      spacingMm: z.number().positive(),
+      laggingType: z.string().optional(),
+      embedmentNote: z.string().optional(),
+    })
+    .refine((value) => value.pileDiameterMm !== undefined || Boolean(value.sectionLabel), {
+      message: 'Soldier pile wall requires pileDiameterMm or sectionLabel',
+      path: ['pileDiameterMm'],
+    }),
+  metadata: z.object({
+    wallId: z.string().min(1),
+    constructionMethod: z.string().min(1),
+    pileCount: z.number().int().positive(),
+  }),
+});
+
+export const DraftingAnchorTiebackObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('anchor_tieback'),
+  geometry: z.object({
+    headPoint: DraftingPointSchema,
+    tailPoint: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    anchorId: z.string().min(1),
+    angleDeg: z.number().finite(),
+    planLengthMm: z.number().positive(),
+    freeLengthMm: z.number().positive().optional(),
+    bondLengthMm: z.number().positive().optional(),
+    designLoadKn: z.number().positive().optional(),
+    lockOffLoadKn: z.number().positive().optional(),
+    stage: z.string().optional(),
+  }),
+  metadata: z.object({
+    associatedWallId: z.string().optional(),
+    installationStage: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingCappingBeamObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('capping_beam'),
+  geometry: z.object({
+    points: z.array(DraftingPointSchema).min(2),
+  }),
+  parameters: z.object({
+    beamId: z.string().min(1),
+    widthMm: z.number().positive(),
+    depthMm: z.number().positive().optional(),
+    levelRl: z.number().finite().optional(),
+    concreteGrade: z.string().optional(),
+  }),
+  metadata: z.object({
+    associatedWallId: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingWalerObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('waler'),
+  geometry: z.object({
+    points: z.array(DraftingPointSchema).min(2),
+  }),
+  parameters: z.object({
+    walerId: z.string().min(1),
+    sectionLabel: z.string().min(1),
+    levelRl: z.number().finite().optional(),
+    connectionNotes: z.string().optional(),
+  }),
+  metadata: z.object({
+    associatedWallId: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
 export const DraftingPlaceholderObjectSchema = DraftingObjectBaseSchema.extend({
   type: z.enum(DRAFTING_FUTURE_OBJECT_TYPES),
   geometry: z.record(z.unknown()),
   metadata: z.record(z.unknown()).optional(),
 });
 
-export const DraftingObjectSchema = z.discriminatedUnion('type', [
-  DraftingPileObjectSchema,
-  DraftingExcavationLineObjectSchema,
-  DraftingMonitoringPointObjectSchema,
-  DraftingLeaderNoteObjectSchema,
-  DraftingPlaceholderObjectSchema,
-]);
+export const DraftingObjectSchema = z
+  .discriminatedUnion('type', [
+    DraftingPileObjectSchema,
+    DraftingExcavationLineObjectSchema,
+    DraftingMonitoringPointObjectSchema,
+    DraftingLeaderNoteObjectSchema,
+    DraftingSecantPileWallObjectSchema,
+    DraftingSoldierPileWallObjectSchema,
+    DraftingAnchorTiebackObjectSchema,
+    DraftingCappingBeamObjectSchema,
+    DraftingWalerObjectSchema,
+    DraftingPlaceholderObjectSchema,
+  ])
+  .superRefine((value, context) => {
+    if (
+      value.type === 'secant_pile_wall' &&
+      value.metadata.pileCount !== value.geometry.pileCentres.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'pileCount must match generated pile centre count',
+        path: ['metadata', 'pileCount'],
+      });
+    }
+
+    if (
+      value.type === 'soldier_pile_wall' &&
+      value.metadata.pileCount !== value.geometry.pilePositions.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'pileCount must match generated pile position count',
+        path: ['metadata', 'pileCount'],
+      });
+    }
+  });
 
 export const DraftingModelSchema = z.object({
   version: z.literal(1),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel } from '@eng/shared';
+import { DraftingModelSchema, createEmptyDraftingModel } from '@eng/shared';
 import {
   addDraftingUnderlay,
   applyTwoPointUniformCalibration,
@@ -51,6 +51,38 @@ describe('drafting model utils', () => {
 
     expect(translated.geometry.centre).toEqual({ x: 2800, y: 1600 });
     expect(pile.geometry.centre).toEqual({ x: 1200, y: 400 });
+  });
+
+  it('recalculates and preserves derived shoring object geometry across translation and reload', () => {
+    const model = createEmptyDraftingModel('drawing-1');
+    const secantWall = createDraftingObject('secant_pile_wall', { x: 0, y: 0 }, model);
+    const soldierWall = createDraftingObject('soldier_pile_wall', { x: 0, y: 2000 }, model);
+    const anchor = createDraftingObject('anchor_tieback', { x: 0, y: 4000 }, model);
+    const translatedSecantWall = translateDraftingObject(secantWall, 500, 750);
+    const translatedAnchor = translateDraftingObject(anchor, 1000, 500);
+
+    if (
+      secantWall.type !== 'secant_pile_wall' ||
+      translatedSecantWall.type !== 'secant_pile_wall' ||
+      soldierWall.type !== 'soldier_pile_wall' ||
+      anchor.type !== 'anchor_tieback' ||
+      translatedAnchor.type !== 'anchor_tieback'
+    ) {
+      throw new Error('Expected semantic drafting objects');
+    }
+
+    const parsed = DraftingModelSchema.parse({
+      ...model,
+      objects: [translatedSecantWall, soldierWall, translatedAnchor],
+    });
+
+    expect(translatedSecantWall.geometry.baselinePoints[0]).toEqual({ x: 500, y: 750 });
+    expect(translatedSecantWall.metadata.pileCount).toBe(
+      translatedSecantWall.geometry.pileCentres.length,
+    );
+    expect(soldierWall.metadata.pileCount).toBe(soldierWall.geometry.pilePositions.length);
+    expect(translatedAnchor.geometry.headPoint).toEqual({ x: 1000, y: 4500 });
+    expect(parsed.objects).toHaveLength(3);
   });
 
   it('applies layer visibility and lock rules to visible/editable objects', () => {

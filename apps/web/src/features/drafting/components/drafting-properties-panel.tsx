@@ -3,12 +3,17 @@ import type { DraftingLayer, DraftingObject } from '@eng/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { AnchorTiebackProperties } from '../properties/anchor-tieback-properties';
+import { CappingBeamProperties } from '../properties/capping-beam-properties';
 import { formatDraftingTimestamp } from '../model-utils';
 import { DraftingCommonObjectProperties } from '../properties/common-object-properties';
 import { ExcavationLineProperties } from '../properties/excavation-line-properties';
 import { LeaderNoteProperties } from '../properties/leader-note-properties';
 import { MonitoringPointProperties } from '../properties/monitoring-point-properties';
 import { PileProperties } from '../properties/pile-properties';
+import { SecantPileWallProperties } from '../properties/secant-pile-wall-properties';
+import { SoldierPileWallProperties } from '../properties/soldier-pile-wall-properties';
+import { WalerProperties } from '../properties/waler-properties';
 
 export function DraftingPropertiesPanel({
   layers,
@@ -47,6 +52,19 @@ export function DraftingPropertiesPanel({
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
 
           {object.type === 'pile' ? <PileProperties object={object} onUpdate={onUpdate} /> : null}
+          {object.type === 'secant_pile_wall' ? (
+            <SecantPileWallProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'soldier_pile_wall' ? (
+            <SoldierPileWallProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'anchor_tieback' ? (
+            <AnchorTiebackProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'capping_beam' ? (
+            <CappingBeamProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'waler' ? <WalerProperties object={object} onUpdate={onUpdate} /> : null}
           {object.type === 'monitoring_point' ? (
             <MonitoringPointProperties object={object} onUpdate={onUpdate} />
           ) : null}

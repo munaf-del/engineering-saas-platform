@@ -1,4 +1,5 @@
 import {
+  ensureDraftingModelLayers,
   type DraftingImplementedObjectType,
   type DraftingLayer,
   type DraftingModel,
@@ -9,10 +10,16 @@ import {
   type DraftingUnderlayTransform,
   createEmptyDraftingModel,
 } from '@eng/shared';
+import { createAnchorTiebackObject } from './tools/anchor-tieback-tool';
+import { createCappingBeamObject } from './tools/capping-beam-tool';
 import { createExcavationLineObject } from './tools/excavation-line-tool';
 import { createLeaderNoteObject } from './tools/leader-note-tool';
 import { createMonitoringPointObject } from './tools/monitoring-point-tool';
 import { createPileObject } from './tools/pile-tool';
+import { createSecantPileWallObject } from './tools/secant-pile-wall-tool';
+import { createSoldierPileWallObject } from './tools/soldier-pile-wall-tool';
+import { createWalerObject } from './tools/waler-tool';
+import { defaultSoldierPileSymbolDiameterMm } from './semantic-object-utils';
 
 export type DraftingBounds = {
   minX: number;
@@ -29,7 +36,7 @@ export type DraftingRect = {
 };
 
 export function cloneDraftingModel(model: DraftingModel) {
-  return structuredClone(model);
+  return structuredClone(ensureDraftingModelLayers(model));
 }
 
 export function createDraftingObject(
@@ -41,6 +48,16 @@ export function createDraftingObject(
   switch (type) {
     case 'pile':
       return createPileObject(point, model);
+    case 'secant_pile_wall':
+      return createSecantPileWallObject(point, model);
+    case 'soldier_pile_wall':
+      return createSoldierPileWallObject(point, model);
+    case 'anchor_tieback':
+      return createAnchorTiebackObject(point, model);
+    case 'capping_beam':
+      return createCappingBeamObject(point, model);
+    case 'waler':
+      return createWalerObject(point, model);
     case 'monitoring_point':
       return createMonitoringPointObject(point, model);
     case 'leader_note':
@@ -199,6 +216,66 @@ export function translateDraftingObject(
         },
         updatedAt,
       };
+    case 'secant_pile_wall':
+      return {
+        ...object,
+        geometry: {
+          ...object.geometry,
+          baselinePoints: object.geometry.baselinePoints.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+          pileCentres: object.geometry.pileCentres.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      };
+    case 'soldier_pile_wall':
+      return {
+        ...object,
+        geometry: {
+          ...object.geometry,
+          baselinePoints: object.geometry.baselinePoints.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+          pilePositions: object.geometry.pilePositions.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      };
+    case 'anchor_tieback':
+      return {
+        ...object,
+        geometry: {
+          headPoint: {
+            x: object.geometry.headPoint.x + deltaX,
+            y: object.geometry.headPoint.y + deltaY,
+          },
+          tailPoint: {
+            x: object.geometry.tailPoint.x + deltaX,
+            y: object.geometry.tailPoint.y + deltaY,
+          },
+        },
+        updatedAt,
+      };
+    case 'capping_beam':
+    case 'waler':
+      return {
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      };
     case 'monitoring_point':
       return {
         ...object,
@@ -307,6 +384,20 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
         maxY: object.geometry.centre.y + radius,
       };
     }
+    case 'secant_pile_wall': {
+      const radius = object.parameters.pileDiameterMm / 2;
+      return getPointCollectionBounds(object.geometry.pileCentres, radius + 120);
+    }
+    case 'soldier_pile_wall': {
+      const radius = defaultSoldierPileSymbolDiameterMm(object) / 2;
+      return getPointCollectionBounds(object.geometry.pilePositions, radius + 120);
+    }
+    case 'anchor_tieback':
+      return getPointCollectionBounds([object.geometry.headPoint, object.geometry.tailPoint], 240);
+    case 'capping_beam':
+      return getPointCollectionBounds(object.geometry.points, object.parameters.widthMm / 2 + 120);
+    case 'waler':
+      return getPointCollectionBounds(object.geometry.points, 260);
     case 'monitoring_point':
       return {
         minX: object.geometry.point.x - 250,
@@ -404,6 +495,22 @@ export function buildDraftingExportFilename(title: string) {
 
 export function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getPointCollectionBounds(points: DraftingPoint[], padding = 0): DraftingBounds | null {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+
+  return {
+    minX: Math.min(...xs) - padding,
+    minY: Math.min(...ys) - padding,
+    maxX: Math.max(...xs) + padding,
+    maxY: Math.max(...ys) + padding,
+  };
 }
 
 export function draftingUnderlayLocalToWorldPoint(

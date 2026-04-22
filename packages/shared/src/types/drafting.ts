@@ -6,6 +6,7 @@ export const DRAFTING_LAYER_IDS = [
   'shoring',
   'piles',
   'anchors',
+  'beams_walers',
   'excavation',
   'monitoring',
   'boreholes',
@@ -41,14 +42,14 @@ export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
   'excavation_line',
   'monitoring_point',
   'leader_note',
-] as const;
-
-export const DRAFTING_FUTURE_OBJECT_TYPES = [
   'secant_pile_wall',
   'soldier_pile_wall',
   'anchor_tieback',
   'capping_beam',
   'waler',
+] as const;
+
+export const DRAFTING_FUTURE_OBJECT_TYPES = [
   'borehole',
   'survey_point',
   'service_line',
@@ -94,9 +95,20 @@ export const DRAFTING_MONITORING_TYPES = [
   'other',
 ] as const;
 
+export const DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS = [
+  'hard_soft',
+  'hard_firm',
+  'contiguous',
+] as const;
+
+export const DRAFTING_SECANT_TYPES = ['overlapping', 'tangent'] as const;
+
 export type DraftingPileType = (typeof DRAFTING_PILE_TYPES)[number];
 export type DraftingPileMaterial = (typeof DRAFTING_PILE_MATERIALS)[number];
 export type DraftingMonitoringType = (typeof DRAFTING_MONITORING_TYPES)[number];
+export type DraftingSecantPrimarySecondaryPattern =
+  (typeof DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS)[number];
+export type DraftingSecantType = (typeof DRAFTING_SECANT_TYPES)[number];
 
 export type DraftingPoint = {
   x: number;
@@ -231,6 +243,105 @@ export type DraftingLeaderNoteObject = DraftingObjectBase & {
   };
 };
 
+export type DraftingSecantPileWallObject = DraftingObjectBase & {
+  type: 'secant_pile_wall';
+  geometry: {
+    baselinePoints: DraftingPoint[];
+    pileCentres: DraftingPoint[];
+  };
+  parameters: {
+    pileDiameterMm: number;
+    spacingMm: number;
+    overlapMm?: number;
+    secantType?: DraftingSecantType;
+    primarySecondaryPattern: DraftingSecantPrimarySecondaryPattern;
+  };
+  metadata: {
+    wallId: string;
+    constructionMethod: string;
+    pileCount: number;
+    designNotes?: string;
+  };
+};
+
+export type DraftingSoldierPileWallObject = DraftingObjectBase & {
+  type: 'soldier_pile_wall';
+  geometry: {
+    baselinePoints: DraftingPoint[];
+    pilePositions: DraftingPoint[];
+  };
+  parameters: {
+    pileDiameterMm?: number;
+    sectionLabel?: string;
+    spacingMm: number;
+    laggingType?: string;
+    embedmentNote?: string;
+  };
+  metadata: {
+    wallId: string;
+    constructionMethod: string;
+    pileCount: number;
+  };
+};
+
+export type DraftingAnchorTiebackObject = DraftingObjectBase & {
+  type: 'anchor_tieback';
+  geometry: {
+    headPoint: DraftingPoint;
+    tailPoint: DraftingPoint;
+  };
+  parameters: {
+    anchorId: string;
+    angleDeg: number;
+    planLengthMm: number;
+    freeLengthMm?: number;
+    bondLengthMm?: number;
+    designLoadKn?: number;
+    lockOffLoadKn?: number;
+    stage?: string;
+  };
+  metadata: {
+    associatedWallId?: string;
+    installationStage?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingCappingBeamObject = DraftingObjectBase & {
+  type: 'capping_beam';
+  geometry: {
+    points: DraftingPoint[];
+  };
+  parameters: {
+    beamId: string;
+    widthMm: number;
+    depthMm?: number;
+    levelRl?: number;
+    concreteGrade?: string;
+  };
+  metadata: {
+    associatedWallId?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingWalerObject = DraftingObjectBase & {
+  type: 'waler';
+  geometry: {
+    points: DraftingPoint[];
+  };
+  parameters: {
+    walerId: string;
+    sectionLabel: string;
+    levelRl?: number;
+    connectionNotes?: string;
+  };
+  metadata: {
+    associatedWallId?: string;
+    notes?: string;
+  };
+};
+
 export type DraftingPlaceholderObject = DraftingObjectBase & {
   type: DraftingFutureObjectType;
   geometry: Record<string, unknown>;
@@ -242,6 +353,11 @@ export type DraftingObject =
   | DraftingExcavationLineObject
   | DraftingMonitoringPointObject
   | DraftingLeaderNoteObject
+  | DraftingSecantPileWallObject
+  | DraftingSoldierPileWallObject
+  | DraftingAnchorTiebackObject
+  | DraftingCappingBeamObject
+  | DraftingWalerObject
   | DraftingPlaceholderObject;
 
 export type DraftingModel = {
@@ -336,6 +452,14 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     lineWeight: 2,
   },
   {
+    id: 'beams_walers',
+    name: 'Beams / Walers',
+    visible: true,
+    locked: false,
+    color: '#7c2d12',
+    lineWeight: 3,
+  },
+  {
     id: 'excavation',
     name: 'Excavation',
     visible: true,
@@ -389,8 +513,22 @@ export function createDefaultDraftingLayers(): DraftingLayer[] {
   return DEFAULT_DRAFTING_LAYERS.map((layer) => ({ ...layer }));
 }
 
-export function createEmptyDraftingModel(drawingId: string): DraftingModel {
+export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
+  const existingLayersById = new Map(model.layers.map((layer) => [layer.id, layer]));
+  const defaultLayerIds = new Set(DEFAULT_DRAFTING_LAYERS.map((layer) => layer.id));
+  const orderedLayers = DEFAULT_DRAFTING_LAYERS.map(
+    (layer) => existingLayersById.get(layer.id) ?? { ...layer },
+  );
+  const extraLayers = model.layers.filter((layer) => !defaultLayerIds.has(layer.id));
+
   return {
+    ...model,
+    layers: [...orderedLayers, ...extraLayers],
+  };
+}
+
+export function createEmptyDraftingModel(drawingId: string): DraftingModel {
+  return ensureDraftingModelLayers({
     version: 1,
     units: 'mm',
     drawingId,
@@ -402,23 +540,27 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     layers: createDefaultDraftingLayers(),
     underlays: [],
     objects: [],
-  };
+  });
 }
 
 export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): DraftingLayerId {
   switch (type) {
     case 'pile':
       return 'piles';
+    case 'secant_pile_wall':
+    case 'soldier_pile_wall':
+      return 'shoring';
+    case 'anchor_tieback':
+      return 'anchors';
+    case 'capping_beam':
+    case 'waler':
+      return 'beams_walers';
     case 'excavation_line':
       return 'excavation';
     case 'monitoring_point':
       return 'monitoring';
     case 'leader_note':
       return 'notes';
-    case 'anchor_tieback':
-    case 'waler':
-    case 'capping_beam':
-      return 'anchors';
     case 'borehole':
     case 'survey_point':
       return 'boreholes';
