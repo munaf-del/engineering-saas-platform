@@ -30,6 +30,7 @@ import {
   OMNIDOTS_IMPORT_PANEL_ID,
   OMNIDOTS_MONITORING_METRIC_OPTIONS,
   type OmnidotsDatasetPreviewRow,
+  type OmnidotsMeasuringPointSummary,
   type OmnidotsMonitoringMetricKey,
 } from './monitoring-omnidots-types';
 import {
@@ -65,6 +66,7 @@ export function MonitoringOmnidotsImportPanel({
   const [hasManuallySelectedConnection, setHasManuallySelectedConnection] = useState(false);
   const [selectedConnectionValue, setSelectedConnectionValue] = useState('');
   const [selectedMeasuringPointId, setSelectedMeasuringPointId] = useState<string | null>(null);
+  const [measuringPointFilter, setMeasuringPointFilter] = useState('');
   const [tokenDraft, setTokenDraft] = useState('');
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [dateFrom, setDateFrom] = useState(toDateTimeLocalValue(report.monitoringWindowStart));
@@ -95,6 +97,31 @@ export function MonitoringOmnidotsImportPanel({
     () => measuringPointState?.measuringPoints ?? [],
     [measuringPointState?.measuringPoints],
   );
+  const selectedMeasuringPoint = useMemo(
+    () =>
+      measuringPoints.find((measuringPoint) => measuringPoint.id === selectedMeasuringPointId) ??
+      null,
+    [measuringPoints, selectedMeasuringPointId],
+  );
+  const filteredMeasuringPoints = useMemo(
+    () => filterOmnidotsMeasuringPoints(measuringPoints, measuringPointFilter),
+    [measuringPointFilter, measuringPoints],
+  );
+  const visibleMeasuringPoints = useMemo(() => {
+    if (!selectedMeasuringPoint) {
+      return filteredMeasuringPoints;
+    }
+
+    if (
+      filteredMeasuringPoints.some(
+        (measuringPoint) => measuringPoint.id === selectedMeasuringPoint.id,
+      )
+    ) {
+      return filteredMeasuringPoints;
+    }
+
+    return [selectedMeasuringPoint, ...filteredMeasuringPoints];
+  }, [filteredMeasuringPoints, selectedMeasuringPoint]);
 
   const createConnectionMutation = useCreateEnvironmentalMonitoringOmnidotsConnection(
     projectId,
@@ -114,8 +141,10 @@ export function MonitoringOmnidotsImportPanel({
   );
   const importMutation = useImportEnvironmentalMonitoringOmnidots(projectId, reportId);
   const buildDatasetMutation = useBuildEnvironmentalMonitoringOmnidotsDataset(projectId, reportId);
-  const createRowsMutation =
-    useCreateVibrationResultsFromEnvironmentalMonitoringOmnidotsDataset(projectId, reportId);
+  const createRowsMutation = useCreateVibrationResultsFromEnvironmentalMonitoringOmnidotsDataset(
+    projectId,
+    reportId,
+  );
   const latestDataset =
     buildDatasetMutation.data?.latestDataset ?? measuringPointState?.latestDataset ?? null;
   const latestImportJob =
@@ -164,6 +193,10 @@ export function MonitoringOmnidotsImportPanel({
   }, [measuringPoints, selectedMeasuringPointId]);
 
   useEffect(() => {
+    setMeasuringPointFilter('');
+  }, [selectedConnectionId]);
+
+  useEffect(() => {
     if (latestDataset) {
       setIsExpanded(true);
     }
@@ -188,7 +221,8 @@ export function MonitoringOmnidotsImportPanel({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const canRunImport = !!selectedConnectionId && !!selectedMeasuringPointId && !!dateFrom && !!dateTo;
+  const canRunImport =
+    !!selectedConnectionId && !!selectedMeasuringPointId && !!dateFrom && !!dateTo;
 
   const selectedMetricLabel = useMemo(
     () =>
@@ -203,6 +237,31 @@ export function MonitoringOmnidotsImportPanel({
             .join(', '),
     [selectedMetricKeys],
   );
+  const measuringPointSummaryText = useMemo(() => {
+    if (!measuringPointState) {
+      return 'Sync the connection to load measuring points.';
+    }
+
+    if (measuringPoints.length === 0) {
+      return '0 synced measuring points available.';
+    }
+
+    const trimmedFilter = measuringPointFilter.trim();
+    if (!trimmedFilter) {
+      return `${measuringPoints.length} synced measuring point${measuringPoints.length === 1 ? '' : 's'} available.`;
+    }
+
+    if (filteredMeasuringPoints.length === 0) {
+      return `No synced measuring points match "${trimmedFilter}".`;
+    }
+
+    return `Showing ${filteredMeasuringPoints.length} of ${measuringPoints.length} synced measuring point${measuringPoints.length === 1 ? '' : 's'}.`;
+  }, [
+    filteredMeasuringPoints.length,
+    measuringPointFilter,
+    measuringPointState,
+    measuringPoints.length,
+  ]);
 
   async function handleSaveToken() {
     if (!tokenDraft.trim()) {
@@ -382,7 +441,11 @@ export function MonitoringOmnidotsImportPanel({
           size="sm"
           onClick={() => setIsExpanded((current) => !current)}
         >
-          {isExpanded ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronRight className="mr-2 h-4 w-4" />}
+          {isExpanded ? (
+            <ChevronDown className="mr-2 h-4 w-4" />
+          ) : (
+            <ChevronRight className="mr-2 h-4 w-4" />
+          )}
           {isExpanded ? 'Hide Import Panel' : 'Show Import Panel'}
         </Button>
       </CardHeader>
@@ -394,8 +457,8 @@ export function MonitoringOmnidotsImportPanel({
             <AlertDescription>
               <div className="space-y-2">
                 <p>
-                  Stored Omnidots tokens are never shown back to the browser. Entering a token
-                  here creates or replaces the stored token, then the field is cleared again.
+                  Stored Omnidots tokens are never shown back to the browser. Entering a token here
+                  creates or replaces the stored token, then the field is cleared again.
                 </p>
                 <p>
                   Use an Omnidots Honeycomb API token. Log in to Omnidots separately, create a
@@ -511,14 +574,25 @@ export function MonitoringOmnidotsImportPanel({
             </Alert>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <Field label="Find measuring point">
+              <Input
+                value={measuringPointFilter}
+                onChange={(event) => setMeasuringPointFilter(event.target.value)}
+                placeholder="Filter by measuring point or sensor name"
+                disabled={!selectedConnectionId || measuringPoints.length === 0}
+              />
+              <div className="text-xs text-muted-foreground">
+                {measuringPoints.length > 0
+                  ? 'Tip: names like NorthSydney_VM01 make report-scoped filtering easier.'
+                  : 'Sync the connection first, then filter the synced measuring points here.'}
+              </div>
+            </Field>
             <Field label="Measuring point">
               <Select
                 value={selectedMeasuringPointId ?? NO_MEASURING_POINT_VALUE}
                 onValueChange={(value) =>
-                  setSelectedMeasuringPointId(
-                    value === NO_MEASURING_POINT_VALUE ? null : value,
-                  )
+                  setSelectedMeasuringPointId(value === NO_MEASURING_POINT_VALUE ? null : value)
                 }
                 disabled={!selectedConnectionId || measuringPointsQuery.isLoading}
               >
@@ -526,25 +600,31 @@ export function MonitoringOmnidotsImportPanel({
                   <SelectValue placeholder="Select a synced measuring point" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_MEASURING_POINT_VALUE}>No measuring point selected</SelectItem>
-                  {measuringPoints.map((measuringPoint) => (
+                  <SelectItem value={NO_MEASURING_POINT_VALUE}>
+                    No measuring point selected
+                  </SelectItem>
+                  {visibleMeasuringPoints.map((measuringPoint) => (
                     <SelectItem key={measuringPoint.id} value={measuringPoint.id}>
                       {measuringPoint.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <div className="text-xs text-muted-foreground">
-                {measuringPointState
-                  ? `${measuringPointState.measuringPoints.length} synced measuring point${measuringPointState.measuringPoints.length === 1 ? '' : 's'} available.`
-                  : 'Sync the connection to load measuring points.'}
-              </div>
+              <div className="text-xs text-muted-foreground">{measuringPointSummaryText}</div>
             </Field>
             <Field label="Import from">
-              <Input type="datetime-local" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+              <Input
+                type="datetime-local"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
             </Field>
             <Field label="Import to">
-              <Input type="datetime-local" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+              <Input
+                type="datetime-local"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
             </Field>
             <Field label="Selected metrics">
               <div className="rounded-md border bg-background p-3">
@@ -579,7 +659,9 @@ export function MonitoringOmnidotsImportPanel({
               type="button"
               variant="outline"
               onClick={handleImport}
-              disabled={!canRunImport || importMutation.isPending || selectedMetricKeys.length === 0}
+              disabled={
+                !canRunImport || importMutation.isPending || selectedMetricKeys.length === 0
+              }
             >
               <CloudDownload className="mr-2 h-4 w-4" />
               Import Data
@@ -588,7 +670,9 @@ export function MonitoringOmnidotsImportPanel({
               type="button"
               variant="outline"
               onClick={handleBuildDataset}
-              disabled={!canRunImport || buildDatasetMutation.isPending || selectedMetricKeys.length === 0}
+              disabled={
+                !canRunImport || buildDatasetMutation.isPending || selectedMetricKeys.length === 0
+              }
             >
               <Database className="mr-2 h-4 w-4" />
               Build / Refresh Dataset Snapshot
@@ -688,13 +772,7 @@ export function MonitoringOmnidotsImportPanel({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -779,7 +857,11 @@ function formatAxisCell(label: string, value: number | null, timestamp: string |
 }
 
 function formatSimpleAxisValue(label: string, value: number | null) {
-  return <div className="text-xs text-muted-foreground">{label}: {value === null ? '—' : formatNumber(value)}</div>;
+  return (
+    <div className="text-xs text-muted-foreground">
+      {label}: {value === null ? '—' : formatNumber(value)}
+    </div>
+  );
 }
 
 function formatNumber(value: number) {
@@ -827,4 +909,26 @@ function resolveApiMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function filterOmnidotsMeasuringPoints(
+  measuringPoints: OmnidotsMeasuringPointSummary[],
+  filter: string,
+) {
+  const normalizedFilter = filter.trim().toLowerCase();
+  if (!normalizedFilter) {
+    return measuringPoints;
+  }
+
+  return measuringPoints.filter((measuringPoint) => {
+    const haystack = [
+      measuringPoint.name,
+      measuringPoint.sensorName,
+      measuringPoint.externalMeasuringPointId,
+    ]
+      .filter((value): value is string => !!value)
+      .map((value) => value.toLowerCase());
+
+    return haystack.some((value) => value.includes(normalizedFilter));
+  });
 }

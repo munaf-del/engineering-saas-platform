@@ -37,30 +37,12 @@ const defaultConnectionsData = [
 
 const defaultMeasuringPointsData = {
   measuringPoints: [
-    {
+    buildMeasuringPoint({
       id: 'point-1',
-      connectionId: 'connection-1',
       externalMeasuringPointId: '544',
       name: 'North facade monitor',
-      active: true,
-      timezone: 'Australia/Sydney',
-      guideLine: null,
-      category: 'vibration',
-      measuringType: 'peak',
-      vibrationType: 'structural',
-      userLatitude: null,
-      userLongitude: null,
       sensorName: 'BANANA',
-      sensorOnline: true,
-      sensorLastseenAt: '2026-04-22T01:00:00.000Z',
-      sensorConnectedUsing: 'GSM',
-      sensorBatteryCharge: 95,
-      sensorLatitude: null,
-      sensorLongitude: null,
-      deepLinkUrl: null,
-      createdAt: '2026-04-22T01:00:00.000Z',
-      updatedAt: '2026-04-22T01:00:00.000Z',
-    },
+    }),
   ],
   latestImportJob: {
     id: 'job-1',
@@ -262,6 +244,9 @@ describe('MonitoringOmnidotsImportPanel', () => {
       'Use an Omnidots Honeycomb API token. Log in to Omnidots separately, create a permanent API token, then paste it here. The saved token is encrypted and never displayed.',
     );
     expect(container.textContent).toContain('Do not enter your Omnidots password here.');
+    expect(container.textContent).toContain(
+      'Tip: names like NorthSydney_VM01 make report-scoped filtering easier.',
+    );
 
     const helpLink = Array.from(container.querySelectorAll('a')).find((candidate) =>
       candidate.textContent?.includes('Where to create an Omnidots API token'),
@@ -357,9 +342,61 @@ describe('MonitoringOmnidotsImportPanel', () => {
     expect(container.textContent).not.toContain('super-secret-token');
   });
 
+  it('filters synced measuring points by measuring point name and sensor name', async () => {
+    mockUseEnvironmentalMonitoringOmnidotsMeasuringPoints.mockReturnValue({
+      data: {
+        ...defaultMeasuringPointsData,
+        measuringPoints: [
+          buildMeasuringPoint({
+            id: 'point-1',
+            externalMeasuringPointId: '544',
+            name: 'NorthSydney_VM01',
+            sensorName: 'Sensor-A',
+          }),
+          buildMeasuringPoint({
+            id: 'point-2',
+            externalMeasuringPointId: '545',
+            name: 'Merrylands_VM01',
+            sensorName: 'Sensor-B',
+          }),
+          buildMeasuringPoint({
+            id: 'point-3',
+            externalMeasuringPointId: '546',
+            name: 'Boundary South',
+            sensorName: 'NorthSydney_SWARM',
+          }),
+        ],
+      },
+    });
+
+    await renderPanel(root);
+
+    const filterInput = Array.from(container.querySelectorAll('input')).find(
+      (candidate) =>
+        candidate.getAttribute('placeholder') === 'Filter by measuring point or sensor name',
+    ) as HTMLInputElement | undefined;
+    expect(filterInput).toBeTruthy();
+
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )?.set;
+    expect(valueSetter).toBeTruthy();
+
+    await act(async () => {
+      valueSetter?.call(filterInput, 'NorthSydney');
+      filterInput!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Showing 2 of 3 synced measuring points.');
+    expect(container.textContent).toContain('NorthSydney_VM01');
+    expect(container.textContent).toContain('Boundary South');
+    expect(container.textContent).not.toContain('Merrylands_VM01');
+  });
+
   async function clickButton(label: string) {
-    const button = Array.from(container.querySelectorAll('button')).find(
-      (candidate) => candidate.textContent?.includes(label),
+    const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
+      candidate.textContent?.includes(label),
     );
     expect(button).toBeTruthy();
 
@@ -414,5 +451,37 @@ function buildReportFixture() {
     observations: [],
     recommendations: [],
     packageIssues: [],
+  };
+}
+
+function buildMeasuringPoint(args: {
+  id: string;
+  externalMeasuringPointId: string;
+  name: string;
+  sensorName: string | null;
+}) {
+  return {
+    id: args.id,
+    connectionId: 'connection-1',
+    externalMeasuringPointId: args.externalMeasuringPointId,
+    name: args.name,
+    active: true,
+    timezone: 'Australia/Sydney',
+    guideLine: null,
+    category: 'vibration',
+    measuringType: 'peak',
+    vibrationType: 'structural',
+    userLatitude: null,
+    userLongitude: null,
+    sensorName: args.sensorName,
+    sensorOnline: true,
+    sensorLastseenAt: '2026-04-22T01:00:00.000Z',
+    sensorConnectedUsing: 'GSM',
+    sensorBatteryCharge: 95,
+    sensorLatitude: null,
+    sensorLongitude: null,
+    deepLinkUrl: null,
+    createdAt: '2026-04-22T01:00:00.000Z',
+    updatedAt: '2026-04-22T01:00:00.000Z',
   };
 }
