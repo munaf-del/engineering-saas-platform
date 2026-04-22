@@ -172,6 +172,39 @@ describe('OmnidotsService', () => {
     });
   });
 
+  it('treats empty measuring point inventories as a successful sync', async () => {
+    prisma.organisationMember.findUnique.mockResolvedValue({ role: 'admin' });
+    prisma.omnidotsProviderConnection.findFirst.mockResolvedValue(buildStoredConnection());
+    prisma.monitoringImportJob.create.mockResolvedValue({ id: 'job-1' });
+    omnidotsCredentialsService.decryptToken.mockReturnValue('secret-token');
+    omnidotsClient.listMeasuringPoints.mockResolvedValue([]);
+    prisma.omnidotsMeasuringPoint.findMany.mockResolvedValue([]);
+    prisma.omnidotsProviderConnection.update.mockResolvedValue(buildConnectionSummary());
+
+    const result = await service.syncMeasuringPoints('org-1', 'connection-1', 'user-1');
+
+    expect(prisma.omnidotsMeasuringPoint.upsert).not.toHaveBeenCalled();
+    expect(prisma.monitoringImportJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'job-1' },
+        data: expect.objectContaining({
+          status: 'completed',
+          resultSummaryJson: expect.objectContaining({
+            totalCount: 0,
+            createdCount: 0,
+            updatedCount: 0,
+          }),
+        }),
+      }),
+    );
+    expect(result.sync).toEqual({
+      status: 'completed',
+      totalCount: 0,
+      createdCount: 0,
+      updatedCount: 0,
+    });
+  });
+
   it('imports peak records idempotently for the same timestamp', async () => {
     prisma.omnidotsProviderConnection.findUnique.mockResolvedValue(buildStoredConnection());
     prisma.omnidotsMeasuringPoint.findFirst.mockResolvedValue(buildStoredMeasuringPoint());

@@ -279,6 +279,7 @@ describe('MonitoringOmnidotsImportPanel', () => {
 
     await clickButton('Sync Measuring Points');
     expect(mockSyncMeasuringPointsMutateAsync).toHaveBeenCalledWith('connection-1');
+    expect(container.textContent).toContain('1 synced measuring point available.');
 
     await clickButton('Import Data');
     expect(mockImportMutateAsync).toHaveBeenCalledWith(
@@ -323,6 +324,37 @@ describe('MonitoringOmnidotsImportPanel', () => {
     expect(tokenInput).toBeTruthy();
     expect(tokenInput.value).toBe('');
     expect(tokenInput.placeholder).toContain('Stored token is hidden');
+  });
+
+  it('shows a safe empty state when no measuring points have been synced yet', async () => {
+    mockUseEnvironmentalMonitoringOmnidotsMeasuringPoints.mockReturnValue({
+      data: {
+        ...defaultMeasuringPointsData,
+        measuringPoints: [],
+      },
+    });
+
+    await renderPanel(root);
+
+    expect(container.textContent).toContain('0 synced measuring points available.');
+    expect(container.textContent).not.toContain('invalid payload');
+  });
+
+  it('renders the latest redacted sync error without exposing a token', async () => {
+    mockUseEnvironmentalMonitoringOmnidotsConnections.mockReturnValue({
+      data: [
+        {
+          ...defaultConnectionsData[0],
+          lastError: 'Omnidots API error: Token [REDACTED] is invalid',
+        },
+      ],
+    });
+
+    await renderPanel(root);
+
+    expect(container.textContent).toContain('Latest connection error');
+    expect(container.textContent).toContain('Token [REDACTED] is invalid');
+    expect(container.textContent).not.toContain('super-secret-token');
   });
 
   async function clickButton(label: string) {

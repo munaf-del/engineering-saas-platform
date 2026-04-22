@@ -14,11 +14,14 @@ import {
   OMNIDOTS_TOKEN_DETAILS_PATH,
 } from './omnidots.constants';
 import { OmnidotsClientError } from './omnidots.errors';
-import { buildOmnidotsSafeErrorMessage, redactOmnidotsUrl } from './omnidots.redaction';
+import {
+  buildOmnidotsSafeErrorMessage,
+  redactOmnidotsText,
+  redactOmnidotsUrl,
+} from './omnidots.redaction';
 import {
   omnidotsApiErrorEnvelopeSchema,
   omnidotsApiSuccessEnvelopeSchema,
-  omnidotsListMeasuringPointsResponseSchema,
   omnidotsMeasuringPointResponseItemSchema,
   omnidotsPeakRecordResponseItemSchema,
   omnidotsPeakRecordsResponseSchema,
@@ -74,22 +77,13 @@ export class OmnidotsClient {
   }
 
   async listMeasuringPoints(token: string): Promise<OmnidotsMeasuringPointResponseItem[]> {
-    const payload = await this.getJson(OMNIDOTS_LIST_MEASURING_POINTS_PATH, { token });
-    const parsed = omnidotsListMeasuringPointsResponseSchema.safeParse(payload);
-
-    if (!parsed.success) {
-      throw new OmnidotsClientError(
-        'Omnidots measuring point inventory returned an invalid payload',
-        'invalid_response',
-        {
-          safeUrl: redactOmnidotsUrl(
-            buildOmnidotsUrl(this.baseUrl, OMNIDOTS_LIST_MEASURING_POINTS_PATH, { token }),
-          ),
-        },
-      );
-    }
-
-    return parsed.data.measuring_points;
+    const payload = await this.getJsonPayload(OMNIDOTS_LIST_MEASURING_POINTS_PATH, { token });
+    return extractMeasuringPointArrayPayload(
+      payload,
+      OMNIDOTS_LIST_MEASURING_POINTS_PATH,
+      token,
+      this.baseUrl,
+    );
   }
 
   async getPeakRecords(
@@ -222,6 +216,33 @@ export class OmnidotsClient {
     path: string,
     params: Record<string, string | undefined>,
   ): Promise<Record<string, unknown>> {
+    const payload = await this.getJsonPayload(path, params);
+    const safeUrl = redactOmnidotsUrl(buildOmnidotsUrl(this.baseUrl, path, params));
+
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new OmnidotsClientError('Omnidots returned a non-object JSON payload', 'invalid_response', {
+        safeUrl,
+      });
+    }
+
+    const success = omnidotsApiSuccessEnvelopeSchema.safeParse(payload);
+    if (!success.success) {
+      throw new OmnidotsClientError(
+        'Omnidots returned a payload without a valid ok flag',
+        'invalid_response',
+        {
+          safeUrl,
+        },
+      );
+    }
+
+    return payload as Record<string, unknown>;
+  }
+
+  private async getJsonPayload(
+    path: string,
+    params: Record<string, string | undefined>,
+  ): Promise<unknown> {
     const token = params[OMNIDOTS_SECRET_QUERY_PARAM];
     const url = buildOmnidotsUrl(this.baseUrl, path, params);
     const safeUrl = redactOmnidotsUrl(url);
@@ -247,9 +268,9 @@ export class OmnidotsClient {
       }
 
       const payload = (await response.json()) as unknown;
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      if (!payload || (typeof payload !== 'object' && !Array.isArray(payload))) {
         throw new OmnidotsClientError(
-          'Omnidots returned a non-object JSON payload',
+          'Omnidots returned a non-object-or-array JSON payload',
           'invalid_response',
           {
             safeUrl,
@@ -257,30 +278,29 @@ export class OmnidotsClient {
         );
       }
 
-      const apiError = omnidotsApiErrorEnvelopeSchema.safeParse(payload);
-      if (apiError.success) {
-        const apiMessage = apiError.data.message?.trim() || 'Unknown Omnidots API error';
-        throw new OmnidotsClientError(`Omnidots API error: ${apiMessage}`, 'api_error', {
-          safeUrl,
-          details: {
-            apiMessage,
-            help: apiError.data.help ?? null,
-          },
-        });
-      }
+      if (!Array.isArray(payload)) {
+        const apiError = omnidotsApiErrorEnvelopeSchema.safeParse(payload);
+        if (apiError.success) {
+          const apiMessage = redactOmnidotsText(
+            apiError.data.message?.trim() || 'Unknown Omnidots API error',
+            [token],
+          );
+          const help =
+            typeof apiError.data.help === 'string'
+              ? redactOmnidotsText(apiError.data.help, [token])
+              : null;
 
-      const success = omnidotsApiSuccessEnvelopeSchema.safeParse(payload);
-      if (!success.success) {
-        throw new OmnidotsClientError(
-          'Omnidots returned a payload without a valid ok flag',
-          'invalid_response',
-          {
+          throw new OmnidotsClientError(`Omnidots API error: ${apiMessage}`, 'api_error', {
             safeUrl,
-          },
-        );
+            details: {
+              apiMessage,
+              help,
+            },
+          });
+        }
       }
 
-      return payload as Record<string, unknown>;
+      return payload;
     } catch (error) {
       if (error instanceof OmnidotsClientError) {
         this.logger.warn(`${error.message} (${safeUrl})`);
@@ -311,6 +331,74 @@ export class OmnidotsClient {
       throw networkError;
     }
   }
+}
+
+function extractMeasuringPointArrayPayload(
+  payload: unknown,
+  path: string,
+  token: string,
+  baseUrl: string,
+): OmnidotsMeasuringPointResponseItem[] {
+  const measuringPoints = resolveMeasuringPointArrayCandidate(payload);
+  const safeUrl = redactOmnidotsUrl(buildOmnidotsUrl(baseUrl, path, { token }));
+
+  if (!measuringPoints) {
+    throw new OmnidotsClientError(
+      'Omnidots measuring point response format was not recognised.',
+      'invalid_response',
+      {
+        safeUrl,
+      },
+    );
+  }
+
+  const parsed = z.array(omnidotsMeasuringPointResponseItemSchema).safeParse(measuringPoints);
+  if (!parsed.success) {
+    throw new OmnidotsClientError(
+      'Omnidots measuring point inventory returned an invalid payload',
+      'invalid_response',
+      {
+        safeUrl,
+      },
+    );
+  }
+
+  return parsed.data;
+}
+
+function resolveMeasuringPointArrayCandidate(payload: unknown) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record.measuring_points)) {
+    return record.measuring_points;
+  }
+
+  if (Array.isArray(record.measuringPoints)) {
+    return record.measuringPoints;
+  }
+
+  const data = record.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return null;
+  }
+
+  const dataRecord = data as Record<string, unknown>;
+  if (Array.isArray(dataRecord.measuring_points)) {
+    return dataRecord.measuring_points;
+  }
+
+  if (Array.isArray(dataRecord.measuringPoints)) {
+    return dataRecord.measuringPoints;
+  }
+
+  return null;
 }
 
 function extractArrayPayload<TSchema extends z.ZodTypeAny>(

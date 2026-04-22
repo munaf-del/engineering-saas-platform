@@ -1,5 +1,31 @@
 import { z } from 'zod';
 
+const omnidotsFiniteNumberSchema = z.union([z.number(), z.string()]).transform((value, ctx) => {
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Expected a finite number',
+    });
+    return z.NEVER;
+  }
+
+  const normalized = value.trim();
+  const parsed = Number(normalized);
+  if (!normalized || !Number.isFinite(parsed)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Expected a finite numeric string',
+    });
+    return z.NEVER;
+  }
+
+  return parsed;
+});
+
 export const omnidotsApiSuccessEnvelopeSchema = z
   .object({
     ok: z.literal(true),
@@ -16,15 +42,15 @@ export const omnidotsApiErrorEnvelopeSchema = z
 
 const omnidotsCoordinatesSchema = z
   .object({
-    latitude: z.number().nullable(),
-    longitude: z.number().nullable(),
+    latitude: omnidotsFiniteNumberSchema.nullable(),
+    longitude: omnidotsFiniteNumberSchema.nullable(),
   })
   .passthrough();
 
 export const omnidotsSensorResponseItemSchema = z
   .object({
     connected_using: z.string().nullish(),
-    battery_charge: z.number().nullish(),
+    battery_charge: omnidotsFiniteNumberSchema.nullish(),
     name: z.string().nullish(),
     lastseen: z.string().nullish(),
     online: z.boolean().nullish(),
@@ -34,19 +60,19 @@ export const omnidotsSensorResponseItemSchema = z
 
 export const omnidotsMeasuringPointResponseItemSchema = z
   .object({
-    id: z.number(),
+    id: omnidotsFiniteNumberSchema,
     name: z.string(),
     active: z.boolean(),
     building_level: z.string().nullish(),
     category: z.string().nullish(),
-    data_save_level: z.number().nullish(),
+    data_save_level: omnidotsFiniteNumberSchema.nullish(),
     guide_line: z.string().nullish(),
-    measurement_duration: z.number().nullish(),
+    measurement_duration: omnidotsFiniteNumberSchema.nullish(),
     measuring_type: z.string().nullish(),
     timezone: z.string().nullish(),
-    trace_post_trigger: z.number().nullish(),
-    trace_pre_trigger: z.number().nullish(),
-    trace_save_level: z.number().nullish(),
+    trace_post_trigger: omnidotsFiniteNumberSchema.nullish(),
+    trace_pre_trigger: omnidotsFiniteNumberSchema.nullish(),
+    trace_save_level: omnidotsFiniteNumberSchema.nullish(),
     vibration_type: z.string().nullish(),
     user_location: omnidotsCoordinatesSchema.nullish(),
     sensor: omnidotsSensorResponseItemSchema.nullish(),
