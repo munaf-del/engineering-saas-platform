@@ -109,10 +109,12 @@ export function Field({ children, label }: { children: React.ReactNode; label: s
 }
 
 export function NumberField({
+  disabled,
   label,
   onChange,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: number) => void;
   value: number | string;
@@ -122,6 +124,7 @@ export function NumberField({
       <Input
         type="number"
         value={value}
+        disabled={disabled}
         onChange={(event) => {
           const nextValue = Number(event.target.value);
           if (Number.isFinite(nextValue)) {

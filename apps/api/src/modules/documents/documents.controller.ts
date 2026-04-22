@@ -4,8 +4,6 @@ import {
   Delete,
   ForbiddenException,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -17,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { createReadStream } from 'node:fs';
 import { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -36,20 +35,25 @@ export class DocumentsController {
   @Get()
   @ApiOperation({ summary: 'List documents for the current organisation' })
   @ApiQuery({ name: 'projectId', required: false })
+  @ApiQuery({ name: 'mimeType', required: false })
   async findAll(
     @CurrentUser() user: RequestUser,
     @Query() pagination: PaginationDto,
     @Query('projectId') projectId?: string,
+    @Query('mimeType') mimeType?: string,
   ) {
-    this.requireOrgContext(user);
-    return this.documentsService.findAll(user.organisationId!, pagination, projectId);
+    return this.documentsService.findAll(
+      this.documentsService.accessFor(user),
+      pagination,
+      projectId,
+      mimeType,
+    );
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a document by ID' })
   async findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
-    this.requireOrgContext(user);
-    return this.documentsService.findById(id, user.organisationId!);
+    return this.documentsService.findById(id, this.documentsService.accessFor(user));
   }
 
   @Post()
@@ -63,27 +67,32 @@ export class DocumentsController {
     @Body() dto: CreateDocumentDto,
     @CurrentUser() user: RequestUser,
   ) {
-    this.requireOrgContext(user);
     if (!file) {
       throw new ForbiddenException('File is required');
     }
-    return this.documentsService.create(user.organisationId!, user.id, dto, file);
+    return this.documentsService.create(this.documentsService.accessFor(user), dto, file);
   }
 
   @Get(':id/download')
-  @ApiOperation({ summary: 'Download a document file (not yet implemented)' })
+  @ApiOperation({ summary: 'Download a document file' })
   async download(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: RequestUser,
     @Res() res: Response,
   ) {
-    this.requireOrgContext(user);
-    await this.documentsService.findById(id, user.organisationId!);
-    res.status(HttpStatus.NOT_IMPLEMENTED).json({
-      statusCode: HttpStatus.NOT_IMPLEMENTED,
-      message:
-        'File storage backend is not yet implemented. Document metadata is available via GET /documents/:id.',
-    });
+    const { document, absolutePath } = await this.documentsService.prepareDownload(
+      id,
+      this.documentsService.accessFor(user),
+    );
+
+    res.setHeader('Content-Type', document.mimeType);
+    res.setHeader('Content-Length', String(document.sizeBytes));
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${document.fileName.replace(/["\\]/g, '_')}"`,
+    );
+
+    createReadStream(absolutePath).pipe(res);
   }
 
   @Delete(':id')
@@ -91,15 +100,6 @@ export class DocumentsController {
   @Roles('owner', 'admin')
   @ApiOperation({ summary: 'Delete a document' })
   async delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: RequestUser) {
-    this.requireOrgContext(user);
-    return this.documentsService.delete(id, user.organisationId!);
-  }
-
-  private requireOrgContext(
-    user: RequestUser,
-  ): asserts user is RequestUser & { organisationId: string } {
-    if (!user.organisationId) {
-      throw new ForbiddenException('Organisation context required');
-    }
+    return this.documentsService.delete(id, this.documentsService.accessFor(user));
   }
 }

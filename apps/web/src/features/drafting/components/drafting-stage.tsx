@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { DraftingModel, DraftingObject, DraftingPoint } from '@eng/shared';
+import type { DraftingModel, DraftingObject, DraftingPoint, DraftingUnderlay } from '@eng/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,6 +10,9 @@ import {
 } from '../geometry-utils';
 import { getDraftingModelBounds, getLayerById } from '../model-utils';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
+import type { DraftingRect } from '../model-utils';
+import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
+import { DraftingPdfUnderlay } from './drafting-pdf-underlay';
 import { DraftingStatusBar } from './drafting-status-bar';
 
 export function DraftingStage({
@@ -20,8 +23,14 @@ export function DraftingStage({
   onCanvasClick,
   onCanvasWheel,
   onObjectPointerDown,
+  onUnderlayPointerDown,
   pendingLinePoints,
+  selectedUnderlayId,
+  underlayCalibrationState,
+  underlayCropPreview,
+  underlayInteractionEnabled,
   selectedObjectId,
+  visibleUnderlays,
   visibleObjects,
 }: {
   canvasSize: DraftingCanvasSize;
@@ -31,8 +40,25 @@ export function DraftingStage({
   onCanvasClick: (event: React.MouseEvent<SVGSVGElement>) => void;
   onCanvasWheel: (event: React.WheelEvent<SVGSVGElement>) => void;
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
+  onUnderlayPointerDown: (
+    event: React.PointerEvent<SVGElement>,
+    underlay: DraftingUnderlay,
+    metrics: PdfUnderlayPageMetrics,
+  ) => void;
   pendingLinePoints: DraftingPoint[];
+  selectedUnderlayId: string | null;
+  underlayCalibrationState: {
+    underlayId: string;
+    pointA?: DraftingPoint | null;
+    pointB?: DraftingPoint | null;
+  } | null;
+  underlayCropPreview: {
+    underlayId: string;
+    rect: DraftingRect | null;
+  } | null;
+  underlayInteractionEnabled: (underlay: DraftingUnderlay) => boolean;
   selectedObjectId: string | null;
+  visibleUnderlays: DraftingUnderlay[];
   visibleObjects: DraftingObject[];
 }) {
   const visibleWorldBounds = getVisibleWorldBounds(model.view, canvasSize);
@@ -77,6 +103,31 @@ export function DraftingStage({
             <g
               transform={`translate(${model.view.offsetX} ${model.view.offsetY}) scale(${model.view.scale})`}
             >
+              {visibleUnderlays.map((underlay) => (
+                <DraftingPdfUnderlay
+                  key={underlay.id}
+                  underlay={underlay}
+                  isSelected={underlay.id === selectedUnderlayId}
+                  interactionEnabled={underlayInteractionEnabled(underlay)}
+                  cropPreview={
+                    underlayCropPreview?.underlayId === underlay.id
+                      ? underlayCropPreview.rect
+                      : null
+                  }
+                  calibrationPoints={
+                    underlayCalibrationState?.underlayId === underlay.id
+                      ? {
+                          pointA: underlayCalibrationState.pointA ?? null,
+                          pointB: underlayCalibrationState.pointB ?? null,
+                        }
+                      : null
+                  }
+                  onPointerDown={(event, metrics) =>
+                    onUnderlayPointerDown(event, underlay, metrics)
+                  }
+                />
+              ))}
+
               {visibleObjects.map((object) =>
                 renderDraftingObject({
                   isSelected: object.id === selectedObjectId,

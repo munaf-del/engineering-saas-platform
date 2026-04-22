@@ -120,16 +120,44 @@ export type DraftingLayer = {
   lineWeight: number;
 };
 
+export type DraftingUnderlayTransform = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+export type DraftingUnderlayCrop = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type DraftingUnderlayCalibration = {
+  method: 'two_point_uniform_scale';
+  pdfPointA: DraftingPoint;
+  pdfPointB: DraftingPoint;
+  modelPointA: DraftingPoint;
+  modelPointB: DraftingPoint;
+  modelDistanceMm: number;
+  calculatedScale: number;
+  calibratedAt: string;
+  warningAcknowledged: true;
+};
+
 export type DraftingUnderlay = {
   id: string;
-  kind: 'pdf';
-  label: string;
+  name: string;
+  fileId: string;
+  fileName: string;
   pageNumber: number;
+  visible: boolean;
   opacity: number;
   locked: boolean;
-  transformJson?: Record<string, unknown> | null;
-  calibrationJson?: Record<string, unknown> | null;
-  cropJson?: Record<string, unknown> | null;
+  transform: DraftingUnderlayTransform;
+  crop?: DraftingUnderlayCrop | null;
+  calibration?: DraftingUnderlayCalibration | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -377,9 +405,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
   };
 }
 
-export function defaultLayerIdForDraftingObjectType(
-  type: DraftingObjectType,
-): DraftingLayerId {
+export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): DraftingLayerId {
   switch (type) {
     case 'pile':
       return 'piles';

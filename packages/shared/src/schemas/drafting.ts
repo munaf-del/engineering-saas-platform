@@ -32,16 +32,44 @@ export const DraftingLayerSchema = z.object({
   lineWeight: z.number().finite().nonnegative(),
 });
 
+export const DraftingUnderlayTransformSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  scale: z.number().positive(),
+  rotationDeg: z.number().finite(),
+});
+
+export const DraftingUnderlayCropSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
+export const DraftingUnderlayCalibrationSchema = z.object({
+  method: z.literal('two_point_uniform_scale'),
+  pdfPointA: DraftingPointSchema,
+  pdfPointB: DraftingPointSchema,
+  modelPointA: DraftingPointSchema,
+  modelPointB: DraftingPointSchema,
+  modelDistanceMm: z.number().positive(),
+  calculatedScale: z.number().positive(),
+  calibratedAt: z.string().datetime(),
+  warningAcknowledged: z.literal(true),
+});
+
 export const DraftingUnderlaySchema = z.object({
   id: z.string().min(1),
-  kind: z.literal('pdf'),
-  label: z.string().min(1),
-  pageNumber: z.number().int().nonnegative(),
+  name: z.string().min(1),
+  fileId: z.string().min(1),
+  fileName: z.string().min(1),
+  pageNumber: z.number().int().positive(),
+  visible: z.boolean(),
   opacity: z.number().min(0).max(1),
   locked: z.boolean(),
-  transformJson: z.record(z.unknown()).nullable().optional(),
-  calibrationJson: z.record(z.unknown()).nullable().optional(),
-  cropJson: z.record(z.unknown()).nullable().optional(),
+  transform: DraftingUnderlayTransformSchema,
+  crop: DraftingUnderlayCropSchema.nullable().optional(),
+  calibration: DraftingUnderlayCalibrationSchema.nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

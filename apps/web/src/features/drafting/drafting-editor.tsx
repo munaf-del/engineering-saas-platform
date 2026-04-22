@@ -14,16 +14,21 @@ import { DraftingToolPalette } from './components/drafting-tool-palette';
 import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
 import { downloadDraftingModelJson } from './export-utils';
-import { clientToWorldPoint } from './geometry-utils';
+import { clientToWorldPoint, screenToWorldPoint } from './geometry-utils';
 import { useDrafting } from './hooks/use-drafting';
 import { useDraftingHistory } from './hooks/use-drafting-history';
 import { useDraftingSelection } from './hooks/use-drafting-selection';
+import { useDraftingUnderlays } from './hooks/use-drafting-underlays';
 import { useDraftingView } from './hooks/use-drafting-view';
 import {
+  addDraftingUnderlay,
   createDraftingObject,
+  getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
   updateLayer,
 } from './model-utils';
+
+const PDF_POINT_TO_MM = 25.4 / 72;
 
 export function DraftingEditor({
   projectId,
@@ -51,6 +56,15 @@ export function DraftingEditor({
     pendingLinePointCount: drafting.pendingLinePoints.length,
     patchModel: history.patchModel,
   });
+  const underlays = useDraftingUnderlays({
+    activeTool: drafting.activeTool,
+    containerRef: view.containerRef,
+    model: history.model,
+    onSelectUnderlaysTab: () => drafting.setActiveTab('underlays'),
+    onSelectUnderlay: () => {},
+    onClearObjectSelection: selection.clearSelection,
+    patchModel: history.patchModel,
+  });
 
   if (history.isLoading || !history.drawing || !history.model) {
     return <PageLoading />;
@@ -58,6 +72,7 @@ export function DraftingEditor({
 
   const currentDrawing = history.drawing;
   const currentModel = history.model;
+  const visibleUnderlays = getVisibleDraftingUnderlays(currentModel);
   const visibleObjects = getVisibleDraftingObjects(currentModel);
 
   async function handleSaveModel() {
@@ -71,8 +86,23 @@ export function DraftingEditor({
 
   function handleCanvasClick(event: React.MouseEvent<SVGSVGElement>) {
     const target = event.target as SVGElement;
+    const isUnderlayModeActive =
+      underlays.activeCropUnderlayId !== null || underlays.calibrationState !== null;
+
     if (target.closest('[data-drafting-object="true"]')) {
       return;
+    }
+    if (isUnderlayModeActive && !target.closest('[data-drafting-underlay="true"]')) {
+      return;
+    }
+    if (target.closest('[data-drafting-underlay="true"]')) {
+      if (
+        drafting.activeTool === 'select' ||
+        underlays.activeCropUnderlayId !== null ||
+        underlays.calibrationState !== null
+      ) {
+        return;
+      }
     }
 
     const point = clientToWorldPoint(
@@ -87,6 +117,7 @@ export function DraftingEditor({
 
     if (drafting.activeTool === 'select' || drafting.activeTool === 'pan') {
       selection.clearSelection();
+      underlays.clearUnderlaySelection();
       return;
     }
 
@@ -102,6 +133,62 @@ export function DraftingEditor({
     });
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');
+  }
+
+  function handleAddUnderlay(args: {
+    fileId: string;
+    fileName: string;
+    name: string;
+    pageNumber: number;
+    pageWidth: number;
+    pageHeight: number;
+  }) {
+    const now = new Date().toISOString();
+    const stageRect = view.containerRef.current?.getBoundingClientRect();
+    const viewportCentre = screenToWorldPoint(
+      {
+        x: stageRect?.width ? stageRect.width / 2 : view.canvasSize.width / 2,
+        y: stageRect?.height ? stageRect.height / 2 : view.canvasSize.height / 2,
+      },
+      currentModel.view,
+    );
+
+    const initialScale = PDF_POINT_TO_MM;
+    const nextUnderlay = {
+      id: crypto.randomUUID(),
+      name: args.name,
+      fileId: args.fileId,
+      fileName: args.fileName,
+      pageNumber: args.pageNumber,
+      visible: true,
+      opacity: 0.65,
+      locked: false,
+      transform: {
+        x: viewportCentre.x - (args.pageWidth * initialScale) / 2,
+        y: viewportCentre.y - (args.pageHeight * initialScale) / 2,
+        scale: initialScale,
+        rotationDeg: 0,
+      },
+      crop: null,
+      calibration: null,
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+
+    history.replaceModel(addDraftingUnderlay(currentModel, nextUnderlay));
+    underlays.selectUnderlay(nextUnderlay.id);
+    drafting.setActiveTab('underlays');
+  }
+
+  function underlayInteractionEnabled(underlayId: string) {
+    const exclusiveUnderlayId =
+      underlays.activeCropUnderlayId ?? underlays.calibrationState?.underlayId ?? null;
+
+    if (exclusiveUnderlayId) {
+      return exclusiveUnderlayId === underlayId;
+    }
+
+    return drafting.activeTool === 'select';
   }
 
   function handleFinishExcavationLine() {
@@ -157,8 +244,29 @@ export function DraftingEditor({
           onCanvasClick={handleCanvasClick}
           onCanvasWheel={view.handleCanvasWheel}
           onObjectPointerDown={selection.handleObjectPointerDown}
+          onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
           pendingLinePoints={drafting.pendingLinePoints}
           selectedObjectId={selection.selectedObjectId}
+          selectedUnderlayId={underlays.selectedUnderlayId}
+          underlayCalibrationState={
+            underlays.calibrationState
+              ? {
+                  underlayId: underlays.calibrationState.underlayId,
+                  pointA: underlays.calibrationState.pdfPointA,
+                  pointB: underlays.calibrationState.pdfPointB,
+                }
+              : null
+          }
+          underlayCropPreview={
+            underlays.cropPreview && underlays.selectedUnderlayId
+              ? {
+                  underlayId: underlays.selectedUnderlayId,
+                  rect: underlays.cropPreview,
+                }
+              : null
+          }
+          underlayInteractionEnabled={(underlay) => underlayInteractionEnabled(underlay.id)}
+          visibleUnderlays={visibleUnderlays}
           visibleObjects={visibleObjects}
         />
 
@@ -186,7 +294,9 @@ export function DraftingEditor({
                     layers={currentModel.layers}
                     object={selection.selectedObject}
                     onDelete={selection.deleteSelectedObject}
-                    onUpdate={(nextObject: DraftingObject) => selection.updateSelectedObject(nextObject)}
+                    onUpdate={(nextObject: DraftingObject) =>
+                      selection.updateSelectedObject(nextObject)
+                    }
                   />
                 </ScrollArea>
               </TabsContent>
@@ -203,7 +313,26 @@ export function DraftingEditor({
               </TabsContent>
 
               <TabsContent value="underlays">
-                <DraftingUnderlaysPanel />
+                <ScrollArea className="h-[580px] pr-3">
+                  <DraftingUnderlaysPanel
+                    drawingId={drawingId}
+                    onAddUnderlay={handleAddUnderlay}
+                    onApplyCalibration={underlays.applyCalibration}
+                    onBeginCalibration={(underlayId) => underlays.beginCalibration(underlayId)}
+                    onBeginCrop={(underlayId) => underlays.beginCrop(underlayId)}
+                    onCancelCalibration={underlays.cancelCalibration}
+                    onCancelCrop={underlays.cancelCrop}
+                    onClearCrop={(underlayId) => underlays.clearCrop(underlayId)}
+                    onRemoveUnderlay={underlays.removeSelectedUnderlay}
+                    onSelectUnderlay={underlays.selectUnderlay}
+                    onUpdateUnderlay={underlays.updateSelectedUnderlay}
+                    projectId={projectId}
+                    selectedUnderlay={underlays.selectedUnderlay}
+                    underlays={currentModel.underlays}
+                    calibrationState={underlays.calibrationState}
+                    cropModeUnderlayId={underlays.activeCropUnderlayId}
+                  />
+                </ScrollArea>
               </TabsContent>
             </Tabs>
           </CardContent>

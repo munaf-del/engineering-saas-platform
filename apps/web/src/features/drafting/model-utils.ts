@@ -4,6 +4,9 @@ import {
   type DraftingModel,
   type DraftingObject,
   type DraftingPoint,
+  type DraftingUnderlay,
+  type DraftingUnderlayCrop,
+  type DraftingUnderlayTransform,
   createEmptyDraftingModel,
 } from '@eng/shared';
 import { createExcavationLineObject } from './tools/excavation-line-tool';
@@ -16,6 +19,13 @@ export type DraftingBounds = {
   minY: number;
   maxX: number;
   maxY: number;
+};
+
+export type DraftingRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 export function cloneDraftingModel(model: DraftingModel) {
@@ -70,6 +80,102 @@ export function removeDraftingObject(model: DraftingModel, objectId: string) {
   return {
     ...model,
     objects: model.objects.filter((object) => object.id !== objectId),
+  };
+}
+
+export function addDraftingUnderlay(model: DraftingModel, underlay: DraftingUnderlay) {
+  return {
+    ...model,
+    underlays: [...model.underlays, underlay],
+  };
+}
+
+export function replaceDraftingUnderlay(
+  model: DraftingModel,
+  underlayId: string,
+  nextUnderlay: DraftingUnderlay,
+) {
+  return {
+    ...model,
+    underlays: model.underlays.map((underlay) =>
+      underlay.id === underlayId ? nextUnderlay : underlay,
+    ),
+  };
+}
+
+export function updateDraftingUnderlay(
+  model: DraftingModel,
+  underlayId: string,
+  updater: (underlay: DraftingUnderlay) => DraftingUnderlay,
+) {
+  const underlay = model.underlays.find((entry) => entry.id === underlayId);
+  if (!underlay) {
+    return model;
+  }
+
+  return replaceDraftingUnderlay(model, underlayId, updater(underlay));
+}
+
+export function removeDraftingUnderlay(model: DraftingModel, underlayId: string) {
+  return {
+    ...model,
+    underlays: model.underlays.filter((underlay) => underlay.id !== underlayId),
+  };
+}
+
+export function translateDraftingUnderlay(
+  underlay: DraftingUnderlay,
+  deltaX: number,
+  deltaY: number,
+): DraftingUnderlay {
+  return {
+    ...underlay,
+    transform: {
+      ...underlay.transform,
+      x: underlay.transform.x + deltaX,
+      y: underlay.transform.y + deltaY,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function rotateDraftingUnderlay(
+  underlay: DraftingUnderlay,
+  rotationDeg: number,
+): DraftingUnderlay {
+  return {
+    ...underlay,
+    transform: {
+      ...underlay.transform,
+      rotationDeg,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function scaleDraftingUnderlay(
+  underlay: DraftingUnderlay,
+  scale: number,
+  anchorLocalPoint?: DraftingPoint,
+): DraftingUnderlay {
+  const nextTransform = anchorLocalPoint
+    ? positionDraftingUnderlayTransformAtWorldPoint(
+        {
+          ...underlay.transform,
+          scale,
+        },
+        anchorLocalPoint,
+        draftingUnderlayLocalToWorldPoint(anchorLocalPoint, underlay.transform),
+      )
+    : {
+        ...underlay.transform,
+        scale,
+      };
+
+  return {
+    ...underlay,
+    transform: nextTransform,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -242,6 +348,10 @@ export function canEditDraftingObject(model: DraftingModel, object: DraftingObje
   return !object.locked && !isLayerLocked(model, object.layerId);
 }
 
+export function canEditDraftingUnderlay(model: DraftingModel, underlay: DraftingUnderlay) {
+  return !underlay.locked && !isLayerLocked(model, 'underlay');
+}
+
 export function isDraftingObjectVisible(model: DraftingModel, object: DraftingObject) {
   if (object.visible === false) {
     return false;
@@ -253,6 +363,19 @@ export function isDraftingObjectVisible(model: DraftingModel, object: DraftingOb
 
 export function getVisibleDraftingObjects(model: DraftingModel) {
   return model.objects.filter((object) => isDraftingObjectVisible(model, object));
+}
+
+export function isDraftingUnderlayVisible(model: DraftingModel, underlay: DraftingUnderlay) {
+  if (!underlay.visible) {
+    return false;
+  }
+
+  const layer = getLayerById(model, 'underlay');
+  return layer?.visible !== false;
+}
+
+export function getVisibleDraftingUnderlays(model: DraftingModel) {
+  return model.underlays.filter((underlay) => isDraftingUnderlayVisible(model, underlay));
 }
 
 export function updateLayer(model: DraftingModel, nextLayer: DraftingLayer) {
@@ -281,4 +404,195 @@ export function buildDraftingExportFilename(title: string) {
 
 export function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+export function draftingUnderlayLocalToWorldPoint(
+  point: DraftingPoint,
+  transform: DraftingUnderlayTransform,
+): DraftingPoint {
+  const angle = degreesToRadians(transform.rotationDeg);
+  const scaledX = point.x * transform.scale;
+  const scaledY = point.y * transform.scale;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: transform.x + scaledX * cos - scaledY * sin,
+    y: transform.y + scaledX * sin + scaledY * cos,
+  };
+}
+
+export function worldToDraftingUnderlayLocalPoint(
+  point: DraftingPoint,
+  transform: DraftingUnderlayTransform,
+): DraftingPoint {
+  const angle = degreesToRadians(transform.rotationDeg);
+  const translatedX = point.x - transform.x;
+  const translatedY = point.y - transform.y;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: (translatedX * cos + translatedY * sin) / transform.scale,
+    y: (-translatedX * sin + translatedY * cos) / transform.scale,
+  };
+}
+
+export function positionDraftingUnderlayTransformAtWorldPoint(
+  transform: DraftingUnderlayTransform,
+  localPoint: DraftingPoint,
+  worldPoint: DraftingPoint,
+): DraftingUnderlayTransform {
+  const angle = degreesToRadians(transform.rotationDeg);
+  const scaledX = localPoint.x * transform.scale;
+  const scaledY = localPoint.y * transform.scale;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    ...transform,
+    x: worldPoint.x - (scaledX * cos - scaledY * sin),
+    y: worldPoint.y - (scaledX * sin + scaledY * cos),
+  };
+}
+
+export function calculateTwoPointUniformCalibrationScale(
+  pdfPointA: DraftingPoint,
+  pdfPointB: DraftingPoint,
+  modelDistanceMm: number,
+) {
+  const intrinsicDistance = Math.hypot(pdfPointB.x - pdfPointA.x, pdfPointB.y - pdfPointA.y);
+  if (!Number.isFinite(modelDistanceMm) || modelDistanceMm <= 0) {
+    throw new Error('Calibration distance must be greater than zero');
+  }
+
+  if (!Number.isFinite(intrinsicDistance) || intrinsicDistance <= 0) {
+    throw new Error('Calibration points must be distinct');
+  }
+
+  return modelDistanceMm / intrinsicDistance;
+}
+
+export function applyTwoPointUniformCalibration(
+  underlay: DraftingUnderlay,
+  args: {
+    pdfPointA: DraftingPoint;
+    pdfPointB: DraftingPoint;
+    modelDistanceMm: number;
+    warningAcknowledged: boolean;
+  },
+): DraftingUnderlay {
+  if (!args.warningAcknowledged) {
+    throw new Error('Calibration warning acknowledgement is required');
+  }
+
+  const calculatedScale = calculateTwoPointUniformCalibrationScale(
+    args.pdfPointA,
+    args.pdfPointB,
+    args.modelDistanceMm,
+  );
+  const anchoredWorldPoint = draftingUnderlayLocalToWorldPoint(args.pdfPointA, underlay.transform);
+  const nextTransform = positionDraftingUnderlayTransformAtWorldPoint(
+    {
+      ...underlay.transform,
+      scale: calculatedScale,
+    },
+    args.pdfPointA,
+    anchoredWorldPoint,
+  );
+  const updatedAt = new Date().toISOString();
+
+  return {
+    ...underlay,
+    transform: nextTransform,
+    calibration: {
+      method: 'two_point_uniform_scale',
+      pdfPointA: args.pdfPointA,
+      pdfPointB: args.pdfPointB,
+      modelPointA: draftingUnderlayLocalToWorldPoint(args.pdfPointA, nextTransform),
+      modelPointB: draftingUnderlayLocalToWorldPoint(args.pdfPointB, nextTransform),
+      modelDistanceMm: args.modelDistanceMm,
+      calculatedScale,
+      calibratedAt: updatedAt,
+      warningAcknowledged: true,
+    },
+    updatedAt,
+  };
+}
+
+export function normalizeDraftingRect(start: DraftingPoint, end: DraftingPoint): DraftingRect {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y),
+  };
+}
+
+export function clampDraftingPoint(point: DraftingPoint, width: number, height: number) {
+  return {
+    x: clampNumber(point.x, 0, width),
+    y: clampNumber(point.y, 0, height),
+  };
+}
+
+export function clampDraftingUnderlayCrop(
+  crop: DraftingRect,
+  pageWidth: number,
+  pageHeight: number,
+): DraftingUnderlayCrop {
+  const x = clampNumber(crop.x, 0, pageWidth);
+  const y = clampNumber(crop.y, 0, pageHeight);
+  const width = clampNumber(crop.width, 0, pageWidth - x);
+  const height = clampNumber(crop.height, 0, pageHeight - y);
+
+  if (width <= 0 || height <= 0) {
+    throw new Error('Crop must have a positive width and height');
+  }
+
+  return {
+    x,
+    y,
+    width,
+    height,
+  };
+}
+
+export function getDraftingUnderlayLocalRect(
+  pageWidth: number,
+  pageHeight: number,
+  crop?: DraftingUnderlayCrop | null,
+) {
+  if (crop) {
+    return crop;
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: pageWidth,
+    height: pageHeight,
+  };
+}
+
+export function getDraftingUnderlayWorldCorners(
+  underlay: DraftingUnderlay,
+  pageWidth: number,
+  pageHeight: number,
+) {
+  const rect = getDraftingUnderlayLocalRect(pageWidth, pageHeight, underlay.crop);
+
+  return [
+    draftingUnderlayLocalToWorldPoint({ x: rect.x, y: rect.y }, underlay.transform),
+    draftingUnderlayLocalToWorldPoint({ x: rect.x + rect.width, y: rect.y }, underlay.transform),
+    draftingUnderlayLocalToWorldPoint(
+      { x: rect.x + rect.width, y: rect.y + rect.height },
+      underlay.transform,
+    ),
+    draftingUnderlayLocalToWorldPoint({ x: rect.x, y: rect.y + rect.height }, underlay.transform),
+  ];
+}
+
+function degreesToRadians(value: number) {
+  return (value * Math.PI) / 180;
 }
