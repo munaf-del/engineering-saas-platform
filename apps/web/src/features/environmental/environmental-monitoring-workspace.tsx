@@ -141,6 +141,7 @@ import {
   resolveNoiseResultMeasuredValueLabel,
   resolveNoiseResultMetricLabel,
 } from '@/features/environmental/monitoring-report-helpers';
+import { MonitoringOmnidotsImportPanel } from '@/features/environmental/monitoring-omnidots-import-panel';
 
 const ALL_FILTER = '__all__';
 const NONE_VALUE = '__none__';
@@ -281,6 +282,10 @@ export function EnvironmentalMonitoringWorkspace({
           setIsDirty(true);
         }}
       />
+
+      {report.reportType === 'vibration_monitoring' ? (
+        <MonitoringOmnidotsImportPanel projectId={projectId} reportId={reportId} report={report} />
+      ) : null}
 
       <ReportPackageIssuesSection
         draft={effectivePackageIssueDraft}

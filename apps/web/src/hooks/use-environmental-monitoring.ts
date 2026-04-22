@@ -18,6 +18,16 @@ import type {
   ProjectEnvironmentalNoiseResultRowInput,
   ProjectEnvironmentalVibrationResultRowInput,
 } from '@/features/environmental/environmental-monitoring-types';
+import type {
+  EnvironmentalMonitoringOmnidotsConnectionInput,
+  EnvironmentalMonitoringOmnidotsConnectionUpdateInput,
+  EnvironmentalMonitoringOmnidotsImportInput,
+  OmnidotsBuildDatasetResponse,
+  OmnidotsConnectionSummary,
+  OmnidotsCreateVibrationResultsResponse,
+  OmnidotsImportResponse,
+  OmnidotsMeasuringPointState,
+} from '@/features/environmental/monitoring-omnidots-types';
 
 export function useEnvironmentalMonitoringReports(projectId: string) {
   return useQuery({
@@ -48,6 +58,234 @@ export function useEnvironmentalMonitoringReportPackageIssue(
         `${monitoringReportPath(projectId, reportId)}/package-issues/${issueId}`,
       ),
     enabled: !!projectId && !!reportId && !!issueId,
+  });
+}
+
+export function useEnvironmentalMonitoringOmnidotsConnections(
+  projectId: string,
+  reportId: string,
+) {
+  return useQuery({
+    queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
+    queryFn: () =>
+      api<OmnidotsConnectionSummary[]>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections`),
+    enabled: !!projectId && !!reportId,
+  });
+}
+
+export function useEnvironmentalMonitoringOmnidotsMeasuringPoints(
+  projectId: string,
+  reportId: string,
+  connectionId: string | null,
+) {
+  return useQuery({
+    queryKey: monitoringOmnidotsMeasuringPointsQueryKey(projectId, reportId, connectionId),
+    queryFn: () =>
+      api<OmnidotsMeasuringPointState>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}/measuring-points`,
+      ),
+    enabled: !!projectId && !!reportId && !!connectionId,
+  });
+}
+
+export function useCreateEnvironmentalMonitoringOmnidotsConnection(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: EnvironmentalMonitoringOmnidotsConnectionInput) =>
+      api<OmnidotsConnectionSummary>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections`, {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
+      });
+    },
+  });
+}
+
+export function useUpdateEnvironmentalMonitoringOmnidotsConnection(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      connectionId,
+      data,
+    }: {
+      connectionId: string;
+      data: EnvironmentalMonitoringOmnidotsConnectionUpdateInput;
+    }) =>
+      api<OmnidotsConnectionSummary>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}`,
+        {
+          method: 'PATCH',
+          body: data,
+        },
+      ),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsMeasuringPointsQueryKey(
+            projectId,
+            reportId,
+            variables.connectionId,
+          ),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useValidateEnvironmentalMonitoringOmnidotsConnection(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (connectionId: string) =>
+      api<{
+        connection: OmnidotsConnectionSummary;
+        validation: { valid: boolean; accountName?: string | null; accountId?: string | null; message?: string };
+      }>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}/validate`, {
+        method: 'POST',
+      }),
+    onSuccess: async (_, connectionId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsMeasuringPointsQueryKey(projectId, reportId, connectionId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useSyncEnvironmentalMonitoringOmnidotsMeasuringPoints(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (connectionId: string) =>
+      api<{
+        connection: OmnidotsConnectionSummary;
+        sync: {
+          status: string;
+          totalCount: number;
+          createdCount: number;
+          updatedCount: number;
+          errorMessage?: string;
+        };
+      }>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}/sync-measuring-points`,
+        {
+          method: 'POST',
+        },
+      ),
+    onSuccess: async (_, connectionId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: monitoringOmnidotsMeasuringPointsQueryKey(projectId, reportId, connectionId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useImportEnvironmentalMonitoringOmnidots(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: EnvironmentalMonitoringOmnidotsImportInput) =>
+      api<OmnidotsImportResponse>(`${monitoringReportPath(projectId, reportId)}/omnidots/import`, {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: async (_, payload) => {
+      await queryClient.invalidateQueries({
+        queryKey: monitoringOmnidotsMeasuringPointsQueryKey(
+          projectId,
+          reportId,
+          payload.connectionId,
+        ),
+      });
+    },
+  });
+}
+
+export function useBuildEnvironmentalMonitoringOmnidotsDataset(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: EnvironmentalMonitoringOmnidotsImportInput) =>
+      api<OmnidotsBuildDatasetResponse>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/build-dataset`,
+        {
+          method: 'POST',
+          body: payload,
+        },
+      ),
+    onSuccess: async (_, payload) => {
+      await queryClient.invalidateQueries({
+        queryKey: monitoringOmnidotsMeasuringPointsQueryKey(
+          projectId,
+          reportId,
+          payload.connectionId,
+        ),
+      });
+    },
+  });
+}
+
+export function useCreateVibrationResultsFromEnvironmentalMonitoringOmnidotsDataset(
+  projectId: string,
+  reportId: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (datasetId: string) =>
+      api<OmnidotsCreateVibrationResultsResponse>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/create-vibration-results`,
+        {
+          method: 'POST',
+          body: { datasetId },
+        },
+      ),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(monitoringDetailQueryKey(projectId, reportId), data.report);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: monitoringDetailQueryKey(projectId, reportId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: monitoringListQueryKey(projectId),
+        }),
+      ]);
+    },
   });
 }
 
@@ -541,5 +779,26 @@ function monitoringIssueDetailQueryKey(projectId: string, reportId: string, issu
     reportId,
     'package-issues',
     issueId,
+  ] as const;
+}
+
+function monitoringOmnidotsConnectionsQueryKey(projectId: string, reportId: string) {
+  return ['projects', projectId, 'environmental', 'monitoring', reportId, 'omnidots'] as const;
+}
+
+function monitoringOmnidotsMeasuringPointsQueryKey(
+  projectId: string,
+  reportId: string,
+  connectionId: string | null,
+) {
+  return [
+    'projects',
+    projectId,
+    'environmental',
+    'monitoring',
+    reportId,
+    'omnidots',
+    connectionId,
+    'measuring-points',
   ] as const;
 }

@@ -320,6 +320,79 @@ The secure client/import slice implemented on 2026-04-21 made these concrete cho
 - detailed trace ingestion or object-storage handling for 1 kHz trace arrays
 - automatic report-row population from imported datasets
 
+## Minimal Frontend Import Panel Slice
+
+The report-author slice implemented on 2026-04-22 intentionally keeps Omnidots narrow and
+vibration-report scoped.
+
+### Endpoint and controller changes
+
+The existing organisation-scoped Omnidots controller remains the underlying credential/source
+layer:
+
+- `GET /api/v1/organisations/:id/omnidots-connections`
+- `POST /api/v1/organisations/:id/omnidots-connections`
+- `PATCH /api/v1/organisations/:id/omnidots-connections/:connectionId`
+- `POST /api/v1/organisations/:id/omnidots-connections/:connectionId/validate`
+- `POST /api/v1/organisations/:id/omnidots-connections/:connectionId/sync-measuring-points`
+
+The environmental monitoring report workflow now adds report-scoped adapter routes in
+`apps/api/src/modules/environmental-monitoring/environmental-monitoring.controller.ts`:
+
+- `GET /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections`
+- `PATCH /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections/:connectionId`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections/:connectionId/validate`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections/:connectionId/sync-measuring-points`
+- `GET /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/connections/:connectionId/measuring-points`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/import`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/build-dataset`
+- `POST /api/v1/projects/:projectId/environmental/monitoring/:reportId/omnidots/create-vibration-results`
+
+### Frontend component path
+
+The minimal UI lives in:
+
+- `apps/web/src/features/environmental/monitoring-omnidots-import-panel.tsx`
+
+It is mounted only on the vibration monitoring report editor through:
+
+- `apps/web/src/features/environmental/environmental-monitoring-workspace.tsx`
+
+### Data-to-report mapping rules
+
+- Omnidots imports create or update normalized monitoring series/samples first.
+- The panel builds a frozen `project_environmental_monitoring_datasets` snapshot before authored
+  rows are created.
+- Imported values are previewed from the frozen dataset snapshot; authored vibration result rows are
+  never auto-created immediately after import.
+- The explicit button `Create vibration result rows from imported summary` is the only path that
+  creates authored rows.
+- `vtop` preview items map into authored `ppv` rows.
+- `vdv` preview items map into authored `vdv` rows.
+- `veff_max` remains preview-only in this slice because there is no clearly compatible authored
+  vibration field yet.
+- Created authored rows default to `not_assessed`; this slice does not silently assign compliance.
+- Authored row notes preserve source provenance with the Omnidots dataset id, import job
+  reference when available, measuring point label, imported metric key, and dominant timestamp.
+
+### Token handling and redaction rules
+
+- Stored Omnidots tokens are never returned to the browser.
+- The web panel uses a password-style input and does not pre-fill saved token values.
+- Backend error messages and sync/import job failures continue to use the redaction helper in
+  `apps/api/src/modules/omnidots/omnidots.redaction.ts`.
+- Report-scoped routes reuse the organisation-scoped encrypted credential store; they do not add a
+  second plaintext or report-local token store.
+
+### Known out-of-scope items after this slice
+
+- scheduled sync
+- detailed waveform / trace ingestion
+- live embedded Honeycomb chart display
+- browser scraping or Omnidots login/password automation
+- full PDF/export report generation for Omnidots-imported content
+
 ## Risks And Mismatches Against The Generic Plan
 
 ### 1. No generic queue system exists

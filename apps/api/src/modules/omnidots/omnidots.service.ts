@@ -72,6 +72,31 @@ const monitoringDatasetSelect = {
   updatedAt: true,
 } satisfies Prisma.ProjectEnvironmentalMonitoringDatasetSelect;
 
+const omnidotsMeasuringPointSummarySelect = {
+  id: true,
+  connectionId: true,
+  externalMeasuringPointId: true,
+  name: true,
+  active: true,
+  timezone: true,
+  guideLine: true,
+  category: true,
+  measuringType: true,
+  vibrationType: true,
+  userLatitude: true,
+  userLongitude: true,
+  sensorName: true,
+  sensorOnline: true,
+  sensorLastseenAt: true,
+  sensorConnectedUsing: true,
+  sensorBatteryCharge: true,
+  sensorLatitude: true,
+  sensorLongitude: true,
+  deepLinkUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.OmnidotsMeasuringPointSelect;
+
 type OmnidotsConnectionSummary = Prisma.OmnidotsProviderConnectionGetPayload<{
   select: typeof omnidotsConnectionSummarySelect;
 }>;
@@ -82,6 +107,10 @@ type OmnidotsConnectionWithCredentials = Prisma.OmnidotsProviderConnectionGetPay
 
 type ReportDatasetRecord = Prisma.ProjectEnvironmentalMonitoringDatasetGetPayload<{
   select: typeof monitoringDatasetSelect;
+}>;
+
+type OmnidotsMeasuringPointSummary = Prisma.OmnidotsMeasuringPointGetPayload<{
+  select: typeof omnidotsMeasuringPointSummarySelect;
 }>;
 
 type NormalizedMonitoringSample = {
@@ -404,6 +433,19 @@ export class OmnidotsService {
 
       throw new ServiceUnavailableException('Omnidots measuring point sync failed');
     }
+  }
+
+  async listMeasuringPoints(organisationId: string, connectionId: string, userId: string) {
+    await this.assertMembership(organisationId, userId);
+    await this.findConnectionSummaryForOrganisation(organisationId, connectionId);
+
+    const measuringPoints = await this.prisma.omnidotsMeasuringPoint.findMany({
+      where: { connectionId },
+      select: omnidotsMeasuringPointSummarySelect,
+      orderBy: [{ active: 'desc' }, { name: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return measuringPoints.map(serializeMeasuringPoint);
   }
 
   async importPeakRecords(args: OmnidotsImportRecordsArgs) {
@@ -1205,6 +1247,15 @@ function serializeConnection(connection: OmnidotsConnectionSummary) {
   return {
     ...connection,
     hasStoredToken: true,
+  };
+}
+
+function serializeMeasuringPoint(measuringPoint: OmnidotsMeasuringPointSummary) {
+  return {
+    ...measuringPoint,
+    sensorLastseenAt: measuringPoint.sensorLastseenAt?.toISOString() ?? null,
+    createdAt: measuringPoint.createdAt.toISOString(),
+    updatedAt: measuringPoint.updatedAt.toISOString(),
   };
 }
 

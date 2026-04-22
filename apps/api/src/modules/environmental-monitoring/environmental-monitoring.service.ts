@@ -8,10 +8,24 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PROJECT_SPATIAL_FEATURE_TYPES } from '@eng/shared';
-import { Prisma, type SheetTemplateSourceKind } from '@prisma/client';
+import {
+  MonitoringImportJobType,
+  Prisma,
+  type SheetTemplateSourceKind,
+} from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { getProjectSpecificsFromProjectMetadata } from '../projects/project-specifics.adapter';
 import { NOISE_VIBRATION_RECEIVER_TYPES } from '../standards/noise-vibration/dto/noise-vibration-criteria-query.dto';
+import {
+  buildOmnidotsImportedVibrationResultDrafts,
+  buildOmnidotsLatestDatasetSummary,
+  type OmnidotsLatestDatasetSummary,
+} from './environmental-monitoring-omnidots.helpers';
+import { OmnidotsService } from '../omnidots/omnidots.service';
+import type {
+  CreateOmnidotsProviderConnectionDto,
+  UpdateOmnidotsProviderConnectionDto,
+} from '../omnidots/dto/omnidots-connection.dto';
 import {
   type CreateProjectEnvironmentalMonitoringAnnexureDto,
   type CreateProjectEnvironmentalMonitoringLocationDto,
@@ -35,6 +49,11 @@ import {
   type UpdateProjectEnvironmentalNoiseResultRowDto,
   type UpdateProjectEnvironmentalVibrationResultRowDto,
 } from './dto/environmental-monitoring.dto';
+import {
+  type CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+  type ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+  type ProjectEnvironmentalMonitoringOmnidotsImportDto,
+} from './dto/environmental-monitoring-omnidots.dto';
 
 type ProjectAccess = {
   projectId: string;
@@ -119,7 +138,10 @@ type MonitoringAnnexureOrderClient = Pick<PrismaService, 'projectEnvironmentalMo
 export class ProjectEnvironmentalMonitoringService {
   private readonly logger = new Logger(ProjectEnvironmentalMonitoringService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly omnidotsService: OmnidotsService,
+  ) {}
 
   async listForProject(access: ProjectAccess) {
     await this.assertProjectReadAccess(access);
@@ -1203,6 +1225,294 @@ export class ProjectEnvironmentalMonitoringService {
     return this.findExistingMonitoringReport(reportId);
   }
 
+  async listOmnidotsConnections(access: ProjectAccess, reportId: string) {
+    await this.assertProjectReadAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    return this.omnidotsService.listConnections(access.organisationId, access.userId);
+  }
+
+  async createOmnidotsConnection(
+    access: ProjectAccess,
+    reportId: string,
+    dto: CreateOmnidotsProviderConnectionDto,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    return this.omnidotsService.createConnection(access.organisationId, access.userId, dto);
+  }
+
+  async updateOmnidotsConnection(
+    access: ProjectAccess,
+    reportId: string,
+    connectionId: string,
+    dto: UpdateOmnidotsProviderConnectionDto,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    return this.omnidotsService.updateConnection(
+      access.organisationId,
+      connectionId,
+      access.userId,
+      dto,
+    );
+  }
+
+  async validateOmnidotsConnection(access: ProjectAccess, reportId: string, connectionId: string) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    return this.omnidotsService.validateStoredConnection(
+      access.organisationId,
+      connectionId,
+      access.userId,
+    );
+  }
+
+  async syncOmnidotsMeasuringPoints(
+    access: ProjectAccess,
+    reportId: string,
+    connectionId: string,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    return this.omnidotsService.syncMeasuringPoints(
+      access.organisationId,
+      connectionId,
+      access.userId,
+    );
+  }
+
+  async listOmnidotsMeasuringPoints(
+    access: ProjectAccess,
+    reportId: string,
+    connectionId: string,
+  ) {
+    await this.assertProjectReadAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    const [measuringPoints, latestImportJob, latestDataset] = await Promise.all([
+      this.omnidotsService.listMeasuringPoints(access.organisationId, connectionId, access.userId),
+      this.findLatestOmnidotsImportJobSummary(connectionId),
+      this.findLatestOmnidotsDatasetSummary(reportId, connectionId),
+    ]);
+
+    return {
+      measuringPoints,
+      latestImportJob,
+      latestDataset,
+    };
+  }
+
+  async importOmnidotsData(
+    access: ProjectAccess,
+    reportId: string,
+    dto: ProjectEnvironmentalMonitoringOmnidotsImportDto,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+    await this.assertOmnidotsConnectionBelongsToOrganisation(access.organisationId, dto.connectionId);
+    await this.assertOmnidotsMeasuringPointBelongsToConnection(dto.connectionId, dto.measuringPointId);
+
+    const dateFrom = new Date(dto.dateFrom);
+    const dateTo = new Date(dto.dateTo);
+
+    if (Number.isNaN(dateFrom.getTime()) || Number.isNaN(dateTo.getTime())) {
+      throw new BadRequestException('A valid import date range is required');
+    }
+
+    const selectedMetricKeys = Array.from(new Set(dto.selectedMetricKeys));
+    const metricResults = [];
+
+    for (const metricKey of selectedMetricKeys) {
+      if (metricKey === 'vtop') {
+        metricResults.push(
+          await this.omnidotsService.importPeakRecords({
+            connectionId: dto.connectionId,
+            localMeasuringPointId: dto.measuringPointId,
+            dateFrom,
+            dateTo,
+          }),
+        );
+        continue;
+      }
+
+      if (metricKey === 'vdv') {
+        metricResults.push(
+          await this.omnidotsService.importVdvRecords({
+            connectionId: dto.connectionId,
+            localMeasuringPointId: dto.measuringPointId,
+            dateFrom,
+            dateTo,
+          }),
+        );
+        continue;
+      }
+
+      metricResults.push(
+        await this.omnidotsService.importVeffRecords({
+          connectionId: dto.connectionId,
+          localMeasuringPointId: dto.measuringPointId,
+          dateFrom,
+          dateTo,
+        }),
+      );
+    }
+
+    const latestImportJob = await this.findLatestOmnidotsImportJobSummary(dto.connectionId);
+
+    return {
+      importSummary: {
+        connectionId: dto.connectionId,
+        measuringPointId: dto.measuringPointId,
+        selectedMetricKeys,
+        dateFrom: dateFrom.toISOString(),
+        dateTo: dateTo.toISOString(),
+        samplesImported: metricResults.reduce(
+          (total, result) => total + (result.processedCount ?? 0),
+          0,
+        ),
+        samplesCreated: metricResults.reduce((total, result) => total + result.createdCount, 0),
+        samplesUpdated: metricResults.reduce((total, result) => total + result.updatedCount, 0),
+        lastImportJobStatus: latestImportJob?.status ?? null,
+        metricResults,
+      },
+    };
+  }
+
+  async buildOmnidotsDataset(
+    access: ProjectAccess,
+    reportId: string,
+    dto: ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+    await this.assertOmnidotsConnectionBelongsToOrganisation(access.organisationId, dto.connectionId);
+    await this.assertOmnidotsMeasuringPointBelongsToConnection(dto.connectionId, dto.measuringPointId);
+
+    const buildResult = await this.omnidotsService.buildReportDatasetSnapshot({
+      monitoringReportId: reportId,
+      connectionId: dto.connectionId,
+      measuringPointId: dto.measuringPointId,
+      dateFrom: new Date(dto.dateFrom),
+      dateTo: new Date(dto.dateTo),
+      selectedMetricKeys: dto.selectedMetricKeys,
+    });
+
+    const latestDataset = await this.findLatestOmnidotsDatasetSummary(
+      reportId,
+      dto.connectionId,
+      buildResult.dataset.id,
+    );
+
+    return {
+      created: buildResult.created,
+      latestDataset,
+      latestImportJob: await this.findLatestOmnidotsImportJobSummary(dto.connectionId),
+    };
+  }
+
+  async createVibrationResultsFromOmnidotsDataset(
+    access: ProjectAccess,
+    reportId: string,
+    dto: CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+  ) {
+    await this.assertProjectWriteAccess(access);
+    await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
+
+    const dataset = await this.prisma.projectEnvironmentalMonitoringDataset.findFirst({
+      where: {
+        id: dto.datasetId,
+        monitoringReportId: reportId,
+        sourceType: 'omnidots_api',
+      },
+      select: {
+        id: true,
+        connectionId: true,
+        datasetHash: true,
+        dateFrom: true,
+        dateTo: true,
+        createdAt: true,
+        updatedAt: true,
+        snapshotJson: true,
+      },
+    });
+
+    if (!dataset) {
+      throw new NotFoundException('Omnidots dataset snapshot not found for this report');
+    }
+
+    const importJobsByMetric = await this.findOmnidotsImportJobReferenceMap(
+      dataset.connectionId,
+      [],
+    );
+    const latestDataset = buildOmnidotsLatestDatasetSummary({
+      datasetId: dataset.id,
+      datasetHash: dataset.datasetHash,
+      dateFrom: dataset.dateFrom,
+      dateTo: dataset.dateTo,
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+      snapshotJson: dataset.snapshotJson,
+      importJobsByMetric,
+    });
+
+    if (!latestDataset) {
+      throw new BadRequestException('Omnidots dataset snapshot could not be parsed');
+    }
+
+    const report = await this.findExistingMonitoringReport(reportId);
+    if (!report) {
+      throw new NotFoundException('Environmental monitoring report not found');
+    }
+
+    const { drafts, skipped } = buildOmnidotsImportedVibrationResultDrafts({
+      datasetId: dataset.id,
+      previewRows: latestDataset.previewRows,
+      existingResultNotes: report.vibrationResults
+        .map((row) => row.resultNote)
+        .filter((note): note is string => !!note),
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      let nextSortOrder = await tx.projectEnvironmentalVibrationResultRow.count({
+        where: { monitoringReportId: reportId },
+      });
+
+      for (const draft of drafts) {
+        await tx.projectEnvironmentalVibrationResultRow.create({
+          data: {
+            monitoringReportId: reportId,
+            locationId: null,
+            observedAt: draft.observedAt ? new Date(draft.observedAt) : null,
+            activityLabel: draft.activityLabel,
+            instrumentNote: draft.instrumentNote,
+            metricType: draft.metricType,
+            ppvValue: draft.ppvValue,
+            vdvValue: draft.vdvValue,
+            linPeakValue: null,
+            dominantFrequencyHz: draft.dominantFrequencyHz,
+            axisNote: draft.axisNote,
+            criterionRowId: null,
+            complianceStatus: draft.complianceStatus,
+            resultNote: draft.resultNote,
+            sortOrder: nextSortOrder++,
+          },
+        });
+      }
+    });
+
+    return {
+      createdCount: drafts.length,
+      skippedCount: skipped.length,
+      skipped,
+      report: await this.findExistingMonitoringReport(reportId),
+    };
+  }
+
   async createObservation(
     access: ProjectAccess,
     reportId: string,
@@ -1423,6 +1733,201 @@ export class ProjectEnvironmentalMonitoringService {
       throw new ForbiddenException('Insufficient project role');
     }
     return project;
+  }
+
+  private async assertOmnidotsConnectionBelongsToOrganisation(
+    organisationId: string,
+    connectionId: string,
+  ) {
+    const connection = await this.prisma.omnidotsProviderConnection.findFirst({
+      where: {
+        id: connectionId,
+        organisationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!connection) {
+      throw new NotFoundException('Omnidots connection not found');
+    }
+
+    return connection;
+  }
+
+  private async assertOmnidotsMeasuringPointBelongsToConnection(
+    connectionId: string,
+    measuringPointId: string,
+  ) {
+    const measuringPoint = await this.prisma.omnidotsMeasuringPoint.findFirst({
+      where: {
+        id: measuringPointId,
+        connectionId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!measuringPoint) {
+      throw new NotFoundException('Omnidots measuring point not found');
+    }
+
+    return measuringPoint;
+  }
+
+  private async findLatestOmnidotsImportJobSummary(connectionId: string) {
+    const job = await this.prisma.monitoringImportJob.findFirst({
+      where: { connectionId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        jobType: true,
+        status: true,
+        errorMessage: true,
+        createdAt: true,
+        completedAt: true,
+      },
+    });
+
+    if (!job) {
+      return null;
+    }
+
+    return {
+      id: job.id,
+      jobType: job.jobType,
+      status: job.status,
+      errorMessage: job.errorMessage,
+      createdAt: job.createdAt.toISOString(),
+      completedAt: job.completedAt?.toISOString() ?? null,
+    };
+  }
+
+  private async findLatestOmnidotsDatasetSummary(
+    reportId: string,
+    connectionId: string,
+    preferredDatasetId?: string,
+  ): Promise<OmnidotsLatestDatasetSummary | null> {
+    const dataset = preferredDatasetId
+      ? await this.prisma.projectEnvironmentalMonitoringDataset.findFirst({
+          where: {
+            id: preferredDatasetId,
+            monitoringReportId: reportId,
+            connectionId,
+            sourceType: 'omnidots_api',
+          },
+          select: {
+            id: true,
+            connectionId: true,
+            datasetHash: true,
+            dateFrom: true,
+            dateTo: true,
+            createdAt: true,
+            updatedAt: true,
+            snapshotJson: true,
+          },
+        })
+      : await this.prisma.projectEnvironmentalMonitoringDataset.findFirst({
+          where: {
+            monitoringReportId: reportId,
+            connectionId,
+            sourceType: 'omnidots_api',
+          },
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            id: true,
+            connectionId: true,
+            datasetHash: true,
+            dateFrom: true,
+            dateTo: true,
+            createdAt: true,
+            updatedAt: true,
+            snapshotJson: true,
+          },
+        });
+
+    if (!dataset) {
+      return null;
+    }
+
+    const snapshotRecord =
+      dataset.snapshotJson && typeof dataset.snapshotJson === 'object' && !Array.isArray(dataset.snapshotJson)
+        ? (dataset.snapshotJson as Record<string, unknown>)
+        : null;
+    const selectedMetricKeys = Array.isArray(snapshotRecord?.selectedMetricKeys)
+      ? snapshotRecord.selectedMetricKeys.filter((metricKey): metricKey is string => typeof metricKey === 'string')
+      : [];
+    const importJobsByMetric = await this.findOmnidotsImportJobReferenceMap(
+      connectionId,
+      selectedMetricKeys,
+    );
+
+    return buildOmnidotsLatestDatasetSummary({
+      datasetId: dataset.id,
+      datasetHash: dataset.datasetHash,
+      dateFrom: dataset.dateFrom,
+      dateTo: dataset.dateTo,
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+      snapshotJson: dataset.snapshotJson,
+      importJobsByMetric,
+    });
+  }
+
+  private async findOmnidotsImportJobReferenceMap(
+    connectionId: string | null,
+    metricKeys: string[],
+  ) {
+    const references = new Map<
+      string,
+      {
+        metricKey: string;
+        id: string;
+        status: string;
+        completedAt: string | null;
+      }
+    >();
+
+    if (!connectionId || metricKeys.length === 0) {
+      return references;
+    }
+
+    await Promise.all(
+      metricKeys.map(async (metricKey) => {
+        const jobType = metricKeyToImportJobType(metricKey);
+        if (!jobType) {
+          return;
+        }
+
+        const job = await this.prisma.monitoringImportJob.findFirst({
+          where: {
+            connectionId,
+            jobType,
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: {
+            id: true,
+            status: true,
+            completedAt: true,
+          },
+        });
+
+        if (!job) {
+          return;
+        }
+
+        references.set(metricKey, {
+          metricKey,
+          id: job.id,
+          status: job.status,
+          completedAt: job.completedAt?.toISOString() ?? null,
+        });
+      }),
+    );
+
+    return references;
   }
 
   private async assertAiDocumentBelongsToProject(
@@ -2248,6 +2753,19 @@ function buildVibrationResultUpdateData(dto: UpdateProjectEnvironmentalVibration
   assignDateField(data, 'observedAt', dto.observedAt);
 
   return data;
+}
+
+function metricKeyToImportJobType(metricKey: string) {
+  switch (metricKey) {
+    case 'vtop':
+      return MonitoringImportJobType.import_peak_records;
+    case 'vdv':
+      return MonitoringImportJobType.import_vdv_records;
+    case 'veff_max':
+      return MonitoringImportJobType.import_veff_records;
+    default:
+      return null;
+  }
 }
 
 function assignDateField<T extends Record<string, unknown>>(

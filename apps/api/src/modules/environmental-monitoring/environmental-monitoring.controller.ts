@@ -38,6 +38,15 @@ import {
   UpdateProjectEnvironmentalNoiseResultRowDto,
   UpdateProjectEnvironmentalVibrationResultRowDto,
 } from './dto/environmental-monitoring.dto';
+import {
+  CreateOmnidotsProviderConnectionDto,
+  UpdateOmnidotsProviderConnectionDto,
+} from '../omnidots/dto/omnidots-connection.dto';
+import {
+  CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+  ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+  ProjectEnvironmentalMonitoringOmnidotsImportDto,
+} from './dto/environmental-monitoring-omnidots.dto';
 import { ProjectEnvironmentalMonitoringService } from './environmental-monitoring.service';
 
 @ApiTags('project-environmental-monitoring')
@@ -98,6 +107,175 @@ export class ProjectEnvironmentalMonitoringController {
     return this.projectEnvironmentalMonitoringService.findReport(
       this.access(projectId, user),
       reportId,
+    );
+  }
+
+  @Get(':reportId/omnidots/connections')
+  @ApiOperation({
+    summary: 'List Omnidots connections available to a vibration monitoring report',
+  })
+  async listOmnidotsConnections(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.listOmnidotsConnections(
+      this.access(projectId, user),
+      reportId,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Create an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async createOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateOmnidotsProviderConnectionDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Patch(':reportId/omnidots/connections/:connectionId')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Update an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async updateOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @Body() dto: UpdateOmnidotsProviderConnectionDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.updateOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections/:connectionId/validate')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Validate an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async validateOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.validateOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections/:connectionId/sync-measuring-points')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Sync Omnidots measuring points from the vibration monitoring report workflow',
+  })
+  async syncOmnidotsMeasuringPoints(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.syncOmnidotsMeasuringPoints(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Get(':reportId/omnidots/connections/:connectionId/measuring-points')
+  @ApiOperation({
+    summary: 'List synced Omnidots measuring points for a vibration monitoring report connection',
+  })
+  async listOmnidotsMeasuringPoints(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.listOmnidotsMeasuringPoints(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Post(':reportId/omnidots/import')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Import Omnidots metrics into monitoring series for a vibration monitoring report',
+  })
+  async importOmnidotsData(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ProjectEnvironmentalMonitoringOmnidotsImportDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.importOmnidotsData(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/build-dataset')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary:
+      'Build or refresh a frozen Omnidots dataset snapshot for a vibration monitoring report',
+  })
+  async buildOmnidotsDataset(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.buildOmnidotsDataset(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/create-vibration-results')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary:
+      'Create authored vibration result rows from a frozen Omnidots dataset summary only after explicit confirmation',
+  })
+  async createVibrationResultsFromOmnidotsDataset(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createVibrationResultsFromOmnidotsDataset(
+      this.access(projectId, user),
+      reportId,
+      dto,
     );
   }
 
