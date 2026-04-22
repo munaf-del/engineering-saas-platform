@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
   CloudDownload,
   Database,
+  ExternalLink,
   RefreshCcw,
   ShieldCheck,
   Table2,
@@ -26,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import type { ProjectEnvironmentalMonitoringReport } from './environmental-monitoring-types';
 import {
+  OMNIDOTS_IMPORT_PANEL_ID,
   OMNIDOTS_MONITORING_METRIC_OPTIONS,
   type OmnidotsDatasetPreviewRow,
   type OmnidotsMonitoringMetricKey,
@@ -45,6 +47,8 @@ import { ApiError } from '@/lib/api-client';
 
 const NO_CONNECTION_VALUE = '__no_connection__';
 const NO_MEASURING_POINT_VALUE = '__no_measuring_point__';
+const OMNIDOTS_TOKEN_HELP_ARTICLE_URL =
+  'https://support.omnidots.com/where-can-i-find-omnidots-api-documentation-and-api-tokens';
 
 type MonitoringOmnidotsImportPanelProps = {
   projectId: string;
@@ -70,6 +74,7 @@ export function MonitoringOmnidotsImportPanel({
     'vdv',
     'veff_max',
   ]);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const connectionsQuery = useEnvironmentalMonitoringOmnidotsConnections(projectId, reportId);
   const connections = useMemo(() => connectionsQuery.data ?? [], [connectionsQuery.data]);
@@ -163,6 +168,25 @@ export function MonitoringOmnidotsImportPanel({
       setIsExpanded(true);
     }
   }, [latestDataset]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.location.hash !== `#${OMNIDOTS_IMPORT_PANEL_ID}`) {
+      return;
+    }
+
+    setIsExpanded(true);
+
+    const timer = window.setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panelRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const canRunImport = !!selectedConnectionId && !!selectedMeasuringPointId && !!dateFrom && !!dateTo;
 
@@ -331,7 +355,12 @@ export function MonitoringOmnidotsImportPanel({
   }
 
   return (
-    <Card className="mb-6 border-sky-200 bg-sky-50/40">
+    <Card
+      id={OMNIDOTS_IMPORT_PANEL_ID}
+      ref={panelRef}
+      tabIndex={-1}
+      className="mb-6 scroll-mt-6 border-sky-200 bg-sky-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -363,8 +392,29 @@ export function MonitoringOmnidotsImportPanel({
             <ShieldCheck className="h-4 w-4" />
             <AlertTitle>Safe token handling</AlertTitle>
             <AlertDescription>
-              Stored Omnidots tokens are never shown back to the browser. Entering a token here
-              creates or replaces the stored token, then the field is cleared again.
+              <div className="space-y-2">
+                <p>
+                  Stored Omnidots tokens are never shown back to the browser. Entering a token
+                  here creates or replaces the stored token, then the field is cleared again.
+                </p>
+                <p>
+                  Use an Omnidots Honeycomb API token. Log in to Omnidots separately, create a
+                  permanent API token, then paste it here. The saved token is encrypted and never
+                  displayed.
+                </p>
+                <p className="font-medium text-foreground">
+                  Do not enter your Omnidots password here.
+                </p>
+                <a
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  href={OMNIDOTS_TOKEN_HELP_ARTICLE_URL}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Where to create an Omnidots API token
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
             </AlertDescription>
           </Alert>
 

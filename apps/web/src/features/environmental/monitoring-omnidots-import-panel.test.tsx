@@ -258,6 +258,19 @@ describe('MonitoringOmnidotsImportPanel', () => {
     expect(tokenInput).toBeTruthy();
     expect(tokenInput.value).toBe('');
     expect(tokenInput.placeholder).toContain('hidden');
+    expect(container.textContent).toContain(
+      'Use an Omnidots Honeycomb API token. Log in to Omnidots separately, create a permanent API token, then paste it here. The saved token is encrypted and never displayed.',
+    );
+    expect(container.textContent).toContain('Do not enter your Omnidots password here.');
+
+    const helpLink = Array.from(container.querySelectorAll('a')).find((candidate) =>
+      candidate.textContent?.includes('Where to create an Omnidots API token'),
+    );
+    expect(helpLink).toBeTruthy();
+    expect(helpLink?.getAttribute('href')).toBe(
+      'https://support.omnidots.com/where-can-i-find-omnidots-api-documentation-and-api-tokens',
+    );
+    expect(helpLink?.getAttribute('target')).toBe('_blank');
 
     expect(mockCreateRowsMutateAsync).not.toHaveBeenCalled();
 

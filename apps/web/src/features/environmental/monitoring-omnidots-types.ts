@@ -1,5 +1,7 @@
 import type { ProjectEnvironmentalMonitoringReport } from './environmental-monitoring-types';
 
+export const OMNIDOTS_IMPORT_PANEL_ID = 'omnidots-import-panel' as const;
+
 export const OMNIDOTS_MONITORING_METRIC_OPTIONS = [
   { value: 'vtop', label: 'Vtop / Fdom peak records' },
   { value: 'vdv', label: 'VDV' },

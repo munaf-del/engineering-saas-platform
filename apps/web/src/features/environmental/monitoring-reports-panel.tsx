@@ -1,10 +1,11 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Copy, FileText, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -25,7 +26,9 @@ import type {
   EnvironmentalMonitoringReportType,
 } from './environmental-monitoring-types';
 import { ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS } from './environmental-monitoring-types';
+import { OMNIDOTS_IMPORT_PANEL_ID } from './monitoring-omnidots-types';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 type MonitoringReportsPanelProps = {
   projectId: string;
@@ -167,6 +170,14 @@ export function MonitoringReportsPanel({
                 </CardContent>
               </Link>
               <CardFooter className="justify-end gap-2 border-t px-6 py-4">
+                {report.reportType === 'vibration_monitoring' ? (
+                  <Link
+                    href={buildOmnidotsImportHref(projectId, report.id)}
+                    className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
+                  >
+                    Import from Omnidots
+                  </Link>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"
@@ -217,4 +228,8 @@ function displayReportTitle(report: EnvironmentalMonitoringReportSummary) {
   }
 
   return labelForReportType(report.reportType);
+}
+
+function buildOmnidotsImportHref(projectId: string, reportId: string) {
+  return `/projects/${projectId}/environmental/monitoring/${reportId}#${OMNIDOTS_IMPORT_PANEL_ID}`;
 }
