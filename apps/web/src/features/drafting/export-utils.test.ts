@@ -46,6 +46,67 @@ describe('drafting export utils', () => {
       createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
       updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
     });
+    model.objects.push({
+      id: 'dimension-1',
+      type: 'dimension_chain',
+      layerId: 'dimensions',
+      name: 'Boundary Setback',
+      visible: true,
+      locked: false,
+      style: {
+        stroke: '#334155',
+        lineWeight: 1,
+      },
+      geometry: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 3000, y: 0 },
+        ],
+        offsetDistanceMm: 1200,
+      },
+      parameters: {
+        dimensionId: 'DIM1',
+        unit: 'mm',
+        precision: 0,
+        showSegments: true,
+        showTotal: true,
+      },
+      metadata: {
+        notes: 'Dimension export coverage',
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+    });
+    model.objects.push({
+      id: 'service-crossing-1',
+      type: 'service_crossing',
+      layerId: 'services_conflicts',
+      name: 'Crossing 1',
+      visible: true,
+      locked: false,
+      style: {
+        stroke: '#b91c1c',
+        fill: '#fee2e2',
+        lineWeight: 2,
+      },
+      geometry: {
+        crossingPoint: { x: 3200, y: 800 },
+      },
+      parameters: {
+        crossingId: 'SC1',
+        serviceType: 'water',
+        conflictType: 'crosses_anchor',
+        clearanceMm: 350,
+        riskStatus: 'open',
+      },
+      metadata: {
+        linkedServiceRunId: 'service-run-1',
+        linkedObjectId: 'anchor-1',
+        notes: 'Crossing export coverage',
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+    });
     model.underlays.push({
       id: 'underlay-1',
       name: 'Calibrated PDF',
@@ -87,6 +148,10 @@ describe('drafting export utils', () => {
     expect(parsed).toEqual(model);
     expect(exported).toContain('"type": "secant_pile_wall"');
     expect(exported).toContain('"wallId": "SEC1"');
+    expect(exported).toContain('"type": "dimension_chain"');
+    expect(exported).toContain('"dimensionId": "DIM1"');
+    expect(exported).toContain('"type": "service_crossing"');
+    expect(exported).toContain('"crossingId": "SC1"');
     expect(exported).toContain('"fileId": "document-1"');
     expect(exported).not.toContain('data:application/pdf');
     expect(exported).not.toContain('"buffer"');

@@ -13,6 +13,12 @@ export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
   'excavation_line',
   'monitoring_point',
   'leader_note',
+  'dimension_chain',
+  'callout',
+  'section_marker',
+  'borehole',
+  'service_run',
+  'service_crossing',
 ];
 
 export function nextDraftingObjectSequence(

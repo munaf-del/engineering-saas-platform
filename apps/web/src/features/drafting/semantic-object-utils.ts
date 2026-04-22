@@ -1,7 +1,9 @@
 import type {
   DraftingAnchorTiebackObject,
+  DraftingDimensionChainObject,
   DraftingPoint,
   DraftingSecantPileWallObject,
+  DraftingServiceRunObject,
   DraftingSoldierPileWallObject,
 } from '@eng/shared';
 
@@ -24,6 +26,70 @@ export function calculatePolylineLength(points: DraftingPoint[]) {
   }
 
   return length;
+}
+
+export function calculateDimensionChainSegments(points: DraftingPoint[]) {
+  const segments: number[] = [];
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1]!;
+    const current = points[index]!;
+    segments.push(Math.hypot(current.x - previous.x, current.y - previous.y));
+  }
+
+  return segments;
+}
+
+export function calculateDimensionChainTotal(points: DraftingPoint[]) {
+  return calculateDimensionChainSegments(points).reduce(
+    (totalLength, segmentLength) => totalLength + segmentLength,
+    0,
+  );
+}
+
+export function resolveDimensionChainOffsetVector(object: DraftingDimensionChainObject) {
+  if (object.geometry.offsetVector) {
+    return object.geometry.offsetVector;
+  }
+
+  const startPoint = object.geometry.points[0];
+  const endPoint = object.geometry.points[object.geometry.points.length - 1];
+  const offsetDistanceMm = object.geometry.offsetDistanceMm ?? 0;
+
+  if (!startPoint || !endPoint) {
+    return { x: 0, y: -offsetDistanceMm };
+  }
+
+  const deltaX = endPoint.x - startPoint.x;
+  const deltaY = endPoint.y - startPoint.y;
+  const length = Math.hypot(deltaX, deltaY);
+
+  if (length <= EPSILON) {
+    return { x: 0, y: -offsetDistanceMm };
+  }
+
+  return {
+    x: (deltaY / length) * offsetDistanceMm,
+    y: (-deltaX / length) * offsetDistanceMm,
+  };
+}
+
+export function buildDimensionChainOffsetPoints(object: DraftingDimensionChainObject) {
+  const offsetVector = resolveDimensionChainOffsetVector(object);
+
+  return object.geometry.points.map((point) => ({
+    x: point.x + offsetVector.x,
+    y: point.y + offsetVector.y,
+  }));
+}
+
+export function formatDimensionDistance(
+  distanceMm: number,
+  unit: DraftingDimensionChainObject['parameters']['unit'],
+  precision: number,
+) {
+  const convertedValue = unit === 'm' ? distanceMm / 1000 : distanceMm;
+  return `${convertedValue.toFixed(precision)} ${unit}`;
 }
 
 export function generatePilePositionsAlongBaseline(points: DraftingPoint[], spacingMm: number) {
@@ -131,7 +197,15 @@ export function defaultSoldierPileSymbolDiameterMm(object: DraftingSoldierPileWa
   return object.parameters.pileDiameterMm ?? 450;
 }
 
-function pointAlongPolyline(points: DraftingPoint[], distanceMm: number) {
+export function getPolylineMidpoint(points: DraftingPoint[]) {
+  return pointAlongPolyline(points, calculatePolylineLength(points) / 2);
+}
+
+export function getServiceRunMidpoint(object: DraftingServiceRunObject) {
+  return getPolylineMidpoint(object.geometry.path);
+}
+
+export function pointAlongPolyline(points: DraftingPoint[], distanceMm: number) {
   if (distanceMm <= 0) {
     return points[0]!;
   }

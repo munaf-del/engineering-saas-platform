@@ -14,7 +14,7 @@ describe('drafting defaults', () => {
 
     expect(parsed.drawingId).toBe('drawing-123');
     expect(parsed.units).toBe('mm');
-    expect(parsed.layers).toHaveLength(11);
+    expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
   });
 
@@ -37,6 +37,12 @@ describe('drafting defaults', () => {
     expect(defaultLayerIdForDraftingObjectType('excavation_line')).toBe('excavation');
     expect(defaultLayerIdForDraftingObjectType('monitoring_point')).toBe('monitoring');
     expect(defaultLayerIdForDraftingObjectType('leader_note')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('dimension_chain')).toBe('dimensions');
+    expect(defaultLayerIdForDraftingObjectType('callout')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('section_marker')).toBe('sections');
+    expect(defaultLayerIdForDraftingObjectType('borehole')).toBe('boreholes');
+    expect(defaultLayerIdForDraftingObjectType('service_run')).toBe('services');
+    expect(defaultLayerIdForDraftingObjectType('service_crossing')).toBe('services_conflicts');
   });
 
   it('hydrates missing default layers without disturbing existing layer settings', () => {
@@ -53,6 +59,14 @@ describe('drafting defaults', () => {
     expect(hydrated.layers.find((layer) => layer.id === 'anchors')?.visible).toBe(false);
     expect(hydrated.layers.find((layer) => layer.id === 'beams_walers')).toMatchObject({
       name: 'Beams / Walers',
+      visible: true,
+    });
+    expect(hydrated.layers.find((layer) => layer.id === 'sections')).toMatchObject({
+      name: 'Sections',
+      visible: true,
+    });
+    expect(hydrated.layers.find((layer) => layer.id === 'services_conflicts')).toMatchObject({
+      name: 'Services / Conflicts',
       visible: true,
     });
   });
@@ -322,6 +336,215 @@ describe('drafting defaults', () => {
     ]);
   });
 
+  it('accepts and preserves semantic annotation and coordination drafting objects', () => {
+    const model = createEmptyDraftingModel('drawing-annotations');
+    const now = new Date('2026-04-22T00:00:00.000Z').toISOString();
+
+    model.objects.push(
+      {
+        id: 'dimension-1',
+        type: 'dimension_chain',
+        layerId: 'dimensions',
+        name: 'Boundary Setback',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#334155',
+          lineWeight: 1,
+        },
+        geometry: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 3000, y: 0 },
+            { x: 6000, y: 500 },
+          ],
+          offsetDistanceMm: 1200,
+        },
+        parameters: {
+          dimensionId: 'DIM1',
+          unit: 'mm',
+          precision: 0,
+          showSegments: true,
+          showTotal: true,
+          textOverride: 'Overall 6.0m',
+        },
+        metadata: {
+          associatedObjectIds: ['wall-1', 'anchor-1'],
+          notes: 'Verify against survey before issue.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'callout-1',
+        type: 'callout',
+        layerId: 'notes',
+        name: 'Callout 1',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#111827',
+          fill: '#ffffff',
+          lineWeight: 1,
+        },
+        geometry: {
+          anchorPoint: { x: 2000, y: 1500 },
+          labelPoint: { x: 3200, y: 600 },
+        },
+        parameters: {
+          calloutId: 'CO1',
+          title: 'Coordination note',
+          body: 'Confirm service pothole before tieback drilling.',
+          leaderStyle: 'dogleg',
+          arrowStyle: 'filled',
+        },
+        metadata: {
+          associatedObjectId: 'service-run-1',
+          notes: 'Issued for coordination only.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'section-1',
+        type: 'section_marker',
+        layerId: 'sections',
+        name: 'Section 1',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#1e293b',
+          lineWeight: 2,
+        },
+        geometry: {
+          startPoint: { x: 0, y: 2500 },
+          endPoint: { x: 5000, y: 2500 },
+        },
+        parameters: {
+          sectionId: 'S1',
+          sectionLabel: 'A-A',
+          sheetReference: 'SK-201',
+          arrowDirection: 'both',
+        },
+        metadata: {
+          linkedDrawingId: 'drawing-section-a',
+          notes: 'Use excavation long-section sheet.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'borehole-1',
+        type: 'borehole',
+        layerId: 'boreholes',
+        name: 'Borehole 1',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#0f766e',
+          fill: '#dcfce7',
+          lineWeight: 2,
+        },
+        geometry: {
+          point: { x: 1800, y: 4200 },
+        },
+        parameters: {
+          boreholeId: 'BH1',
+          label: 'BH-01',
+          groundLevelRl: 12.45,
+          terminationDepthM: 18.2,
+          terminationLevelRl: -5.75,
+          boreholeType: 'rotary wash bore',
+        },
+        metadata: {
+          linkedGeotechEntityId: 'geotech-bh-1',
+          sourceReference: 'GI-2026-04',
+          notes: 'Derived from geotech factual report.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'service-run-1',
+        type: 'service_run',
+        layerId: 'services',
+        name: 'Service Run 1',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#475569',
+          lineWeight: 2,
+          lineStyle: 'dashed',
+        },
+        geometry: {
+          path: [
+            { x: 500, y: 5200 },
+            { x: 2800, y: 5200 },
+            { x: 4200, y: 5800 },
+          ],
+        },
+        parameters: {
+          serviceId: 'SR1',
+          serviceType: 'water',
+          status: 'existing',
+          diameterMm: 150,
+          depthM: 1.6,
+          levelRl: 10.8,
+          authority: 'Sydney Water',
+        },
+        metadata: {
+          sourceReference: 'DBYD 240423',
+          surveyConfidence: 'approximate',
+          notes: 'Pothole required near wall return.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'service-crossing-1',
+        type: 'service_crossing',
+        layerId: 'services_conflicts',
+        name: 'Service Crossing 1',
+        visible: true,
+        locked: false,
+        style: {
+          stroke: '#b91c1c',
+          fill: '#fee2e2',
+          lineWeight: 2,
+        },
+        geometry: {
+          crossingPoint: { x: 3200, y: 5400 },
+        },
+        parameters: {
+          crossingId: 'SC1',
+          serviceType: 'water',
+          conflictType: 'crosses_anchor',
+          clearanceMm: 350,
+          riskStatus: 'open',
+        },
+        metadata: {
+          linkedServiceRunId: 'service-run-1',
+          linkedObjectId: 'anchor-1',
+          notes: 'Review clearance with temporary works designer.',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+    );
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.objects).toHaveLength(6);
+    expect(parsed.objects.map((object) => object.type)).toEqual([
+      'dimension_chain',
+      'callout',
+      'section_marker',
+      'borehole',
+      'service_run',
+      'service_crossing',
+    ]);
+  });
+
   it('rejects invalid semantic shoring object parameters', () => {
     const now = new Date('2026-04-22T00:00:00.000Z').toISOString();
 
@@ -353,6 +576,39 @@ describe('drafting defaults', () => {
               constructionMethod: 'secant bored piles',
               pileCount: 3,
             },
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects invalid semantic annotation object parameters', () => {
+    const now = new Date('2026-04-22T00:00:00.000Z').toISOString();
+
+    expect(() =>
+      DraftingModelSchema.parse({
+        ...createEmptyDraftingModel('drawing-invalid-annotations'),
+        objects: [
+          {
+            id: 'dimension-invalid',
+            type: 'dimension_chain',
+            layerId: 'dimensions',
+            geometry: {
+              points: [
+                { x: 0, y: 0 },
+                { x: 1000, y: 0 },
+              ],
+            },
+            parameters: {
+              dimensionId: 'DIMX',
+              unit: 'mm',
+              precision: 0,
+              showSegments: true,
+              showTotal: true,
+            },
+            metadata: {},
             createdAt: now,
             updatedAt: now,
           },

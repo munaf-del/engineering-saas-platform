@@ -11,15 +11,24 @@ import {
   createEmptyDraftingModel,
 } from '@eng/shared';
 import { createAnchorTiebackObject } from './tools/anchor-tieback-tool';
+import { createBoreholeObject } from './tools/borehole-tool';
+import { createCalloutObject } from './tools/callout-tool';
 import { createCappingBeamObject } from './tools/capping-beam-tool';
+import { createDimensionChainObject } from './tools/dimension-chain-tool';
 import { createExcavationLineObject } from './tools/excavation-line-tool';
 import { createLeaderNoteObject } from './tools/leader-note-tool';
 import { createMonitoringPointObject } from './tools/monitoring-point-tool';
 import { createPileObject } from './tools/pile-tool';
 import { createSecantPileWallObject } from './tools/secant-pile-wall-tool';
+import { createSectionMarkerObject } from './tools/section-marker-tool';
+import { createServiceCrossingObject } from './tools/service-crossing-tool';
+import { createServiceRunObject } from './tools/service-run-tool';
 import { createSoldierPileWallObject } from './tools/soldier-pile-wall-tool';
 import { createWalerObject } from './tools/waler-tool';
-import { defaultSoldierPileSymbolDiameterMm } from './semantic-object-utils';
+import {
+  buildDimensionChainOffsetPoints,
+  defaultSoldierPileSymbolDiameterMm,
+} from './semantic-object-utils';
 
 export type DraftingBounds = {
   minX: number;
@@ -62,6 +71,18 @@ export function createDraftingObject(
       return createMonitoringPointObject(point, model);
     case 'leader_note':
       return createLeaderNoteObject(point, model);
+    case 'dimension_chain':
+      return createDimensionChainObject(point, model);
+    case 'callout':
+      return createCalloutObject(point, model);
+    case 'section_marker':
+      return createSectionMarkerObject(point, model);
+    case 'borehole':
+      return createBoreholeObject(point, model);
+    case 'service_run':
+      return createServiceRunObject(point, model);
+    case 'service_crossing':
+      return createServiceCrossingObject(point, model);
     case 'excavation_line':
       return createExcavationLineObject(point, model, pendingLinePoints);
     default:
@@ -302,6 +323,82 @@ export function translateDraftingObject(
         },
         updatedAt,
       };
+    case 'dimension_chain':
+      return {
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      };
+    case 'callout':
+      return {
+        ...object,
+        geometry: {
+          anchorPoint: {
+            x: object.geometry.anchorPoint.x + deltaX,
+            y: object.geometry.anchorPoint.y + deltaY,
+          },
+          labelPoint: {
+            x: object.geometry.labelPoint.x + deltaX,
+            y: object.geometry.labelPoint.y + deltaY,
+          },
+        },
+        updatedAt,
+      };
+    case 'section_marker':
+      return {
+        ...object,
+        geometry: {
+          startPoint: {
+            x: object.geometry.startPoint.x + deltaX,
+            y: object.geometry.startPoint.y + deltaY,
+          },
+          endPoint: {
+            x: object.geometry.endPoint.x + deltaX,
+            y: object.geometry.endPoint.y + deltaY,
+          },
+        },
+        updatedAt,
+      };
+    case 'borehole':
+      return {
+        ...object,
+        geometry: {
+          point: {
+            x: object.geometry.point.x + deltaX,
+            y: object.geometry.point.y + deltaY,
+          },
+        },
+        updatedAt,
+      };
+    case 'service_run':
+      return {
+        ...object,
+        geometry: {
+          ...object.geometry,
+          path: object.geometry.path.map((existingPoint) => ({
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      };
+    case 'service_crossing':
+      return {
+        ...object,
+        geometry: {
+          crossingPoint: {
+            x: object.geometry.crossingPoint.x + deltaX,
+            y: object.geometry.crossingPoint.y + deltaY,
+          },
+        },
+        updatedAt,
+      };
     case 'excavation_line':
       return {
         ...object,
@@ -412,6 +509,53 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
         maxX: Math.max(object.geometry.anchor.x, object.geometry.textPoint.x) + 1600,
         maxY: Math.max(object.geometry.anchor.y, object.geometry.textPoint.y) + 500,
       };
+    case 'dimension_chain': {
+      return getPointCollectionBounds(
+        [...object.geometry.points, ...buildDimensionChainOffsetPoints(object)],
+        360,
+      );
+    }
+    case 'callout': {
+      const bodyLineCount = Math.max(object.parameters.body.split('\n').length, 1);
+      const boxHeight = 760 + bodyLineCount * 240;
+      return getPointCollectionBounds(
+        [
+          object.geometry.anchorPoint,
+          object.geometry.labelPoint,
+          {
+            x: object.geometry.labelPoint.x + 2200,
+            y: object.geometry.labelPoint.y + boxHeight,
+          },
+        ],
+        240,
+      );
+    }
+    case 'section_marker':
+      return getPointCollectionBounds(
+        [object.geometry.startPoint, object.geometry.endPoint],
+        520,
+      );
+    case 'borehole':
+      return getPointCollectionBounds(
+        [
+          object.geometry.point,
+          { x: object.geometry.point.x + 1700, y: object.geometry.point.y + 500 },
+        ],
+        280,
+      );
+    case 'service_run':
+      return getPointCollectionBounds(object.geometry.path, 360);
+    case 'service_crossing':
+      return getPointCollectionBounds(
+        [
+          object.geometry.crossingPoint,
+          {
+            x: object.geometry.crossingPoint.x + 1800,
+            y: object.geometry.crossingPoint.y + 400,
+          },
+        ],
+        320,
+      );
     case 'excavation_line': {
       const xs = object.geometry.points.map((point) => point.x);
       const ys = object.geometry.points.map((point) => point.y);

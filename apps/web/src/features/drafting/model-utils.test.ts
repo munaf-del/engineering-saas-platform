@@ -85,6 +85,50 @@ describe('drafting model utils', () => {
     expect(parsed.objects).toHaveLength(3);
   });
 
+  it('preserves new semantic annotation objects across translation and reload', () => {
+    const model = createEmptyDraftingModel('drawing-annotations');
+    const dimensionChain = createDraftingObject('dimension_chain', { x: 1000, y: 1000 }, model);
+    const callout = createDraftingObject('callout', { x: 2000, y: 2000 }, model);
+    const sectionMarker = createDraftingObject('section_marker', { x: 3000, y: 3000 }, model);
+    const borehole = createDraftingObject('borehole', { x: 4000, y: 4000 }, model);
+    const serviceRun = createDraftingObject('service_run', { x: 5000, y: 5000 }, model);
+    const serviceCrossing = createDraftingObject('service_crossing', { x: 6000, y: 6000 }, model);
+    const translatedDimensionChain = translateDraftingObject(dimensionChain, 500, 200);
+    const translatedServiceRun = translateDraftingObject(serviceRun, -300, 450);
+
+    if (
+      translatedDimensionChain.type !== 'dimension_chain' ||
+      callout.type !== 'callout' ||
+      sectionMarker.type !== 'section_marker' ||
+      borehole.type !== 'borehole' ||
+      translatedServiceRun.type !== 'service_run' ||
+      serviceCrossing.type !== 'service_crossing'
+    ) {
+      throw new Error('Expected semantic annotation drafting objects');
+    }
+
+    const parsed = DraftingModelSchema.parse({
+      ...model,
+      objects: [
+        translatedDimensionChain,
+        callout,
+        sectionMarker,
+        borehole,
+        translatedServiceRun,
+        serviceCrossing,
+      ],
+    });
+
+    expect(translatedDimensionChain.geometry.points[0]).toEqual({ x: 1500, y: 1200 });
+    expect(translatedDimensionChain.parameters.dimensionId).toBe('DIM1');
+    expect(callout.parameters.calloutId).toBe('CO1');
+    expect(sectionMarker.parameters.sectionId).toBe('S1');
+    expect(borehole.parameters.boreholeId).toBe('BH1');
+    expect(translatedServiceRun.geometry.path[0]).toEqual({ x: 4700, y: 5450 });
+    expect(serviceCrossing.parameters.crossingId).toBe('SC1');
+    expect(parsed.objects).toHaveLength(6);
+  });
+
   it('applies layer visibility and lock rules to visible/editable objects', () => {
     const model = createEmptyDraftingModel('drawing-1');
     const pile = createDraftingObject('pile', { x: 1000, y: 1000 }, model);

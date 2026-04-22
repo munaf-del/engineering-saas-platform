@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import {
+  DRAFTING_CALLOUT_ARROW_STYLES,
+  DRAFTING_CALLOUT_LEADER_STYLES,
+  DRAFTING_DIMENSION_UNITS,
   DRAFTING_DRAWING_STATUSES,
   DRAFTING_FUTURE_OBJECT_TYPES,
   DRAFTING_LAYER_IDS,
@@ -8,8 +11,13 @@ import {
   DRAFTING_OBJECT_TYPES,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
+  DRAFTING_SECTION_ARROW_DIRECTIONS,
   DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS,
   DRAFTING_SECANT_TYPES,
+  DRAFTING_SERVICE_CONFLICT_TYPES,
+  DRAFTING_SERVICE_RISK_STATUSES,
+  DRAFTING_SERVICE_STATUSES,
+  DRAFTING_SERVICE_TYPES,
 } from '../types/drafting.js';
 
 const DraftingPointSchema = z.object({
@@ -254,6 +262,129 @@ export const DraftingWalerObjectSchema = DraftingObjectBaseSchema.extend({
   }),
 });
 
+export const DraftingDimensionChainObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('dimension_chain'),
+  geometry: z
+    .object({
+      points: z.array(DraftingPointSchema).min(2),
+      offsetVector: DraftingPointSchema.optional(),
+      offsetDistanceMm: z.number().finite().optional(),
+    })
+    .refine((value) => value.offsetVector !== undefined || value.offsetDistanceMm !== undefined, {
+      message: 'Dimension chain requires offsetVector or offsetDistanceMm',
+      path: ['offsetDistanceMm'],
+    }),
+  parameters: z.object({
+    dimensionId: z.string().min(1),
+    unit: z.enum(DRAFTING_DIMENSION_UNITS),
+    precision: z.number().int().min(0).max(4),
+    showSegments: z.boolean(),
+    showTotal: z.boolean(),
+    textOverride: z.string().optional(),
+  }),
+  metadata: z.object({
+    associatedObjectIds: z.array(z.string().min(1)).optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingCalloutObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('callout'),
+  geometry: z.object({
+    anchorPoint: DraftingPointSchema,
+    labelPoint: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    calloutId: z.string().min(1),
+    title: z.string().min(1),
+    body: z.string(),
+    leaderStyle: z.enum(DRAFTING_CALLOUT_LEADER_STYLES),
+    arrowStyle: z.enum(DRAFTING_CALLOUT_ARROW_STYLES),
+  }),
+  metadata: z.object({
+    associatedObjectId: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingSectionMarkerObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('section_marker'),
+  geometry: z.object({
+    startPoint: DraftingPointSchema,
+    endPoint: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    sectionId: z.string().min(1),
+    sectionLabel: z.string().min(1),
+    sheetReference: z.string().optional(),
+    arrowDirection: z.enum(DRAFTING_SECTION_ARROW_DIRECTIONS),
+  }),
+  metadata: z.object({
+    linkedDrawingId: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingBoreholeObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('borehole'),
+  geometry: z.object({
+    point: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    boreholeId: z.string().min(1),
+    label: z.string().min(1),
+    groundLevelRl: z.number().finite().optional(),
+    terminationDepthM: z.number().finite().optional(),
+    terminationLevelRl: z.number().finite().optional(),
+    boreholeType: z.string().optional(),
+  }),
+  metadata: z.object({
+    linkedGeotechEntityId: z.string().optional(),
+    sourceReference: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingServiceRunObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('service_run'),
+  geometry: z.object({
+    path: z.array(DraftingPointSchema).min(2),
+  }),
+  parameters: z.object({
+    serviceId: z.string().min(1),
+    serviceType: z.enum(DRAFTING_SERVICE_TYPES),
+    status: z.enum(DRAFTING_SERVICE_STATUSES),
+    diameterMm: z.number().positive().optional(),
+    depthM: z.number().finite().optional(),
+    levelRl: z.number().finite().optional(),
+    authority: z.string().optional(),
+  }),
+  metadata: z.object({
+    sourceReference: z.string().optional(),
+    surveyConfidence: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingServiceCrossingObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('service_crossing'),
+  geometry: z.object({
+    crossingPoint: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    crossingId: z.string().min(1),
+    serviceType: z.enum(DRAFTING_SERVICE_TYPES),
+    conflictType: z.enum(DRAFTING_SERVICE_CONFLICT_TYPES),
+    clearanceMm: z.number().positive().optional(),
+    riskStatus: z.enum(DRAFTING_SERVICE_RISK_STATUSES),
+  }),
+  metadata: z.object({
+    linkedServiceRunId: z.string().optional(),
+    linkedObjectId: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
 export const DraftingPlaceholderObjectSchema = DraftingObjectBaseSchema.extend({
   type: z.enum(DRAFTING_FUTURE_OBJECT_TYPES),
   geometry: z.record(z.unknown()),
@@ -271,6 +402,12 @@ export const DraftingObjectSchema = z
     DraftingAnchorTiebackObjectSchema,
     DraftingCappingBeamObjectSchema,
     DraftingWalerObjectSchema,
+    DraftingDimensionChainObjectSchema,
+    DraftingCalloutObjectSchema,
+    DraftingSectionMarkerObjectSchema,
+    DraftingBoreholeObjectSchema,
+    DraftingServiceRunObjectSchema,
+    DraftingServiceCrossingObjectSchema,
     DraftingPlaceholderObjectSchema,
   ])
   .superRefine((value, context) => {

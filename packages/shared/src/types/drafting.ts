@@ -11,6 +11,8 @@ export const DRAFTING_LAYER_IDS = [
   'monitoring',
   'boreholes',
   'services',
+  'services_conflicts',
+  'sections',
   'dimensions',
   'notes',
 ] as const;
@@ -27,11 +29,14 @@ export const DRAFTING_OBJECT_TYPES = [
   'anchor_tieback',
   'capping_beam',
   'waler',
+  'dimension_chain',
+  'callout',
+  'section_marker',
   'borehole',
+  'service_run',
+  'service_crossing',
   'survey_point',
   'service_line',
-  'section_marker',
-  'callout',
   'dimension',
   'title_block',
   'revision_block',
@@ -47,14 +52,17 @@ export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
   'anchor_tieback',
   'capping_beam',
   'waler',
+  'dimension_chain',
+  'callout',
+  'section_marker',
+  'borehole',
+  'service_run',
+  'service_crossing',
 ] as const;
 
 export const DRAFTING_FUTURE_OBJECT_TYPES = [
-  'borehole',
   'survey_point',
   'service_line',
-  'section_marker',
-  'callout',
   'dimension',
   'title_block',
   'revision_block',
@@ -102,6 +110,32 @@ export const DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS = [
 ] as const;
 
 export const DRAFTING_SECANT_TYPES = ['overlapping', 'tangent'] as const;
+export const DRAFTING_DIMENSION_UNITS = ['mm', 'm'] as const;
+export const DRAFTING_CALLOUT_LEADER_STYLES = ['straight', 'dogleg'] as const;
+export const DRAFTING_CALLOUT_ARROW_STYLES = ['filled', 'open', 'dot'] as const;
+export const DRAFTING_SECTION_ARROW_DIRECTIONS = ['left', 'right', 'both'] as const;
+export const DRAFTING_SERVICE_TYPES = [
+  'stormwater',
+  'sewer',
+  'water',
+  'gas',
+  'electrical',
+  'comms',
+  'unknown',
+] as const;
+export const DRAFTING_SERVICE_STATUSES = [
+  'existing',
+  'proposed',
+  'abandoned',
+  'unknown',
+] as const;
+export const DRAFTING_SERVICE_CONFLICT_TYPES = [
+  'crosses_wall',
+  'crosses_anchor',
+  'crosses_excavation',
+  'unknown',
+] as const;
+export const DRAFTING_SERVICE_RISK_STATUSES = ['open', 'reviewed', 'resolved'] as const;
 
 export type DraftingPileType = (typeof DRAFTING_PILE_TYPES)[number];
 export type DraftingPileMaterial = (typeof DRAFTING_PILE_MATERIALS)[number];
@@ -109,6 +143,14 @@ export type DraftingMonitoringType = (typeof DRAFTING_MONITORING_TYPES)[number];
 export type DraftingSecantPrimarySecondaryPattern =
   (typeof DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS)[number];
 export type DraftingSecantType = (typeof DRAFTING_SECANT_TYPES)[number];
+export type DraftingDimensionUnit = (typeof DRAFTING_DIMENSION_UNITS)[number];
+export type DraftingCalloutLeaderStyle = (typeof DRAFTING_CALLOUT_LEADER_STYLES)[number];
+export type DraftingCalloutArrowStyle = (typeof DRAFTING_CALLOUT_ARROW_STYLES)[number];
+export type DraftingSectionArrowDirection = (typeof DRAFTING_SECTION_ARROW_DIRECTIONS)[number];
+export type DraftingServiceType = (typeof DRAFTING_SERVICE_TYPES)[number];
+export type DraftingServiceStatus = (typeof DRAFTING_SERVICE_STATUSES)[number];
+export type DraftingServiceConflictType = (typeof DRAFTING_SERVICE_CONFLICT_TYPES)[number];
+export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[number];
 
 export type DraftingPoint = {
   x: number;
@@ -342,6 +384,124 @@ export type DraftingWalerObject = DraftingObjectBase & {
   };
 };
 
+export type DraftingDimensionChainObject = DraftingObjectBase & {
+  type: 'dimension_chain';
+  geometry: {
+    points: DraftingPoint[];
+    offsetVector?: DraftingPoint;
+    offsetDistanceMm?: number;
+  };
+  parameters: {
+    dimensionId: string;
+    unit: DraftingDimensionUnit;
+    precision: number;
+    showSegments: boolean;
+    showTotal: boolean;
+    textOverride?: string;
+  };
+  metadata: {
+    associatedObjectIds?: string[];
+    notes?: string;
+  };
+};
+
+export type DraftingCalloutObject = DraftingObjectBase & {
+  type: 'callout';
+  geometry: {
+    anchorPoint: DraftingPoint;
+    labelPoint: DraftingPoint;
+  };
+  parameters: {
+    calloutId: string;
+    title: string;
+    body: string;
+    leaderStyle: DraftingCalloutLeaderStyle;
+    arrowStyle: DraftingCalloutArrowStyle;
+  };
+  metadata: {
+    associatedObjectId?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingSectionMarkerObject = DraftingObjectBase & {
+  type: 'section_marker';
+  geometry: {
+    startPoint: DraftingPoint;
+    endPoint: DraftingPoint;
+  };
+  parameters: {
+    sectionId: string;
+    sectionLabel: string;
+    sheetReference?: string;
+    arrowDirection: DraftingSectionArrowDirection;
+  };
+  metadata: {
+    linkedDrawingId?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingBoreholeObject = DraftingObjectBase & {
+  type: 'borehole';
+  geometry: {
+    point: DraftingPoint;
+  };
+  parameters: {
+    boreholeId: string;
+    label: string;
+    groundLevelRl?: number;
+    terminationDepthM?: number;
+    terminationLevelRl?: number;
+    boreholeType?: string;
+  };
+  metadata: {
+    linkedGeotechEntityId?: string;
+    sourceReference?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingServiceRunObject = DraftingObjectBase & {
+  type: 'service_run';
+  geometry: {
+    path: DraftingPoint[];
+  };
+  parameters: {
+    serviceId: string;
+    serviceType: DraftingServiceType;
+    status: DraftingServiceStatus;
+    diameterMm?: number;
+    depthM?: number;
+    levelRl?: number;
+    authority?: string;
+  };
+  metadata: {
+    sourceReference?: string;
+    surveyConfidence?: string;
+    notes?: string;
+  };
+};
+
+export type DraftingServiceCrossingObject = DraftingObjectBase & {
+  type: 'service_crossing';
+  geometry: {
+    crossingPoint: DraftingPoint;
+  };
+  parameters: {
+    crossingId: string;
+    serviceType: DraftingServiceType;
+    conflictType: DraftingServiceConflictType;
+    clearanceMm?: number;
+    riskStatus: DraftingServiceRiskStatus;
+  };
+  metadata: {
+    linkedServiceRunId?: string;
+    linkedObjectId?: string;
+    notes?: string;
+  };
+};
+
 export type DraftingPlaceholderObject = DraftingObjectBase & {
   type: DraftingFutureObjectType;
   geometry: Record<string, unknown>;
@@ -358,6 +518,12 @@ export type DraftingObject =
   | DraftingAnchorTiebackObject
   | DraftingCappingBeamObject
   | DraftingWalerObject
+  | DraftingDimensionChainObject
+  | DraftingCalloutObject
+  | DraftingSectionMarkerObject
+  | DraftingBoreholeObject
+  | DraftingServiceRunObject
+  | DraftingServiceCrossingObject
   | DraftingPlaceholderObject;
 
 export type DraftingModel = {
@@ -477,7 +643,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
   },
   {
     id: 'boreholes',
-    name: 'Boreholes',
+    name: 'Investigation',
     visible: true,
     locked: false,
     color: '#0f766e',
@@ -492,6 +658,22 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     lineWeight: 2,
   },
   {
+    id: 'services_conflicts',
+    name: 'Services / Conflicts',
+    visible: true,
+    locked: false,
+    color: '#b91c1c',
+    lineWeight: 2,
+  },
+  {
+    id: 'sections',
+    name: 'Sections',
+    visible: true,
+    locked: false,
+    color: '#1e293b',
+    lineWeight: 2,
+  },
+  {
     id: 'dimensions',
     name: 'Dimensions',
     visible: true,
@@ -501,7 +683,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
   },
   {
     id: 'notes',
-    name: 'Notes',
+    name: 'Notes / Callouts',
     visible: true,
     locked: false,
     color: '#111827',
@@ -564,10 +746,18 @@ export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): D
     case 'borehole':
     case 'survey_point':
       return 'boreholes';
+    case 'service_run':
     case 'service_line':
       return 'services';
+    case 'service_crossing':
+      return 'services_conflicts';
+    case 'section_marker':
+      return 'sections';
+    case 'dimension_chain':
     case 'dimension':
       return 'dimensions';
+    case 'callout':
+      return 'notes';
     default:
       return 'shoring';
   }

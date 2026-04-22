@@ -1,37 +1,42 @@
 import { describe, expect, it } from 'vitest';
+import { createEmptyDraftingModel } from '@eng/shared';
+import { createDimensionChainObject } from './tools/dimension-chain-tool';
 import {
-  calculateAnchorAngleDeg,
-  calculateAnchorPlanLengthMm,
-  generatePilePositionsAlongBaseline,
+  buildDimensionChainOffsetPoints,
+  calculateDimensionChainSegments,
+  calculateDimensionChainTotal,
+  formatDimensionDistance,
 } from './semantic-object-utils';
 
-describe('semantic drafting object utilities', () => {
-  it('calculates secant and soldier pile positions along a baseline including the endpoint', () => {
-    const baseline = [
+describe('semantic drafting object utils', () => {
+  it('calculates dimension chain segment lengths and total distance', () => {
+    const points = [
       { x: 0, y: 0 },
-      { x: 6000, y: 0 },
+      { x: 3000, y: 0 },
+      { x: 3000, y: 4000 },
     ];
 
-    expect(generatePilePositionsAlongBaseline(baseline, 1500)).toEqual([
-      { x: 0, y: 0 },
-      { x: 1500, y: 0 },
-      { x: 3000, y: 0 },
-      { x: 4500, y: 0 },
-      { x: 6000, y: 0 },
-    ]);
-    expect(generatePilePositionsAlongBaseline(baseline, 2000)).toEqual([
-      { x: 0, y: 0 },
-      { x: 2000, y: 0 },
-      { x: 4000, y: 0 },
-      { x: 6000, y: 0 },
-    ]);
+    expect(calculateDimensionChainSegments(points)).toEqual([3000, 4000]);
+    expect(calculateDimensionChainTotal(points)).toBe(7000);
+    expect(formatDimensionDistance(7000, 'mm', 0)).toBe('7000 mm');
+    expect(formatDimensionDistance(7000, 'm', 2)).toBe('7.00 m');
   });
 
-  it('derives anchor angle and plan length from authored head and tail points', () => {
-    const headPoint = { x: 0, y: 0 };
-    const tailPoint = { x: 4000, y: -1000 };
+  it('builds offset points for dimension chain rendering', () => {
+    const object = {
+      ...createDimensionChainObject({ x: 1000, y: 2000 }, createEmptyDraftingModel('d1')),
+      geometry: {
+        points: [
+          { x: 1000, y: 2000 },
+          { x: 4000, y: 2000 },
+        ],
+        offsetDistanceMm: 1200,
+      },
+    };
+    const offsetPoints = buildDimensionChainOffsetPoints(object);
 
-    expect(calculateAnchorPlanLengthMm(headPoint, tailPoint)).toBeCloseTo(4123.1056, 3);
-    expect(calculateAnchorAngleDeg(headPoint, tailPoint)).toBeCloseTo(-14.0362, 3);
+    expect(offsetPoints).toHaveLength(object.geometry.points.length);
+    expect(offsetPoints[0]?.x).toBeCloseTo(1000);
+    expect(offsetPoints[0]?.y).toBeCloseTo(800);
   });
 });

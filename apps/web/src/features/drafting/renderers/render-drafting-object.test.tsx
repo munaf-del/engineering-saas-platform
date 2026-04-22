@@ -16,6 +16,12 @@ describe('renderDraftingObject', () => {
     const waler = createDraftingObject('waler', { x: 2000, y: 3000 }, model);
     const monitoringPoint = createDraftingObject('monitoring_point', { x: 2000, y: 3000 }, model);
     const leaderNote = createDraftingObject('leader_note', { x: 3000, y: 4000 }, model);
+    const dimensionChain = createDraftingObject('dimension_chain', { x: 3200, y: 4400 }, model);
+    const callout = createDraftingObject('callout', { x: 3400, y: 4600 }, model);
+    const sectionMarker = createDraftingObject('section_marker', { x: 3600, y: 4800 }, model);
+    const borehole = createDraftingObject('borehole', { x: 3800, y: 5000 }, model);
+    const serviceRun = createDraftingObject('service_run', { x: 4000, y: 5200 }, model);
+    const serviceCrossing = createDraftingObject('service_crossing', { x: 4200, y: 5400 }, model);
     const excavationLine = createDraftingObject('excavation_line', { x: 0, y: 0 }, model, [
       { x: 0, y: 0 },
       { x: 2500, y: 500 },
@@ -34,6 +40,12 @@ describe('renderDraftingObject', () => {
           waler,
           monitoringPoint,
           leaderNote,
+          dimensionChain,
+          callout,
+          sectionMarker,
+          borehole,
+          serviceRun,
+          serviceCrossing,
           excavationLine,
         ].map((object) => (
           <React.Fragment key={object.id}>
@@ -57,6 +69,12 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('W1');
     expect(markup).toContain('MP1');
     expect(markup).toContain('Draft note 1');
+    expect(markup).toContain('DIM1');
+    expect(markup).toContain('Callout 1');
+    expect(markup).toContain('S1');
+    expect(markup).toContain('BH-01');
+    expect(markup).toContain('SR1');
+    expect(markup).toContain('SC1');
     expect(markup).toContain('EX1');
   });
 });

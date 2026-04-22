@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { AnchorTiebackProperties } from '../properties/anchor-tieback-properties';
+import { BoreholeProperties } from '../properties/borehole-properties';
+import { CalloutProperties } from '../properties/callout-properties';
 import { CappingBeamProperties } from '../properties/capping-beam-properties';
+import { DimensionChainProperties } from '../properties/dimension-chain-properties';
 import { formatDraftingTimestamp } from '../model-utils';
 import { DraftingCommonObjectProperties } from '../properties/common-object-properties';
 import { ExcavationLineProperties } from '../properties/excavation-line-properties';
@@ -12,6 +15,9 @@ import { LeaderNoteProperties } from '../properties/leader-note-properties';
 import { MonitoringPointProperties } from '../properties/monitoring-point-properties';
 import { PileProperties } from '../properties/pile-properties';
 import { SecantPileWallProperties } from '../properties/secant-pile-wall-properties';
+import { SectionMarkerProperties } from '../properties/section-marker-properties';
+import { ServiceCrossingProperties } from '../properties/service-crossing-properties';
+import { ServiceRunProperties } from '../properties/service-run-properties';
 import { SoldierPileWallProperties } from '../properties/soldier-pile-wall-properties';
 import { WalerProperties } from '../properties/waler-properties';
 
@@ -73,6 +79,24 @@ export function DraftingPropertiesPanel({
           ) : null}
           {object.type === 'excavation_line' ? (
             <ExcavationLineProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'dimension_chain' ? (
+            <DimensionChainProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'callout' ? (
+            <CalloutProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'section_marker' ? (
+            <SectionMarkerProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'borehole' ? (
+            <BoreholeProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'service_run' ? (
+            <ServiceRunProperties object={object} onUpdate={onUpdate} />
+          ) : null}
+          {object.type === 'service_crossing' ? (
+            <ServiceCrossingProperties object={object} onUpdate={onUpdate} />
           ) : null}
 
           <Separator />

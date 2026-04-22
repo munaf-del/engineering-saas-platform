@@ -1,7 +1,10 @@
 import type * as React from 'react';
 import type {
   DraftingAnchorTiebackObject,
+  DraftingBoreholeObject,
+  DraftingCalloutObject,
   DraftingCappingBeamObject,
+  DraftingDimensionChainObject,
   DraftingExcavationLineObject,
   DraftingLayer,
   DraftingLeaderNoteObject,
@@ -9,6 +12,9 @@ import type {
   DraftingObject,
   DraftingPileObject,
   DraftingSecantPileWallObject,
+  DraftingSectionMarkerObject,
+  DraftingServiceCrossingObject,
+  DraftingServiceRunObject,
   DraftingSoldierPileWallObject,
   DraftingWalerObject,
 } from '@eng/shared';
@@ -33,3 +39,12 @@ export type DraftingExcavationLineRendererProps =
 export type DraftingMonitoringPointRendererProps =
   DraftingRendererProps<DraftingMonitoringPointObject>;
 export type DraftingLeaderNoteRendererProps = DraftingRendererProps<DraftingLeaderNoteObject>;
+export type DraftingDimensionChainRendererProps =
+  DraftingRendererProps<DraftingDimensionChainObject>;
+export type DraftingCalloutRendererProps = DraftingRendererProps<DraftingCalloutObject>;
+export type DraftingSectionMarkerRendererProps =
+  DraftingRendererProps<DraftingSectionMarkerObject>;
+export type DraftingBoreholeRendererProps = DraftingRendererProps<DraftingBoreholeObject>;
+export type DraftingServiceRunRendererProps = DraftingRendererProps<DraftingServiceRunObject>;
+export type DraftingServiceCrossingRendererProps =
+  DraftingRendererProps<DraftingServiceCrossingObject>;

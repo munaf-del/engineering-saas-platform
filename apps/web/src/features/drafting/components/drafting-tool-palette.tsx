@@ -87,6 +87,36 @@ export function DraftingToolPalette({
         >
           Add Leader Note
         </ToolButton>
+        <ToolButton
+          active={activeTool === 'dimension_chain'}
+          onClick={() => onToolChange('dimension_chain')}
+        >
+          Add Dimension Chain
+        </ToolButton>
+        <ToolButton active={activeTool === 'callout'} onClick={() => onToolChange('callout')}>
+          Add Callout
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'section_marker'}
+          onClick={() => onToolChange('section_marker')}
+        >
+          Add Section Marker
+        </ToolButton>
+        <ToolButton active={activeTool === 'borehole'} onClick={() => onToolChange('borehole')}>
+          Add Borehole
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'service_run'}
+          onClick={() => onToolChange('service_run')}
+        >
+          Add Service Run
+        </ToolButton>
+        <ToolButton
+          active={activeTool === 'service_crossing'}
+          onClick={() => onToolChange('service_crossing')}
+        >
+          Add Service Crossing
+        </ToolButton>
 
         {activeTool === 'excavation_line' ? (
           <>
