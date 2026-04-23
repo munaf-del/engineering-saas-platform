@@ -9,11 +9,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
+import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
 import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
-import { downloadDraftingModelJson } from './export-utils';
+import {
+  downloadDraftingModelJson,
+  downloadDraftingScheduleCsv,
+  downloadDraftingSchedulesJson,
+} from './export-utils';
 import { clientToWorldPoint, screenToWorldPoint } from './geometry-utils';
 import { useDrafting } from './hooks/use-drafting';
 import { useDraftingHistory } from './hooks/use-drafting-history';
@@ -274,7 +279,7 @@ export function DraftingEditor({
           <CardHeader>
             <CardTitle className="text-base">Inspector</CardTitle>
             <CardDescription>
-              Edit object properties, layer controls, and underlay placeholders.
+              Edit object properties, layer controls, underlays, and derived schedules.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -282,10 +287,11 @@ export function DraftingEditor({
               value={drafting.activeTab}
               onValueChange={(value) => drafting.setActiveTab(value as typeof drafting.activeTab)}
             >
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="properties">Properties</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 <TabsTrigger value="underlays">Underlays</TabsTrigger>
+                <TabsTrigger value="schedules">Schedules</TabsTrigger>
               </TabsList>
 
               <TabsContent value="properties">
@@ -331,6 +337,20 @@ export function DraftingEditor({
                     underlays={currentModel.underlays}
                     calibrationState={underlays.calibrationState}
                     cropModeUnderlayId={underlays.activeCropUnderlayId}
+                  />
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="schedules">
+                <ScrollArea className="h-[580px] pr-3">
+                  <DraftingSchedulesPanel
+                    model={currentModel}
+                    onExportAllJson={() =>
+                      downloadDraftingSchedulesJson(currentModel, currentDrawing.title)
+                    }
+                    onExportGroupCsv={(groupKey) =>
+                      downloadDraftingScheduleCsv(currentModel, currentDrawing.title, groupKey)
+                    }
                   />
                 </ScrollArea>
               </TabsContent>
