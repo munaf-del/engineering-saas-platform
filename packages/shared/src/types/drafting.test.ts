@@ -16,6 +16,18 @@ describe('drafting defaults', () => {
     expect(parsed.units).toBe('mm');
     expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
+    expect(parsed.scheduleSheets).toEqual([]);
+  });
+
+  it('hydrates older drafting models without schedule sheet definitions', () => {
+    const model = createEmptyDraftingModel('drawing-legacy');
+    const legacyModel = JSON.parse(JSON.stringify(model));
+    delete legacyModel.scheduleSheets;
+    const parsed = DraftingModelSchema.parse(legacyModel);
+
+    expect(parsed.scheduleSheets).toEqual([]);
+    expect(parsed.underlays).toEqual([]);
+    expect(parsed.objects).toEqual([]);
   });
 
   it('clones the default layers instead of reusing references', () => {
@@ -144,6 +156,41 @@ describe('drafting defaults', () => {
 
     expect(parsed.underlays).toHaveLength(1);
     expect(parsed.underlays[0]).toEqual(model.underlays[0]);
+  });
+
+  it('accepts and preserves saved schedule sheet definitions', () => {
+    const model = createEmptyDraftingModel('drawing-schedule-pack');
+    model.scheduleSheets.push({
+      id: 'schedule-sheet-1',
+      name: 'Anchor schedule pack',
+      templateId: null,
+      pageSize: 'a3',
+      orientation: 'landscape',
+      includedScheduleGroups: ['anchors', 'shoring_piles'],
+      title: 'Anchor Installation Schedule',
+      subtitle: 'North wall hold points',
+      revisionLabel: 'Rev B',
+      issuePurpose: 'For coordination',
+      projectMetadata: {
+        checkedBy: 'MMA',
+        preparedBy: 'JDS',
+        projectCode: 'NSYD',
+        projectName: 'NORTH SYDNEY',
+      },
+      tableDensity: 'compact',
+      pageOrder: 1,
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.scheduleSheets).toHaveLength(1);
+    expect(parsed.scheduleSheets[0]).toMatchObject({
+      id: 'schedule-sheet-1',
+      includedScheduleGroups: ['anchors', 'shoring_piles'],
+      pageSize: 'a3',
+      tableDensity: 'compact',
+      title: 'Anchor Installation Schedule',
+    });
   });
 
   it('accepts and preserves semantic shoring drafting objects', () => {

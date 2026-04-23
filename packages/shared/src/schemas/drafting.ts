@@ -11,6 +11,9 @@ import {
   DRAFTING_OBJECT_TYPES,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
+  DRAFTING_SCHEDULE_SHEET_ORIENTATIONS,
+  DRAFTING_SCHEDULE_SHEET_PAGE_SIZES,
+  DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES,
   DRAFTING_SECTION_ARROW_DIRECTIONS,
   DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS,
   DRAFTING_SECANT_TYPES,
@@ -82,6 +85,30 @@ export const DraftingUnderlaySchema = z.object({
   calibration: DraftingUnderlayCalibrationSchema.nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const DraftingScheduleSheetProjectMetadataOverridesSchema = z.object({
+  checkedBy: z.string().optional(),
+  preparedBy: z.string().optional(),
+  projectAddress: z.string().optional(),
+  projectCode: z.string().optional(),
+  projectName: z.string().optional(),
+});
+
+export const DraftingScheduleSheetDefinitionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  templateId: z.string().min(1).nullable().optional(),
+  pageSize: z.enum(DRAFTING_SCHEDULE_SHEET_PAGE_SIZES),
+  orientation: z.enum(DRAFTING_SCHEDULE_SHEET_ORIENTATIONS),
+  includedScheduleGroups: z.array(z.string().min(1)),
+  title: z.string().min(1),
+  subtitle: z.string().optional(),
+  revisionLabel: z.string().optional(),
+  issuePurpose: z.string().optional(),
+  projectMetadata: DraftingScheduleSheetProjectMetadataOverridesSchema.optional(),
+  tableDensity: z.enum(DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES),
+  pageOrder: z.number().int().nonnegative(),
 });
 
 const DraftingObjectBaseSchema = z.object({
@@ -446,6 +473,7 @@ export const DraftingModelSchema = z.object({
   layers: z.array(DraftingLayerSchema),
   underlays: z.array(DraftingUnderlaySchema),
   objects: z.array(DraftingObjectSchema),
+  scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
 });
 
 export const DraftingDrawingSummarySchema = z.object({

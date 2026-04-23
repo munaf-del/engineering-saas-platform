@@ -84,8 +84,38 @@
     margin: 0;
   }
 
+  @page sheet-a2-landscape {
+    size: A2 landscape;
+    margin: 0;
+  }
+
+  @page sheet-a1-landscape {
+    size: A1 landscape;
+    margin: 0;
+  }
+
+  @page sheet-a0-landscape {
+    size: A0 landscape;
+    margin: 0;
+  }
+
   @page sheet-a3-portrait {
     size: A3 portrait;
+    margin: 0;
+  }
+
+  @page sheet-a2-portrait {
+    size: A2 portrait;
+    margin: 0;
+  }
+
+  @page sheet-a1-portrait {
+    size: A1 portrait;
+    margin: 0;
+  }
+
+  @page sheet-a0-portrait {
+    size: A0 portrait;
     margin: 0;
   }
 
@@ -149,8 +179,32 @@
     page: sheet-a3-landscape;
   }
 
+  .package-print-page[data-print-page-size='a2'][data-print-orientation='landscape'] {
+    page: sheet-a2-landscape;
+  }
+
+  .package-print-page[data-print-page-size='a1'][data-print-orientation='landscape'] {
+    page: sheet-a1-landscape;
+  }
+
+  .package-print-page[data-print-page-size='a0'][data-print-orientation='landscape'] {
+    page: sheet-a0-landscape;
+  }
+
   .package-print-page[data-print-page-size='a3'][data-print-orientation='portrait'] {
     page: sheet-a3-portrait;
+  }
+
+  .package-print-page[data-print-page-size='a2'][data-print-orientation='portrait'] {
+    page: sheet-a2-portrait;
+  }
+
+  .package-print-page[data-print-page-size='a1'][data-print-orientation='portrait'] {
+    page: sheet-a1-portrait;
+  }
+
+  .package-print-page[data-print-page-size='a0'][data-print-orientation='portrait'] {
+    page: sheet-a0-portrait;
   }
 
   .package-print-page[data-print-page-size='a4'][data-print-orientation='landscape'] {

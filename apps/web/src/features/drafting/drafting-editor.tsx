@@ -16,6 +16,7 @@ import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
 import {
   downloadDraftingModelJson,
+  downloadDraftingScheduleSheetPackJson,
   downloadDraftingScheduleCsv,
   downloadDraftingSchedulesJson,
 } from './export-utils';
@@ -28,6 +29,7 @@ import { useDraftingView } from './hooks/use-drafting-view';
 import {
   addDraftingUnderlay,
   createDraftingObject,
+  formatDrawingRevision,
   getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
   updateLayer,
@@ -351,6 +353,19 @@ export function DraftingEditor({
                     onExportGroupCsv={(groupKey) =>
                       downloadDraftingScheduleCsv(currentModel, currentDrawing.title, groupKey)
                     }
+                    onExportPackJson={() =>
+                      downloadDraftingScheduleSheetPackJson(currentModel, currentDrawing.title, {
+                        drawingId: currentDrawing.id,
+                        drawingStatus: currentDrawing.status,
+                        drawingTitle: currentDrawing.title,
+                        generatedAtLabel: `Updated ${currentDrawing.updatedAt}`,
+                        projectCode: project.code,
+                        projectName: project.name,
+                        revision: formatDrawingRevision(currentDrawing),
+                      })
+                    }
+                    onModelChange={history.replaceModel}
+                    projectId={projectId}
                   />
                 </ScrollArea>
               </TabsContent>

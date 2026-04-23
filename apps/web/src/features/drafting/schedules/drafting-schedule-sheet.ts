@@ -1,4 +1,4 @@
-import type { DraftingModel } from '@eng/shared';
+import type { DraftingModel, DraftingScheduleSheetDefinition } from '@eng/shared';
 import {
   DEFAULT_GENERIC_TEMPLATE_LINE_STYLE,
   createDefaultGenericTemplateChromeStyleForDocument,
@@ -8,6 +8,7 @@ import {
 } from '@/features/templates/core/generic-template-document';
 import {
   getTemplateSafeArea,
+  type TemplatePageOrientation,
   type TemplatePaperSize,
 } from '@/features/templates/core/template-preset';
 import type { TemplateRectMm } from '@/features/templates/core/template-document';
@@ -23,7 +24,12 @@ import type {
   SharedSheetTableBlockContent,
 } from '@/features/templates/core/shared-sheet-schema';
 import { buildDraftingScheduleSummary } from './drafting-schedule-utils';
-import type { DraftingScheduleGroup, DraftingScheduleGroupKey } from './drafting-schedule-types';
+import { getOrderedScheduleSheetDefinitions } from './drafting-schedule-sheet-definition-utils';
+import type {
+  DraftingScheduleGroup,
+  DraftingScheduleGroupKey,
+  DraftingScheduleSummary,
+} from './drafting-schedule-types';
 
 export const DRAFTING_SCHEDULE_ALL_GROUPS = 'all';
 export type DraftingScheduleSheetGroupSelection =
@@ -31,14 +37,22 @@ export type DraftingScheduleSheetGroupSelection =
   | typeof DRAFTING_SCHEDULE_ALL_GROUPS;
 
 export type DraftingScheduleSheetMetadata = {
+  checkedBy?: string;
   drawingId: string;
   drawingStatus?: string;
   drawingTitle: string;
   generatedAtLabel?: string;
+  issuePurpose?: string;
+  pageCount?: number;
+  pageNumber?: number;
+  preparedBy?: string;
+  projectAddress?: string;
   projectCode: string;
   projectName: string;
   revision?: string;
   sheetNumber?: string;
+  subtitle?: string;
+  title?: string;
 };
 
 export type DraftingScheduleSheetTemplateSource = {
@@ -53,11 +67,38 @@ type BuildDraftingScheduleSheetRenderModelArgs = {
   templateSource?: DraftingScheduleSheetTemplateSource | null;
 };
 
+export type BuildDraftingScheduleSheetPackArgs = {
+  definitions: DraftingScheduleSheetDefinition[];
+  metadata: DraftingScheduleSheetMetadata;
+  model: DraftingModel;
+  templateSourcesById?: Record<string, DraftingScheduleSheetTemplateSource | undefined>;
+};
+
+export type DraftingScheduleSheetPackPage = {
+  definition: DraftingScheduleSheetDefinition;
+  definitionPageCount: number;
+  definitionPageNumber: number;
+  groupKeys: DraftingScheduleGroupKey[];
+  id: string;
+  pageCount: number;
+  pageNumber: number;
+  renderModel: SharedSheetRenderModel;
+  rowCount: number;
+};
+
+export type DraftingScheduleSheetPack = {
+  definitions: DraftingScheduleSheetDefinition[];
+  drawingId: string;
+  pages: DraftingScheduleSheetPackPage[];
+  summary: DraftingScheduleSummary;
+};
+
 const DEFAULT_SHEET_PAPER_SIZE: TemplatePaperSize = 'a3';
-const DEFAULT_SHEET_ORIENTATION = 'landscape';
+const DEFAULT_SHEET_ORIENTATION: TemplatePageOrientation = 'landscape';
 const DEFAULT_DETAIL_BLOCK_HEIGHT_MM = 24;
 const DEFAULT_TITLE_BLOCK_HEIGHT_MM = 46;
 const DEFAULT_OBJECT_GAP_MM = 5;
+const MIN_ROWS_PER_SCHEDULE_PAGE = 1;
 
 export function buildDraftingScheduleSheetRenderModel({
   groupSelection,
@@ -71,16 +112,311 @@ export function buildDraftingScheduleSheetRenderModel({
     groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
       ? 'All schedule groups'
       : (scheduleGroups[0]?.title ?? 'Schedule group');
+
+  return buildDraftingScheduleSheetRenderModelForGroups({
+    groups: scheduleGroups,
+    groupLabel,
+    metadata,
+    model,
+    templateSource,
+  });
+}
+
+export function buildDraftingScheduleSheetPack({
+  definitions,
+  metadata,
+  model,
+  templateSourcesById = {},
+}: BuildDraftingScheduleSheetPackArgs): DraftingScheduleSheetPack {
+  const summary = buildDraftingScheduleSummary(model);
+  const orderedDefinitions = getOrderedScheduleSheetDefinitions({
+    ...model,
+    scheduleSheets: definitions,
+  });
+  const pendingPages = orderedDefinitions.flatMap((definition) =>
+    planDefinitionPages({
+      definition,
+      metadata,
+      model,
+      summary,
+      templateSource: resolveDefinitionTemplateSource(definition, templateSourcesById),
+    }),
+  );
+  const pageCount = pendingPages.length;
+  const pages = pendingPages.map<DraftingScheduleSheetPackPage>((pendingPage, index) => {
+    const pageNumber = index + 1;
+    const renderModel = buildDraftingScheduleSheetRenderModelForGroups({
+      groups: pendingPage.groups,
+      groupLabel: pendingPage.groupLabel,
+      metadata: {
+        ...pendingPage.metadata,
+        pageCount,
+        pageNumber,
+        sheetNumber: `D-SCH-${String(pageNumber).padStart(3, '0')}`,
+      },
+      model,
+      sheetDefinition: pendingPage.definition,
+      templateSource: pendingPage.templateSource,
+    });
+
+    return {
+      definition: pendingPage.definition,
+      definitionPageCount: pendingPage.definitionPageCount,
+      definitionPageNumber: pendingPage.definitionPageNumber,
+      groupKeys: pendingPage.groups.map((group) => group.key),
+      id: `${pendingPage.definition.id}-page-${pendingPage.definitionPageNumber}`,
+      pageCount,
+      pageNumber,
+      renderModel,
+      rowCount: pendingPage.groups.reduce((total, group) => total + group.rows.length, 0),
+    };
+  });
+
+  return {
+    definitions: orderedDefinitions,
+    drawingId: model.drawingId,
+    pages,
+    summary,
+  };
+}
+
+export function serializeDraftingScheduleSheetPackJson(pack: DraftingScheduleSheetPack) {
+  return JSON.stringify(
+    {
+      definitionCount: pack.definitions.length,
+      definitions: pack.definitions.map((definition) => ({
+        id: definition.id,
+        includedScheduleGroups: definition.includedScheduleGroups,
+        name: definition.name,
+        orientation: definition.orientation,
+        pageOrder: definition.pageOrder,
+        pageSize: definition.pageSize,
+        tableDensity: definition.tableDensity,
+        templateId: definition.templateId ?? null,
+        title: definition.title,
+      })),
+      drawingId: pack.drawingId,
+      pageCount: pack.pages.length,
+      pages: pack.pages.map((page) => ({
+        definitionId: page.definition.id,
+        definitionName: page.definition.name,
+        definitionPageCount: page.definitionPageCount,
+        definitionPageNumber: page.definitionPageNumber,
+        groupKeys: page.groupKeys,
+        id: page.id,
+        pageNumber: page.pageNumber,
+        rowCount: page.rowCount,
+      })),
+      scheduleRowCounts: pack.summary.groups.map((group) => ({
+        groupKey: group.key,
+        rowCount: group.rows.length,
+      })),
+    },
+    null,
+    2,
+  );
+}
+
+type PendingScheduleSheetPackPage = {
+  definition: DraftingScheduleSheetDefinition;
+  definitionPageCount: number;
+  definitionPageNumber: number;
+  groupLabel: string;
+  groups: DraftingScheduleGroup[];
+  metadata: DraftingScheduleSheetMetadata;
+  templateSource: DraftingScheduleSheetTemplateSource | null;
+};
+
+function planDefinitionPages({
+  definition,
+  metadata,
+  model,
+  summary,
+  templateSource,
+}: {
+  definition: DraftingScheduleSheetDefinition;
+  metadata: DraftingScheduleSheetMetadata;
+  model: DraftingModel;
+  summary: DraftingScheduleSummary;
+  templateSource: DraftingScheduleSheetTemplateSource | null;
+}): PendingScheduleSheetPackPage[] {
+  const groups = resolveDefinitionScheduleGroups(summary.groups, definition);
+  const scheduleRegion = resolveScheduleRegionForDefinition({
+    definition,
+    metadata,
+    model,
+    templateSource,
+  });
+  const rowsPerPage = resolveRowsPerSchedulePage(scheduleRegion, definition.tableDensity);
+  const groupPages =
+    groups.length > 0
+      ? groups.flatMap((group) => splitScheduleGroupAcrossPages(group, rowsPerPage))
+      : [
+          {
+            groupLabel: 'No schedule groups selected',
+            groups: [],
+          },
+        ];
+  const definitionPageCount = groupPages.length;
+
+  return groupPages.map((groupPage, index) => ({
+    definition,
+    definitionPageCount,
+    definitionPageNumber: index + 1,
+    groupLabel: groupPage.groupLabel,
+    groups: groupPage.groups,
+    metadata: {
+      ...metadata,
+      issuePurpose: definition.issuePurpose ?? metadata.issuePurpose,
+      revision: definition.revisionLabel ?? metadata.revision,
+      subtitle: definition.subtitle
+        ? `${definition.subtitle} - ${groupPage.groupLabel}`
+        : groupPage.groupLabel,
+      title: definition.title,
+    },
+    templateSource,
+  }));
+}
+
+function resolveDefinitionScheduleGroups(
+  groups: DraftingScheduleGroup[],
+  definition: DraftingScheduleSheetDefinition,
+) {
+  const includedGroups = new Set(definition.includedScheduleGroups);
+
+  return groups.filter((group) => includedGroups.has(group.key));
+}
+
+function splitScheduleGroupAcrossPages(group: DraftingScheduleGroup, rowsPerPage: number) {
+  if (group.rows.length === 0) {
+    return [
+      {
+        groupLabel: group.title,
+        groups: [group],
+      },
+    ];
+  }
+
+  const pageCount = Math.max(1, Math.ceil(group.rows.length / rowsPerPage));
+
+  return Array.from({ length: pageCount }, (_, index) => {
+    const pageNumber = index + 1;
+    const rowStart = index * rowsPerPage;
+    const pageRows = group.rows.slice(rowStart, rowStart + rowsPerPage);
+    const continuedTitle =
+      pageCount > 1 ? `${group.title} (${pageNumber} of ${pageCount})` : group.title;
+
+    return {
+      groupLabel: continuedTitle,
+      groups: [
+        {
+          ...group,
+          rows: pageRows,
+          title: continuedTitle,
+        },
+      ],
+    };
+  });
+}
+
+function resolveScheduleRegionForDefinition({
+  definition,
+  metadata,
+  model,
+  templateSource,
+}: {
+  definition: DraftingScheduleSheetDefinition;
+  metadata: DraftingScheduleSheetMetadata;
+  model: DraftingModel;
+  templateSource: DraftingScheduleSheetTemplateSource | null;
+}) {
+  if (templateSource?.template) {
+    return resolveScheduleRegion(adaptGenericTemplateToSharedDefinition(templateSource.template));
+  }
+
+  return resolveScheduleRegion(
+    buildDefaultScheduleSheetRenderModel(
+      applyDefinitionMetadata(metadata, definition),
+      model,
+      definition.name,
+      definition,
+    ).definition,
+  );
+}
+
+function resolveRowsPerSchedulePage(
+  region: TemplateRectMm,
+  density: DraftingScheduleSheetDefinition['tableDensity'],
+) {
+  const tableChromeHeightMm = density === 'compact' ? 19 : 24;
+  const rowHeightMm = density === 'compact' ? 6.6 : 8.8;
+
+  return Math.max(
+    MIN_ROWS_PER_SCHEDULE_PAGE,
+    Math.floor((region.height - tableChromeHeightMm) / rowHeightMm),
+  );
+}
+
+function resolveDefinitionTemplateSource(
+  definition: DraftingScheduleSheetDefinition,
+  templateSourcesById: Record<string, DraftingScheduleSheetTemplateSource | undefined>,
+) {
+  if (!definition.templateId) {
+    return null;
+  }
+
+  return templateSourcesById[definition.templateId] ?? null;
+}
+
+function applyDefinitionMetadata(
+  metadata: DraftingScheduleSheetMetadata,
+  sheetDefinition: DraftingScheduleSheetDefinition | null,
+): DraftingScheduleSheetMetadata {
+  if (!sheetDefinition) {
+    return metadata;
+  }
+
+  return {
+    ...metadata,
+    checkedBy: sheetDefinition.projectMetadata?.checkedBy ?? metadata.checkedBy,
+    issuePurpose: sheetDefinition.issuePurpose ?? metadata.issuePurpose,
+    preparedBy: sheetDefinition.projectMetadata?.preparedBy ?? metadata.preparedBy,
+    projectAddress: sheetDefinition.projectMetadata?.projectAddress ?? metadata.projectAddress,
+    projectCode: sheetDefinition.projectMetadata?.projectCode ?? metadata.projectCode,
+    projectName: sheetDefinition.projectMetadata?.projectName ?? metadata.projectName,
+    revision: sheetDefinition.revisionLabel ?? metadata.revision,
+    subtitle: metadata.subtitle ?? sheetDefinition.subtitle,
+    title: metadata.title ?? sheetDefinition.title,
+  };
+}
+
+function buildDraftingScheduleSheetRenderModelForGroups({
+  groups,
+  groupLabel,
+  metadata,
+  model,
+  sheetDefinition = null,
+  templateSource = null,
+}: {
+  groups: DraftingScheduleGroup[];
+  groupLabel: string;
+  metadata: DraftingScheduleSheetMetadata;
+  model: DraftingModel;
+  sheetDefinition?: DraftingScheduleSheetDefinition | null;
+  templateSource?: DraftingScheduleSheetTemplateSource | null;
+}): SharedSheetRenderModel {
+  const resolvedMetadata = applyDefinitionMetadata(metadata, sheetDefinition);
   const template = templateSource?.template ?? null;
   const baseRenderModel = template
     ? buildGenericTemplateSharedSheetRenderModel(template)
-    : buildDefaultScheduleSheetRenderModel(metadata, model, groupLabel);
+    : buildDefaultScheduleSheetRenderModel(resolvedMetadata, model, groupLabel, sheetDefinition);
   const definition = template
     ? adaptGenericTemplateToSharedDefinition(template)
     : baseRenderModel.definition;
   const scheduleRegion = resolveScheduleRegion(definition);
   const scheduleBlocks = buildScheduleTableBlocks({
-    groups: scheduleGroups,
+    density: sheetDefinition?.tableDensity ?? 'compact',
+    groups,
     region: scheduleRegion,
     startingOrder: scheduleRegion.order,
   });
@@ -90,9 +426,9 @@ export function buildDraftingScheduleSheetRenderModel({
   );
   const contentByBlockId = bindScheduleSheetContent({
     baseContentByBlockId: baseRenderModel.contentByBlockId,
-    groups: scheduleGroups,
+    groups,
     groupLabel,
-    metadata,
+    metadata: resolvedMetadata,
     model,
     objects: [...retainedObjects, ...scheduleBlocks],
     tableBlocks: scheduleBlocks,
@@ -103,7 +439,7 @@ export function buildDraftingScheduleSheetRenderModel({
     contentByBlockId,
     definition: {
       ...definition,
-      name: `${metadata.drawingTitle} Schedule Sheet`,
+      name: resolvedMetadata.title ?? `${resolvedMetadata.drawingTitle} Schedule Sheet`,
       objects: [...retainedObjects, ...scheduleBlocks],
     },
   };
@@ -120,14 +456,20 @@ function buildDefaultScheduleSheetRenderModel(
   metadata: DraftingScheduleSheetMetadata,
   model: DraftingModel,
   groupLabel: string,
+  sheetDefinition: DraftingScheduleSheetDefinition | null = null,
 ): SharedSheetRenderModel {
-  const safeArea = getTemplateSafeArea(DEFAULT_SHEET_PAPER_SIZE, DEFAULT_SHEET_ORIENTATION);
+  const paperSize = (sheetDefinition?.pageSize ?? DEFAULT_SHEET_PAPER_SIZE) as TemplatePaperSize;
+  const orientation = (sheetDefinition?.orientation ??
+    DEFAULT_SHEET_ORIENTATION) as TemplatePageOrientation;
+  const safeArea = getTemplateSafeArea(paperSize, orientation);
   const titleY = safeArea.y + safeArea.height - DEFAULT_TITLE_BLOCK_HEIGHT_MM;
   const tableY = safeArea.y + DEFAULT_DETAIL_BLOCK_HEIGHT_MM + DEFAULT_OBJECT_GAP_MM;
   const tableHeight = Math.max(80, titleY - tableY - DEFAULT_OBJECT_GAP_MM);
+  const title = metadata.title ?? sheetDefinition?.title ?? `${metadata.drawingTitle} Schedules`;
+  const subtitle = metadata.subtitle ?? sheetDefinition?.subtitle ?? groupLabel;
   const objects: SharedSheetBlockDefinition[] = [
     {
-      checkedBy: '',
+      checkedBy: metadata.checkedBy ?? '',
       generatedAtLabel: metadata.generatedAtLabel ?? '',
       height: DEFAULT_TITLE_BLOCK_HEIGHT_MM,
       id: 'drafting-schedule-title-block',
@@ -135,14 +477,15 @@ function buildDefaultScheduleSheetRenderModel(
       locked: true,
       name: 'Title Block',
       order: 10,
-      preparedBy: '',
+      preparedBy: metadata.preparedBy ?? '',
+      projectAddress: metadata.projectAddress,
       projectCode: metadata.projectCode,
       projectName: metadata.projectName,
       revision: metadata.revision ?? 'A',
       scaleLabel: 'NTS',
       sheetNumber: metadata.sheetNumber ?? 'D-SCH-001',
-      subtitle: groupLabel,
-      title: `${metadata.drawingTitle} Schedules`,
+      subtitle,
+      title,
       type: 'titleBlock',
       typography: createDefaultGenericTemplateTypography(),
       variant: 'as1100_drawing',
@@ -185,17 +528,17 @@ function buildDefaultScheduleSheetRenderModel(
   ];
   const definition: SharedSheetDefinition = {
     chromeStyle: createDefaultGenericTemplateChromeStyleForDocument({
-      orientation: DEFAULT_SHEET_ORIENTATION,
-      paperSize: DEFAULT_SHEET_PAPER_SIZE,
+      orientation,
+      paperSize,
       presetId: 'as1100_inspired',
     }),
     createdAt: '2026-04-22T00:00:00.000Z',
-    id: 'drafting-schedule-default-sheet',
+    id: sheetDefinition?.id ?? 'drafting-schedule-default-sheet',
     kind: 'shared_sheet',
-    name: `${metadata.drawingTitle} Schedule Sheet`,
+    name: title,
     objects,
-    orientation: DEFAULT_SHEET_ORIENTATION,
-    paperSize: DEFAULT_SHEET_PAPER_SIZE,
+    orientation,
+    paperSize,
     presetId: 'as1100_inspired',
     source: 'built_in_template_definition',
     updatedAt: '2026-04-22T00:00:00.000Z',
@@ -279,10 +622,12 @@ function retainTemplateObjectsForScheduleSheet(
 }
 
 function buildScheduleTableBlocks({
+  density,
   groups,
   region,
   startingOrder,
 }: {
+  density: DraftingScheduleSheetDefinition['tableDensity'];
   groups: DraftingScheduleGroup[];
   region: TemplateRectMm;
   startingOrder: number;
@@ -303,8 +648,8 @@ function buildScheduleTableBlocks({
         label: column.label,
         widthRatio: resolveScheduleColumnWidthRatio(column.key),
       })),
-      contentScale: groups.length > 1 ? 0.72 : 0.86,
-      density: 'compact',
+      contentScale: resolveScheduleContentScale(density, groups.length),
+      density,
       height: blockHeight,
       id: `drafting-schedule-table-${group.key}`,
       lineStyle: {
@@ -355,15 +700,18 @@ function bindScheduleSheetContent({
       const titleBlockContent = baseContent?.type === 'titleBlock' ? baseContent : undefined;
       contentByBlockId[object.id] = {
         ...titleBlockContent,
+        checkedBy: metadata.checkedBy ?? titleBlockContent?.checkedBy,
         generatedAtLabel: metadata.generatedAtLabel ?? titleBlockContent?.generatedAtLabel,
+        preparedBy: metadata.preparedBy ?? titleBlockContent?.preparedBy,
+        projectAddress: metadata.projectAddress ?? titleBlockContent?.projectAddress,
         projectCode: metadata.projectCode || titleBlockContent?.projectCode,
         projectName: metadata.projectName || titleBlockContent?.projectName,
         revision: metadata.revision ?? titleBlockContent?.revision ?? 'A',
         scaleLabel: 'NTS',
         sheetModeLabel: 'Drafting schedules',
         sheetNumber: metadata.sheetNumber ?? titleBlockContent?.sheetNumber ?? 'D-SCH-001',
-        sheetTitle: `${metadata.drawingTitle} Schedules`,
-        subtitle: groupLabel,
+        sheetTitle: metadata.title ?? `${metadata.drawingTitle} Schedules`,
+        subtitle: metadata.subtitle ?? groupLabel,
         type: 'titleBlock',
       };
     }
@@ -417,7 +765,7 @@ function buildMetadataRows({
   model: DraftingModel;
   templateLabel: string;
 }) {
-  return [
+  const rows = [
     { id: 'project', label: 'Project', value: metadata.projectName },
     { id: 'drawing', label: 'Drawing', value: metadata.drawingTitle },
     { id: 'drawing-id', label: 'Drawing ID', value: metadata.drawingId },
@@ -428,6 +776,24 @@ function buildMetadataRows({
     { id: 'units', label: 'Units', value: model.units },
     { id: 'template', label: 'Template', value: templateLabel },
   ];
+
+  if (metadata.pageNumber && metadata.pageCount) {
+    rows.splice(5, 0, {
+      id: 'page',
+      label: 'Page',
+      value: `${metadata.pageNumber} of ${metadata.pageCount}`,
+    });
+  }
+
+  if (metadata.issuePurpose) {
+    rows.splice(6, 0, {
+      id: 'issue-purpose',
+      label: 'Issue Purpose',
+      value: metadata.issuePurpose,
+    });
+  }
+
+  return rows;
 }
 
 function buildScheduleTableContent(group: DraftingScheduleGroup): SharedSheetTableBlockContent {
@@ -442,6 +808,17 @@ function buildScheduleTableContent(group: DraftingScheduleGroup): SharedSheetTab
     title: group.title,
     type: 'tableBlock',
   };
+}
+
+function resolveScheduleContentScale(
+  density: DraftingScheduleSheetDefinition['tableDensity'],
+  groupCount: number,
+) {
+  if (density === 'normal') {
+    return groupCount > 1 ? 0.78 : 0.94;
+  }
+
+  return groupCount > 1 ? 0.72 : 0.86;
 }
 
 function resolveScheduleColumnWidthRatio(columnKey: string) {

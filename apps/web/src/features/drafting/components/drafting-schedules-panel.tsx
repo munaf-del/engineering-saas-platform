@@ -1,8 +1,11 @@
 import * as React from 'react';
-import type { DraftingModel } from '@eng/shared';
-import { Download } from 'lucide-react';
+import Link from 'next/link';
+import type { DraftingModel, DraftingScheduleSheetDefinition } from '@eng/shared';
+import { ArrowDown, ArrowUp, Copy, Download, ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -18,26 +21,131 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
+import { coerceRootSheetTemplateDocument } from '@/features/templates/root-sheet-template-types';
+import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
 import type { DraftingScheduleGroupKey } from '../schedules/drafting-schedule-types';
 import {
   DRAFTING_SCHEDULE_GROUP_DEFINITIONS,
   buildDraftingScheduleSummary,
   getDraftingScheduleGroup,
 } from '../schedules/drafting-schedule-utils';
+import {
+  addScheduleSheetDefinition,
+  createDraftingScheduleSheetDefinition,
+  deleteScheduleSheetDefinition,
+  duplicateScheduleSheetDefinition,
+  getOrderedScheduleSheetDefinitions,
+  reorderScheduleSheetDefinition,
+  setScheduleSheetGroupIncluded,
+  updateScheduleSheetDefinition,
+} from '../schedules/drafting-schedule-sheet-definition-utils';
+
+const DEFAULT_TEMPLATE_VALUE = 'default';
 
 export function DraftingSchedulesPanel({
   model,
   onExportAllJson,
   onExportGroupCsv,
+  onExportPackJson,
+  onModelChange,
+  projectId,
 }: {
   model: DraftingModel;
   onExportAllJson: () => void;
   onExportGroupCsv: (groupKey: DraftingScheduleGroupKey) => void;
+  onExportPackJson: () => void;
+  onModelChange: (model: DraftingModel) => void;
+  projectId: string;
 }) {
   const [activeGroupKey, setActiveGroupKey] =
     React.useState<DraftingScheduleGroupKey>('shoring_piles');
+  const [activeSheetId, setActiveSheetId] = React.useState<string | null>(
+    model.scheduleSheets?.[0]?.id ?? null,
+  );
   const summary = React.useMemo(() => buildDraftingScheduleSummary(model), [model]);
   const activeGroup = getDraftingScheduleGroup(summary, activeGroupKey);
+  const orderedSheets = React.useMemo(() => getOrderedScheduleSheetDefinitions(model), [model]);
+  const activeSheet =
+    orderedSheets.find((sheet) => sheet.id === activeSheetId) ?? orderedSheets[0] ?? null;
+  const activeSheetIndex = activeSheet
+    ? orderedSheets.findIndex((sheet) => sheet.id === activeSheet.id)
+    : -1;
+  const { data: rootTemplates = [] } = useRootSheetTemplates();
+  const templateOptions = React.useMemo(
+    () =>
+      rootTemplates
+        .map((template) => {
+          const document = coerceRootSheetTemplateDocument(template);
+          if (!document || !template.currentVersion) {
+            return null;
+          }
+
+          return {
+            label: `${formatOperatorFacingSheetLabel(template.label)} - ${document.paperSize.toUpperCase()} ${document.orientation}`,
+            value: template.id,
+          };
+        })
+        .filter((option): option is NonNullable<typeof option> => option !== null),
+    [rootTemplates],
+  );
+
+  React.useEffect(() => {
+    if (activeSheetId && orderedSheets.some((sheet) => sheet.id === activeSheetId)) {
+      return;
+    }
+
+    setActiveSheetId(orderedSheets[0]?.id ?? null);
+  }, [activeSheetId, orderedSheets]);
+
+  function handleCreateSheet() {
+    const nextName = `Schedule Sheet ${orderedSheets.length + 1}`;
+    const definition = createDraftingScheduleSheetDefinition({
+      id: crypto.randomUUID(),
+      name: nextName,
+      pageOrder: orderedSheets.length + 1,
+      title: nextName,
+    });
+
+    setActiveSheetId(definition.id);
+    onModelChange(addScheduleSheetDefinition(model, definition));
+  }
+
+  function handleDuplicateSheet() {
+    if (!activeSheet) {
+      return;
+    }
+
+    const nextId = crypto.randomUUID();
+    setActiveSheetId(nextId);
+    onModelChange(duplicateScheduleSheetDefinition(model, activeSheet.id, nextId));
+  }
+
+  function handleDeleteSheet() {
+    if (!activeSheet) {
+      return;
+    }
+
+    const nextModel = deleteScheduleSheetDefinition(model, activeSheet.id);
+    setActiveSheetId(nextModel.scheduleSheets[0]?.id ?? null);
+    onModelChange(nextModel);
+  }
+
+  function handleReorderSheet(direction: 'down' | 'up') {
+    if (!activeSheet) {
+      return;
+    }
+
+    onModelChange(reorderScheduleSheetDefinition(model, activeSheet.id, direction));
+  }
+
+  function handleUpdateSheet(patch: Partial<DraftingScheduleSheetDefinition>) {
+    if (!activeSheet) {
+      return;
+    }
+
+    onModelChange(updateScheduleSheetDefinition(model, activeSheet.id, patch));
+  }
 
   return (
     <div className="space-y-4">
@@ -49,6 +157,258 @@ export function DraftingSchedulesPanel({
             </Badge>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-3 rounded-md border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">Sheet Definitions</h3>
+            <p className="text-xs text-muted-foreground">
+              {orderedSheets.length} saved schedule sheet{orderedSheets.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          <Button className="gap-2" onClick={handleCreateSheet} size="sm" type="button">
+            <Plus className="h-4 w-4" />
+            Add
+          </Button>
+        </div>
+
+        {activeSheet ? (
+          <div className="space-y-3">
+            <Select value={activeSheet.id} onValueChange={setActiveSheetId}>
+              <SelectTrigger aria-label="Saved schedule sheet definition">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {orderedSheets.map((sheet) => (
+                  <SelectItem key={sheet.id} value={sheet.id}>
+                    {sheet.pageOrder}. {sheet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                aria-label="Move sheet definition up"
+                disabled={activeSheetIndex <= 0}
+                onClick={() => handleReorderSheet('up')}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <Button
+                aria-label="Move sheet definition down"
+                disabled={activeSheetIndex === -1 || activeSheetIndex >= orderedSheets.length - 1}
+                onClick={() => handleReorderSheet('down')}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+              <Button
+                aria-label="Duplicate sheet definition"
+                onClick={handleDuplicateSheet}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                aria-label="Delete sheet definition"
+                onClick={handleDeleteSheet}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid gap-3">
+              <LabeledInput
+                id="schedule-sheet-name"
+                label="Name"
+                onChange={(value) =>
+                  handleUpdateSheet({
+                    name: value,
+                    title: activeSheet.title || value,
+                  })
+                }
+                value={activeSheet.name}
+              />
+              <LabeledInput
+                id="schedule-sheet-title"
+                label="Title"
+                onChange={(value) => handleUpdateSheet({ title: value || activeSheet.name })}
+                value={activeSheet.title}
+              />
+              <LabeledInput
+                id="schedule-sheet-subtitle"
+                label="Subtitle"
+                onChange={(value) => handleUpdateSheet({ subtitle: value || undefined })}
+                value={activeSheet.subtitle ?? ''}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <LabeledInput
+                  id="schedule-sheet-revision"
+                  label="Revision"
+                  onChange={(value) => handleUpdateSheet({ revisionLabel: value || undefined })}
+                  value={activeSheet.revisionLabel ?? ''}
+                />
+                <LabeledInput
+                  id="schedule-sheet-purpose"
+                  label="Issue Purpose"
+                  onChange={(value) => handleUpdateSheet({ issuePurpose: value || undefined })}
+                  value={activeSheet.issuePurpose ?? ''}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <LabeledSelect
+                label="Template"
+                onValueChange={(value) =>
+                  handleUpdateSheet({
+                    templateId: value === DEFAULT_TEMPLATE_VALUE ? null : value,
+                  })
+                }
+                value={activeSheet.templateId ?? DEFAULT_TEMPLATE_VALUE}
+              >
+                <SelectItem value={DEFAULT_TEMPLATE_VALUE}>Default layout</SelectItem>
+                {templateOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </LabeledSelect>
+
+              <LabeledSelect
+                label="Page Size"
+                onValueChange={(value) =>
+                  handleUpdateSheet({
+                    pageSize: value as DraftingScheduleSheetDefinition['pageSize'],
+                  })
+                }
+                value={activeSheet.pageSize}
+              >
+                {(['a4', 'a3', 'a2', 'a1', 'a0'] as const).map((pageSize) => (
+                  <SelectItem key={pageSize} value={pageSize}>
+                    {pageSize.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </LabeledSelect>
+
+              <LabeledSelect
+                label="Orientation"
+                onValueChange={(value) =>
+                  handleUpdateSheet({
+                    orientation: value as DraftingScheduleSheetDefinition['orientation'],
+                  })
+                }
+                value={activeSheet.orientation}
+              >
+                <SelectItem value="landscape">Landscape</SelectItem>
+                <SelectItem value="portrait">Portrait</SelectItem>
+              </LabeledSelect>
+
+              <LabeledSelect
+                label="Density"
+                onValueChange={(value) =>
+                  handleUpdateSheet({
+                    tableDensity: value as DraftingScheduleSheetDefinition['tableDensity'],
+                  })
+                }
+                value={activeSheet.tableDensity}
+              >
+                <SelectItem value="compact">Compact</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+              </LabeledSelect>
+            </div>
+
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium uppercase text-muted-foreground">
+                Included Groups
+              </legend>
+              <div className="grid gap-2">
+                {DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => {
+                  const inputId = `schedule-sheet-${activeSheet.id}-${group.key}`;
+
+                  return (
+                    <label
+                      key={group.key}
+                      className="flex items-start gap-2 rounded border px-2 py-1.5 text-xs"
+                      htmlFor={inputId}
+                    >
+                      <input
+                        checked={activeSheet.includedScheduleGroups.includes(group.key)}
+                        className="mt-0.5"
+                        id={inputId}
+                        onChange={(event) =>
+                          onModelChange(
+                            setScheduleSheetGroupIncluded(
+                              model,
+                              activeSheet.id,
+                              group.key,
+                              event.target.checked,
+                            ),
+                          )
+                        }
+                        type="checkbox"
+                      />
+                      <span>
+                        <span className="font-medium">{group.title}</span>
+                        <span className="ml-1 text-muted-foreground">
+                          ({summary.counts[group.key]})
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                href={`/projects/${projectId}/drafting/${model.drawingId}/schedules/preview?sheetId=${activeSheet.id}`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Sheet
+              </Link>
+              <Link
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                href={`/projects/${projectId}/drafting/${model.drawingId}/schedules/preview?mode=pack`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Pack
+              </Link>
+              <Button
+                className="gap-2"
+                disabled={orderedSheets.length === 0}
+                onClick={onExportPackJson}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Download className="h-4 w-4" />
+                Pack JSON
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+            No saved schedule sheet definitions.
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-md border p-3">
@@ -125,6 +485,51 @@ export function DraftingSchedulesPanel({
           </Table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LabeledInput({
+  id,
+  label,
+  onChange,
+  value,
+}: {
+  id: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs" htmlFor={id}>
+        {label}
+      </Label>
+      <Input id={id} onChange={(event) => onChange(event.target.value)} value={value} />
+    </div>
+  );
+}
+
+function LabeledSelect({
+  children,
+  label,
+  onValueChange,
+  value,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onValueChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>{children}</SelectContent>
+      </Select>
     </div>
   );
 }

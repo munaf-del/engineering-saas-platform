@@ -5,8 +5,11 @@ import type { SharedSheetBlockContent } from '@/features/templates/core/shared-s
 import { createDraftingObject } from '../model-utils';
 import {
   DRAFTING_SCHEDULE_ALL_GROUPS,
+  buildDraftingScheduleSheetPack,
   buildDraftingScheduleSheetRenderModel,
+  serializeDraftingScheduleSheetPackJson,
 } from './drafting-schedule-sheet';
+import { createDraftingScheduleSheetDefinition } from './drafting-schedule-sheet-definition-utils';
 
 describe('drafting schedule sheet render model', () => {
   it('renders the selected schedule group as a plotted table block', () => {
@@ -143,6 +146,91 @@ describe('drafting schedule sheet render model', () => {
       ),
     ).toBe(true);
   });
+
+  it('paginates a long saved schedule definition into multiple printable pages', () => {
+    const definition = createDraftingScheduleSheetDefinition({
+      id: 'sheet-piles',
+      includedScheduleGroups: ['shoring_piles'],
+      name: 'Pile Schedule',
+      title: 'Pile Schedule',
+    });
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [definition],
+      metadata: metadata(),
+      model: modelWithManyPiles(40),
+    });
+    const firstPageContent =
+      pack.pages[0]?.renderModel.contentByBlockId['drafting-schedule-table-shoring_piles'];
+    const secondPageContent = JSON.stringify(pack.pages[1]?.renderModel.contentByBlockId);
+
+    expect(pack.pages.length).toBeGreaterThan(1);
+    expect(pack.pages.every((page) => page.groupKeys[0] === 'shoring_piles')).toBe(true);
+    expect(firstPageContent).toMatchObject({
+      title: 'Shoring / Pile Schedule (1 of 2)',
+      type: 'tableBlock',
+    });
+    expect(secondPageContent).toContain('Page');
+    expect(secondPageContent).toContain('2 of 2');
+  });
+
+  it('generates a multi-definition schedule pack without embedding underlay payloads', () => {
+    const model = modelWith(['pile', 'anchor_tieback', 'borehole']);
+    model.underlays.push({
+      id: 'underlay-pack',
+      name: 'Pack underlay',
+      fileId: 'pdf-file-pack',
+      fileName: 'pack.pdf',
+      pageNumber: 1,
+      visible: true,
+      opacity: 0.65,
+      locked: false,
+      transform: { x: 0, y: 0, scale: 1, rotationDeg: 0 },
+      crop: null,
+      calibration: null,
+      createdAt: '2026-04-22T00:00:00.000Z',
+      updatedAt: '2026-04-22T00:00:00.000Z',
+    });
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [
+        createDraftingScheduleSheetDefinition({
+          id: 'sheet-shoring',
+          includedScheduleGroups: ['shoring_piles', 'anchors'],
+          name: 'Shoring Pack',
+        }),
+        createDraftingScheduleSheetDefinition({
+          id: 'sheet-boreholes',
+          includedScheduleGroups: ['boreholes'],
+          name: 'Borehole Pack',
+          pageOrder: 2,
+        }),
+      ],
+      metadata: metadata(),
+      model,
+    });
+    const exported = serializeDraftingScheduleSheetPackJson(pack);
+
+    expect(pack.pages.map((page) => page.definition.id)).toEqual([
+      'sheet-shoring',
+      'sheet-shoring',
+      'sheet-boreholes',
+    ]);
+    expect(pack.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3]);
+    expect(exported).toContain('"pageCount": 3');
+    expect(exported).not.toContain('pdf-file-pack');
+    expect(exported).not.toContain('data:application/pdf');
+    expect(exported).not.toContain('"buffer"');
+  });
+
+  it('returns an empty printable pack for an empty sheet definition list', () => {
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [],
+      metadata: metadata(),
+      model: createEmptyDraftingModel('drawing-empty-pack'),
+    });
+
+    expect(pack.definitions).toEqual([]);
+    expect(pack.pages).toEqual([]);
+  });
 });
 
 function modelWith(types: Parameters<typeof createDraftingObject>[0][]): DraftingModel {
@@ -150,6 +238,16 @@ function modelWith(types: Parameters<typeof createDraftingObject>[0][]): Draftin
   model.objects = types.map((type, index) =>
     createDraftingObject(type, { x: 1000 + index * 500, y: 2000 + index * 500 }, model),
   );
+  return model;
+}
+
+function modelWithManyPiles(count: number): DraftingModel {
+  const model = createEmptyDraftingModel('drawing-schedules');
+
+  for (let index = 0; index < count; index += 1) {
+    model.objects.push(createDraftingObject('pile', { x: index * 500, y: 2000 }, model));
+  }
+
   return model;
 }
 

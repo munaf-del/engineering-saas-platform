@@ -123,12 +123,7 @@ export const DRAFTING_SERVICE_TYPES = [
   'comms',
   'unknown',
 ] as const;
-export const DRAFTING_SERVICE_STATUSES = [
-  'existing',
-  'proposed',
-  'abandoned',
-  'unknown',
-] as const;
+export const DRAFTING_SERVICE_STATUSES = ['existing', 'proposed', 'abandoned', 'unknown'] as const;
 export const DRAFTING_SERVICE_CONFLICT_TYPES = [
   'crosses_wall',
   'crosses_anchor',
@@ -214,6 +209,41 @@ export type DraftingUnderlay = {
   calibration?: DraftingUnderlayCalibration | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export const DRAFTING_SCHEDULE_SHEET_PAGE_SIZES = ['a4', 'a3', 'a2', 'a1', 'a0'] as const;
+export type DraftingScheduleSheetPageSize = (typeof DRAFTING_SCHEDULE_SHEET_PAGE_SIZES)[number];
+
+export const DRAFTING_SCHEDULE_SHEET_ORIENTATIONS = ['portrait', 'landscape'] as const;
+export type DraftingScheduleSheetOrientation =
+  (typeof DRAFTING_SCHEDULE_SHEET_ORIENTATIONS)[number];
+
+export const DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES = ['normal', 'compact'] as const;
+export type DraftingScheduleSheetTableDensity =
+  (typeof DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES)[number];
+
+export type DraftingScheduleSheetProjectMetadataOverrides = {
+  checkedBy?: string;
+  preparedBy?: string;
+  projectAddress?: string;
+  projectCode?: string;
+  projectName?: string;
+};
+
+export type DraftingScheduleSheetDefinition = {
+  id: string;
+  name: string;
+  templateId?: string | null;
+  pageSize: DraftingScheduleSheetPageSize;
+  orientation: DraftingScheduleSheetOrientation;
+  includedScheduleGroups: string[];
+  title: string;
+  subtitle?: string;
+  revisionLabel?: string;
+  issuePurpose?: string;
+  projectMetadata?: DraftingScheduleSheetProjectMetadataOverrides;
+  tableDensity: DraftingScheduleSheetTableDensity;
+  pageOrder: number;
 };
 
 export type DraftingObjectBase = {
@@ -538,6 +568,7 @@ export type DraftingModel = {
   layers: DraftingLayer[];
   underlays: DraftingUnderlay[];
   objects: DraftingObject[];
+  scheduleSheets: DraftingScheduleSheetDefinition[];
 };
 
 export interface DraftingDrawingSummary {
@@ -706,6 +737,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
   return {
     ...model,
     layers: [...orderedLayers, ...extraLayers],
+    scheduleSheets: model.scheduleSheets ?? [],
   };
 }
 
@@ -722,6 +754,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     layers: createDefaultDraftingLayers(),
     underlays: [],
     objects: [],
+    scheduleSheets: [],
   });
 }
 

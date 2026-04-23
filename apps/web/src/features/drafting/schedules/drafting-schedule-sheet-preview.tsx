@@ -21,22 +21,35 @@ import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-displ
 import { SharedSheetRenderer } from '@/features/templates/components/shared-sheet-renderer';
 import {
   DRAFTING_SCHEDULE_ALL_GROUPS,
+  buildDraftingScheduleSheetPack,
   buildDraftingScheduleSheetRenderModel,
   getDraftingScheduleSheetPaper,
   type DraftingScheduleSheetGroupSelection,
+  type DraftingScheduleSheetMetadata,
+  type DraftingScheduleSheetPack,
   type DraftingScheduleSheetTemplateSource,
 } from './drafting-schedule-sheet';
+import {
+  createDraftingScheduleSheetDefinition,
+  getOrderedScheduleSheetDefinitions,
+} from './drafting-schedule-sheet-definition-utils';
 import { DRAFTING_SCHEDULE_GROUP_DEFINITIONS } from './drafting-schedule-utils';
 import { formatDrawingRevision, formatDraftingTimestamp } from '../model-utils';
 
 const DEFAULT_TEMPLATE_VALUE = 'default';
 
+export type DraftingSchedulePreviewMode = 'legacy' | 'pack' | 'sheet';
+
 export function DraftingScheduleSheetPreviewPage({
   drawingId,
+  initialMode = 'legacy',
+  initialSheetId,
   project,
   projectId,
 }: {
   drawingId: string;
+  initialMode?: DraftingSchedulePreviewMode;
+  initialSheetId?: string;
   project: Project;
   projectId: string;
 }) {
@@ -46,6 +59,8 @@ export function DraftingScheduleSheetPreviewPage({
     DRAFTING_SCHEDULE_ALL_GROUPS,
   );
   const [templateValue, setTemplateValue] = React.useState(DEFAULT_TEMPLATE_VALUE);
+  const [previewMode, setPreviewMode] = React.useState<DraftingSchedulePreviewMode>(initialMode);
+  const [selectedSheetId, setSelectedSheetId] = React.useState(initialSheetId ?? '');
   const templateOptions = React.useMemo(
     () =>
       rootTemplates
@@ -56,7 +71,7 @@ export function DraftingScheduleSheetPreviewPage({
           }
 
           return {
-            label: `${formatOperatorFacingSheetLabel(template.label)} · ${document.paperSize.toUpperCase()} ${document.orientation}`,
+            label: `${formatOperatorFacingSheetLabel(template.label)} - ${document.paperSize.toUpperCase()} ${document.orientation}`,
             source: {
               label: formatOperatorFacingSheetLabel(template.label),
               template: document,
@@ -92,9 +107,13 @@ export function DraftingScheduleSheetPreviewPage({
       drawing={drawing}
       groupSelection={groupSelection}
       onGroupSelectionChange={setGroupSelection}
+      onModeChange={setPreviewMode}
+      onSelectedSheetIdChange={setSelectedSheetId}
       onTemplateValueChange={setTemplateValue}
+      previewMode={previewMode}
       project={project}
       projectId={projectId}
+      selectedSheetId={selectedSheetId}
       selectedTemplateSource={selectedTemplateSource}
       templateOptions={templateOptions}
       templateValue={templateValue}
@@ -106,9 +125,13 @@ export function DraftingScheduleSheetPreview({
   drawing,
   groupSelection,
   onGroupSelectionChange,
+  onModeChange,
+  onSelectedSheetIdChange,
   onTemplateValueChange,
+  previewMode,
   project,
   projectId,
+  selectedSheetId,
   selectedTemplateSource,
   templateOptions,
   templateValue,
@@ -116,9 +139,13 @@ export function DraftingScheduleSheetPreview({
   drawing: DraftingDrawing;
   groupSelection: DraftingScheduleSheetGroupSelection;
   onGroupSelectionChange: (selection: DraftingScheduleSheetGroupSelection) => void;
+  onModeChange: (mode: DraftingSchedulePreviewMode) => void;
+  onSelectedSheetIdChange: (sheetId: string) => void;
   onTemplateValueChange: (value: string) => void;
+  previewMode: DraftingSchedulePreviewMode;
   project: Project;
   projectId: string;
+  selectedSheetId: string;
   selectedTemplateSource: DraftingScheduleSheetTemplateSource;
   templateOptions: Array<{
     label: string;
@@ -127,29 +154,79 @@ export function DraftingScheduleSheetPreview({
   }>;
   templateValue: string;
 }) {
-  const renderModel = React.useMemo(
-    () =>
-      buildDraftingScheduleSheetRenderModel({
-        groupSelection,
-        metadata: {
-          drawingId: drawing.id,
-          drawingStatus: drawing.status,
-          drawingTitle: drawing.title,
-          generatedAtLabel: `Updated ${formatDraftingTimestamp(drawing.updatedAt)}`,
-          projectCode: project.code,
-          projectName: project.name,
-          revision: formatDrawingRevision(drawing),
-        },
-        model: drawing.model,
-        templateSource: selectedTemplateSource,
-      }),
-    [drawing, groupSelection, project.code, project.name, selectedTemplateSource],
+  const savedDefinitions = React.useMemo(
+    () => getOrderedScheduleSheetDefinitions(drawing.model),
+    [drawing.model],
   );
-  const paper = getDraftingScheduleSheetPaper(renderModel);
+  const selectedDefinition =
+    savedDefinitions.find((definition) => definition.id === selectedSheetId) ??
+    savedDefinitions[0] ??
+    null;
+  const templateSourcesById = React.useMemo(
+    () =>
+      Object.fromEntries(
+        templateOptions.map((option) => [option.value, option.source] as const),
+      ) as Record<string, DraftingScheduleSheetTemplateSource>,
+    [templateOptions],
+  );
+  const metadata = React.useMemo<DraftingScheduleSheetMetadata>(
+    () => ({
+      drawingId: drawing.id,
+      drawingStatus: drawing.status,
+      drawingTitle: drawing.title,
+      generatedAtLabel: `Updated ${formatDraftingTimestamp(drawing.updatedAt)}`,
+      projectCode: project.code,
+      projectName: project.name,
+      revision: formatDrawingRevision(drawing),
+    }),
+    [drawing, project.code, project.name],
+  );
+  const pack = React.useMemo(
+    () =>
+      buildDraftingScheduleSheetPack({
+        definitions: resolvePreviewDefinitions({
+          drawing,
+          groupSelection,
+          previewMode,
+          selectedDefinition,
+          selectedTemplateSource,
+          templateValue,
+        }),
+        metadata,
+        model: drawing.model,
+        templateSourcesById,
+      }),
+    [
+      drawing,
+      groupSelection,
+      metadata,
+      previewMode,
+      selectedDefinition,
+      selectedTemplateSource,
+      templateSourcesById,
+      templateValue,
+    ],
+  );
+  const firstPaper = pack.pages[0]
+    ? getDraftingScheduleSheetPaper(pack.pages[0].renderModel)
+    : null;
   const activeGroupCount =
-    groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
-      ? DRAFTING_SCHEDULE_GROUP_DEFINITIONS.length
-      : 1;
+    previewMode === 'legacy'
+      ? groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
+        ? DRAFTING_SCHEDULE_GROUP_DEFINITIONS.length
+        : 1
+      : pack.definitions.reduce(
+          (total, definition) => total + definition.includedScheduleGroups.length,
+          0,
+        );
+
+  React.useEffect(() => {
+    if (previewMode !== 'sheet' || selectedSheetId || !selectedDefinition) {
+      return;
+    }
+
+    onSelectedSheetIdChange(selectedDefinition.id);
+  }, [onSelectedSheetIdChange, previewMode, selectedDefinition, selectedSheetId]);
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 print:max-w-none print:space-y-0">
@@ -165,49 +242,91 @@ export function DraftingScheduleSheetPreview({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">Schedule Sheet Preview</h1>
-              <Badge variant="secondary">{paper.paperSize.toUpperCase()}</Badge>
-              <Badge variant="outline">{paper.orientation}</Badge>
+              {firstPaper ? (
+                <>
+                  <Badge variant="secondary">{firstPaper.paperSize.toUpperCase()}</Badge>
+                  <Badge variant="outline">{firstPaper.orientation}</Badge>
+                </>
+              ) : null}
               <Badge variant="outline">{activeGroupCount} group(s)</Badge>
+              <Badge variant="outline">{pack.pages.length} page(s)</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {project.code} · {drawing.title} · {selectedTemplateSource.label}
+              {project.code} - {drawing.title} - {previewLabel(previewMode, selectedDefinition)}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Select
-            value={groupSelection}
-            onValueChange={(value) =>
-              onGroupSelectionChange(value as DraftingScheduleSheetGroupSelection)
-            }
+            value={previewMode}
+            onValueChange={(value) => onModeChange(value as DraftingSchedulePreviewMode)}
           >
-            <SelectTrigger className="w-[240px]" aria-label="Schedule group">
+            <SelectTrigger className="w-[180px]" aria-label="Preview mode">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={DRAFTING_SCHEDULE_ALL_GROUPS}>All schedule groups</SelectItem>
-              {DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => (
-                <SelectItem key={group.key} value={group.key}>
-                  {group.title}
-                </SelectItem>
-              ))}
+              <SelectItem value="legacy">Ad hoc</SelectItem>
+              <SelectItem value="sheet">Saved sheet</SelectItem>
+              <SelectItem value="pack">Saved pack</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={templateValue} onValueChange={onTemplateValueChange}>
-            <SelectTrigger className="w-[280px]" aria-label="Sheet template">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={DEFAULT_TEMPLATE_VALUE}>Default A3 schedule sheet</SelectItem>
-              {templateOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {previewMode === 'legacy' ? (
+            <>
+              <Select
+                value={groupSelection}
+                onValueChange={(value) =>
+                  onGroupSelectionChange(value as DraftingScheduleSheetGroupSelection)
+                }
+              >
+                <SelectTrigger className="w-[240px]" aria-label="Schedule group">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DRAFTING_SCHEDULE_ALL_GROUPS}>All schedule groups</SelectItem>
+                  {DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => (
+                    <SelectItem key={group.key} value={group.key}>
+                      {group.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={templateValue} onValueChange={onTemplateValueChange}>
+                <SelectTrigger className="w-[280px]" aria-label="Sheet template">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_TEMPLATE_VALUE}>Default A3 schedule sheet</SelectItem>
+                  {templateOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : null}
+
+          {previewMode === 'sheet' ? (
+            <Select
+              disabled={savedDefinitions.length === 0}
+              value={selectedDefinition?.id ?? ''}
+              onValueChange={onSelectedSheetIdChange}
+            >
+              <SelectTrigger className="w-[260px]" aria-label="Saved sheet definition">
+                <SelectValue placeholder="No saved definitions" />
+              </SelectTrigger>
+              <SelectContent>
+                {savedDefinitions.map((definition) => (
+                  <SelectItem key={definition.id} value={definition.id}>
+                    {definition.pageOrder}. {definition.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
 
           <Link
             href={`/projects/${projectId}/drafting/${drawing.id}`}
@@ -215,7 +334,7 @@ export function DraftingScheduleSheetPreview({
           >
             Editor
           </Link>
-          <Button type="button" onClick={() => window.print()}>
+          <Button disabled={pack.pages.length === 0} type="button" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
             Print / Save PDF
           </Button>
@@ -223,14 +342,37 @@ export function DraftingScheduleSheetPreview({
       </div>
 
       <div className="overflow-auto rounded-md border bg-slate-100 p-6 print:overflow-visible print:rounded-none print:border-0 print:bg-white print:p-0">
-        <div
-          className="package-print-page"
-          data-print-orientation={paper.orientation}
-          data-print-page-size={paper.paperSize}
-        >
-          <DraftingScheduleSheet renderModel={renderModel} />
-        </div>
+        {pack.pages.length > 0 ? (
+          <DraftingScheduleSheetPackPreview pack={pack} />
+        ) : (
+          <div className="rounded-md border border-dashed bg-white px-6 py-12 text-center text-sm text-muted-foreground print:hidden">
+            No saved schedule sheet definitions are available for this preview mode.
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+export function DraftingScheduleSheetPackPreview({ pack }: { pack: DraftingScheduleSheetPack }) {
+  return (
+    <div className="space-y-6 print:space-y-0" data-testid="drafting-schedule-pack-preview">
+      {pack.pages.map((page) => {
+        const paper = getDraftingScheduleSheetPaper(page.renderModel);
+
+        return (
+          <div
+            className="package-print-page"
+            data-definition-id={page.definition.id}
+            data-page-number={page.pageNumber}
+            data-print-orientation={paper.orientation}
+            data-print-page-size={paper.paperSize}
+            key={page.id}
+          >
+            <DraftingScheduleSheet renderModel={page.renderModel} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -241,4 +383,63 @@ export function DraftingScheduleSheet({
   renderModel: ReturnType<typeof buildDraftingScheduleSheetRenderModel>;
 }) {
   return <SharedSheetRenderer model={renderModel} previewMode showDesignerChrome={false} />;
+}
+
+function resolvePreviewDefinitions({
+  drawing,
+  groupSelection,
+  previewMode,
+  selectedDefinition,
+  selectedTemplateSource,
+  templateValue,
+}: {
+  drawing: DraftingDrawing;
+  groupSelection: DraftingScheduleSheetGroupSelection;
+  previewMode: DraftingSchedulePreviewMode;
+  selectedDefinition: DraftingScheduleSheetPack['definitions'][number] | null;
+  selectedTemplateSource: DraftingScheduleSheetTemplateSource;
+  templateValue: string;
+}) {
+  if (previewMode === 'pack') {
+    return getOrderedScheduleSheetDefinitions(drawing.model);
+  }
+
+  if (previewMode === 'sheet') {
+    return selectedDefinition ? [selectedDefinition] : [];
+  }
+
+  const includedScheduleGroups =
+    groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
+      ? DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => group.key)
+      : [groupSelection];
+  const template = selectedTemplateSource.template;
+
+  return [
+    {
+      ...createDraftingScheduleSheetDefinition({
+        id: 'ad-hoc-schedule-preview',
+        includedScheduleGroups,
+        name: 'Ad hoc schedule preview',
+        title: `${drawing.title} Schedules`,
+      }),
+      orientation: template?.orientation ?? 'landscape',
+      pageSize: template?.paperSize ?? 'a3',
+      templateId: templateValue === DEFAULT_TEMPLATE_VALUE ? null : templateValue,
+    },
+  ];
+}
+
+function previewLabel(
+  previewMode: DraftingSchedulePreviewMode,
+  selectedDefinition: DraftingScheduleSheetPack['definitions'][number] | null,
+) {
+  if (previewMode === 'pack') {
+    return 'Saved schedule pack';
+  }
+
+  if (previewMode === 'sheet') {
+    return selectedDefinition?.name ?? 'Saved schedule sheet';
+  }
+
+  return 'Ad hoc schedule sheet';
 }
