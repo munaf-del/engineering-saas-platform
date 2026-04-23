@@ -6,6 +6,7 @@ import {
   deleteScheduleSheetDefinition,
   duplicateScheduleSheetDefinition,
   getOrderedScheduleSheetDefinitions,
+  getScheduleSheetRootTemplateId,
   reorderScheduleSheetDefinition,
   setScheduleSheetGroupIncluded,
   updateScheduleSheetDefinition,
@@ -24,6 +25,8 @@ describe('drafting schedule sheet definition utils', () => {
       name: 'Coordination Schedule',
       pageSize: 'a3',
       orientation: 'landscape',
+      rootSheetTemplateId: null,
+      templateId: null,
       tableDensity: 'compact',
       pageOrder: 2,
     });
@@ -81,5 +84,29 @@ describe('drafting schedule sheet definition utils', () => {
     nextModel = setScheduleSheetGroupIncluded(nextModel, 'sheet-1', 'anchors', false);
 
     expect(nextModel.scheduleSheets[0]?.includedScheduleGroups).toEqual(['shoring_piles']);
+  });
+
+  it('persists root sheet template bindings and resolves legacy template ids', () => {
+    const model = {
+      ...createEmptyDraftingModel('drawing-sheets'),
+      scheduleSheets: [
+        createDraftingScheduleSheetDefinition({
+          id: 'sheet-1',
+          name: 'Bound Schedule',
+        }),
+      ],
+    };
+
+    const nextModel = updateScheduleSheetDefinition(model, 'sheet-1', {
+      rootSheetTemplateId: 'root-template-1',
+      templateId: 'legacy-root-template-1',
+    });
+    const nextSheet = nextModel.scheduleSheets[0]!;
+
+    expect(nextSheet.rootSheetTemplateId).toBe('root-template-1');
+    expect(getScheduleSheetRootTemplateId(nextSheet)).toBe('root-template-1');
+    expect(getScheduleSheetRootTemplateId({ ...nextSheet, rootSheetTemplateId: undefined })).toBe(
+      'legacy-root-template-1',
+    );
   });
 });

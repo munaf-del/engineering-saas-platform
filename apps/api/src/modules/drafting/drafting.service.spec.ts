@@ -80,6 +80,7 @@ jest.mock('@eng/shared', () => {
       ]),
     ),
     scheduleSheets: z.array(z.unknown()).default([]),
+    schedulePackIssues: z.array(z.unknown()).default([]),
   });
 
   return {
@@ -232,5 +233,6 @@ function createEmptyModel(drawingId: string) {
     underlays: [],
     objects: [],
     scheduleSheets: [],
+    schedulePackIssues: [],
   };
 }

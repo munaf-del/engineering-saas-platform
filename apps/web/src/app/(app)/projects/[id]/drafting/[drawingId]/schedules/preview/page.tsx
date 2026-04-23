@@ -14,10 +14,10 @@ export default function ProjectDraftingSchedulePreviewPage({
   searchParams,
 }: {
   params: Promise<{ id: string; drawingId: string }>;
-  searchParams: Promise<{ mode?: string; sheetId?: string }>;
+  searchParams: Promise<{ issueId?: string; mode?: string; sheetId?: string }>;
 }) {
   const { id: projectId, drawingId } = use(params);
-  const { mode, sheetId } = use(searchParams);
+  const { issueId, mode, sheetId } = use(searchParams);
   const { data: project, isLoading, error } = useProject(projectId);
 
   if (isLoading) {
@@ -64,7 +64,8 @@ export default function ProjectDraftingSchedulePreviewPage({
   return (
     <DraftingScheduleSheetPreviewPage
       drawingId={drawingId}
-      initialMode={mode === 'pack' ? 'pack' : sheetId ? 'sheet' : 'legacy'}
+      initialIssueId={issueId}
+      initialMode={issueId ? 'issue' : mode === 'pack' ? 'pack' : sheetId ? 'sheet' : 'legacy'}
       initialSheetId={sheetId}
       project={project}
       projectId={projectId}

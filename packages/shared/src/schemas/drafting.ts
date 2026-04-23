@@ -11,6 +11,7 @@ import {
   DRAFTING_OBJECT_TYPES,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
+  DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES,
   DRAFTING_SCHEDULE_SHEET_ORIENTATIONS,
   DRAFTING_SCHEDULE_SHEET_PAGE_SIZES,
   DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES,
@@ -98,6 +99,7 @@ export const DraftingScheduleSheetProjectMetadataOverridesSchema = z.object({
 export const DraftingScheduleSheetDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  rootSheetTemplateId: z.string().min(1).nullable().optional(),
   templateId: z.string().min(1).nullable().optional(),
   pageSize: z.enum(DRAFTING_SCHEDULE_SHEET_PAGE_SIZES),
   orientation: z.enum(DRAFTING_SCHEDULE_SHEET_ORIENTATIONS),
@@ -109,6 +111,48 @@ export const DraftingScheduleSheetDefinitionSchema = z.object({
   projectMetadata: DraftingScheduleSheetProjectMetadataOverridesSchema.optional(),
   tableDensity: z.enum(DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES),
   pageOrder: z.number().int().nonnegative(),
+});
+
+export const DraftingScheduleSummaryColumnSnapshotSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+});
+
+export const DraftingScheduleSummaryRowSnapshotSchema = z.object({
+  id: z.string().min(1),
+  sourceObjectId: z.string().min(1),
+  objectType: z.enum(DRAFTING_OBJECT_TYPES),
+  cells: z.record(z.string()),
+});
+
+export const DraftingScheduleSummaryGroupSnapshotSchema = z.object({
+  key: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string(),
+  columns: z.array(DraftingScheduleSummaryColumnSnapshotSchema),
+  rows: z.array(DraftingScheduleSummaryRowSnapshotSchema),
+});
+
+export const DraftingScheduleSummarySnapshotSchema = z.object({
+  counts: z.record(z.number().int().nonnegative()),
+  drawingId: z.string().min(1),
+  groups: z.array(DraftingScheduleSummaryGroupSnapshotSchema),
+  units: z.literal('mm'),
+});
+
+export const DraftingSchedulePackIssueSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  revisionLabel: z.string().min(1),
+  issuePurpose: z.string().min(1),
+  issueStatus: z.enum(DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES),
+  issuedAt: z.string().datetime().optional(),
+  issuedBy: z.string().optional(),
+  notes: z.string().optional(),
+  includedScheduleSheetIds: z.array(z.string().min(1)),
+  lockedSheetDefinitions: z.array(DraftingScheduleSheetDefinitionSchema),
+  lockedScheduleSummary: DraftingScheduleSummarySnapshotSchema,
+  pageCount: z.number().int().nonnegative(),
 });
 
 const DraftingObjectBaseSchema = z.object({
@@ -474,6 +518,7 @@ export const DraftingModelSchema = z.object({
   underlays: z.array(DraftingUnderlaySchema),
   objects: z.array(DraftingObjectSchema),
   scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
+  schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
 });
 
 export const DraftingDrawingSummarySchema = z.object({

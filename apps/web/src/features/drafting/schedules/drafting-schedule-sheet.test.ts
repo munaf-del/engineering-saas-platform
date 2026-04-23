@@ -5,11 +5,13 @@ import type { SharedSheetBlockContent } from '@/features/templates/core/shared-s
 import { createDraftingObject } from '../model-utils';
 import {
   DRAFTING_SCHEDULE_ALL_GROUPS,
+  buildDraftingScheduleSheetPackFromSnapshot,
   buildDraftingScheduleSheetPack,
   buildDraftingScheduleSheetRenderModel,
   serializeDraftingScheduleSheetPackJson,
 } from './drafting-schedule-sheet';
 import { createDraftingScheduleSheetDefinition } from './drafting-schedule-sheet-definition-utils';
+import { createDraftingSchedulePackIssueSnapshot } from './drafting-schedule-pack-issue-utils';
 
 describe('drafting schedule sheet render model', () => {
   it('renders the selected schedule group as a plotted table block', () => {
@@ -147,6 +149,31 @@ describe('drafting schedule sheet render model', () => {
     ).toBe(true);
   });
 
+  it('falls back to the default schedule layout when a bound template source is unavailable', () => {
+    const definition = {
+      ...createDraftingScheduleSheetDefinition({
+        id: 'sheet-bound',
+        includedScheduleGroups: ['shoring_piles'],
+        name: 'Bound Pile Sheet',
+      }),
+      rootSheetTemplateId: 'missing-root-template',
+      templateId: 'missing-root-template',
+    };
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [definition],
+      metadata: metadata(),
+      model: modelWith(['pile']),
+      templateSourcesById: {},
+    });
+
+    expect(pack.pages[0]?.renderModel.definition.source).toBe('built_in_template_definition');
+    expect(
+      pack.pages[0]?.renderModel.contentByBlockId['drafting-schedule-details-block'],
+    ).toMatchObject({
+      type: 'detailsBlock',
+    });
+  });
+
   it('paginates a long saved schedule definition into multiple printable pages', () => {
     const definition = createDraftingScheduleSheetDefinition({
       id: 'sheet-piles',
@@ -230,6 +257,48 @@ describe('drafting schedule sheet render model', () => {
 
     expect(pack.definitions).toEqual([]);
     expect(pack.pages).toEqual([]);
+  });
+
+  it('renders frozen issued packs from locked summary data instead of the live model', () => {
+    const model = modelWith(['anchor_tieback']);
+    const anchor = model.objects[0];
+    if (anchor?.type !== 'anchor_tieback') {
+      throw new Error('Expected anchor');
+    }
+    anchor.parameters.anchorId = 'A1';
+    model.scheduleSheets = [
+      createDraftingScheduleSheetDefinition({
+        id: 'sheet-anchors',
+        includedScheduleGroups: ['anchors'],
+        name: 'Anchor Sheet',
+      }),
+    ];
+    const issue = createDraftingSchedulePackIssueSnapshot(model, {
+      id: 'issue-a',
+      issuePurpose: 'For construction',
+      issueStatus: 'issued',
+      issuedAt: '2026-04-23T00:00:00.000Z',
+      metadata: metadata(),
+      name: 'Anchor Issue',
+      revisionLabel: 'A',
+    });
+    anchor.parameters.anchorId = 'A99';
+
+    const frozenPack = buildDraftingScheduleSheetPackFromSnapshot({
+      issue,
+      metadata: metadata(),
+    });
+    const livePack = buildDraftingScheduleSheetPack({
+      definitions: model.scheduleSheets,
+      metadata: metadata(),
+      model,
+    });
+    const frozenMarkup = JSON.stringify(frozenPack.pages[0]?.renderModel.contentByBlockId);
+    const liveMarkup = JSON.stringify(livePack.pages[0]?.renderModel.contentByBlockId);
+
+    expect(frozenMarkup).toContain('A1');
+    expect(frozenMarkup).not.toContain('A99');
+    expect(liveMarkup).toContain('A99');
   });
 });
 

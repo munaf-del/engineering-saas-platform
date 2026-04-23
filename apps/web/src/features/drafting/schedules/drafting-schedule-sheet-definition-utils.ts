@@ -28,6 +28,7 @@ export function createDraftingScheduleSheetDefinition({
   return {
     id,
     name,
+    rootSheetTemplateId: null,
     templateId: null,
     pageSize: DEFAULT_DRAFTING_SCHEDULE_SHEET_PAGE_SIZE,
     orientation: DEFAULT_DRAFTING_SCHEDULE_SHEET_ORIENTATION,
@@ -36,6 +37,10 @@ export function createDraftingScheduleSheetDefinition({
     tableDensity: DEFAULT_DRAFTING_SCHEDULE_SHEET_TABLE_DENSITY,
     pageOrder,
   };
+}
+
+export function getScheduleSheetRootTemplateId(definition: DraftingScheduleSheetDefinition) {
+  return definition.rootSheetTemplateId ?? definition.templateId ?? null;
 }
 
 export function getOrderedScheduleSheetDefinitions(model: DraftingModel) {

@@ -9,10 +9,12 @@ import {
 } from './drafting-schedule-sheet-preview';
 import {
   DRAFTING_SCHEDULE_ALL_GROUPS,
+  buildDraftingScheduleSheetPackFromSnapshot,
   buildDraftingScheduleSheetPack,
   buildDraftingScheduleSheetRenderModel,
 } from './drafting-schedule-sheet';
 import { createDraftingScheduleSheetDefinition } from './drafting-schedule-sheet-definition-utils';
+import { createDraftingSchedulePackIssueSnapshot } from './drafting-schedule-pack-issue-utils';
 
 describe('DraftingScheduleSheet', () => {
   beforeAll(() => {
@@ -131,6 +133,46 @@ describe('DraftingScheduleSheet', () => {
     expect(markup).toContain('Shoring / Pile Schedule');
     expect(markup).toContain('Borehole Schedule');
     expect(markup).toContain('2 of 2');
+  });
+
+  it('renders a frozen issued pack preview with issue metadata', () => {
+    const model = createEmptyDraftingModel('drawing-preview');
+    const anchor = createDraftingObject('anchor_tieback', { x: 1000, y: 2000 }, model);
+    if (anchor.type !== 'anchor_tieback') {
+      throw new Error('Expected anchor');
+    }
+    anchor.parameters.anchorId = 'A1';
+    model.objects = [anchor];
+    model.scheduleSheets = [
+      createDraftingScheduleSheetDefinition({
+        id: 'sheet-anchors',
+        includedScheduleGroups: ['anchors'],
+        name: 'Anchor Sheet',
+      }),
+    ];
+    const issue = createDraftingSchedulePackIssueSnapshot(model, {
+      id: 'issue-a',
+      issuePurpose: 'For construction',
+      issueStatus: 'issued',
+      issuedAt: '2026-04-23T00:00:00.000Z',
+      metadata: metadata(),
+      name: 'Anchor Issue',
+      revisionLabel: 'A',
+    });
+    anchor.parameters.anchorId = 'A99';
+    const pack = buildDraftingScheduleSheetPackFromSnapshot({
+      issue,
+      metadata: {
+        ...metadata(),
+        issueDateLabel: '23 Apr 2026',
+      },
+    });
+    const markup = renderToStaticMarkup(<DraftingScheduleSheetPackPreview pack={pack} />);
+
+    expect(markup).toContain('For construction');
+    expect(markup).toContain('issued');
+    expect(markup).toContain('A1');
+    expect(markup).not.toContain('A99');
   });
 });
 

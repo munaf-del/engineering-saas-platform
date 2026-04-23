@@ -17,15 +17,18 @@ describe('drafting defaults', () => {
     expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
     expect(parsed.scheduleSheets).toEqual([]);
+    expect(parsed.schedulePackIssues).toEqual([]);
   });
 
-  it('hydrates older drafting models without schedule sheet definitions', () => {
+  it('hydrates older drafting models without schedule sheet definitions or issue snapshots', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));
     delete legacyModel.scheduleSheets;
+    delete legacyModel.schedulePackIssues;
     const parsed = DraftingModelSchema.parse(legacyModel);
 
     expect(parsed.scheduleSheets).toEqual([]);
+    expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);
   });
@@ -163,6 +166,7 @@ describe('drafting defaults', () => {
     model.scheduleSheets.push({
       id: 'schedule-sheet-1',
       name: 'Anchor schedule pack',
+      rootSheetTemplateId: 'root-template-1',
       templateId: null,
       pageSize: 'a3',
       orientation: 'landscape',
@@ -188,8 +192,77 @@ describe('drafting defaults', () => {
       id: 'schedule-sheet-1',
       includedScheduleGroups: ['anchors', 'shoring_piles'],
       pageSize: 'a3',
+      rootSheetTemplateId: 'root-template-1',
       tableDensity: 'compact',
       title: 'Anchor Installation Schedule',
+    });
+  });
+
+  it('accepts and preserves schedule pack issue snapshots', () => {
+    const model = createEmptyDraftingModel('drawing-schedule-issue');
+    model.scheduleSheets.push({
+      id: 'schedule-sheet-1',
+      name: 'Anchor schedule pack',
+      rootSheetTemplateId: 'root-template-1',
+      templateId: 'root-template-1',
+      pageSize: 'a3',
+      orientation: 'landscape',
+      includedScheduleGroups: ['anchors'],
+      title: 'Anchor Installation Schedule',
+      revisionLabel: 'A',
+      issuePurpose: 'For review',
+      tableDensity: 'compact',
+      pageOrder: 1,
+    });
+    model.schedulePackIssues.push({
+      id: 'issue-1',
+      name: 'Anchor schedule issue',
+      revisionLabel: 'A',
+      issuePurpose: 'For review',
+      issueStatus: 'issued',
+      issuedAt: '2026-04-23T00:00:00.000Z',
+      includedScheduleSheetIds: ['schedule-sheet-1'],
+      lockedSheetDefinitions: [model.scheduleSheets[0]!],
+      lockedScheduleSummary: {
+        counts: {
+          anchors: 1,
+        },
+        drawingId: model.drawingId,
+        groups: [
+          {
+            key: 'anchors',
+            title: 'Anchor Schedule',
+            description: 'Anchor tieback setout and load rows.',
+            columns: [{ key: 'anchorId', label: 'Anchor ID' }],
+            rows: [
+              {
+                id: 'anchor-row-1',
+                sourceObjectId: 'anchor-1',
+                objectType: 'anchor_tieback',
+                cells: {
+                  anchorId: 'A1',
+                },
+              },
+            ],
+          },
+        ],
+        units: 'mm',
+      },
+      pageCount: 1,
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.schedulePackIssues).toHaveLength(1);
+    expect(parsed.schedulePackIssues[0]).toMatchObject({
+      id: 'issue-1',
+      issueStatus: 'issued',
+      lockedSheetDefinitions: [{ id: 'schedule-sheet-1' }],
+      lockedScheduleSummary: {
+        drawingId: 'drawing-schedule-issue',
+      },
+      pageCount: 1,
+      revisionLabel: 'A',
     });
   });
 

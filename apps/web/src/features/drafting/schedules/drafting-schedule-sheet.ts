@@ -1,4 +1,9 @@
-import type { DraftingModel, DraftingScheduleSheetDefinition } from '@eng/shared';
+import type {
+  DraftingModel,
+  DraftingSchedulePackIssue,
+  DraftingScheduleSheetDefinition,
+  DraftingScheduleSummarySnapshot,
+} from '@eng/shared';
 import {
   DEFAULT_GENERIC_TEMPLATE_LINE_STYLE,
   createDefaultGenericTemplateChromeStyleForDocument,
@@ -23,8 +28,14 @@ import type {
   SharedSheetRenderModel,
   SharedSheetTableBlockContent,
 } from '@/features/templates/core/shared-sheet-schema';
-import { buildDraftingScheduleSummary } from './drafting-schedule-utils';
-import { getOrderedScheduleSheetDefinitions } from './drafting-schedule-sheet-definition-utils';
+import {
+  DRAFTING_SCHEDULE_GROUP_DEFINITIONS,
+  buildDraftingScheduleSummary,
+} from './drafting-schedule-utils';
+import {
+  getOrderedScheduleSheetDefinitions,
+  getScheduleSheetRootTemplateId,
+} from './drafting-schedule-sheet-definition-utils';
 import type {
   DraftingScheduleGroup,
   DraftingScheduleGroupKey,
@@ -42,7 +53,10 @@ export type DraftingScheduleSheetMetadata = {
   drawingStatus?: string;
   drawingTitle: string;
   generatedAtLabel?: string;
+  issueDateLabel?: string;
   issuePurpose?: string;
+  issueStatus?: string;
+  issuedBy?: string;
   pageCount?: number;
   pageNumber?: number;
   preparedBy?: string;
@@ -71,6 +85,14 @@ export type BuildDraftingScheduleSheetPackArgs = {
   definitions: DraftingScheduleSheetDefinition[];
   metadata: DraftingScheduleSheetMetadata;
   model: DraftingModel;
+  scheduleSummary?: DraftingScheduleSummary | DraftingScheduleSummarySnapshot;
+  sourceContext?: DraftingScheduleSheetSourceContext;
+  templateSourcesById?: Record<string, DraftingScheduleSheetTemplateSource | undefined>;
+};
+
+export type BuildDraftingScheduleSheetPackFromSnapshotArgs = {
+  issue: DraftingSchedulePackIssue;
+  metadata: DraftingScheduleSheetMetadata;
   templateSourcesById?: Record<string, DraftingScheduleSheetTemplateSource | undefined>;
 };
 
@@ -93,6 +115,12 @@ export type DraftingScheduleSheetPack = {
   summary: DraftingScheduleSummary;
 };
 
+export type DraftingScheduleSheetSourceContext = {
+  drawingId: string;
+  objectCount: number;
+  units: DraftingModel['units'];
+};
+
 const DEFAULT_SHEET_PAPER_SIZE: TemplatePaperSize = 'a3';
 const DEFAULT_SHEET_ORIENTATION: TemplatePageOrientation = 'landscape';
 const DEFAULT_DETAIL_BLOCK_HEIGHT_MM = 24;
@@ -107,6 +135,7 @@ export function buildDraftingScheduleSheetRenderModel({
   templateSource = null,
 }: BuildDraftingScheduleSheetRenderModelArgs): SharedSheetRenderModel {
   const summary = buildDraftingScheduleSummary(model);
+  const sourceContext = createScheduleSourceContextFromModel(model);
   const scheduleGroups = resolveScheduleGroups(summary.groups, groupSelection);
   const groupLabel =
     groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
@@ -117,7 +146,7 @@ export function buildDraftingScheduleSheetRenderModel({
     groups: scheduleGroups,
     groupLabel,
     metadata,
-    model,
+    sourceContext,
     templateSource,
   });
 }
@@ -126,9 +155,18 @@ export function buildDraftingScheduleSheetPack({
   definitions,
   metadata,
   model,
+  scheduleSummary,
+  sourceContext,
   templateSourcesById = {},
 }: BuildDraftingScheduleSheetPackArgs): DraftingScheduleSheetPack {
-  const summary = buildDraftingScheduleSummary(model);
+  const summary = scheduleSummary
+    ? normalizeDraftingScheduleSummarySnapshot(scheduleSummary)
+    : buildDraftingScheduleSummary(model);
+  const resolvedSourceContext =
+    sourceContext ??
+    (scheduleSummary
+      ? createScheduleSourceContextFromSummary(summary)
+      : createScheduleSourceContextFromModel(model));
   const orderedDefinitions = getOrderedScheduleSheetDefinitions({
     ...model,
     scheduleSheets: definitions,
@@ -137,7 +175,7 @@ export function buildDraftingScheduleSheetPack({
     planDefinitionPages({
       definition,
       metadata,
-      model,
+      sourceContext: resolvedSourceContext,
       summary,
       templateSource: resolveDefinitionTemplateSource(definition, templateSourcesById),
     }),
@@ -154,7 +192,7 @@ export function buildDraftingScheduleSheetPack({
         pageNumber,
         sheetNumber: `D-SCH-${String(pageNumber).padStart(3, '0')}`,
       },
-      model,
+      sourceContext: resolvedSourceContext,
       sheetDefinition: pendingPage.definition,
       templateSource: pendingPage.templateSource,
     });
@@ -174,10 +212,56 @@ export function buildDraftingScheduleSheetPack({
 
   return {
     definitions: orderedDefinitions,
-    drawingId: model.drawingId,
+    drawingId: summary.drawingId,
     pages,
     summary,
   };
+}
+
+export function buildDraftingScheduleSheetPackFromSnapshot({
+  issue,
+  metadata,
+  templateSourcesById = {},
+}: BuildDraftingScheduleSheetPackFromSnapshotArgs): DraftingScheduleSheetPack {
+  const summary = normalizeDraftingScheduleSummarySnapshot(issue.lockedScheduleSummary);
+
+  return buildDraftingScheduleSheetPackFromSummary({
+    definitions: issue.lockedSheetDefinitions,
+    metadata: {
+      ...metadata,
+      issueDateLabel: metadata.issueDateLabel ?? issue.issuedAt,
+      issuePurpose: issue.issuePurpose,
+      issueStatus: issue.issueStatus,
+      issuedBy: issue.issuedBy,
+      revision: issue.revisionLabel,
+    },
+    summary,
+    templateSourcesById,
+  });
+}
+
+export function buildDraftingScheduleSheetPackFromSummary({
+  definitions,
+  metadata,
+  summary,
+  templateSourcesById = {},
+}: {
+  definitions: DraftingScheduleSheetDefinition[];
+  metadata: DraftingScheduleSheetMetadata;
+  summary: DraftingScheduleSummary | DraftingScheduleSummarySnapshot;
+  templateSourcesById?: Record<string, DraftingScheduleSheetTemplateSource | undefined>;
+}): DraftingScheduleSheetPack {
+  const resolvedSummary = normalizeDraftingScheduleSummarySnapshot(summary);
+  const emptyModel = createScheduleOnlyModel(resolvedSummary);
+
+  return buildDraftingScheduleSheetPack({
+    definitions,
+    metadata,
+    model: emptyModel,
+    scheduleSummary: resolvedSummary,
+    sourceContext: createScheduleSourceContextFromSummary(resolvedSummary),
+    templateSourcesById,
+  });
 }
 
 export function serializeDraftingScheduleSheetPackJson(pack: DraftingScheduleSheetPack) {
@@ -191,6 +275,7 @@ export function serializeDraftingScheduleSheetPackJson(pack: DraftingScheduleShe
         orientation: definition.orientation,
         pageOrder: definition.pageOrder,
         pageSize: definition.pageSize,
+        rootSheetTemplateId: getScheduleSheetRootTemplateId(definition),
         tableDensity: definition.tableDensity,
         templateId: definition.templateId ?? null,
         title: definition.title,
@@ -230,13 +315,13 @@ type PendingScheduleSheetPackPage = {
 function planDefinitionPages({
   definition,
   metadata,
-  model,
+  sourceContext,
   summary,
   templateSource,
 }: {
   definition: DraftingScheduleSheetDefinition;
   metadata: DraftingScheduleSheetMetadata;
-  model: DraftingModel;
+  sourceContext: DraftingScheduleSheetSourceContext;
   summary: DraftingScheduleSummary;
   templateSource: DraftingScheduleSheetTemplateSource | null;
 }): PendingScheduleSheetPackPage[] {
@@ -244,7 +329,7 @@ function planDefinitionPages({
   const scheduleRegion = resolveScheduleRegionForDefinition({
     definition,
     metadata,
-    model,
+    sourceContext,
     templateSource,
   });
   const rowsPerPage = resolveRowsPerSchedulePage(scheduleRegion, definition.tableDensity);
@@ -322,12 +407,12 @@ function splitScheduleGroupAcrossPages(group: DraftingScheduleGroup, rowsPerPage
 function resolveScheduleRegionForDefinition({
   definition,
   metadata,
-  model,
+  sourceContext,
   templateSource,
 }: {
   definition: DraftingScheduleSheetDefinition;
   metadata: DraftingScheduleSheetMetadata;
-  model: DraftingModel;
+  sourceContext: DraftingScheduleSheetSourceContext;
   templateSource: DraftingScheduleSheetTemplateSource | null;
 }) {
   if (templateSource?.template) {
@@ -337,7 +422,7 @@ function resolveScheduleRegionForDefinition({
   return resolveScheduleRegion(
     buildDefaultScheduleSheetRenderModel(
       applyDefinitionMetadata(metadata, definition),
-      model,
+      sourceContext,
       definition.name,
       definition,
     ).definition,
@@ -361,11 +446,13 @@ function resolveDefinitionTemplateSource(
   definition: DraftingScheduleSheetDefinition,
   templateSourcesById: Record<string, DraftingScheduleSheetTemplateSource | undefined>,
 ) {
-  if (!definition.templateId) {
+  const rootSheetTemplateId = getScheduleSheetRootTemplateId(definition);
+
+  if (!rootSheetTemplateId) {
     return null;
   }
 
-  return templateSourcesById[definition.templateId] ?? null;
+  return templateSourcesById[rootSheetTemplateId] ?? null;
 }
 
 function applyDefinitionMetadata(
@@ -394,14 +481,14 @@ function buildDraftingScheduleSheetRenderModelForGroups({
   groups,
   groupLabel,
   metadata,
-  model,
+  sourceContext,
   sheetDefinition = null,
   templateSource = null,
 }: {
   groups: DraftingScheduleGroup[];
   groupLabel: string;
   metadata: DraftingScheduleSheetMetadata;
-  model: DraftingModel;
+  sourceContext: DraftingScheduleSheetSourceContext;
   sheetDefinition?: DraftingScheduleSheetDefinition | null;
   templateSource?: DraftingScheduleSheetTemplateSource | null;
 }): SharedSheetRenderModel {
@@ -409,7 +496,12 @@ function buildDraftingScheduleSheetRenderModelForGroups({
   const template = templateSource?.template ?? null;
   const baseRenderModel = template
     ? buildGenericTemplateSharedSheetRenderModel(template)
-    : buildDefaultScheduleSheetRenderModel(resolvedMetadata, model, groupLabel, sheetDefinition);
+    : buildDefaultScheduleSheetRenderModel(
+        resolvedMetadata,
+        sourceContext,
+        groupLabel,
+        sheetDefinition,
+      );
   const definition = template
     ? adaptGenericTemplateToSharedDefinition(template)
     : baseRenderModel.definition;
@@ -429,8 +521,8 @@ function buildDraftingScheduleSheetRenderModelForGroups({
     groups,
     groupLabel,
     metadata: resolvedMetadata,
-    model,
     objects: [...retainedObjects, ...scheduleBlocks],
+    sourceContext,
     tableBlocks: scheduleBlocks,
     templateLabel: templateSource?.label ?? 'Default drafting schedule sheet',
   });
@@ -454,7 +546,7 @@ export function getDraftingScheduleSheetPaper(renderModel: SharedSheetRenderMode
 
 function buildDefaultScheduleSheetRenderModel(
   metadata: DraftingScheduleSheetMetadata,
-  model: DraftingModel,
+  sourceContext: DraftingScheduleSheetSourceContext,
   groupLabel: string,
   sheetDefinition: DraftingScheduleSheetDefinition | null = null,
 ): SharedSheetRenderModel {
@@ -550,8 +642,8 @@ function buildDefaultScheduleSheetRenderModel(
       groups: [],
       groupLabel,
       metadata,
-      model,
       objects,
+      sourceContext,
       tableBlocks: [],
       templateLabel: 'Default drafting schedule sheet',
     }),
@@ -675,8 +767,8 @@ function bindScheduleSheetContent({
   groups,
   groupLabel,
   metadata,
-  model,
   objects,
+  sourceContext,
   tableBlocks,
   templateLabel,
 }: {
@@ -684,12 +776,12 @@ function bindScheduleSheetContent({
   groups: DraftingScheduleGroup[];
   groupLabel: string;
   metadata: DraftingScheduleSheetMetadata;
-  model: DraftingModel;
   objects: SharedSheetBlockDefinition[];
+  sourceContext: DraftingScheduleSheetSourceContext;
   tableBlocks: SharedSheetBlockDefinition[];
   templateLabel: string;
 }) {
-  const rows = buildMetadataRows({ groupLabel, metadata, model, templateLabel });
+  const rows = buildMetadataRows({ groupLabel, metadata, sourceContext, templateLabel });
   const contentByBlockId: Record<string, SharedSheetBlockContent | undefined> = {
     ...baseContentByBlockId,
   };
@@ -757,12 +849,12 @@ function bindScheduleSheetContent({
 function buildMetadataRows({
   groupLabel,
   metadata,
-  model,
+  sourceContext,
   templateLabel,
 }: {
   groupLabel: string;
   metadata: DraftingScheduleSheetMetadata;
-  model: DraftingModel;
+  sourceContext: DraftingScheduleSheetSourceContext;
   templateLabel: string;
 }) {
   const rows = [
@@ -772,8 +864,8 @@ function buildMetadataRows({
     { id: 'revision', label: 'Revision', value: metadata.revision ?? 'A' },
     { id: 'status', label: 'Status', value: metadata.drawingStatus ?? 'draft' },
     { id: 'groups', label: 'Groups', value: groupLabel },
-    { id: 'objects', label: 'Objects', value: `${model.objects.length}` },
-    { id: 'units', label: 'Units', value: model.units },
+    { id: 'objects', label: 'Objects', value: `${sourceContext.objectCount}` },
+    { id: 'units', label: 'Units', value: sourceContext.units },
     { id: 'template', label: 'Template', value: templateLabel },
   ];
 
@@ -793,7 +885,109 @@ function buildMetadataRows({
     });
   }
 
+  if (metadata.issueStatus) {
+    rows.splice(7, 0, {
+      id: 'issue-status',
+      label: 'Issue Status',
+      value: metadata.issueStatus,
+    });
+  }
+
+  if (metadata.issueDateLabel) {
+    rows.splice(8, 0, {
+      id: 'issue-date',
+      label: 'Issue Date',
+      value: metadata.issueDateLabel,
+    });
+  }
+
+  if (metadata.issuedBy) {
+    rows.splice(9, 0, {
+      id: 'issued-by',
+      label: 'Issued By',
+      value: metadata.issuedBy,
+    });
+  }
+
   return rows;
+}
+
+export function normalizeDraftingScheduleSummarySnapshot(
+  summary: DraftingScheduleSummary | DraftingScheduleSummarySnapshot,
+): DraftingScheduleSummary {
+  const snapshotGroupsByKey = new Map(summary.groups.map((group) => [group.key, group]));
+  const groups = DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map<DraftingScheduleGroup>((definition) => {
+    const snapshotGroup = snapshotGroupsByKey.get(definition.key);
+
+    return {
+      key: definition.key,
+      title: snapshotGroup?.title ?? definition.title,
+      description: snapshotGroup?.description ?? definition.description,
+      columns: snapshotGroup?.columns ?? definition.columns,
+      rows:
+        snapshotGroup?.rows.map((row) => ({
+          cells: { ...row.cells },
+          id: row.id,
+          objectType: row.objectType,
+          sourceObjectId: row.sourceObjectId,
+        })) ?? [],
+    };
+  });
+
+  return {
+    counts: groups.reduce(
+      (counts, group) => ({
+        ...counts,
+        [group.key]: group.rows.length,
+      }),
+      {} as Record<DraftingScheduleGroupKey, number>,
+    ),
+    drawingId: summary.drawingId,
+    groups,
+    units: summary.units,
+  };
+}
+
+function createScheduleSourceContextFromModel(
+  model: DraftingModel,
+): DraftingScheduleSheetSourceContext {
+  return {
+    drawingId: model.drawingId,
+    objectCount: model.objects.length,
+    units: model.units,
+  };
+}
+
+function createScheduleSourceContextFromSummary(
+  summary: DraftingScheduleSummary,
+): DraftingScheduleSheetSourceContext {
+  const sourceObjectIds = new Set(
+    summary.groups.flatMap((group) => group.rows.map((row) => row.sourceObjectId)),
+  );
+
+  return {
+    drawingId: summary.drawingId,
+    objectCount: sourceObjectIds.size,
+    units: summary.units,
+  };
+}
+
+function createScheduleOnlyModel(summary: DraftingScheduleSummary): DraftingModel {
+  return {
+    version: 1,
+    units: summary.units,
+    drawingId: summary.drawingId,
+    view: {
+      scale: 0.05,
+      offsetX: 0,
+      offsetY: 0,
+    },
+    layers: [],
+    underlays: [],
+    objects: [],
+    scheduleSheets: [],
+    schedulePackIssues: [],
+  };
 }
 
 function buildScheduleTableContent(group: DraftingScheduleGroup): SharedSheetTableBlockContent {

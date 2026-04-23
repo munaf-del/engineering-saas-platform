@@ -21,6 +21,7 @@ import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-displ
 import { SharedSheetRenderer } from '@/features/templates/components/shared-sheet-renderer';
 import {
   DRAFTING_SCHEDULE_ALL_GROUPS,
+  buildDraftingScheduleSheetPackFromSnapshot,
   buildDraftingScheduleSheetPack,
   buildDraftingScheduleSheetRenderModel,
   getDraftingScheduleSheetPaper,
@@ -32,23 +33,27 @@ import {
 import {
   createDraftingScheduleSheetDefinition,
   getOrderedScheduleSheetDefinitions,
+  getScheduleSheetRootTemplateId,
 } from './drafting-schedule-sheet-definition-utils';
+import { getOrderedSchedulePackIssues } from './drafting-schedule-pack-issue-utils';
 import { DRAFTING_SCHEDULE_GROUP_DEFINITIONS } from './drafting-schedule-utils';
 import { formatDrawingRevision, formatDraftingTimestamp } from '../model-utils';
 
 const DEFAULT_TEMPLATE_VALUE = 'default';
 
-export type DraftingSchedulePreviewMode = 'legacy' | 'pack' | 'sheet';
+export type DraftingSchedulePreviewMode = 'issue' | 'legacy' | 'pack' | 'sheet';
 
 export function DraftingScheduleSheetPreviewPage({
   drawingId,
   initialMode = 'legacy',
+  initialIssueId,
   initialSheetId,
   project,
   projectId,
 }: {
   drawingId: string;
   initialMode?: DraftingSchedulePreviewMode;
+  initialIssueId?: string;
   initialSheetId?: string;
   project: Project;
   projectId: string;
@@ -60,6 +65,7 @@ export function DraftingScheduleSheetPreviewPage({
   );
   const [templateValue, setTemplateValue] = React.useState(DEFAULT_TEMPLATE_VALUE);
   const [previewMode, setPreviewMode] = React.useState<DraftingSchedulePreviewMode>(initialMode);
+  const [selectedIssueId, setSelectedIssueId] = React.useState(initialIssueId ?? '');
   const [selectedSheetId, setSelectedSheetId] = React.useState(initialSheetId ?? '');
   const templateOptions = React.useMemo(
     () =>
@@ -80,6 +86,23 @@ export function DraftingScheduleSheetPreviewPage({
           };
         })
         .filter((option): option is NonNullable<typeof option> => option !== null),
+    [rootTemplates],
+  );
+  const templateBindingWarningsById = React.useMemo(
+    () =>
+      Object.fromEntries(
+        rootTemplates.flatMap((template) => {
+          if (!template.currentVersion) {
+            return [[template.id, 'The bound root sheet template has no current version.']];
+          }
+
+          if (!coerceRootSheetTemplateDocument(template)) {
+            return [[template.id, 'The bound root sheet template definition is incompatible.']];
+          }
+
+          return [];
+        }),
+      ) as Record<string, string>,
     [rootTemplates],
   );
   const selectedTemplateSource = React.useMemo(() => {
@@ -108,13 +131,16 @@ export function DraftingScheduleSheetPreviewPage({
       groupSelection={groupSelection}
       onGroupSelectionChange={setGroupSelection}
       onModeChange={setPreviewMode}
+      onSelectedIssueIdChange={setSelectedIssueId}
       onSelectedSheetIdChange={setSelectedSheetId}
       onTemplateValueChange={setTemplateValue}
       previewMode={previewMode}
       project={project}
       projectId={projectId}
+      selectedIssueId={selectedIssueId}
       selectedSheetId={selectedSheetId}
       selectedTemplateSource={selectedTemplateSource}
+      templateBindingWarningsById={templateBindingWarningsById}
       templateOptions={templateOptions}
       templateValue={templateValue}
     />
@@ -126,13 +152,16 @@ export function DraftingScheduleSheetPreview({
   groupSelection,
   onGroupSelectionChange,
   onModeChange,
+  onSelectedIssueIdChange,
   onSelectedSheetIdChange,
   onTemplateValueChange,
   previewMode,
   project,
   projectId,
+  selectedIssueId,
   selectedSheetId,
   selectedTemplateSource,
+  templateBindingWarningsById,
   templateOptions,
   templateValue,
 }: {
@@ -140,13 +169,16 @@ export function DraftingScheduleSheetPreview({
   groupSelection: DraftingScheduleSheetGroupSelection;
   onGroupSelectionChange: (selection: DraftingScheduleSheetGroupSelection) => void;
   onModeChange: (mode: DraftingSchedulePreviewMode) => void;
+  onSelectedIssueIdChange: (issueId: string) => void;
   onSelectedSheetIdChange: (sheetId: string) => void;
   onTemplateValueChange: (value: string) => void;
   previewMode: DraftingSchedulePreviewMode;
   project: Project;
   projectId: string;
+  selectedIssueId: string;
   selectedSheetId: string;
   selectedTemplateSource: DraftingScheduleSheetTemplateSource;
+  templateBindingWarningsById: Record<string, string>;
   templateOptions: Array<{
     label: string;
     source: DraftingScheduleSheetTemplateSource;
@@ -158,10 +190,16 @@ export function DraftingScheduleSheetPreview({
     () => getOrderedScheduleSheetDefinitions(drawing.model),
     [drawing.model],
   );
+  const savedIssues = React.useMemo(
+    () => getOrderedSchedulePackIssues(drawing.model),
+    [drawing.model],
+  );
   const selectedDefinition =
     savedDefinitions.find((definition) => definition.id === selectedSheetId) ??
     savedDefinitions[0] ??
     null;
+  const selectedIssue =
+    savedIssues.find((issue) => issue.id === selectedIssueId) ?? savedIssues[0] ?? null;
   const templateSourcesById = React.useMemo(
     () =>
       Object.fromEntries(
@@ -181,32 +219,48 @@ export function DraftingScheduleSheetPreview({
     }),
     [drawing, project.code, project.name],
   );
-  const pack = React.useMemo(
-    () =>
-      buildDraftingScheduleSheetPack({
-        definitions: resolvePreviewDefinitions({
-          drawing,
-          groupSelection,
-          previewMode,
-          selectedDefinition,
-          selectedTemplateSource,
-          templateValue,
-        }),
-        metadata,
-        model: drawing.model,
+  const pack = React.useMemo(() => {
+    if (previewMode === 'issue' && selectedIssue) {
+      const issuedAtLabel = selectedIssue.issuedAt
+        ? formatDraftingTimestamp(selectedIssue.issuedAt)
+        : undefined;
+
+      return buildDraftingScheduleSheetPackFromSnapshot({
+        issue: selectedIssue,
+        metadata: {
+          ...metadata,
+          drawingStatus: selectedIssue.issueStatus,
+          generatedAtLabel: issuedAtLabel ? `Issued ${issuedAtLabel}` : metadata.generatedAtLabel,
+          issueDateLabel: issuedAtLabel,
+        },
         templateSourcesById,
+      });
+    }
+
+    return buildDraftingScheduleSheetPack({
+      definitions: resolvePreviewDefinitions({
+        drawing,
+        groupSelection,
+        previewMode,
+        selectedDefinition,
+        selectedTemplateSource,
+        templateValue,
       }),
-    [
-      drawing,
-      groupSelection,
       metadata,
-      previewMode,
-      selectedDefinition,
-      selectedTemplateSource,
+      model: drawing.model,
       templateSourcesById,
-      templateValue,
-    ],
-  );
+    });
+  }, [
+    drawing,
+    groupSelection,
+    metadata,
+    previewMode,
+    selectedDefinition,
+    selectedIssue,
+    selectedTemplateSource,
+    templateSourcesById,
+    templateValue,
+  ]);
   const firstPaper = pack.pages[0]
     ? getDraftingScheduleSheetPaper(pack.pages[0].renderModel)
     : null;
@@ -227,6 +281,24 @@ export function DraftingScheduleSheetPreview({
 
     onSelectedSheetIdChange(selectedDefinition.id);
   }, [onSelectedSheetIdChange, previewMode, selectedDefinition, selectedSheetId]);
+
+  React.useEffect(() => {
+    if (previewMode !== 'issue' || selectedIssueId || !selectedIssue) {
+      return;
+    }
+
+    onSelectedIssueIdChange(selectedIssue.id);
+  }, [onSelectedIssueIdChange, previewMode, selectedIssue, selectedIssueId]);
+
+  const fallbackWarnings = React.useMemo(
+    () =>
+      buildTemplateFallbackWarnings({
+        definitions: pack.definitions,
+        templateBindingWarningsById,
+        templateOptions,
+      }),
+    [pack.definitions, templateBindingWarningsById, templateOptions],
+  );
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 print:max-w-none print:space-y-0">
@@ -269,6 +341,7 @@ export function DraftingScheduleSheetPreview({
               <SelectItem value="legacy">Ad hoc</SelectItem>
               <SelectItem value="sheet">Saved sheet</SelectItem>
               <SelectItem value="pack">Saved pack</SelectItem>
+              <SelectItem value="issue">Issued pack</SelectItem>
             </SelectContent>
           </Select>
 
@@ -328,6 +401,25 @@ export function DraftingScheduleSheetPreview({
             </Select>
           ) : null}
 
+          {previewMode === 'issue' ? (
+            <Select
+              disabled={savedIssues.length === 0}
+              value={selectedIssue?.id ?? ''}
+              onValueChange={onSelectedIssueIdChange}
+            >
+              <SelectTrigger className="w-[280px]" aria-label="Issued schedule pack snapshot">
+                <SelectValue placeholder="No issued pack snapshots" />
+              </SelectTrigger>
+              <SelectContent>
+                {savedIssues.map((issue) => (
+                  <SelectItem key={issue.id} value={issue.id}>
+                    {issue.revisionLabel} - {issue.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
           <Link
             href={`/projects/${projectId}/drafting/${drawing.id}`}
             className={buttonVariants({ variant: 'outline' })}
@@ -340,6 +432,29 @@ export function DraftingScheduleSheetPreview({
           </Button>
         </div>
       </div>
+
+      {selectedIssue && previewMode === 'issue' ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm print:hidden">
+          <Badge variant="secondary">Revision {selectedIssue.revisionLabel}</Badge>
+          <Badge variant={selectedIssue.issueStatus === 'issued' ? 'default' : 'outline'}>
+            {selectedIssue.issueStatus}
+          </Badge>
+          <span className="text-muted-foreground">{selectedIssue.issuePurpose}</span>
+          {selectedIssue.issuedAt ? (
+            <span className="text-muted-foreground">
+              Issued {formatDraftingTimestamp(selectedIssue.issuedAt)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {fallbackWarnings.length > 0 ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden">
+          {fallbackWarnings.map((warning) => (
+            <div key={warning}>{warning}</div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="overflow-auto rounded-md border bg-slate-100 p-6 print:overflow-visible print:rounded-none print:border-0 print:bg-white print:p-0">
         {pack.pages.length > 0 ? (
@@ -408,6 +523,10 @@ function resolvePreviewDefinitions({
     return selectedDefinition ? [selectedDefinition] : [];
   }
 
+  if (previewMode === 'issue') {
+    return [];
+  }
+
   const includedScheduleGroups =
     groupSelection === DRAFTING_SCHEDULE_ALL_GROUPS
       ? DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => group.key)
@@ -424,6 +543,7 @@ function resolvePreviewDefinitions({
       }),
       orientation: template?.orientation ?? 'landscape',
       pageSize: template?.paperSize ?? 'a3',
+      rootSheetTemplateId: templateValue === DEFAULT_TEMPLATE_VALUE ? null : templateValue,
       templateId: templateValue === DEFAULT_TEMPLATE_VALUE ? null : templateValue,
     },
   ];
@@ -437,9 +557,42 @@ function previewLabel(
     return 'Saved schedule pack';
   }
 
+  if (previewMode === 'issue') {
+    return 'Issued schedule pack';
+  }
+
   if (previewMode === 'sheet') {
     return selectedDefinition?.name ?? 'Saved schedule sheet';
   }
 
   return 'Ad hoc schedule sheet';
+}
+
+function buildTemplateFallbackWarnings({
+  definitions,
+  templateBindingWarningsById,
+  templateOptions,
+}: {
+  definitions: DraftingScheduleSheetPack['definitions'];
+  templateBindingWarningsById: Record<string, string>;
+  templateOptions: Array<{
+    label: string;
+    source: DraftingScheduleSheetTemplateSource;
+    value: string;
+  }>;
+}) {
+  const compatibleTemplateIds = new Set(templateOptions.map((option) => option.value));
+
+  return definitions.flatMap((definition) => {
+    const rootTemplateId = getScheduleSheetRootTemplateId(definition);
+    if (!rootTemplateId || compatibleTemplateIds.has(rootTemplateId)) {
+      return [];
+    }
+
+    const warning =
+      templateBindingWarningsById[rootTemplateId] ??
+      'The bound root sheet template is missing or no longer available.';
+
+    return [`${definition.name}: ${warning} Falling back to the internal schedule layout.`];
+  });
 }

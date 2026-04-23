@@ -222,6 +222,10 @@ export const DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES = ['normal', 'compact'] as 
 export type DraftingScheduleSheetTableDensity =
   (typeof DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES)[number];
 
+export const DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES = ['draft', 'issued', 'superseded'] as const;
+export type DraftingSchedulePackIssueStatus =
+  (typeof DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES)[number];
+
 export type DraftingScheduleSheetProjectMetadataOverrides = {
   checkedBy?: string;
   preparedBy?: string;
@@ -233,6 +237,7 @@ export type DraftingScheduleSheetProjectMetadataOverrides = {
 export type DraftingScheduleSheetDefinition = {
   id: string;
   name: string;
+  rootSheetTemplateId?: string | null;
   templateId?: string | null;
   pageSize: DraftingScheduleSheetPageSize;
   orientation: DraftingScheduleSheetOrientation;
@@ -244,6 +249,48 @@ export type DraftingScheduleSheetDefinition = {
   projectMetadata?: DraftingScheduleSheetProjectMetadataOverrides;
   tableDensity: DraftingScheduleSheetTableDensity;
   pageOrder: number;
+};
+
+export type DraftingScheduleSummaryColumnSnapshot = {
+  key: string;
+  label: string;
+};
+
+export type DraftingScheduleSummaryRowSnapshot = {
+  id: string;
+  sourceObjectId: string;
+  objectType: DraftingObjectType;
+  cells: Record<string, string>;
+};
+
+export type DraftingScheduleSummaryGroupSnapshot = {
+  key: string;
+  title: string;
+  description: string;
+  columns: DraftingScheduleSummaryColumnSnapshot[];
+  rows: DraftingScheduleSummaryRowSnapshot[];
+};
+
+export type DraftingScheduleSummarySnapshot = {
+  counts: Record<string, number>;
+  drawingId: string;
+  groups: DraftingScheduleSummaryGroupSnapshot[];
+  units: 'mm';
+};
+
+export type DraftingSchedulePackIssue = {
+  id: string;
+  name: string;
+  revisionLabel: string;
+  issuePurpose: string;
+  issueStatus: DraftingSchedulePackIssueStatus;
+  issuedAt?: string;
+  issuedBy?: string;
+  notes?: string;
+  includedScheduleSheetIds: string[];
+  lockedSheetDefinitions: DraftingScheduleSheetDefinition[];
+  lockedScheduleSummary: DraftingScheduleSummarySnapshot;
+  pageCount: number;
 };
 
 export type DraftingObjectBase = {
@@ -569,6 +616,7 @@ export type DraftingModel = {
   underlays: DraftingUnderlay[];
   objects: DraftingObject[];
   scheduleSheets: DraftingScheduleSheetDefinition[];
+  schedulePackIssues: DraftingSchedulePackIssue[];
 };
 
 export interface DraftingDrawingSummary {
@@ -738,6 +786,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     ...model,
     layers: [...orderedLayers, ...extraLayers],
     scheduleSheets: model.scheduleSheets ?? [],
+    schedulePackIssues: model.schedulePackIssues ?? [],
   };
 }
 
@@ -755,6 +804,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     underlays: [],
     objects: [],
     scheduleSheets: [],
+    schedulePackIssues: [],
   });
 }
 

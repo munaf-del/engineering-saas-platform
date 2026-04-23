@@ -30,6 +30,7 @@ import {
   addDraftingUnderlay,
   createDraftingObject,
   formatDrawingRevision,
+  formatDraftingTimestamp,
   getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
   updateLayer,
@@ -79,6 +80,15 @@ export function DraftingEditor({
 
   const currentDrawing = history.drawing;
   const currentModel = history.model;
+  const scheduleMetadata = {
+    drawingId: currentDrawing.id,
+    drawingStatus: currentDrawing.status,
+    drawingTitle: currentDrawing.title,
+    generatedAtLabel: `Updated ${formatDraftingTimestamp(currentDrawing.updatedAt)}`,
+    projectCode: project.code,
+    projectName: project.name,
+    revision: formatDrawingRevision(currentDrawing),
+  };
   const visibleUnderlays = getVisibleDraftingUnderlays(currentModel);
   const visibleObjects = getVisibleDraftingObjects(currentModel);
 
@@ -347,6 +357,7 @@ export function DraftingEditor({
                 <ScrollArea className="h-[580px] pr-3">
                   <DraftingSchedulesPanel
                     model={currentModel}
+                    metadata={scheduleMetadata}
                     onExportAllJson={() =>
                       downloadDraftingSchedulesJson(currentModel, currentDrawing.title)
                     }
@@ -354,15 +365,11 @@ export function DraftingEditor({
                       downloadDraftingScheduleCsv(currentModel, currentDrawing.title, groupKey)
                     }
                     onExportPackJson={() =>
-                      downloadDraftingScheduleSheetPackJson(currentModel, currentDrawing.title, {
-                        drawingId: currentDrawing.id,
-                        drawingStatus: currentDrawing.status,
-                        drawingTitle: currentDrawing.title,
-                        generatedAtLabel: `Updated ${currentDrawing.updatedAt}`,
-                        projectCode: project.code,
-                        projectName: project.name,
-                        revision: formatDrawingRevision(currentDrawing),
-                      })
+                      downloadDraftingScheduleSheetPackJson(
+                        currentModel,
+                        currentDrawing.title,
+                        scheduleMetadata,
+                      )
                     }
                     onModelChange={history.replaceModel}
                     projectId={projectId}
