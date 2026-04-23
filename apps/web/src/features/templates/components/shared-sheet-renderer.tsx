@@ -344,6 +344,10 @@ function SharedSheetBlockBody({
       const tableContent = content?.type === 'tableBlock' ? content : undefined;
       const columns = tableContent?.columns ?? block.columns ?? [];
       const rows = tableContent?.rows ?? [];
+      const contentScale = block.contentScale ?? 1;
+      const density = block.density ?? 'normal';
+      const cellPaddingX = density === 'compact' ? 4 : 8;
+      const cellPaddingY = density === 'compact' ? 3 : 6;
 
       return (
         <GenericPanel
@@ -351,7 +355,14 @@ function SharedSheetBlockBody({
           title={tableContent?.title || block.title || 'Table'}
         >
           {columns.length === 0 || rows.length === 0 ? (
-            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+            <div
+              className="rounded-md border border-dashed text-muted-foreground"
+              style={{
+                fontSize: `${10 * contentScale}px`,
+                lineHeight: 1.35,
+                padding: `${cellPaddingY * 2}px ${cellPaddingX * 1.5}px`,
+              }}
+            >
               {tableContent?.placeholder || 'Table block placeholder.'}
             </div>
           ) : (
@@ -363,7 +374,13 @@ function SharedSheetBlockBody({
                 {columns.map((column) => (
                   <div
                     key={column.id}
-                    className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                    className="font-semibold uppercase text-slate-600"
+                    style={{
+                      fontSize: `${9 * contentScale}px`,
+                      letterSpacing: 0,
+                      lineHeight: 1.2,
+                      padding: `${cellPaddingY}px ${cellPaddingX}px`,
+                    }}
                   >
                     {column.label}
                   </div>
@@ -377,7 +394,16 @@ function SharedSheetBlockBody({
                     style={{ gridTemplateColumns: buildTableGridTemplate(columns) }}
                   >
                     {columns.map((column) => (
-                      <div key={column.id} className="px-3 py-2 text-sm text-slate-800">
+                      <div
+                        key={column.id}
+                        className="overflow-hidden text-slate-800"
+                        style={{
+                          fontSize: `${10 * contentScale}px`,
+                          lineHeight: 1.25,
+                          overflowWrap: 'anywhere',
+                          padding: `${cellPaddingY}px ${cellPaddingX}px`,
+                        }}
+                      >
                         {formatTableCellValue(row[column.id])}
                       </div>
                     ))}

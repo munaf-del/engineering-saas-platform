@@ -3,10 +3,10 @@
 import * as React from 'react';
 import Link from 'next/link';
 import type { DraftingDrawing } from '@eng/shared';
-import { ArrowLeft, Download, Save } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, Save } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { formatDrawingRevision } from '../model-utils';
 
 export function DraftingToolbar({
@@ -61,6 +61,15 @@ export function DraftingToolbar({
             <Button variant="outline" onClick={onFitView}>
               Fit View
             </Button>
+            <Link
+              href={`/projects/${projectId}/drafting/${drawing.id}/schedules/preview`}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Schedule Preview
+            </Link>
             <Button variant="outline" onClick={onExportJson}>
               <Download className="mr-2 h-4 w-4" />
               Export JSON
