@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Trash2,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,9 +38,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
+import { downloadDraftingSchedulePackIssueManifestJson } from '@/features/drafting/export-utils';
 import { coerceRootSheetTemplateDocument } from '@/features/templates/root-sheet-template-types';
 import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
 import type { DraftingScheduleGroupKey } from '../schedules/drafting-schedule-types';
+import {
+  buildDraftingSchedulePackIssueDetail,
+  buildDraftingSchedulePackIssueHistoryRows,
+  formatDraftingSchedulePackIssueDriftState,
+  formatDraftingSchedulePackIssueSnapshotStatus,
+  type DraftingSchedulePackIssueComparisonSummary,
+  type DraftingSchedulePackIssueSheetDetail,
+  type DraftingSchedulePackIssueSnapshotStatus,
+} from '../schedules/drafting-schedule-pack-issue-provenance';
 import {
   DRAFTING_SCHEDULE_GROUP_DEFINITIONS,
   buildDraftingScheduleSummary,
@@ -69,13 +80,14 @@ import type { DraftingScheduleSheetMetadata } from '../schedules/drafting-schedu
 import {
   buildDraftingScheduleSheetTemplateSnapshotMap,
   formatSheetLayoutSummary,
-  resolveDraftingScheduleSheetTemplateDrift,
   resolveDraftingScheduleSheetTemplateState,
 } from '../schedules/drafting-schedule-template-snapshot';
 
 const DEFAULT_TEMPLATE_VALUE = 'default';
 
 export function DraftingSchedulesPanel({
+  currentUserName,
+  drawingTitle,
   model,
   metadata,
   onExportAllJson,
@@ -84,6 +96,8 @@ export function DraftingSchedulesPanel({
   onModelChange,
   projectId,
 }: {
+  currentUserName: string | null;
+  drawingTitle: string;
   model: DraftingModel;
   metadata: DraftingScheduleSheetMetadata;
   onExportAllJson: () => void;
@@ -98,7 +112,7 @@ export function DraftingSchedulesPanel({
     model.scheduleSheets?.[0]?.id ?? null,
   );
   const [activeIssueId, setActiveIssueId] = React.useState<string | null>(
-    model.schedulePackIssues?.[0]?.id ?? null,
+    model.schedulePackIssues?.[model.schedulePackIssues.length - 1]?.id ?? null,
   );
   const [issueName, setIssueName] = React.useState('Schedule Pack Issue');
   const [issueRevisionLabel, setIssueRevisionLabel] = React.useState('A');
@@ -140,28 +154,25 @@ export function DraftingSchedulesPanel({
   const activeTemplateBindingState = activeSheet
     ? resolveDraftingScheduleSheetTemplateState(activeSheet, templateRecordsById)
     : null;
-  const activeIssueTemplateStates = React.useMemo(
+  const issueHistoryRows = React.useMemo(
+    () =>
+      buildDraftingSchedulePackIssueHistoryRows({
+        issues: orderedIssues,
+        model,
+        rootTemplatesById: templateRecordsById,
+      }),
+    [model, orderedIssues, templateRecordsById],
+  );
+  const activeIssueDetail = React.useMemo(
     () =>
       activeIssue
-        ? activeIssue.lockedSheetDefinitions.map((lockedDefinition) => {
-            const liveDefinition =
-              orderedSheets.find((sheet) => sheet.id === lockedDefinition.id) ?? null;
-
-            return {
-              drift: resolveDraftingScheduleSheetTemplateDrift({
-                liveDefinition,
-                lockedDefinition,
-                rootTemplatesById: templateRecordsById,
-              }),
-              liveDefinition,
-              liveTemplateState: liveDefinition
-                ? resolveDraftingScheduleSheetTemplateState(liveDefinition, templateRecordsById)
-                : null,
-              lockedDefinition,
-            };
+        ? buildDraftingSchedulePackIssueDetail({
+            issue: activeIssue,
+            model,
+            rootTemplatesById: templateRecordsById,
           })
-        : [],
-    [activeIssue, orderedSheets, templateRecordsById],
+        : null,
+    [activeIssue, model, templateRecordsById],
   );
 
   React.useEffect(() => {
@@ -177,7 +188,7 @@ export function DraftingSchedulesPanel({
       return;
     }
 
-    setActiveIssueId(orderedIssues[0]?.id ?? null);
+    setActiveIssueId(orderedIssues[orderedIssues.length - 1]?.id ?? null);
   }, [activeIssueId, orderedIssues]);
 
   function handleCreateSheet() {
@@ -279,6 +290,7 @@ export function DraftingSchedulesPanel({
     onModelChange(
       markSchedulePackIssueIssued(model, issue.id, {
         issuedAt: new Date().toISOString(),
+        issuedBy: currentUserName ?? undefined,
       }),
     );
   }
@@ -302,6 +314,15 @@ export function DraftingSchedulesPanel({
 
   function handleSupersedeIssue(issue: DraftingSchedulePackIssue) {
     onModelChange(supersedeSchedulePackIssue(model, issue.id));
+  }
+
+  function handleExportIssueManifest(issue: DraftingSchedulePackIssue) {
+    downloadDraftingSchedulePackIssueManifestJson({
+      issue,
+      model,
+      rootTemplatesById: templateRecordsById,
+      title: drawingTitle,
+    });
   }
 
   return (
@@ -663,113 +684,237 @@ export function DraftingSchedulesPanel({
           </Button>
         </div>
 
-        {activeIssue ? (
-          <div className="space-y-3">
-            <Select value={activeIssue.id} onValueChange={setActiveIssueId}>
-              <SelectTrigger aria-label="Schedule pack issue snapshot">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {orderedIssues.map((issue) => (
-                  <SelectItem key={issue.id} value={issue.id}>
-                    {issue.revisionLabel}. {issue.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="rounded-md border px-3 py-2 text-xs">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={activeIssue.issueStatus === 'issued' ? 'default' : 'outline'}>
-                  {activeIssue.issueStatus}
-                </Badge>
-                <Badge variant="secondary">Rev {activeIssue.revisionLabel}</Badge>
-                <Badge variant="outline">{activeIssue.pageCount} page(s)</Badge>
-              </div>
-              <p className="mt-2 font-medium">{activeIssue.issuePurpose}</p>
-              {activeIssue.issuedAt ? (
-                <p className="text-muted-foreground">
-                  Issued {new Date(activeIssue.issuedAt).toLocaleString()}
-                </p>
-              ) : null}
+        {activeIssue && activeIssueDetail ? (
+          <div className="space-y-4">
+            <div className="rounded-md border">
+              <Table className="min-w-[1120px] text-xs" data-testid="drafting-schedule-issue-history-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Name</TableHead>
+                    <TableHead className="whitespace-nowrap">Revision</TableHead>
+                    <TableHead className="whitespace-nowrap">Issue Purpose</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Issued At</TableHead>
+                    <TableHead className="whitespace-nowrap">Issued By</TableHead>
+                    <TableHead className="whitespace-nowrap">Pages</TableHead>
+                    <TableHead className="whitespace-nowrap">Sheets</TableHead>
+                    <TableHead className="whitespace-nowrap">Snapshot</TableHead>
+                    <TableHead className="whitespace-nowrap">Drift</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {issueHistoryRows.map((row) => (
+                    <TableRow
+                      aria-selected={row.id === activeIssue.id}
+                      className={row.id === activeIssue.id ? 'bg-muted/40' : 'cursor-pointer'}
+                      key={row.id}
+                      onClick={() => setActiveIssueId(row.id)}
+                    >
+                      <TableCell className="font-medium">{row.issueName}</TableCell>
+                      <TableCell>{row.revisionLabel}</TableCell>
+                      <TableCell>{row.issuePurpose}</TableCell>
+                      <TableCell>
+                        <Badge variant={row.issueStatus === 'issued' ? 'default' : 'outline'}>
+                          {row.issueStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatOptionalDate(row.issuedAt)}</TableCell>
+                      <TableCell>{row.issuedBy ?? 'Not recorded'}</TableCell>
+                      <TableCell>{row.pageCount}</TableCell>
+                      <TableCell>{row.selectedSheetCount}</TableCell>
+                      <TableCell>
+                        <Badge variant={snapshotStatusBadgeVariant(row.snapshotStatus)}>
+                          {formatDraftingSchedulePackIssueSnapshotStatus(row.snapshotStatus)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={driftStateBadgeVariant(row.driftState)}>
+                          {formatDraftingSchedulePackIssueDriftState(row.driftState)}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
-            {activeIssueTemplateStates.length > 0 ? (
-              <div className="space-y-2 rounded-md border px-3 py-3 text-xs">
-                <div className="font-medium">Locked template snapshots</div>
-                {activeIssueTemplateStates.map((state) => (
-                  <div key={state.lockedDefinition.id} className="rounded-md border px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{state.lockedDefinition.name}</span>
-                      <Badge variant="secondary">Issued</Badge>
-                      {state.drift.hasDrift ? (
-                        <Badge variant="outline">Template drift</Badge>
-                      ) : null}
-                      {state.drift.isLegacySnapshot ? (
-                        <Badge variant="outline">Legacy snapshot</Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      Issued: {describeTemplateSnapshot(state.lockedDefinition.templateSnapshot)} -{' '}
-                      {formatSheetLayoutSummary(state.lockedDefinition)}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Live:{' '}
-                      {state.liveDefinition && state.liveTemplateState
-                        ? `${describeTemplateSnapshot(state.liveTemplateState.snapshot)} - ${formatSheetLayoutSummary(state.liveDefinition)}`
-                        : 'Sheet definition missing'}
-                    </p>
-                    {state.drift.messages.map((message) => (
-                      <p key={message} className="mt-1 text-amber-700">
-                        {message}
-                      </p>
-                    ))}
+            <div className="space-y-4 rounded-md border p-3" data-testid="drafting-schedule-issue-detail">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm font-semibold">
+                      {activeIssueDetail.issueName} · Rev {activeIssueDetail.revisionLabel}
+                    </h4>
+                    <Badge
+                      variant={activeIssueDetail.issueStatus === 'issued' ? 'default' : 'outline'}
+                    >
+                      {activeIssueDetail.issueStatus}
+                    </Badge>
+                    <Badge variant={snapshotStatusBadgeVariant(activeIssueDetail.snapshotStatus)}>
+                      {formatDraftingSchedulePackIssueSnapshotStatus(
+                        activeIssueDetail.snapshotStatus,
+                      )}
+                    </Badge>
+                    <Badge variant={driftStateBadgeVariant(activeIssueDetail.comparison.driftState)}>
+                      {formatDraftingSchedulePackIssueDriftState(
+                        activeIssueDetail.comparison.driftState,
+                      )}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            ) : null}
+                  <p className="text-sm font-medium">{activeIssueDetail.issuePurpose}</p>
+                  {activeIssueDetail.notes ? (
+                    <p className="text-xs text-muted-foreground">{activeIssueDetail.notes}</p>
+                  ) : null}
+                </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                className="gap-2"
-                disabled={activeIssue.issueStatus === 'issued'}
-                onClick={() => handleMarkIssueIssued(activeIssue)}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Issue
-              </Button>
-              <Button
-                aria-label="Duplicate schedule pack issue"
-                onClick={() => handleDuplicateIssue(activeIssue)}
-                size="icon"
-                type="button"
-                variant="outline"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button
-                className="gap-2"
-                disabled={activeIssue.issueStatus === 'superseded'}
-                onClick={() => handleSupersedeIssue(activeIssue)}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Supersede
-              </Button>
-              <Link
-                className={buttonVariants({ variant: 'outline', size: 'sm' })}
-                href={`/projects/${projectId}/drafting/${model.drawingId}/schedules/preview?issueId=${activeIssue.id}`}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Issue Pack
-              </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="gap-2"
+                    disabled={activeIssue.issueStatus === 'issued'}
+                    onClick={() => handleMarkIssueIssued(activeIssue)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Issue
+                  </Button>
+                  <Button
+                    aria-label="Duplicate schedule pack issue"
+                    onClick={() => handleDuplicateIssue(activeIssue)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    className="gap-2"
+                    disabled={activeIssue.issueStatus === 'superseded'}
+                    onClick={() => handleSupersedeIssue(activeIssue)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Supersede
+                  </Button>
+                  <Button
+                    className="gap-2"
+                    onClick={() => handleExportIssueManifest(activeIssue)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Download className="h-4 w-4" />
+                    Manifest JSON
+                  </Button>
+                  <Link
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                    href={`/projects/${projectId}/drafting/${model.drawingId}/schedules/preview?issueId=${activeIssue.id}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open Issued Preview
+                  </Link>
+                </div>
+              </div>
+
+              {activeIssueDetail.legacyWarning ? (
+                <Alert>
+                  <AlertDescription>{activeIssueDetail.legacyWarning}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <DetailStat
+                  label="Issued At"
+                  value={formatOptionalDate(activeIssueDetail.issuedAt)}
+                />
+                <DetailStat label="Issued By" value={activeIssueDetail.issuedBy ?? 'Not recorded'} />
+                <DetailStat label="Locked Pages" value={`${activeIssueDetail.pageCount}`} />
+                <DetailStat
+                  label="Locked Sheets"
+                  value={`${activeIssueDetail.includedSheetCount}`}
+                />
+              </div>
+
+              <IssueComparisonSummary comparison={activeIssueDetail.comparison} />
+
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-medium">Issued Pack Manifest</div>
+                      <p className="text-xs text-muted-foreground">
+                        Derived from the stored issue snapshot without changing the print/PDF path.
+                      </p>
+                    </div>
+                    <Badge variant={snapshotStatusBadgeVariant(activeIssueDetail.snapshotStatus)}>
+                      {formatDraftingSchedulePackIssueSnapshotStatus(
+                        activeIssueDetail.snapshotStatus,
+                      )}
+                    </Badge>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <DetailStat label="Issue ID" value={activeIssueDetail.issueId} />
+                    <DetailStat label="Revision" value={activeIssueDetail.revisionLabel} />
+                    <DetailStat label="Issue Purpose" value={activeIssueDetail.issuePurpose} />
+                    <DetailStat
+                      label="Drift State"
+                      value={formatDraftingSchedulePackIssueDriftState(
+                        activeIssueDetail.comparison.driftState,
+                      )}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase text-muted-foreground">
+                      Locked Schedule Group Counts
+                    </div>
+                    <div className="rounded-md border">
+                      <Table className="text-xs">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Group</TableHead>
+                            <TableHead className="text-right">Rows</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {activeIssueDetail.lockedScheduleGroupCounts.map((group) => (
+                            <TableRow key={group.groupKey}>
+                              <TableCell>{group.title}</TableCell>
+                              <TableCell className="text-right">{group.rowCount}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell className="font-medium">Total</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {activeIssueDetail.lockedTotalRowCount}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">Sheet Provenance</div>
+                    <p className="text-xs text-muted-foreground">
+                      Locked sheet definitions, template/version metadata, fallback provenance, and
+                      live-pack drift for each issued sheet.
+                    </p>
+                  </div>
+
+                  {activeIssueDetail.selectedSheetDefinitions.map((sheet) => (
+                    <IssueSheetDetailCard key={sheet.id} sheet={sheet} />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -900,6 +1045,204 @@ function LabeledSelect({
       </Select>
     </div>
   );
+}
+
+function DetailStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-md border px-3 py-2">
+      <div className="text-xs uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+function IssueComparisonSummary({
+  comparison,
+}: {
+  comparison: DraftingSchedulePackIssueComparisonSummary;
+}) {
+  return (
+    <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-medium">Live vs Issued Comparison</div>
+          <p className="text-xs text-muted-foreground">
+            Compact comparison of the current live pack against the selected issued snapshot.
+          </p>
+        </div>
+        <Badge variant={driftStateBadgeVariant(comparison.driftState)}>
+          {formatDraftingSchedulePackIssueDriftState(comparison.driftState)}
+        </Badge>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <DetailStat
+          label="Sheets"
+          value={`${comparison.sheetCount.live} live / ${comparison.sheetCount.issued} issued (${formatSignedDelta(
+            comparison.sheetCount.difference,
+          )})`}
+        />
+        <DetailStat
+          label="Pages"
+          value={`${comparison.pageCount.live} live / ${comparison.pageCount.issued} issued (${formatSignedDelta(
+            comparison.pageCount.difference,
+          )})`}
+        />
+        <DetailStat
+          label="Rows"
+          value={`${comparison.rowCount.live} live / ${comparison.rowCount.issued} issued (${formatSignedDelta(
+            comparison.rowCount.difference,
+          )})`}
+        />
+      </div>
+
+      <div className="rounded-md border">
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Group</TableHead>
+              <TableHead className="text-right">Issued</TableHead>
+              <TableHead className="text-right">Live</TableHead>
+              <TableHead className="text-right">Delta</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {comparison.groupCounts.map((group) => (
+              <TableRow key={group.groupKey}>
+                <TableCell>{group.title}</TableCell>
+                <TableCell className="text-right">{group.issuedRowCount}</TableCell>
+                <TableCell className="text-right">{group.liveRowCount}</TableCell>
+                <TableCell className="text-right">{formatSignedDelta(group.difference)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {comparison.driftMessages.length > 0 ? (
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {comparison.driftMessages.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function IssueSheetDetailCard({ sheet }: { sheet: DraftingSchedulePackIssueSheetDetail }) {
+  return (
+    <div className="space-y-3 rounded-md border p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="font-medium">
+          {sheet.pageOrder}. {sheet.name}
+        </div>
+        <Badge variant={snapshotStatusBadgeVariant(sheet.snapshotStatus)}>
+          {formatDraftingSchedulePackIssueSnapshotStatus(sheet.snapshotStatus)}
+        </Badge>
+        {sheet.hasTemplateDrift ? <Badge variant="outline">Template drift</Badge> : null}
+        {sheet.hasSheetDefinitionDrift ? (
+          <Badge variant="outline">Sheet-definition drift</Badge>
+        ) : null}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <DetailStat label="Issued Title" value={sheet.sheetTitle} />
+        <DetailStat label="Issued Layout" value={sheet.issuedLayoutSummary} />
+        <DetailStat label="Included Groups" value={sheet.includedGroupLabels.join(', ')} />
+        <DetailStat label="Issued Revision" value={sheet.revisionLabel ?? 'Not recorded'} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-md border px-3 py-2">
+          <div className="text-xs uppercase text-muted-foreground">Issued Template Snapshot</div>
+          <div className="mt-1 text-sm font-medium">
+            {sheet.templateSnapshotInfo.label ?? 'Legacy snapshot without stored template label'}
+          </div>
+          <div className="mt-1 text-muted-foreground">
+            {renderTemplateIdentity({
+              label: sheet.templateSnapshotInfo.rootSheetTemplateName,
+              templateId: sheet.templateSnapshotInfo.rootSheetTemplateId,
+              versionId: sheet.templateSnapshotInfo.rootSheetTemplateVersionId,
+            })}
+          </div>
+          <p className="mt-2 text-muted-foreground">{sheet.templateSnapshotInfo.fallbackProvenance}</p>
+        </div>
+
+        <div className="rounded-md border px-3 py-2">
+          <div className="text-xs uppercase text-muted-foreground">Current Live Template</div>
+          <div className="mt-1 text-sm font-medium">
+            {sheet.currentLiveTemplate?.label ?? 'Sheet definition missing from live pack'}
+          </div>
+          <div className="mt-1 text-muted-foreground">
+            {sheet.currentLiveTemplate
+              ? renderTemplateIdentity({
+                  label: sheet.currentLiveTemplate.rootSheetTemplateName,
+                  templateId: sheet.currentLiveTemplate.rootSheetTemplateId,
+                  versionId: sheet.currentLiveTemplate.rootSheetTemplateVersionId,
+                })
+              : 'No live template metadata available.'}
+          </div>
+          <p className="mt-2 text-muted-foreground">
+            {sheet.currentLiveLayoutSummary ?? 'No live layout metadata available.'}
+          </p>
+        </div>
+      </div>
+
+      {sheet.subtitle ? (
+        <p className="text-muted-foreground">
+          <span className="font-medium text-foreground">Issued subtitle:</span> {sheet.subtitle}
+        </p>
+      ) : null}
+
+      {sheet.currentLiveTemplateDiffers ? (
+        <p className="text-amber-700">
+          Current live template id/version no longer matches the issued snapshot binding.
+        </p>
+      ) : null}
+
+      {sheet.driftMessages.length > 0 ? (
+        <div className="space-y-1 text-muted-foreground">
+          {sheet.driftMessages.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground">Live pack remains aligned with this issued sheet.</p>
+      )}
+    </div>
+  );
+}
+
+function snapshotStatusBadgeVariant(status: DraftingSchedulePackIssueSnapshotStatus) {
+  return status === 'locked_template_snapshot' ? 'secondary' : 'outline';
+}
+
+function driftStateBadgeVariant(
+  driftState: DraftingSchedulePackIssueComparisonSummary['driftState'],
+) {
+  return driftState === 'in_sync' ? 'secondary' : 'outline';
+}
+
+function formatOptionalDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString() : 'Not issued';
+}
+
+function formatSignedDelta(value: number) {
+  if (value === 0) {
+    return '0';
+  }
+
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function renderTemplateIdentity(args: {
+  label: string | null;
+  templateId: string | null;
+  versionId: string | null;
+}) {
+  const parts = [args.label, args.templateId, args.versionId].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : 'No root template id/version recorded.';
 }
 
 function describeTemplateSnapshot(

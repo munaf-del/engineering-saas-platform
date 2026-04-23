@@ -7,6 +7,7 @@ import { PageLoading } from '@/components/loading';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/lib/auth';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
@@ -47,6 +48,7 @@ export function DraftingEditor({
   drawingId: string;
   project: Project;
 }) {
+  const { user } = useAuth();
   const drafting = useDrafting();
   const history = useDraftingHistory(projectId, drawingId);
   const view = useDraftingView({
@@ -356,6 +358,8 @@ export function DraftingEditor({
               <TabsContent value="schedules">
                 <ScrollArea className="h-[580px] pr-3">
                   <DraftingSchedulesPanel
+                    currentUserName={user?.name ?? user?.email ?? null}
+                    drawingTitle={currentDrawing.title}
                     model={currentModel}
                     metadata={scheduleMetadata}
                     onExportAllJson={() =>

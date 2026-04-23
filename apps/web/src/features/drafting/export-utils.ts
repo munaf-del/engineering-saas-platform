@@ -1,7 +1,13 @@
 import type { DraftingModel } from '@eng/shared';
+import type { DraftingSchedulePackIssue } from '@eng/shared';
+import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { buildDraftingExportFilename } from './model-utils';
 import type { DraftingScheduleGroupKey } from './schedules/drafting-schedule-types';
 import type { DraftingScheduleSheetMetadata } from './schedules/drafting-schedule-sheet';
+import {
+  buildDraftingSchedulePackIssueManifest,
+  serializeDraftingSchedulePackIssueManifestJson,
+} from './schedules/drafting-schedule-pack-issue-provenance';
 import {
   buildDraftingScheduleSheetPack,
   serializeDraftingScheduleSheetPackJson,
@@ -69,6 +75,25 @@ export function downloadDraftingScheduleSheetPackJson(
   );
 }
 
+export function downloadDraftingSchedulePackIssueManifestJson(args: {
+  issue: DraftingSchedulePackIssue;
+  model: DraftingModel;
+  rootTemplatesById: ReadonlyMap<string, RootSheetTemplate>;
+  title: string;
+}) {
+  const manifest = buildDraftingSchedulePackIssueManifest({
+    issue: args.issue,
+    model: args.model,
+    rootTemplatesById: args.rootTemplatesById,
+  });
+
+  downloadTextFile(
+    `${buildDraftingExportFilename(args.title)}-schedule-issue-${sanitizeFilenameSegment(args.issue.revisionLabel)}-manifest.json`,
+    serializeDraftingSchedulePackIssueManifestJson(manifest),
+    'application/json',
+  );
+}
+
 function downloadTextFile(filename: string, contents: string, type: string) {
   const blob = new Blob([contents], {
     type,
@@ -79,4 +104,11 @@ function downloadTextFile(filename: string, contents: string, type: string) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function sanitizeFilenameSegment(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
