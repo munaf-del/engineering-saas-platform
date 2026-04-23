@@ -2,29 +2,18 @@ import type {
   DraftingModel,
   DraftingSchedulePackIssue,
   DraftingScheduleSheetDefinition,
+  DraftingScheduleSheetTemplateSnapshot,
   DraftingScheduleSummarySnapshot,
 } from '@eng/shared';
 import {
   DEFAULT_GENERIC_TEMPLATE_LINE_STYLE,
-  createDefaultGenericTemplateChromeStyleForDocument,
-  createDefaultGenericTemplateLineStyle,
-  createDefaultGenericTemplateTypography,
   type GenericTemplateDocument,
 } from '@/features/templates/core/generic-template-document';
-import {
-  getTemplateSafeArea,
-  type TemplatePageOrientation,
-  type TemplatePaperSize,
-} from '@/features/templates/core/template-preset';
 import type { TemplateRectMm } from '@/features/templates/core/template-document';
-import {
-  buildGenericTemplateSharedSheetRenderModel,
-  adaptGenericTemplateToSharedDefinition,
-} from '@/features/templates/adapters/generic-template-render-model';
+import { buildGenericTemplateSharedSheetRenderModel } from '@/features/templates/adapters/generic-template-render-model';
 import type {
   SharedSheetBlockContent,
   SharedSheetBlockDefinition,
-  SharedSheetDefinition,
   SharedSheetRenderModel,
   SharedSheetTableBlockContent,
 } from '@/features/templates/core/shared-sheet-schema';
@@ -41,6 +30,15 @@ import type {
   DraftingScheduleGroupKey,
   DraftingScheduleSummary,
 } from './drafting-schedule-types';
+import {
+  buildDefaultDraftingScheduleSheetBaseDefinition,
+  buildSharedSheetBaseContentFromDefinition,
+  resolveDraftingScheduleRegion,
+} from './drafting-schedule-sheet-layout';
+import {
+  buildDraftingLockedTemplateSource,
+  type DraftingResolvedScheduleSheetTemplateSource,
+} from './drafting-schedule-template-snapshot';
 
 export const DRAFTING_SCHEDULE_ALL_GROUPS = 'all';
 export type DraftingScheduleSheetGroupSelection =
@@ -70,8 +68,13 @@ export type DraftingScheduleSheetMetadata = {
 };
 
 export type DraftingScheduleSheetTemplateSource = {
+  definition?: DraftingResolvedScheduleSheetTemplateSource['definition'] | null;
   label: string;
   template: GenericTemplateDocument | null;
+};
+
+type DraftingScheduleSheetDefinitionWithOptionalSnapshot = DraftingScheduleSheetDefinition & {
+  templateSnapshot?: DraftingScheduleSheetTemplateSnapshot;
 };
 
 type BuildDraftingScheduleSheetRenderModelArgs = {
@@ -82,7 +85,7 @@ type BuildDraftingScheduleSheetRenderModelArgs = {
 };
 
 export type BuildDraftingScheduleSheetPackArgs = {
-  definitions: DraftingScheduleSheetDefinition[];
+  definitions: DraftingScheduleSheetDefinitionWithOptionalSnapshot[];
   metadata: DraftingScheduleSheetMetadata;
   model: DraftingModel;
   scheduleSummary?: DraftingScheduleSummary | DraftingScheduleSummarySnapshot;
@@ -97,7 +100,7 @@ export type BuildDraftingScheduleSheetPackFromSnapshotArgs = {
 };
 
 export type DraftingScheduleSheetPackPage = {
-  definition: DraftingScheduleSheetDefinition;
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot;
   definitionPageCount: number;
   definitionPageNumber: number;
   groupKeys: DraftingScheduleGroupKey[];
@@ -109,7 +112,7 @@ export type DraftingScheduleSheetPackPage = {
 };
 
 export type DraftingScheduleSheetPack = {
-  definitions: DraftingScheduleSheetDefinition[];
+  definitions: DraftingScheduleSheetDefinitionWithOptionalSnapshot[];
   drawingId: string;
   pages: DraftingScheduleSheetPackPage[];
   summary: DraftingScheduleSummary;
@@ -121,10 +124,6 @@ export type DraftingScheduleSheetSourceContext = {
   units: DraftingModel['units'];
 };
 
-const DEFAULT_SHEET_PAPER_SIZE: TemplatePaperSize = 'a3';
-const DEFAULT_SHEET_ORIENTATION: TemplatePageOrientation = 'landscape';
-const DEFAULT_DETAIL_BLOCK_HEIGHT_MM = 24;
-const DEFAULT_TITLE_BLOCK_HEIGHT_MM = 46;
 const DEFAULT_OBJECT_GAP_MM = 5;
 const MIN_ROWS_PER_SCHEDULE_PAGE = 1;
 
@@ -246,7 +245,7 @@ export function buildDraftingScheduleSheetPackFromSummary({
   summary,
   templateSourcesById = {},
 }: {
-  definitions: DraftingScheduleSheetDefinition[];
+  definitions: DraftingScheduleSheetDefinitionWithOptionalSnapshot[];
   metadata: DraftingScheduleSheetMetadata;
   summary: DraftingScheduleSummary | DraftingScheduleSummarySnapshot;
   templateSourcesById?: Record<string, DraftingScheduleSheetTemplateSource | undefined>;
@@ -303,7 +302,7 @@ export function serializeDraftingScheduleSheetPackJson(pack: DraftingScheduleShe
 }
 
 type PendingScheduleSheetPackPage = {
-  definition: DraftingScheduleSheetDefinition;
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot;
   definitionPageCount: number;
   definitionPageNumber: number;
   groupLabel: string;
@@ -319,7 +318,7 @@ function planDefinitionPages({
   summary,
   templateSource,
 }: {
-  definition: DraftingScheduleSheetDefinition;
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot;
   metadata: DraftingScheduleSheetMetadata;
   sourceContext: DraftingScheduleSheetSourceContext;
   summary: DraftingScheduleSummary;
@@ -365,7 +364,7 @@ function planDefinitionPages({
 
 function resolveDefinitionScheduleGroups(
   groups: DraftingScheduleGroup[],
-  definition: DraftingScheduleSheetDefinition,
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot,
 ) {
   const includedGroups = new Set(definition.includedScheduleGroups);
 
@@ -410,16 +409,17 @@ function resolveScheduleRegionForDefinition({
   sourceContext,
   templateSource,
 }: {
-  definition: DraftingScheduleSheetDefinition;
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot;
   metadata: DraftingScheduleSheetMetadata;
   sourceContext: DraftingScheduleSheetSourceContext;
   templateSource: DraftingScheduleSheetTemplateSource | null;
 }) {
-  if (templateSource?.template) {
-    return resolveScheduleRegion(adaptGenericTemplateToSharedDefinition(templateSource.template));
+  const templateDefinition = resolveTemplateSourceDefinition(templateSource);
+  if (templateDefinition) {
+    return resolveDraftingScheduleRegion(templateDefinition);
   }
 
-  return resolveScheduleRegion(
+  return resolveDraftingScheduleRegion(
     buildDefaultScheduleSheetRenderModel(
       applyDefinitionMetadata(metadata, definition),
       sourceContext,
@@ -443,9 +443,18 @@ function resolveRowsPerSchedulePage(
 }
 
 function resolveDefinitionTemplateSource(
-  definition: DraftingScheduleSheetDefinition,
+  definition: DraftingScheduleSheetDefinitionWithOptionalSnapshot,
   templateSourcesById: Record<string, DraftingScheduleSheetTemplateSource | undefined>,
 ) {
+  const lockedTemplateSource = buildDraftingLockedTemplateSource(definition.templateSnapshot);
+  if (lockedTemplateSource) {
+    return {
+      definition: lockedTemplateSource.definition,
+      label: lockedTemplateSource.label,
+      template: lockedTemplateSource.template,
+    } satisfies DraftingScheduleSheetTemplateSource;
+  }
+
   const rootSheetTemplateId = getScheduleSheetRootTemplateId(definition);
 
   if (!rootSheetTemplateId) {
@@ -457,7 +466,7 @@ function resolveDefinitionTemplateSource(
 
 function applyDefinitionMetadata(
   metadata: DraftingScheduleSheetMetadata,
-  sheetDefinition: DraftingScheduleSheetDefinition | null,
+  sheetDefinition: DraftingScheduleSheetDefinitionWithOptionalSnapshot | null,
 ): DraftingScheduleSheetMetadata {
   if (!sheetDefinition) {
     return metadata;
@@ -489,23 +498,20 @@ function buildDraftingScheduleSheetRenderModelForGroups({
   groupLabel: string;
   metadata: DraftingScheduleSheetMetadata;
   sourceContext: DraftingScheduleSheetSourceContext;
-  sheetDefinition?: DraftingScheduleSheetDefinition | null;
+  sheetDefinition?: DraftingScheduleSheetDefinitionWithOptionalSnapshot | null;
   templateSource?: DraftingScheduleSheetTemplateSource | null;
 }): SharedSheetRenderModel {
   const resolvedMetadata = applyDefinitionMetadata(metadata, sheetDefinition);
-  const template = templateSource?.template ?? null;
-  const baseRenderModel = template
-    ? buildGenericTemplateSharedSheetRenderModel(template)
+  const baseRenderModel = templateSource
+    ? buildTemplateSourceRenderModel(templateSource)
     : buildDefaultScheduleSheetRenderModel(
         resolvedMetadata,
         sourceContext,
         groupLabel,
         sheetDefinition,
       );
-  const definition = template
-    ? adaptGenericTemplateToSharedDefinition(template)
-    : baseRenderModel.definition;
-  const scheduleRegion = resolveScheduleRegion(definition);
+  const definition = baseRenderModel.definition;
+  const scheduleRegion = resolveDraftingScheduleRegion(definition);
   const scheduleBlocks = buildScheduleTableBlocks({
     density: sheetDefinition?.tableDensity ?? 'compact',
     groups,
@@ -548,107 +554,67 @@ function buildDefaultScheduleSheetRenderModel(
   metadata: DraftingScheduleSheetMetadata,
   sourceContext: DraftingScheduleSheetSourceContext,
   groupLabel: string,
-  sheetDefinition: DraftingScheduleSheetDefinition | null = null,
+  sheetDefinition: DraftingScheduleSheetDefinitionWithOptionalSnapshot | null = null,
 ): SharedSheetRenderModel {
-  const paperSize = (sheetDefinition?.pageSize ?? DEFAULT_SHEET_PAPER_SIZE) as TemplatePaperSize;
-  const orientation = (sheetDefinition?.orientation ??
-    DEFAULT_SHEET_ORIENTATION) as TemplatePageOrientation;
-  const safeArea = getTemplateSafeArea(paperSize, orientation);
-  const titleY = safeArea.y + safeArea.height - DEFAULT_TITLE_BLOCK_HEIGHT_MM;
-  const tableY = safeArea.y + DEFAULT_DETAIL_BLOCK_HEIGHT_MM + DEFAULT_OBJECT_GAP_MM;
-  const tableHeight = Math.max(80, titleY - tableY - DEFAULT_OBJECT_GAP_MM);
-  const title = metadata.title ?? sheetDefinition?.title ?? `${metadata.drawingTitle} Schedules`;
-  const subtitle = metadata.subtitle ?? sheetDefinition?.subtitle ?? groupLabel;
-  const objects: SharedSheetBlockDefinition[] = [
-    {
-      checkedBy: metadata.checkedBy ?? '',
-      generatedAtLabel: metadata.generatedAtLabel ?? '',
-      height: DEFAULT_TITLE_BLOCK_HEIGHT_MM,
-      id: 'drafting-schedule-title-block',
-      lineStyle: createDefaultGenericTemplateLineStyle(),
-      locked: true,
-      name: 'Title Block',
-      order: 10,
-      preparedBy: metadata.preparedBy ?? '',
-      projectAddress: metadata.projectAddress,
-      projectCode: metadata.projectCode,
-      projectName: metadata.projectName,
-      revision: metadata.revision ?? 'A',
-      scaleLabel: 'NTS',
-      sheetNumber: metadata.sheetNumber ?? 'D-SCH-001',
-      subtitle,
-      title,
-      type: 'titleBlock',
-      typography: createDefaultGenericTemplateTypography(),
-      variant: 'as1100_drawing',
-      visible: true,
-      width: safeArea.width,
-      x: safeArea.x,
-      y: titleY,
-    },
-    {
-      height: DEFAULT_DETAIL_BLOCK_HEIGHT_MM,
-      id: 'drafting-schedule-details-block',
-      lineStyle: createDefaultGenericTemplateLineStyle(),
-      locked: true,
-      name: 'Schedule Metadata',
-      order: 20,
-      title: 'Schedule Metadata',
-      type: 'detailsBlock',
-      variant: 'generic',
-      visible: true,
-      width: safeArea.width,
-      x: safeArea.x,
-      y: safeArea.y,
-    },
-    {
-      columns: [],
-      height: tableHeight,
-      id: 'drafting-schedule-table-region',
-      lineStyle: createDefaultGenericTemplateLineStyle(),
-      locked: true,
-      name: 'Schedule Table Region',
-      order: 30,
-      title: 'Schedule Table Region',
-      type: 'tableBlock',
-      variant: 'generic',
-      visible: true,
-      width: safeArea.width,
-      x: safeArea.x,
-      y: tableY,
-    },
-  ];
-  const definition: SharedSheetDefinition = {
-    chromeStyle: createDefaultGenericTemplateChromeStyleForDocument({
-      orientation,
-      paperSize,
-      presetId: 'as1100_inspired',
-    }),
-    createdAt: '2026-04-22T00:00:00.000Z',
-    id: sheetDefinition?.id ?? 'drafting-schedule-default-sheet',
-    kind: 'shared_sheet',
-    name: title,
-    objects,
-    orientation,
-    paperSize,
-    presetId: 'as1100_inspired',
-    source: 'built_in_template_definition',
-    updatedAt: '2026-04-22T00:00:00.000Z',
-  };
+  const definition = buildDefaultDraftingScheduleSheetBaseDefinition(sheetDefinition);
 
   return {
     contentByBlockId: bindScheduleSheetContent({
-      baseContentByBlockId: {},
+      baseContentByBlockId: buildSharedSheetBaseContentFromDefinition(definition),
       groups: [],
       groupLabel,
       metadata,
-      objects,
+      objects: definition.objects,
       sourceContext,
       tableBlocks: [],
       templateLabel: 'Default drafting schedule sheet',
     }),
     definition,
   };
+}
+
+function buildTemplateSourceRenderModel(
+  templateSource: DraftingScheduleSheetTemplateSource,
+): SharedSheetRenderModel {
+  if (templateSource.template) {
+    return buildGenericTemplateSharedSheetRenderModel(templateSource.template);
+  }
+
+  const definition = resolveTemplateSourceDefinition(templateSource);
+  if (!definition) {
+    return buildDefaultScheduleSheetRenderModel(
+      {
+        drawingId: 'drafting-schedule-fallback',
+        drawingTitle: 'Drafting Schedule',
+        projectCode: '',
+        projectName: '',
+      },
+      {
+        drawingId: 'drafting-schedule-fallback',
+        objectCount: 0,
+        units: 'mm',
+      },
+      'Schedule group',
+      null,
+    );
+  }
+
+  return {
+    contentByBlockId: buildSharedSheetBaseContentFromDefinition(definition),
+    definition,
+  };
+}
+
+function resolveTemplateSourceDefinition(templateSource: DraftingScheduleSheetTemplateSource | null) {
+  if (templateSource?.definition) {
+    return templateSource.definition;
+  }
+
+  if (templateSource?.template) {
+    return buildGenericTemplateSharedSheetRenderModel(templateSource.template).definition;
+  }
+
+  return null;
 }
 
 function resolveScheduleGroups(
@@ -660,42 +626,6 @@ function resolveScheduleGroups(
   }
 
   return [groups.find((group) => group.key === groupSelection) ?? groups[0]!];
-}
-
-function resolveScheduleRegion(definition: SharedSheetDefinition) {
-  const largestContentBlock = definition.objects
-    .filter((block) => block.visible && block.type !== 'titleBlock')
-    .sort((left, right) => right.width * right.height - left.width * left.height)[0];
-
-  if (largestContentBlock) {
-    return {
-      height: largestContentBlock.height,
-      order: largestContentBlock.order,
-      sourceBlockId: largestContentBlock.id,
-      width: largestContentBlock.width,
-      x: largestContentBlock.x,
-      y: largestContentBlock.y,
-    };
-  }
-
-  const safeArea = getTemplateSafeArea(definition.paperSize, definition.orientation);
-  const titleBlocks = definition.objects.filter(
-    (block) => block.visible && block.type === 'titleBlock',
-  );
-  const titleTopY = titleBlocks.reduce(
-    (topY, block) => Math.min(topY, block.y),
-    safeArea.y + safeArea.height,
-  );
-  const height = Math.max(70, titleTopY - safeArea.y - DEFAULT_OBJECT_GAP_MM);
-
-  return {
-    height,
-    order: 50,
-    sourceBlockId: null,
-    width: safeArea.width,
-    x: safeArea.x,
-    y: safeArea.y,
-  };
 }
 
 function retainTemplateObjectsForScheduleSheet(

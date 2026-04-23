@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyDraftingModel, type DraftingModel } from '@eng/shared';
 import { createGenericTemplateDocument } from '@/features/templates/core/generic-template-document';
+import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import type { SharedSheetBlockContent } from '@/features/templates/core/shared-sheet-schema';
 import { createDraftingObject } from '../model-utils';
 import {
@@ -12,6 +13,7 @@ import {
 } from './drafting-schedule-sheet';
 import { createDraftingScheduleSheetDefinition } from './drafting-schedule-sheet-definition-utils';
 import { createDraftingSchedulePackIssueSnapshot } from './drafting-schedule-pack-issue-utils';
+import { buildDraftingScheduleSheetTemplateSnapshotMap } from './drafting-schedule-template-snapshot';
 
 describe('drafting schedule sheet render model', () => {
   it('renders the selected schedule group as a plotted table block', () => {
@@ -174,6 +176,41 @@ describe('drafting schedule sheet render model', () => {
     });
   });
 
+  it('uses the current live template binding when rendering a saved pack', () => {
+    const template = createGenericTemplateDocument({
+      name: 'Current live template',
+      orientation: 'portrait',
+      paperSize: 'a4',
+      presetId: 'as1100_inspired',
+    });
+    const definition = {
+      ...createDraftingScheduleSheetDefinition({
+        id: 'sheet-live-template',
+        includedScheduleGroups: ['shoring_piles'],
+        name: 'Bound pile sheet',
+      }),
+      orientation: 'portrait' as const,
+      pageSize: 'a4' as const,
+      rootSheetTemplateId: 'root-template-live',
+      templateId: 'root-template-live',
+    };
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [definition],
+      metadata: metadata(),
+      model: modelWith(['pile']),
+      templateSourcesById: {
+        'root-template-live': {
+          label: 'Current live template',
+          template,
+        },
+      },
+    });
+
+    expect(pack.pages[0]?.renderModel.definition.paperSize).toBe('a4');
+    expect(pack.pages[0]?.renderModel.definition.orientation).toBe('portrait');
+    expect(pack.pages[0]?.renderModel.definition.source).toBe('generic_template_adapter');
+  });
+
   it('paginates a long saved schedule definition into multiple printable pages', () => {
     const definition = createDraftingScheduleSheetDefinition({
       id: 'sheet-piles',
@@ -300,6 +337,88 @@ describe('drafting schedule sheet render model', () => {
     expect(frozenMarkup).not.toContain('A99');
     expect(liveMarkup).toContain('A99');
   });
+
+  it('renders frozen issued packs from the locked template snapshot instead of the current live template', () => {
+    const lockedTemplate = createGenericTemplateDocument({
+      name: 'Locked issue template',
+      orientation: 'portrait',
+      paperSize: 'a4',
+      presetId: 'as1100_inspired',
+    });
+    const currentTemplate = createGenericTemplateDocument({
+      name: 'Current live template',
+      orientation: 'landscape',
+      paperSize: 'a2',
+      presetId: 'as1100_inspired',
+    });
+    const model = modelWith(['anchor_tieback']);
+    model.scheduleSheets = [
+      {
+        ...createDraftingScheduleSheetDefinition({
+          id: 'sheet-anchors',
+          includedScheduleGroups: ['anchors'],
+          name: 'Anchor Sheet',
+        }),
+        orientation: 'portrait',
+        pageSize: 'a4',
+        rootSheetTemplateId: 'root-template-1',
+        templateId: 'root-template-1',
+      },
+    ];
+    const issue = createDraftingSchedulePackIssueSnapshot(model, {
+      id: 'issue-a',
+      issuePurpose: 'For construction',
+      issueStatus: 'issued',
+      issuedAt: '2026-04-23T00:00:00.000Z',
+      metadata: metadata(),
+      name: 'Anchor Issue',
+      revisionLabel: 'A',
+      templateSnapshotsBySheetId: buildDraftingScheduleSheetTemplateSnapshotMap(
+        model.scheduleSheets,
+        new Map([
+          [
+            'root-template-1',
+            buildRootSheetTemplateRecord('root-template-1', 'Locked issue template', lockedTemplate),
+          ],
+        ]),
+      ),
+    });
+
+    model.scheduleSheets = [
+      {
+        ...model.scheduleSheets[0]!,
+        orientation: 'landscape',
+        pageSize: 'a2',
+      },
+    ];
+
+    const frozenPack = buildDraftingScheduleSheetPackFromSnapshot({
+      issue,
+      metadata: metadata(),
+      templateSourcesById: {
+        'root-template-1': {
+          label: 'Current live template',
+          template: currentTemplate,
+        },
+      },
+    });
+    const livePack = buildDraftingScheduleSheetPack({
+      definitions: model.scheduleSheets,
+      metadata: metadata(),
+      model,
+      templateSourcesById: {
+        'root-template-1': {
+          label: 'Current live template',
+          template: currentTemplate,
+        },
+      },
+    });
+
+    expect(frozenPack.pages[0]?.renderModel.definition.paperSize).toBe('a4');
+    expect(frozenPack.pages[0]?.renderModel.definition.orientation).toBe('portrait');
+    expect(livePack.pages[0]?.renderModel.definition.paperSize).toBe('a2');
+    expect(livePack.pages[0]?.renderModel.definition.orientation).toBe('landscape');
+  });
 });
 
 function modelWith(types: Parameters<typeof createDraftingObject>[0][]): DraftingModel {
@@ -330,6 +449,38 @@ function metadata() {
     projectName: 'NORTH SYDNEY',
     revision: 'Revision 1',
   };
+}
+
+function buildRootSheetTemplateRecord(
+  id: string,
+  label: string,
+  template: ReturnType<typeof createGenericTemplateDocument>,
+) {
+  return {
+    archivedAt: null,
+    category: null,
+    createdAt: '2026-04-22T00:00:00.000Z',
+    createdBy: 'user-1',
+    currentVersion: {
+      createdAt: '2026-04-22T00:00:00.000Z',
+      createdBy: 'user-1',
+      definitionJson: template,
+      id: `${id}-version-1`,
+      publishedAt: '2026-04-22T00:00:00.000Z',
+      rootSheetTemplateId: id,
+      schemaVersion: 1,
+      versionLabel: 'A',
+    },
+    currentVersionId: `${id}-version-1`,
+    id,
+    key: `${id}-key`,
+    label,
+    organisationId: null,
+    scopeId: null,
+    scopeType: 'global',
+    updatedAt: '2026-04-22T00:00:00.000Z',
+    versions: [],
+  } satisfies RootSheetTemplate;
 }
 
 function expectTableContent(content: SharedSheetBlockContent | undefined) {

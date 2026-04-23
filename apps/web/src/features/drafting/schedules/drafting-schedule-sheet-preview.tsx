@@ -16,7 +16,10 @@ import {
 } from '@/components/ui/select';
 import { useDraftingDrawing } from '@/hooks/use-drafting';
 import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
-import { coerceRootSheetTemplateDocument } from '@/features/templates/root-sheet-template-types';
+import {
+  coerceRootSheetTemplateDocument,
+  type RootSheetTemplate,
+} from '@/features/templates/root-sheet-template-types';
 import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
 import { SharedSheetRenderer } from '@/features/templates/components/shared-sheet-renderer';
 import {
@@ -36,6 +39,11 @@ import {
   getScheduleSheetRootTemplateId,
 } from './drafting-schedule-sheet-definition-utils';
 import { getOrderedSchedulePackIssues } from './drafting-schedule-pack-issue-utils';
+import {
+  formatSheetLayoutSummary,
+  resolveDraftingScheduleSheetTemplateDrift,
+  resolveDraftingScheduleSheetTemplateState,
+} from './drafting-schedule-template-snapshot';
 import { DRAFTING_SCHEDULE_GROUP_DEFINITIONS } from './drafting-schedule-utils';
 import { formatDrawingRevision, formatDraftingTimestamp } from '../model-utils';
 
@@ -67,6 +75,10 @@ export function DraftingScheduleSheetPreviewPage({
   const [previewMode, setPreviewMode] = React.useState<DraftingSchedulePreviewMode>(initialMode);
   const [selectedIssueId, setSelectedIssueId] = React.useState(initialIssueId ?? '');
   const [selectedSheetId, setSelectedSheetId] = React.useState(initialSheetId ?? '');
+  const rootTemplatesById = React.useMemo(
+    () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
+    [rootTemplates],
+  );
   const templateOptions = React.useMemo(
     () =>
       rootTemplates
@@ -137,6 +149,7 @@ export function DraftingScheduleSheetPreviewPage({
       previewMode={previewMode}
       project={project}
       projectId={projectId}
+      rootTemplatesById={rootTemplatesById}
       selectedIssueId={selectedIssueId}
       selectedSheetId={selectedSheetId}
       selectedTemplateSource={selectedTemplateSource}
@@ -158,6 +171,7 @@ export function DraftingScheduleSheetPreview({
   previewMode,
   project,
   projectId,
+  rootTemplatesById,
   selectedIssueId,
   selectedSheetId,
   selectedTemplateSource,
@@ -175,6 +189,7 @@ export function DraftingScheduleSheetPreview({
   previewMode: DraftingSchedulePreviewMode;
   project: Project;
   projectId: string;
+  rootTemplatesById: ReadonlyMap<string, RootSheetTemplate>;
   selectedIssueId: string;
   selectedSheetId: string;
   selectedTemplateSource: DraftingScheduleSheetTemplateSource;
@@ -290,14 +305,39 @@ export function DraftingScheduleSheetPreview({
     onSelectedIssueIdChange(selectedIssue.id);
   }, [onSelectedIssueIdChange, previewMode, selectedIssue, selectedIssueId]);
 
+  const issueTemplateStates = React.useMemo(
+    () =>
+      selectedIssue
+        ? selectedIssue.lockedSheetDefinitions.map((lockedDefinition) => {
+            const liveDefinition =
+              savedDefinitions.find((definition) => definition.id === lockedDefinition.id) ?? null;
+
+            return {
+              drift: resolveDraftingScheduleSheetTemplateDrift({
+                liveDefinition,
+                lockedDefinition,
+                rootTemplatesById,
+              }),
+              liveDefinition,
+              liveTemplateState: liveDefinition
+                ? resolveDraftingScheduleSheetTemplateState(liveDefinition, rootTemplatesById)
+                : null,
+              lockedDefinition,
+            };
+          })
+        : [],
+    [rootTemplatesById, savedDefinitions, selectedIssue],
+  );
+
   const fallbackWarnings = React.useMemo(
     () =>
       buildTemplateFallbackWarnings({
         definitions: pack.definitions,
+        previewMode,
         templateBindingWarningsById,
         templateOptions,
       }),
-    [pack.definitions, templateBindingWarningsById, templateOptions],
+    [pack.definitions, previewMode, templateBindingWarningsById, templateOptions],
   );
 
   return (
@@ -448,6 +488,49 @@ export function DraftingScheduleSheetPreview({
         </div>
       ) : null}
 
+      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm print:hidden">
+        <div className="font-medium">
+          Live pack = current model + current template binding
+        </div>
+        <div className="text-muted-foreground">
+          Issued pack = locked rows + locked sheet definitions + locked template snapshot
+        </div>
+      </div>
+
+      {selectedIssue && previewMode === 'issue' && issueTemplateStates.length > 0 ? (
+        <div className="space-y-2 rounded-md border px-3 py-3 text-sm print:hidden">
+          <div className="font-medium">Locked template snapshots</div>
+          {issueTemplateStates.map((state) => (
+            <div key={state.lockedDefinition.id} className="rounded-md border px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{state.lockedDefinition.name}</span>
+                <Badge variant="secondary">Issued</Badge>
+                {state.drift.hasDrift ? <Badge variant="outline">Template drift</Badge> : null}
+                {state.drift.isLegacySnapshot ? (
+                  <Badge variant="outline">Legacy snapshot</Badge>
+                ) : null}
+              </div>
+              <p className="mt-1 text-muted-foreground">
+                Issued:{' '}
+                {describeLockedTemplateState(state.lockedDefinition)} -{' '}
+                {formatSheetLayoutSummary(state.lockedDefinition)}
+              </p>
+              <p className="text-muted-foreground">
+                Live:{' '}
+                {state.liveDefinition && state.liveTemplateState
+                  ? `${describeLiveTemplateState(state.liveTemplateState.snapshot)} - ${formatSheetLayoutSummary(state.liveDefinition)}`
+                  : 'Sheet definition missing'}
+              </p>
+              {state.drift.messages.map((message) => (
+                <p key={message} className="mt-1 text-amber-700">
+                  {message}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {fallbackWarnings.length > 0 ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden">
           {fallbackWarnings.map((warning) => (
@@ -570,10 +653,12 @@ function previewLabel(
 
 function buildTemplateFallbackWarnings({
   definitions,
+  previewMode,
   templateBindingWarningsById,
   templateOptions,
 }: {
   definitions: DraftingScheduleSheetPack['definitions'];
+  previewMode: DraftingSchedulePreviewMode;
   templateBindingWarningsById: Record<string, string>;
   templateOptions: Array<{
     label: string;
@@ -584,6 +669,22 @@ function buildTemplateFallbackWarnings({
   const compatibleTemplateIds = new Set(templateOptions.map((option) => option.value));
 
   return definitions.flatMap((definition) => {
+    if (previewMode === 'issue' && definition.templateSnapshot) {
+      if (definition.templateSnapshot.source === 'missing_template_fallback') {
+        return [
+          `${definition.name}: Issued snapshot was locked against the internal schedule layout because the bound root sheet template was missing at issue time.`,
+        ];
+      }
+
+      if (definition.templateSnapshot.source === 'incompatible_template_fallback') {
+        return [
+          `${definition.name}: Issued snapshot was locked against the internal schedule layout because the bound root sheet template was incompatible at issue time.`,
+        ];
+      }
+
+      return [];
+    }
+
     const rootTemplateId = getScheduleSheetRootTemplateId(definition);
     if (!rootTemplateId || compatibleTemplateIds.has(rootTemplateId)) {
       return [];
@@ -595,4 +696,45 @@ function buildTemplateFallbackWarnings({
 
     return [`${definition.name}: ${warning} Falling back to the internal schedule layout.`];
   });
+}
+
+function describeLockedTemplateState(
+  definition: DraftingScheduleSheetPack['definitions'][number],
+) {
+  const snapshot = definition.templateSnapshot;
+  if (!snapshot) {
+    return 'Legacy snapshot without a locked template snapshot';
+  }
+
+  if (snapshot.source === 'default_layout') {
+    return 'Default drafting schedule sheet';
+  }
+
+  if (snapshot.source === 'missing_template_fallback') {
+    return `Default drafting schedule sheet (bound template missing at issue: ${snapshot.rootSheetTemplateId ?? 'unknown'})`;
+  }
+
+  if (snapshot.source === 'incompatible_template_fallback') {
+    return `Default drafting schedule sheet (bound template incompatible at issue: ${snapshot.rootSheetTemplateName ?? snapshot.rootSheetTemplateId ?? 'unknown'})`;
+  }
+
+  return snapshot.rootSheetTemplateName ?? snapshot.label;
+}
+
+function describeLiveTemplateState(
+  snapshot: ReturnType<typeof resolveDraftingScheduleSheetTemplateState>['snapshot'],
+) {
+  if (snapshot.source === 'default_layout') {
+    return 'Default drafting schedule sheet';
+  }
+
+  if (snapshot.source === 'missing_template_fallback') {
+    return `Default drafting schedule sheet (bound template missing: ${snapshot.rootSheetTemplateId ?? 'unknown'})`;
+  }
+
+  if (snapshot.source === 'incompatible_template_fallback') {
+    return `Default drafting schedule sheet (bound template incompatible: ${snapshot.rootSheetTemplateName ?? snapshot.rootSheetTemplateId ?? 'unknown'})`;
+  }
+
+  return snapshot.rootSheetTemplateName ?? snapshot.label;
 }

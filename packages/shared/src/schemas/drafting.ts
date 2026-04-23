@@ -15,6 +15,7 @@ import {
   DRAFTING_SCHEDULE_SHEET_ORIENTATIONS,
   DRAFTING_SCHEDULE_SHEET_PAGE_SIZES,
   DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES,
+  DRAFTING_SCHEDULE_SHEET_TEMPLATE_SNAPSHOT_SOURCES,
   DRAFTING_SECTION_ARROW_DIRECTIONS,
   DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS,
   DRAFTING_SECANT_TYPES,
@@ -113,6 +114,35 @@ export const DraftingScheduleSheetDefinitionSchema = z.object({
   pageOrder: z.number().int().nonnegative(),
 });
 
+export const DraftingScheduleSheetTemplateRectSnapshotSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
+export const DraftingScheduleSheetTemplateScheduleRegionSnapshotSchema =
+  DraftingScheduleSheetTemplateRectSnapshotSchema.extend({
+    sourceBlockId: z.string().min(1).nullable().optional(),
+  });
+
+export const DraftingScheduleSheetTemplateSnapshotSchema = z.object({
+  source: z.enum(DRAFTING_SCHEDULE_SHEET_TEMPLATE_SNAPSHOT_SOURCES),
+  label: z.string().min(1),
+  rootSheetTemplateId: z.string().min(1).nullable().optional(),
+  rootSheetTemplateName: z.string().min(1).nullable().optional(),
+  rootSheetTemplateVersionId: z.string().min(1).nullable().optional(),
+  templateFingerprint: z.string().min(1).nullable().optional(),
+  safeArea: DraftingScheduleSheetTemplateRectSnapshotSchema,
+  scheduleRegion: DraftingScheduleSheetTemplateScheduleRegionSnapshotSchema,
+  renderDefinition: z.record(z.unknown()),
+});
+
+export const DraftingLockedScheduleSheetDefinitionSchema =
+  DraftingScheduleSheetDefinitionSchema.extend({
+    templateSnapshot: DraftingScheduleSheetTemplateSnapshotSchema.optional(),
+  });
+
 export const DraftingScheduleSummaryColumnSnapshotSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
@@ -150,7 +180,7 @@ export const DraftingSchedulePackIssueSchema = z.object({
   issuedBy: z.string().optional(),
   notes: z.string().optional(),
   includedScheduleSheetIds: z.array(z.string().min(1)),
-  lockedSheetDefinitions: z.array(DraftingScheduleSheetDefinitionSchema),
+  lockedSheetDefinitions: z.array(DraftingLockedScheduleSheetDefinitionSchema),
   lockedScheduleSummary: DraftingScheduleSummarySnapshotSchema,
   pageCount: z.number().int().nonnegative(),
 });

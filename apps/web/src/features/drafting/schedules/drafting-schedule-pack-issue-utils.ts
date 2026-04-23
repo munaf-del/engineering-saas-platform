@@ -2,6 +2,7 @@ import type {
   DraftingModel,
   DraftingSchedulePackIssue,
   DraftingSchedulePackIssueStatus,
+  DraftingScheduleSheetTemplateSnapshot,
   DraftingScheduleSummarySnapshot,
 } from '@eng/shared';
 import {
@@ -23,6 +24,7 @@ export type CreateDraftingSchedulePackIssueSnapshotArgs = {
   name: string;
   notes?: string;
   revisionLabel: string;
+  templateSnapshotsBySheetId?: Record<string, DraftingScheduleSheetTemplateSnapshot | undefined>;
 };
 
 export type DuplicateDraftingSchedulePackIssueSnapshotArgs = {
@@ -49,7 +51,9 @@ export function createDraftingSchedulePackIssueSnapshot(
   const includedIdSet = new Set(includedScheduleSheetIds);
   const lockedSheetDefinitions = orderedDefinitions
     .filter((definition) => includedIdSet.has(definition.id))
-    .map(cloneScheduleSheetDefinition);
+    .map((definition) =>
+      cloneScheduleSheetDefinition(definition, args.templateSnapshotsBySheetId?.[definition.id]),
+    );
   const scheduleSummary = buildDraftingScheduleSummary(model);
   const pack = buildDraftingScheduleSheetPack({
     definitions: lockedSheetDefinitions,
@@ -174,18 +178,33 @@ function cloneSchedulePackIssue(issue: DraftingSchedulePackIssue): DraftingSched
   return {
     ...issue,
     includedScheduleSheetIds: [...issue.includedScheduleSheetIds],
-    lockedSheetDefinitions: issue.lockedSheetDefinitions.map(cloneScheduleSheetDefinition),
+    lockedSheetDefinitions: issue.lockedSheetDefinitions.map((definition) =>
+      cloneScheduleSheetDefinition(definition, definition.templateSnapshot),
+    ),
     lockedScheduleSummary: cloneScheduleSummarySnapshot(issue.lockedScheduleSummary),
   };
 }
 
 function cloneScheduleSheetDefinition(
   definition: DraftingSchedulePackIssue['lockedSheetDefinitions'][number],
+  templateSnapshot: DraftingScheduleSheetTemplateSnapshot | undefined = definition.templateSnapshot,
 ) {
   return {
     ...definition,
     includedScheduleGroups: [...definition.includedScheduleGroups],
     projectMetadata: definition.projectMetadata ? { ...definition.projectMetadata } : undefined,
+    templateSnapshot: templateSnapshot ? cloneTemplateSnapshot(templateSnapshot) : undefined,
+  };
+}
+
+function cloneTemplateSnapshot(snapshot: DraftingScheduleSheetTemplateSnapshot) {
+  return {
+    ...snapshot,
+    renderDefinition: JSON.parse(
+      JSON.stringify(snapshot.renderDefinition),
+    ) as DraftingScheduleSheetTemplateSnapshot['renderDefinition'],
+    safeArea: { ...snapshot.safeArea },
+    scheduleRegion: { ...snapshot.scheduleRegion },
   };
 }
 

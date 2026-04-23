@@ -222,7 +222,37 @@ describe('drafting defaults', () => {
       issueStatus: 'issued',
       issuedAt: '2026-04-23T00:00:00.000Z',
       includedScheduleSheetIds: ['schedule-sheet-1'],
-      lockedSheetDefinitions: [model.scheduleSheets[0]!],
+      lockedSheetDefinitions: [
+        {
+          ...model.scheduleSheets[0]!,
+          templateSnapshot: {
+            source: 'root_template',
+            label: 'Anchor sheet template',
+            rootSheetTemplateId: 'root-template-1',
+            rootSheetTemplateName: 'Anchor sheet template',
+            rootSheetTemplateVersionId: 'root-template-version-1',
+            templateFingerprint: 'fingerprint-1',
+            safeArea: {
+              x: 10,
+              y: 10,
+              width: 400,
+              height: 277,
+            },
+            scheduleRegion: {
+              x: 10,
+              y: 42,
+              width: 400,
+              height: 200,
+              sourceBlockId: 'details-block-1',
+            },
+            renderDefinition: {
+              id: 'root-template-1',
+              kind: 'shared_sheet',
+              paperSize: 'a3',
+            },
+          },
+        },
+      ],
       lockedScheduleSummary: {
         counts: {
           anchors: 1,
@@ -257,13 +287,62 @@ describe('drafting defaults', () => {
     expect(parsed.schedulePackIssues[0]).toMatchObject({
       id: 'issue-1',
       issueStatus: 'issued',
-      lockedSheetDefinitions: [{ id: 'schedule-sheet-1' }],
+      lockedSheetDefinitions: [
+        {
+          id: 'schedule-sheet-1',
+          templateSnapshot: {
+            rootSheetTemplateVersionId: 'root-template-version-1',
+            source: 'root_template',
+            templateFingerprint: 'fingerprint-1',
+          },
+        },
+      ],
       lockedScheduleSummary: {
         drawingId: 'drawing-schedule-issue',
       },
       pageCount: 1,
       revisionLabel: 'A',
     });
+  });
+
+  it('hydrates legacy issue snapshots that predate locked template snapshots', () => {
+    const model = createEmptyDraftingModel('drawing-legacy-issue');
+    model.schedulePackIssues.push({
+      id: 'issue-legacy',
+      name: 'Legacy Issue',
+      revisionLabel: 'A',
+      issuePurpose: 'For review',
+      issueStatus: 'issued',
+      includedScheduleSheetIds: ['schedule-sheet-1'],
+      lockedSheetDefinitions: [
+        {
+          id: 'schedule-sheet-1',
+          name: 'Legacy sheet',
+          rootSheetTemplateId: 'root-template-1',
+          templateId: 'root-template-1',
+          pageSize: 'a3',
+          orientation: 'landscape',
+          includedScheduleGroups: ['anchors'],
+          title: 'Legacy sheet',
+          tableDensity: 'compact',
+          pageOrder: 1,
+        },
+      ],
+      lockedScheduleSummary: {
+        counts: {},
+        drawingId: model.drawingId,
+        groups: [],
+        units: 'mm',
+      },
+      pageCount: 0,
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.schedulePackIssues[0]?.lockedSheetDefinitions[0]?.id).toBe('schedule-sheet-1');
+    expect(parsed.schedulePackIssues[0]?.lockedSheetDefinitions[0]).not.toHaveProperty(
+      'templateSnapshot',
+    );
   });
 
   it('accepts and preserves semantic shoring drafting objects', () => {

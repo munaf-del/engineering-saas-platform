@@ -27,6 +27,29 @@ describe('drafting schedule pack issue utils', () => {
       metadata: metadata(),
       name: 'Anchor Issue',
       revisionLabel: 'A',
+      templateSnapshotsBySheetId: {
+        'sheet-anchors': {
+          source: 'default_layout',
+          label: 'Default drafting schedule sheet',
+          templateFingerprint: 'snapshot-1',
+          safeArea: {
+            x: 10,
+            y: 10,
+            width: 400,
+            height: 277,
+          },
+          scheduleRegion: {
+            x: 10,
+            y: 42,
+            width: 400,
+            height: 200,
+          },
+          renderDefinition: {
+            id: 'locked-sheet-definition',
+            kind: 'shared_sheet',
+          },
+        },
+      },
     });
 
     expect(issue).toMatchObject({
@@ -40,6 +63,10 @@ describe('drafting schedule pack issue utils', () => {
     expect(issue.lockedSheetDefinitions[0]).toMatchObject({
       id: 'sheet-anchors',
       includedScheduleGroups: ['anchors'],
+      templateSnapshot: {
+        label: 'Default drafting schedule sheet',
+        templateFingerprint: 'snapshot-1',
+      },
     });
     expect(
       issue.lockedScheduleSummary.groups.find((group) => group.key === 'anchors')?.rows[0],
@@ -65,6 +92,29 @@ describe('drafting schedule pack issue utils', () => {
       metadata: metadata(),
       name: 'Anchor Issue',
       revisionLabel: 'A',
+      templateSnapshotsBySheetId: {
+        'sheet-anchors': {
+          source: 'default_layout',
+          label: 'Default drafting schedule sheet',
+          templateFingerprint: 'snapshot-1',
+          safeArea: {
+            x: 10,
+            y: 10,
+            width: 400,
+            height: 277,
+          },
+          scheduleRegion: {
+            x: 10,
+            y: 42,
+            width: 400,
+            height: 200,
+          },
+          renderDefinition: {
+            id: 'locked-sheet-definition',
+            kind: 'shared_sheet',
+          },
+        },
+      },
     });
 
     let nextModel = addSchedulePackIssue(model, issue);
@@ -90,6 +140,12 @@ describe('drafting schedule pack issue utils', () => {
       issuedAt: '2026-04-23T00:00:00.000Z',
       revisionLabel: 'B',
     });
+    expect(nextModel.schedulePackIssues[1]?.lockedSheetDefinitions[0]?.templateSnapshot).toMatchObject(
+      {
+        label: 'Default drafting schedule sheet',
+        templateFingerprint: 'snapshot-1',
+      },
+    );
     expect(
       nextModel.schedulePackIssues[1]?.lockedScheduleSummary.groups.find(
         (group) => group.key === 'anchors',

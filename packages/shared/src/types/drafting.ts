@@ -234,6 +234,16 @@ export type DraftingScheduleSheetProjectMetadataOverrides = {
   projectName?: string;
 };
 
+export const DRAFTING_SCHEDULE_SHEET_TEMPLATE_SNAPSHOT_SOURCES = [
+  'default_layout',
+  'root_template',
+  'missing_template_fallback',
+  'incompatible_template_fallback',
+] as const;
+
+export type DraftingScheduleSheetTemplateSnapshotSource =
+  (typeof DRAFTING_SCHEDULE_SHEET_TEMPLATE_SNAPSHOT_SOURCES)[number];
+
 export type DraftingScheduleSheetDefinition = {
   id: string;
   name: string;
@@ -249,6 +259,34 @@ export type DraftingScheduleSheetDefinition = {
   projectMetadata?: DraftingScheduleSheetProjectMetadataOverrides;
   tableDensity: DraftingScheduleSheetTableDensity;
   pageOrder: number;
+};
+
+export type DraftingScheduleSheetTemplateRectSnapshot = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type DraftingScheduleSheetTemplateScheduleRegionSnapshot =
+  DraftingScheduleSheetTemplateRectSnapshot & {
+    sourceBlockId?: string | null;
+  };
+
+export type DraftingScheduleSheetTemplateSnapshot = {
+  source: DraftingScheduleSheetTemplateSnapshotSource;
+  label: string;
+  rootSheetTemplateId?: string | null;
+  rootSheetTemplateName?: string | null;
+  rootSheetTemplateVersionId?: string | null;
+  templateFingerprint?: string | null;
+  safeArea: DraftingScheduleSheetTemplateRectSnapshot;
+  scheduleRegion: DraftingScheduleSheetTemplateScheduleRegionSnapshot;
+  renderDefinition: Record<string, unknown>;
+};
+
+export type DraftingLockedScheduleSheetDefinition = DraftingScheduleSheetDefinition & {
+  templateSnapshot?: DraftingScheduleSheetTemplateSnapshot;
 };
 
 export type DraftingScheduleSummaryColumnSnapshot = {
@@ -288,7 +326,7 @@ export type DraftingSchedulePackIssue = {
   issuedBy?: string;
   notes?: string;
   includedScheduleSheetIds: string[];
-  lockedSheetDefinitions: DraftingScheduleSheetDefinition[];
+  lockedSheetDefinitions: DraftingLockedScheduleSheetDefinition[];
   lockedScheduleSummary: DraftingScheduleSummarySnapshot;
   pageCount: number;
 };
