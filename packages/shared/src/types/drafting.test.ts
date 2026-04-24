@@ -29,8 +29,58 @@ describe('drafting defaults', () => {
 
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
+    expect(parsed.objectChangeEvents).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);
+  });
+
+  it('accepts optional object provenance and model change events', () => {
+    const model = createEmptyDraftingModel('drawing-provenance');
+    const now = new Date('2026-04-24T00:00:00.000Z').toISOString();
+
+    model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 1000, y: 2000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      provenance: {
+        createdAt: now,
+        createdBy: 'Avery Drafter',
+        updatedAt: now,
+        updatedBy: 'Avery Drafter',
+        lastAction: 'created',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    model.objectChangeEvents = [
+      {
+        id: 'event-1',
+        objectId: 'pile-1',
+        objectType: 'pile',
+        action: 'deleted',
+        at: now,
+        by: 'Avery Drafter',
+        summary: 'Deleted pile P1',
+        source: 'drafting-editor',
+      },
+    ];
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.objects[0]).toMatchObject({
+      provenance: {
+        createdBy: 'Avery Drafter',
+        lastAction: 'created',
+      },
+    });
+    expect(parsed.objectChangeEvents).toHaveLength(1);
   });
 
   it('clones the default layers instead of reusing references', () => {

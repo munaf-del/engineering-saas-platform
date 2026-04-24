@@ -222,6 +222,7 @@ function cloneScheduleSummarySnapshot(
         cells: { ...row.cells },
         id: row.id,
         objectType: row.objectType,
+        provenance: row.provenance ? { ...row.provenance } : undefined,
         sourceObjectId: row.sourceObjectId,
       })),
       title: group.title,

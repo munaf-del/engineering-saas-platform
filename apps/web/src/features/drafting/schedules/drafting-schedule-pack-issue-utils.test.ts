@@ -74,6 +74,10 @@ describe('drafting schedule pack issue utils', () => {
       cells: {
         anchorId: 'A1',
       },
+      provenance: {
+        createdBy: 'Issue Drafter',
+        lastAction: 'created',
+      },
     });
   });
 
@@ -140,12 +144,12 @@ describe('drafting schedule pack issue utils', () => {
       issuedAt: '2026-04-23T00:00:00.000Z',
       revisionLabel: 'B',
     });
-    expect(nextModel.schedulePackIssues[1]?.lockedSheetDefinitions[0]?.templateSnapshot).toMatchObject(
-      {
-        label: 'Default drafting schedule sheet',
-        templateFingerprint: 'snapshot-1',
-      },
-    );
+    expect(
+      nextModel.schedulePackIssues[1]?.lockedSheetDefinitions[0]?.templateSnapshot,
+    ).toMatchObject({
+      label: 'Default drafting schedule sheet',
+      templateFingerprint: 'snapshot-1',
+    });
     expect(
       nextModel.schedulePackIssues[1]?.lockedScheduleSummary.groups.find(
         (group) => group.key === 'anchors',
@@ -156,7 +160,13 @@ describe('drafting schedule pack issue utils', () => {
 
 function modelWithAnchor(anchorId: string): DraftingModel {
   const model = createEmptyDraftingModel('drawing-issues');
-  const anchor = createDraftingObject('anchor_tieback', { x: 1000, y: 2000 }, model);
+  const anchor = createDraftingObject(
+    'anchor_tieback',
+    { x: 1000, y: 2000 },
+    model,
+    [],
+    'Issue Drafter',
+  );
   if (anchor.type !== 'anchor_tieback') {
     throw new Error('Expected anchor');
   }

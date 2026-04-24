@@ -1,4 +1,4 @@
-import type { DraftingModel, DraftingObjectType } from '@eng/shared';
+import type { DraftingModel, DraftingObjectProvenance, DraftingObjectType } from '@eng/shared';
 
 export type DraftingScheduleGroupKey =
   | 'shoring_piles'
@@ -20,6 +20,7 @@ export type DraftingScheduleRow = {
   sourceObjectId: string;
   objectType: DraftingObjectType;
   cells: DraftingScheduleCellMap;
+  provenance?: DraftingObjectProvenance;
 };
 
 export type DraftingScheduleGroup = {

@@ -131,6 +131,14 @@ export const DRAFTING_SERVICE_CONFLICT_TYPES = [
   'unknown',
 ] as const;
 export const DRAFTING_SERVICE_RISK_STATUSES = ['open', 'reviewed', 'resolved'] as const;
+export const DRAFTING_OBJECT_PROVENANCE_ACTIONS = [
+  'created',
+  'updated',
+  'moved',
+  'deleted',
+  'imported',
+  'unknown',
+] as const;
 
 export type DraftingPileType = (typeof DRAFTING_PILE_TYPES)[number];
 export type DraftingPileMaterial = (typeof DRAFTING_PILE_MATERIALS)[number];
@@ -146,6 +154,7 @@ export type DraftingServiceType = (typeof DRAFTING_SERVICE_TYPES)[number];
 export type DraftingServiceStatus = (typeof DRAFTING_SERVICE_STATUSES)[number];
 export type DraftingServiceConflictType = (typeof DRAFTING_SERVICE_CONFLICT_TYPES)[number];
 export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[number];
+export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
 
 export type DraftingPoint = {
   x: number;
@@ -299,6 +308,7 @@ export type DraftingScheduleSummaryRowSnapshot = {
   sourceObjectId: string;
   objectType: DraftingObjectType;
   cells: Record<string, string>;
+  provenance?: DraftingObjectProvenance;
 };
 
 export type DraftingScheduleSummaryGroupSnapshot = {
@@ -340,8 +350,17 @@ export type DraftingObjectBase = {
   visible?: boolean;
   style?: DraftingStyle;
   metadata?: Record<string, unknown>;
+  provenance?: DraftingObjectProvenance;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DraftingObjectProvenance = {
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  lastAction?: DraftingObjectProvenanceAction;
 };
 
 export type DraftingPileObject = DraftingObjectBase & {
@@ -653,8 +672,20 @@ export type DraftingModel = {
   layers: DraftingLayer[];
   underlays: DraftingUnderlay[];
   objects: DraftingObject[];
+  objectChangeEvents?: DraftingObjectChangeEvent[];
   scheduleSheets: DraftingScheduleSheetDefinition[];
   schedulePackIssues: DraftingSchedulePackIssue[];
+};
+
+export type DraftingObjectChangeEvent = {
+  id: string;
+  objectId: string;
+  objectType: DraftingObjectType;
+  action: Exclude<DraftingObjectProvenanceAction, 'imported' | 'unknown'>;
+  at: string;
+  by?: string;
+  summary?: string;
+  source: 'drafting-editor';
 };
 
 export interface DraftingDrawingSummary {
@@ -823,6 +854,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
   return {
     ...model,
     layers: [...orderedLayers, ...extraLayers],
+    objectChangeEvents: model.objectChangeEvents ?? [],
     scheduleSheets: model.scheduleSheets ?? [],
     schedulePackIssues: model.schedulePackIssues ?? [],
   };
@@ -841,6 +873,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     layers: createDefaultDraftingLayers(),
     underlays: [],
     objects: [],
+    objectChangeEvents: [],
     scheduleSheets: [],
     schedulePackIssues: [],
   });

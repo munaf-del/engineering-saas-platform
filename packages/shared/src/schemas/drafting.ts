@@ -9,6 +9,7 @@ import {
   DRAFTING_LINE_STYLES,
   DRAFTING_MONITORING_TYPES,
   DRAFTING_OBJECT_TYPES,
+  DRAFTING_OBJECT_PROVENANCE_ACTIONS,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
   DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES,
@@ -148,11 +149,20 @@ export const DraftingScheduleSummaryColumnSnapshotSchema = z.object({
   label: z.string().min(1),
 });
 
+export const DraftingObjectProvenanceSchema = z.object({
+  createdAt: z.string().datetime().optional(),
+  createdBy: z.string().optional(),
+  updatedAt: z.string().datetime().optional(),
+  updatedBy: z.string().optional(),
+  lastAction: z.enum(DRAFTING_OBJECT_PROVENANCE_ACTIONS).optional(),
+});
+
 export const DraftingScheduleSummaryRowSnapshotSchema = z.object({
   id: z.string().min(1),
   sourceObjectId: z.string().min(1),
   objectType: z.enum(DRAFTING_OBJECT_TYPES),
   cells: z.record(z.string()),
+  provenance: DraftingObjectProvenanceSchema.optional(),
 });
 
 export const DraftingScheduleSummaryGroupSnapshotSchema = z.object({
@@ -194,8 +204,20 @@ const DraftingObjectBaseSchema = z.object({
   visible: z.boolean().optional(),
   style: DraftingStyleSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
+  provenance: DraftingObjectProvenanceSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const DraftingObjectChangeEventSchema = z.object({
+  id: z.string().min(1),
+  objectId: z.string().min(1),
+  objectType: z.enum(DRAFTING_OBJECT_TYPES),
+  action: z.enum(['created', 'updated', 'moved', 'deleted']),
+  at: z.string().datetime(),
+  by: z.string().optional(),
+  summary: z.string().optional(),
+  source: z.literal('drafting-editor'),
 });
 
 export const DraftingPileObjectSchema = DraftingObjectBaseSchema.extend({
@@ -547,6 +569,7 @@ export const DraftingModelSchema = z.object({
   layers: z.array(DraftingLayerSchema),
   underlays: z.array(DraftingUnderlaySchema),
   objects: z.array(DraftingObjectSchema),
+  objectChangeEvents: z.array(DraftingObjectChangeEventSchema).default([]),
   scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
   schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
 });

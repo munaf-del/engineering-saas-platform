@@ -49,6 +49,7 @@ export function DraftingEditor({
   project: Project;
 }) {
   const { user } = useAuth();
+  const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
   const history = useDraftingHistory(projectId, drawingId);
   const view = useDraftingView({
@@ -60,6 +61,7 @@ export function DraftingEditor({
   const selection = useDraftingSelection({
     activeTool: drafting.activeTool,
     containerRef: view.containerRef,
+    currentUserName,
     model: history.model,
     onCancelPendingLine: drafting.clearPendingLine,
     onSelectPropertiesTab: () => drafting.setActiveTab('properties'),
@@ -145,7 +147,13 @@ export function DraftingEditor({
       return;
     }
 
-    const nextObject = createDraftingObject(drafting.activeTool, point, currentModel);
+    const nextObject = createDraftingObject(
+      drafting.activeTool,
+      point,
+      currentModel,
+      [],
+      currentUserName,
+    );
     history.replaceModel({
       ...currentModel,
       objects: [...currentModel.objects, nextObject],
@@ -220,6 +228,7 @@ export function DraftingEditor({
       drafting.pendingLinePoints[0]!,
       currentModel,
       drafting.pendingLinePoints,
+      currentUserName,
     );
 
     history.replaceModel({
@@ -358,7 +367,7 @@ export function DraftingEditor({
               <TabsContent value="schedules">
                 <ScrollArea className="h-[580px] pr-3">
                   <DraftingSchedulesPanel
-                    currentUserName={user?.name ?? user?.email ?? null}
+                    currentUserName={currentUserName}
                     drawingTitle={currentDrawing.title}
                     model={currentModel}
                     metadata={scheduleMetadata}

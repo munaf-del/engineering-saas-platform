@@ -4,6 +4,8 @@ import {
   type DraftingLayer,
   type DraftingModel,
   type DraftingObject,
+  type DraftingObjectChangeEvent,
+  type DraftingObjectProvenanceAction,
   type DraftingPoint,
   type DraftingUnderlay,
   type DraftingUnderlayCrop,
@@ -30,6 +32,8 @@ import {
   defaultSoldierPileSymbolDiameterMm,
 } from './semantic-object-utils';
 
+const MAX_DRAFTING_OBJECT_CHANGE_EVENTS = 200;
+
 export type DraftingBounds = {
   minX: number;
   minY: number;
@@ -53,41 +57,66 @@ export function createDraftingObject(
   point: DraftingPoint,
   model: DraftingModel,
   pendingLinePoints: DraftingPoint[] = [],
+  author?: string | null,
 ): DraftingObject {
+  let object: DraftingObject;
+
   switch (type) {
     case 'pile':
-      return createPileObject(point, model);
+      object = createPileObject(point, model);
+      break;
     case 'secant_pile_wall':
-      return createSecantPileWallObject(point, model);
+      object = createSecantPileWallObject(point, model);
+      break;
     case 'soldier_pile_wall':
-      return createSoldierPileWallObject(point, model);
+      object = createSoldierPileWallObject(point, model);
+      break;
     case 'anchor_tieback':
-      return createAnchorTiebackObject(point, model);
+      object = createAnchorTiebackObject(point, model);
+      break;
     case 'capping_beam':
-      return createCappingBeamObject(point, model);
+      object = createCappingBeamObject(point, model);
+      break;
     case 'waler':
-      return createWalerObject(point, model);
+      object = createWalerObject(point, model);
+      break;
     case 'monitoring_point':
-      return createMonitoringPointObject(point, model);
+      object = createMonitoringPointObject(point, model);
+      break;
     case 'leader_note':
-      return createLeaderNoteObject(point, model);
+      object = createLeaderNoteObject(point, model);
+      break;
     case 'dimension_chain':
-      return createDimensionChainObject(point, model);
+      object = createDimensionChainObject(point, model);
+      break;
     case 'callout':
-      return createCalloutObject(point, model);
+      object = createCalloutObject(point, model);
+      break;
     case 'section_marker':
-      return createSectionMarkerObject(point, model);
+      object = createSectionMarkerObject(point, model);
+      break;
     case 'borehole':
-      return createBoreholeObject(point, model);
+      object = createBoreholeObject(point, model);
+      break;
     case 'service_run':
-      return createServiceRunObject(point, model);
+      object = createServiceRunObject(point, model);
+      break;
     case 'service_crossing':
-      return createServiceCrossingObject(point, model);
+      object = createServiceCrossingObject(point, model);
+      break;
     case 'excavation_line':
-      return createExcavationLineObject(point, model, pendingLinePoints);
+      object = createExcavationLineObject(point, model, pendingLinePoints);
+      break;
     default:
-      return createPileObject(point, model);
+      object = createPileObject(point, model);
+      break;
   }
+
+  return stampDraftingObjectProvenance(object, {
+    action: 'created',
+    at: object.createdAt,
+    by: author,
+  });
 }
 
 export function replaceDraftingObject(
@@ -115,9 +144,83 @@ export function updateDraftingObject(
 }
 
 export function removeDraftingObject(model: DraftingModel, objectId: string) {
+  const object = model.objects.find((entry) => entry.id === objectId);
+
   return {
     ...model,
     objects: model.objects.filter((object) => object.id !== objectId),
+    objectChangeEvents: object
+      ? appendDraftingObjectChangeEvent(model.objectChangeEvents ?? [], {
+          id: crypto.randomUUID(),
+          objectId: object.id,
+          objectType: object.type,
+          action: 'deleted',
+          at: new Date().toISOString(),
+          source: 'drafting-editor',
+          summary: object.name ? `Deleted ${object.name}` : `Deleted ${object.type}`,
+        })
+      : (model.objectChangeEvents ?? []),
+  };
+}
+
+export function removeDraftingObjectWithProvenance(
+  model: DraftingModel,
+  objectId: string,
+  args: {
+    at?: string;
+    by?: string | null;
+  } = {},
+) {
+  const object = model.objects.find((entry) => entry.id === objectId);
+  if (!object) {
+    return model;
+  }
+
+  const at = args.at ?? new Date().toISOString();
+
+  return {
+    ...model,
+    objects: model.objects.filter((entry) => entry.id !== objectId),
+    objectChangeEvents: appendDraftingObjectChangeEvent(model.objectChangeEvents ?? [], {
+      id: crypto.randomUUID(),
+      objectId: object.id,
+      objectType: object.type,
+      action: 'deleted',
+      at,
+      ...(args.by ? { by: args.by } : {}),
+      source: 'drafting-editor',
+      summary: object.name ? `Deleted ${object.name}` : `Deleted ${object.type}`,
+    }),
+  };
+}
+
+export function stampDraftingObjectProvenance(
+  object: DraftingObject,
+  args: {
+    action: DraftingObjectProvenanceAction;
+    at?: string;
+    by?: string | null;
+  },
+): DraftingObject {
+  const at = args.at ?? new Date().toISOString();
+  const existing = object.provenance ?? {};
+  const createdAt = existing.createdAt ?? object.createdAt;
+  const createdBy =
+    existing.createdBy ?? (args.action === 'created' ? (args.by ?? undefined) : undefined);
+  const updatedAt = args.action === 'created' ? (existing.updatedAt ?? object.updatedAt) : at;
+  const updatedBy =
+    args.action === 'created' ? existing.updatedBy : (args.by ?? existing.updatedBy);
+
+  return {
+    ...object,
+    provenance: {
+      createdAt,
+      ...(createdBy ? { createdBy } : {}),
+      updatedAt,
+      ...(updatedBy ? { updatedBy } : {}),
+      lastAction: args.action,
+    },
+    updatedAt,
   };
 }
 
@@ -221,12 +324,21 @@ export function translateDraftingObject(
   object: DraftingObject,
   deltaX: number,
   deltaY: number,
+  provenance?: {
+    by?: string | null;
+  },
 ): DraftingObject {
   const updatedAt = new Date().toISOString();
+  const stampMoved = (nextObject: DraftingObject) =>
+    stampDraftingObjectProvenance(nextObject, {
+      action: 'moved',
+      at: updatedAt,
+      by: provenance?.by,
+    });
 
   switch (object.type) {
     case 'pile':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -236,9 +348,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'secant_pile_wall':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -252,9 +364,9 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     case 'soldier_pile_wall':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -268,9 +380,9 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     case 'anchor_tieback':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           headPoint: {
@@ -283,10 +395,10 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'capping_beam':
     case 'waler':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -296,9 +408,9 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     case 'monitoring_point':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           point: {
@@ -307,9 +419,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'leader_note':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           anchor: {
@@ -322,9 +434,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'dimension_chain':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -334,9 +446,9 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     case 'callout':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           anchorPoint: {
@@ -349,9 +461,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'section_marker':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           startPoint: {
@@ -364,9 +476,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'borehole':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           point: {
@@ -375,9 +487,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'service_run':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -387,9 +499,9 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     case 'service_crossing':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           crossingPoint: {
@@ -398,9 +510,9 @@ export function translateDraftingObject(
           },
         },
         updatedAt,
-      };
+      });
     case 'excavation_line':
-      return {
+      return stampMoved({
         ...object,
         geometry: {
           ...object.geometry,
@@ -410,13 +522,20 @@ export function translateDraftingObject(
           })),
         },
         updatedAt,
-      };
+      });
     default:
-      return {
+      return stampMoved({
         ...object,
         updatedAt,
-      };
+      });
   }
+}
+
+function appendDraftingObjectChangeEvent(
+  events: DraftingObjectChangeEvent[],
+  event: DraftingObjectChangeEvent,
+) {
+  return [...events, event].slice(-MAX_DRAFTING_OBJECT_CHANGE_EVENTS);
 }
 
 export function fitDraftingModelView(
@@ -531,10 +650,7 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
       );
     }
     case 'section_marker':
-      return getPointCollectionBounds(
-        [object.geometry.startPoint, object.geometry.endPoint],
-        520,
-      );
+      return getPointCollectionBounds([object.geometry.startPoint, object.geometry.endPoint], 520);
     case 'borehole':
       return getPointCollectionBounds(
         [

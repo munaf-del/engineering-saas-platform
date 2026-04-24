@@ -10,6 +10,7 @@ import {
   getVisibleDraftingUnderlays,
   removeDraftingUnderlay,
   removeDraftingObject,
+  removeDraftingObjectWithProvenance,
   translateDraftingObject,
   updateDraftingUnderlay,
   updateDraftingObject,
@@ -40,6 +41,43 @@ describe('drafting model utils', () => {
     expect(withPile.objects[0]).toMatchObject({ metadata: { pileId: 'P1' } });
     expect(updated.objects[0]).toMatchObject({ metadata: { pileId: 'P-UPDATED' } });
     expect(removed.objects).toHaveLength(0);
+  });
+
+  it('adds provenance metadata to new objects, edits, moves, and removals', () => {
+    const model = createEmptyDraftingModel('drawing-provenance');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model, [], 'Avery Drafter');
+    const withPile = { ...model, objects: [pile] };
+    const updated = updateDraftingObject(withPile, pile.id, (current) => ({
+      ...current,
+      provenance: {
+        ...current.provenance,
+        updatedAt: '2026-04-24T01:00:00.000Z',
+        updatedBy: 'Avery Drafter',
+        lastAction: 'updated',
+      },
+    }));
+    const moved = translateDraftingObject(updated.objects[0]!, 100, 200, {
+      by: 'Avery Drafter',
+    });
+    const removed = removeDraftingObjectWithProvenance({ ...updated, objects: [moved] }, pile.id, {
+      at: '2026-04-24T02:00:00.000Z',
+      by: 'Avery Drafter',
+    });
+
+    expect(pile.provenance).toMatchObject({
+      createdBy: 'Avery Drafter',
+      lastAction: 'created',
+    });
+    expect(moved.provenance).toMatchObject({
+      lastAction: 'moved',
+      updatedBy: 'Avery Drafter',
+    });
+    expect(removed.objects).toHaveLength(0);
+    expect(removed.objectChangeEvents?.[0]).toMatchObject({
+      action: 'deleted',
+      by: 'Avery Drafter',
+      objectId: pile.id,
+    });
   });
 
   it('translates pile geometry without mutating the source object', () => {

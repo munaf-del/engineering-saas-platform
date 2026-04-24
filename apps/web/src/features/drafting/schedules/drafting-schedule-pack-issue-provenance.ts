@@ -1,6 +1,8 @@
 import type {
   DraftingLockedScheduleSheetDefinition,
   DraftingModel,
+  DraftingObjectChangeEvent,
+  DraftingObjectProvenance,
   DraftingSchedulePackIssue,
   DraftingScheduleSheetDefinition,
   DraftingScheduleSheetTemplateRectSnapshot,
@@ -111,6 +113,38 @@ export type DraftingSchedulePackIssueChangedField = {
   liveValue: string;
 };
 
+export type DraftingSchedulePackIssueRowProvenanceSource =
+  | 'live_object'
+  | 'issued_snapshot'
+  | 'object_change_log'
+  | 'legacy_unavailable';
+
+export type DraftingSchedulePackIssueRowProvenanceDetail = {
+  at: string | null;
+  by: string | null;
+  fallbackReason: string | null;
+  lastAction: DraftingObjectProvenance['lastAction'] | null;
+  objectId: string;
+  objectType: string;
+  source: DraftingSchedulePackIssueRowProvenanceSource;
+};
+
+export type DraftingSchedulePackIssueRowProvenance = {
+  action:
+    | 'created_after_issue'
+    | 'changed_after_issue'
+    | 'removed_after_issue'
+    | 'unchanged_since_issue'
+    | 'unknown';
+  fallbackMessage: string | null;
+  issuedSnapshotProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  known: boolean;
+  liveObjectProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  removalProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  sourceObjectId: string | null;
+  sourceObjectType: string;
+};
+
 export type DraftingSchedulePackIssueRowComparison = {
   changedFields: DraftingSchedulePackIssueChangedField[];
   issuedRow: DraftingScheduleRow | null;
@@ -118,6 +152,7 @@ export type DraftingSchedulePackIssueRowComparison = {
   label: string;
   liveRow: DraftingScheduleRow | null;
   objectType: string;
+  provenance: DraftingSchedulePackIssueRowProvenance;
   rowKey: string;
   status: DraftingSchedulePackIssueRowStatus;
 };
@@ -128,6 +163,7 @@ export type DraftingSchedulePackIssueGroupRowComparison = {
   emptyState: string | null;
   groupKey: string;
   issuedRowCount: number;
+  knownProvenanceRowCount: number;
   legacySnapshotMissingRowData: boolean;
   liveRowCount: number;
   removedRows: DraftingSchedulePackIssueRowComparison[];
@@ -135,6 +171,7 @@ export type DraftingSchedulePackIssueGroupRowComparison = {
   title: string;
   unchangedRowCount: number;
   unchangedRows: DraftingSchedulePackIssueRowComparison[];
+  unknownProvenanceRowCount: number;
 };
 
 export type DraftingSchedulePackIssueRowComparisonSummary = {
@@ -142,10 +179,12 @@ export type DraftingSchedulePackIssueRowComparisonSummary = {
   changedRowCount: number;
   emptyState: string | null;
   groups: DraftingSchedulePackIssueGroupRowComparison[];
+  knownProvenanceRowCount: number;
   legacySnapshotMissingRowData: boolean;
   noLockedRows: boolean;
   removedRowCount: number;
   unchangedRowCount: number;
+  unknownProvenanceRowCount: number;
 };
 
 export type DraftingSchedulePackIssueComparisonSummary = {
@@ -531,6 +570,7 @@ function buildComparisonSummary(args: {
     );
   const rowComparison = buildDraftingSchedulePackIssueRowComparison({
     issue: args.issue,
+    liveModel: args.liveContext.model,
     liveSummary: args.liveContext.summary,
     relevantGroupKeys,
   });
@@ -623,7 +663,8 @@ function buildComparisonSummary(args: {
 }
 
 export function buildDraftingSchedulePackIssueRowComparison(args: {
-  issue: Pick<DraftingSchedulePackIssue, 'lockedScheduleSummary'>;
+  issue: Pick<DraftingSchedulePackIssue, 'issuedAt' | 'lockedScheduleSummary'>;
+  liveModel?: DraftingModel;
   liveSummary: DraftingScheduleSummary;
   relevantGroupKeys?: string[];
 }): DraftingSchedulePackIssueRowComparisonSummary {
@@ -644,6 +685,7 @@ export function buildDraftingSchedulePackIssueRowComparison(args: {
       groupKey,
       issuedGroup: findScheduleGroup(lockedSummary, groupKey),
       issuedRowCount: lockedSummary.counts[groupKey] ?? 0,
+      liveModel: args.liveModel,
       liveGroup: findScheduleGroup(args.liveSummary, groupKey),
       liveRowCount: (args.liveSummary.counts as Record<string, number>)[groupKey] ?? 0,
     }),
@@ -659,6 +701,14 @@ export function buildDraftingSchedulePackIssueRowComparison(args: {
   const addedRowCount = groups.reduce((total, group) => total + group.addedRows.length, 0);
   const changedRowCount = groups.reduce((total, group) => total + group.changedRows.length, 0);
   const removedRowCount = groups.reduce((total, group) => total + group.removedRows.length, 0);
+  const knownProvenanceRowCount = groups.reduce(
+    (total, group) => total + group.knownProvenanceRowCount,
+    0,
+  );
+  const unknownProvenanceRowCount = groups.reduce(
+    (total, group) => total + group.unknownProvenanceRowCount,
+    0,
+  );
 
   return {
     addedRowCount,
@@ -669,10 +719,12 @@ export function buildDraftingSchedulePackIssueRowComparison(args: {
         ? 'No locked schedule rows in this snapshot'
         : null,
     groups,
+    knownProvenanceRowCount,
     legacySnapshotMissingRowData,
     noLockedRows,
     removedRowCount,
     unchangedRowCount: groups.reduce((total, group) => total + group.unchangedRows.length, 0),
+    unknownProvenanceRowCount,
   };
 }
 
@@ -718,6 +770,7 @@ function buildGroupRowComparison(args: {
   groupKey: string;
   issuedGroup: DraftingScheduleGroup | null;
   issuedRowCount: number;
+  liveModel?: DraftingModel;
   liveGroup: DraftingScheduleGroup | null;
   liveRowCount: number;
 }): DraftingSchedulePackIssueGroupRowComparison {
@@ -742,6 +795,8 @@ function buildGroupRowComparison(args: {
         : changedFields.length > 0
           ? 'changed'
           : 'unchanged';
+    const objectId = live?.row.sourceObjectId || issued?.row.sourceObjectId || null;
+    const objectType = row?.objectType ?? 'unknown';
 
     return {
       changedFields,
@@ -749,11 +804,23 @@ function buildGroupRowComparison(args: {
       keySource: live?.keySource ?? issued?.keySource ?? 'deterministic_fallback',
       label: live?.label ?? issued?.label ?? rowKey,
       liveRow: live?.row ?? null,
-      objectType: row?.objectType ?? 'unknown',
+      objectType,
+      provenance: buildRowProvenance({
+        issuedRow: issued?.row ?? null,
+        liveModel: args.liveModel,
+        liveRow: live?.row ?? null,
+        objectId,
+        objectType,
+        status,
+      }),
       rowKey,
       status,
     };
   });
+  const knownProvenanceRowCount = rows.filter((row) => row.provenance.known).length;
+  const unknownProvenanceRowCount = rows.filter((row) =>
+    Boolean(row.provenance.fallbackMessage),
+  ).length;
   return {
     addedRows: rows.filter((row) => row.status === 'added'),
     changedRows: rows.filter((row) => row.status === 'changed'),
@@ -764,6 +831,7 @@ function buildGroupRowComparison(args: {
         : null,
     groupKey: args.groupKey,
     issuedRowCount: args.issuedRowCount || issuedRows.length,
+    knownProvenanceRowCount,
     legacySnapshotMissingRowData,
     liveRowCount: args.liveRowCount || liveRows.length,
     removedRows: rows.filter((row) => row.status === 'removed'),
@@ -771,7 +839,172 @@ function buildGroupRowComparison(args: {
     title: resolveGroupTitle(args.groupKey),
     unchangedRowCount: rows.filter((row) => row.status === 'unchanged').length,
     unchangedRows: rows.filter((row) => row.status === 'unchanged'),
+    unknownProvenanceRowCount,
   };
+}
+
+function buildRowProvenance(args: {
+  issuedRow: DraftingScheduleRow | null;
+  liveModel?: DraftingModel;
+  liveRow: DraftingScheduleRow | null;
+  objectId: string | null;
+  objectType: string;
+  status: DraftingSchedulePackIssueRowStatus;
+}): DraftingSchedulePackIssueRowProvenance {
+  const liveObjectProvenance = args.liveRow
+    ? buildRowProvenanceDetail({
+        objectId: args.liveRow.sourceObjectId,
+        objectType: args.liveRow.objectType,
+        provenance: args.liveRow.provenance,
+        source: 'live_object',
+      })
+    : null;
+  const issuedSnapshotProvenance = args.issuedRow
+    ? buildRowProvenanceDetail({
+        objectId: args.issuedRow.sourceObjectId,
+        objectType: args.issuedRow.objectType,
+        provenance: args.issuedRow.provenance,
+        source: 'issued_snapshot',
+      })
+    : null;
+  const removalEvent =
+    args.status === 'removed' && args.objectId && args.liveModel
+      ? findLatestObjectChangeEvent(args.liveModel.objectChangeEvents ?? [], args.objectId)
+      : null;
+  const removalProvenance = removalEvent ? buildChangeEventProvenanceDetail(removalEvent) : null;
+  const action = deriveRowProvenanceAction(args.status);
+  const known = [liveObjectProvenance, issuedSnapshotProvenance, removalProvenance].some((detail) =>
+    Boolean(detail && (detail.at || detail.by)),
+  );
+
+  return {
+    action,
+    fallbackMessage: buildRowProvenanceFallback({
+      action,
+      issuedSnapshotProvenance,
+      issuedRow: args.issuedRow,
+      liveObjectProvenance,
+      liveRow: args.liveRow,
+      removalProvenance,
+      status: args.status,
+    }),
+    issuedSnapshotProvenance,
+    known,
+    liveObjectProvenance,
+    removalProvenance,
+    sourceObjectId: args.objectId,
+    sourceObjectType: args.objectType,
+  };
+}
+
+function buildRowProvenanceDetail(args: {
+  objectId: string;
+  objectType: string;
+  provenance: DraftingObjectProvenance | undefined;
+  source: Extract<DraftingSchedulePackIssueRowProvenanceSource, 'issued_snapshot' | 'live_object'>;
+}): DraftingSchedulePackIssueRowProvenanceDetail | null {
+  if (!args.provenance) {
+    return null;
+  }
+
+  const at = args.provenance.updatedAt ?? args.provenance.createdAt ?? null;
+  const by = args.provenance.updatedBy ?? args.provenance.createdBy ?? null;
+
+  return {
+    at,
+    by,
+    fallbackReason: by ? null : 'Editor unavailable',
+    lastAction: args.provenance.lastAction ?? null,
+    objectId: args.objectId,
+    objectType: args.objectType,
+    source: args.source,
+  };
+}
+
+function buildChangeEventProvenanceDetail(
+  event: DraftingObjectChangeEvent,
+): DraftingSchedulePackIssueRowProvenanceDetail {
+  return {
+    at: event.at,
+    by: event.by ?? null,
+    fallbackReason: event.by ? null : 'Deletion author unavailable',
+    lastAction: event.action,
+    objectId: event.objectId,
+    objectType: event.objectType,
+    source: 'object_change_log',
+  };
+}
+
+function findLatestObjectChangeEvent(
+  events: DraftingObjectChangeEvent[],
+  objectId: string,
+): DraftingObjectChangeEvent | null {
+  return (
+    events
+      .filter((event) => event.objectId === objectId && event.action === 'deleted')
+      .sort((left, right) => right.at.localeCompare(left.at))[0] ?? null
+  );
+}
+
+function deriveRowProvenanceAction(status: DraftingSchedulePackIssueRowStatus) {
+  switch (status) {
+    case 'added':
+      return 'created_after_issue';
+    case 'changed':
+      return 'changed_after_issue';
+    case 'removed':
+      return 'removed_after_issue';
+    case 'unchanged':
+      return 'unchanged_since_issue';
+    default:
+      return 'unknown';
+  }
+}
+
+function buildRowProvenanceFallback(args: {
+  action: DraftingSchedulePackIssueRowProvenance['action'];
+  issuedSnapshotProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  issuedRow: DraftingScheduleRow | null;
+  liveObjectProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  liveRow: DraftingScheduleRow | null;
+  removalProvenance: DraftingSchedulePackIssueRowProvenanceDetail | null;
+  status: DraftingSchedulePackIssueRowStatus;
+}) {
+  if (args.issuedRow && !args.issuedSnapshotProvenance) {
+    return 'Legacy snapshot without object provenance';
+  }
+
+  if (args.status === 'removed') {
+    if (!args.removalProvenance) {
+      return 'Removed from live model; deletion author unavailable';
+    }
+
+    return args.removalProvenance.by
+      ? null
+      : 'Removed from live model; deletion author unavailable';
+  }
+
+  if (args.status === 'added') {
+    if (!args.liveObjectProvenance) {
+      return 'Created before provenance tracking';
+    }
+
+    return args.liveObjectProvenance.by ? null : 'Created after issue; editor unavailable';
+  }
+
+  if (args.status === 'changed') {
+    if (!args.liveObjectProvenance) {
+      return 'Changed after issue; editor unavailable';
+    }
+
+    return args.liveObjectProvenance.by ? null : 'Changed after issue; editor unavailable';
+  }
+
+  if (args.status === 'unchanged' && args.liveRow && !args.liveObjectProvenance) {
+    return 'Created before provenance tracking';
+  }
+
+  return null;
 }
 
 function mapRowsByKey(groupKey: string, rows: DraftingScheduleRow[]) {
@@ -939,6 +1172,7 @@ function buildLivePackContext(
   return {
     definitionById,
     definitions,
+    model,
     pageCount: pack.pages.length,
     summary,
   };

@@ -1171,6 +1171,12 @@ function IssueRowDiffDrillDown({
           <Badge variant={rowComparison.changedRowCount > 0 ? 'outline' : 'secondary'}>
             {rowComparison.changedRowCount} changed
           </Badge>
+          <Badge variant={rowComparison.knownProvenanceRowCount > 0 ? 'secondary' : 'outline'}>
+            {rowComparison.knownProvenanceRowCount} known provenance
+          </Badge>
+          <Badge variant={rowComparison.unknownProvenanceRowCount > 0 ? 'outline' : 'secondary'}>
+            {rowComparison.unknownProvenanceRowCount} legacy/unknown
+          </Badge>
         </div>
       </div>
 
@@ -1198,6 +1204,12 @@ function IssueRowDiffDrillDown({
                 {group.changedRows.length} changed
               </Badge>
               <Badge variant="secondary">{group.unchangedRowCount} unchanged</Badge>
+              <Badge variant={group.knownProvenanceRowCount > 0 ? 'secondary' : 'outline'}>
+                {group.knownProvenanceRowCount} known
+              </Badge>
+              <Badge variant={group.unknownProvenanceRowCount > 0 ? 'outline' : 'secondary'}>
+                {group.unknownProvenanceRowCount} unknown
+              </Badge>
             </div>
           </div>
         ))}
@@ -1213,21 +1225,27 @@ function IssueRowDiffDrillDown({
 }
 
 function IssueRowDiffGroup({ group }: { group: DraftingSchedulePackIssueGroupRowComparison }) {
-  const changedRows = [...group.addedRows, ...group.removedRows, ...group.changedRows];
+  const rows = [
+    ...group.addedRows,
+    ...group.removedRows,
+    ...group.changedRows,
+    ...group.unchangedRows,
+  ];
 
   return (
-    <details className="rounded-md border px-3 py-2" open={changedRows.length > 0}>
+    <details className="rounded-md border px-3 py-2" open={rows.length > 0}>
       <summary className="cursor-pointer text-sm font-medium">
         {group.title} · {group.liveRowCount} live / {group.issuedRowCount} issued ·{' '}
         {group.addedRows.length} added · {group.removedRows.length} removed ·{' '}
-        {group.changedRows.length} changed · {group.unchangedRowCount} unchanged
+        {group.changedRows.length} changed · {group.unchangedRowCount} unchanged ·{' '}
+        {group.knownProvenanceRowCount} known provenance
       </summary>
 
       {group.emptyState ? (
         <div className="mt-3 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground">
           {group.emptyState}
         </div>
-      ) : changedRows.length > 0 ? (
+      ) : rows.length > 0 ? (
         <div className="mt-3 space-y-3">
           {group.addedRows.length > 0 ? (
             <IssueRowDiffList label="Added Rows" rows={group.addedRows} />
@@ -1237,6 +1255,9 @@ function IssueRowDiffGroup({ group }: { group: DraftingSchedulePackIssueGroupRow
           ) : null}
           {group.changedRows.length > 0 ? (
             <IssueRowDiffList label="Changed Rows" rows={group.changedRows} />
+          ) : null}
+          {group.unchangedRows.length > 0 ? (
+            <IssueRowDiffList label="Unchanged Rows" rows={group.unchangedRows} />
           ) : null}
         </div>
       ) : (
@@ -1264,6 +1285,7 @@ function IssueRowDiffList({
               <TableHead>Status</TableHead>
               <TableHead>Stable Key</TableHead>
               <TableHead>Changed Fields</TableHead>
+              <TableHead>Provenance</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1301,6 +1323,9 @@ function IssueRowDiffList({
                     </span>
                   )}
                 </TableCell>
+                <TableCell className="min-w-[260px] align-top">
+                  <RowProvenanceSummary row={row} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -1308,6 +1333,96 @@ function IssueRowDiffList({
       </div>
     </div>
   );
+}
+
+function RowProvenanceSummary({ row }: { row: DraftingSchedulePackIssueRowComparison }) {
+  const provenance = row.provenance;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1">
+        <Badge variant={provenance.known ? 'secondary' : 'outline'}>
+          {formatRowProvenanceAction(provenance.action)}
+        </Badge>
+        {provenance.fallbackMessage ? (
+          <Badge variant="outline">{provenance.fallbackMessage}</Badge>
+        ) : null}
+      </div>
+      <div className="text-muted-foreground">
+        Source {provenance.sourceObjectType} · {provenance.sourceObjectId ?? 'No source object id'}
+      </div>
+      <div className="space-y-1">
+        {provenance.liveObjectProvenance ? (
+          <ProvenanceDetailLine label="Live" provenance={provenance.liveObjectProvenance} />
+        ) : null}
+        {provenance.issuedSnapshotProvenance ? (
+          <ProvenanceDetailLine label="Issued" provenance={provenance.issuedSnapshotProvenance} />
+        ) : null}
+        {provenance.removalProvenance ? (
+          <ProvenanceDetailLine label="Removal" provenance={provenance.removalProvenance} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ProvenanceDetailLine({
+  label,
+  provenance,
+}: {
+  label: string;
+  provenance: DraftingSchedulePackIssueRowComparison['provenance']['liveObjectProvenance'];
+}) {
+  if (!provenance) {
+    return null;
+  }
+
+  return (
+    <div>
+      <span className="font-medium text-foreground">{label}:</span>{' '}
+      <span className="text-muted-foreground">
+        {provenance.by ?? provenance.fallbackReason ?? 'Editor unavailable'} ·{' '}
+        {formatOptionalDate(provenance.at)}
+      </span>
+      <span className="ml-1 text-muted-foreground">
+        ({formatProvenanceSource(provenance.source)})
+      </span>
+    </div>
+  );
+}
+
+function formatRowProvenanceAction(
+  action: DraftingSchedulePackIssueRowComparison['provenance']['action'],
+) {
+  switch (action) {
+    case 'created_after_issue':
+      return 'created after issue';
+    case 'changed_after_issue':
+      return 'changed after issue';
+    case 'removed_after_issue':
+      return 'removed after issue';
+    case 'unchanged_since_issue':
+      return 'unchanged since issue';
+    default:
+      return 'unknown provenance';
+  }
+}
+
+function formatProvenanceSource(
+  source: NonNullable<
+    DraftingSchedulePackIssueRowComparison['provenance']['liveObjectProvenance']
+  >['source'],
+) {
+  switch (source) {
+    case 'live_object':
+      return 'live object';
+    case 'issued_snapshot':
+      return 'issued snapshot';
+    case 'object_change_log':
+      return 'change log';
+    default:
+      return 'legacy unavailable';
+  }
 }
 
 function IssueSheetDetailCard({ sheet }: { sheet: DraftingSchedulePackIssueSheetDetail }) {

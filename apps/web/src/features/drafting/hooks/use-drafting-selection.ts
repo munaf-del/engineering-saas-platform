@@ -4,8 +4,9 @@ import type { DraftingModel, DraftingObject } from '@eng/shared';
 import { clientToWorldPoint } from '../geometry-utils';
 import {
   canEditDraftingObject,
-  removeDraftingObject,
+  removeDraftingObjectWithProvenance,
   replaceDraftingObject,
+  stampDraftingObjectProvenance,
   translateDraftingObject,
 } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
@@ -20,6 +21,7 @@ type UseDraftingSelectionOptions = {
   activeTool: DraftingTool;
   containerRef: React.RefObject<HTMLDivElement | null>;
   model: DraftingModel | null;
+  currentUserName?: string | null;
   onCancelPendingLine: () => void;
   onSelectPropertiesTab: () => void;
   pendingLinePointCount: number;
@@ -32,6 +34,7 @@ type UseDraftingSelectionOptions = {
 export function useDraftingSelection({
   activeTool,
   containerRef,
+  currentUserName,
   model,
   onCancelPendingLine,
   onSelectPropertiesTab,
@@ -68,7 +71,9 @@ export function useDraftingSelection({
       replaceDraftingObject(
         current,
         dragState.objectId,
-        translateDraftingObject(dragState.originalObject, deltaX, deltaY),
+        translateDraftingObject(dragState.originalObject, deltaX, deltaY, {
+          by: currentUserName,
+        }),
       ),
     );
   });
@@ -98,7 +103,11 @@ export function useDraftingSelection({
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (selectedObjectId && (event.key === 'Delete' || event.key === 'Backspace')) {
-      patchModel((current) => removeDraftingObject(current, selectedObjectId));
+      patchModel((current) =>
+        removeDraftingObjectWithProvenance(current, selectedObjectId, {
+          by: currentUserName,
+        }),
+      );
       setSelectedObjectId(null);
     }
 
@@ -132,7 +141,16 @@ export function useDraftingSelection({
       return;
     }
 
-    patchModel((current) => replaceDraftingObject(current, selectedObject.id, nextObject));
+    patchModel((current) =>
+      replaceDraftingObject(
+        current,
+        selectedObject.id,
+        stampDraftingObjectProvenance(nextObject, {
+          action: 'updated',
+          by: currentUserName,
+        }),
+      ),
+    );
   }
 
   function deleteSelectedObject() {
@@ -140,7 +158,11 @@ export function useDraftingSelection({
       return;
     }
 
-    patchModel((current) => removeDraftingObject(current, selectedObjectId));
+    patchModel((current) =>
+      removeDraftingObjectWithProvenance(current, selectedObjectId, {
+        by: currentUserName,
+      }),
+    );
     setSelectedObjectId(null);
   }
 

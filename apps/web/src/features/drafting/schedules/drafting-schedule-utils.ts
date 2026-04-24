@@ -1,19 +1,10 @@
-import type { DraftingModel } from '@eng/shared';
+import type { DraftingModel, DraftingObject, DraftingObjectProvenance } from '@eng/shared';
 import { buildAnchorScheduleRows, ANCHOR_SCHEDULE_COLUMNS } from './anchor-schedule';
-import {
-  buildAnnotationScheduleRows,
-  ANNOTATION_SCHEDULE_COLUMNS,
-} from './annotation-schedule';
-import {
-  buildBeamWalerScheduleRows,
-  BEAM_WALER_SCHEDULE_COLUMNS,
-} from './beam-waler-schedule';
+import { buildAnnotationScheduleRows, ANNOTATION_SCHEDULE_COLUMNS } from './annotation-schedule';
+import { buildBeamWalerScheduleRows, BEAM_WALER_SCHEDULE_COLUMNS } from './beam-waler-schedule';
 import { buildBoreholeScheduleRows, BOREHOLE_SCHEDULE_COLUMNS } from './borehole-schedule';
 import { buildServiceScheduleRows, SERVICE_SCHEDULE_COLUMNS } from './service-schedule';
-import {
-  buildShoringPileScheduleRows,
-  SHORING_PILE_SCHEDULE_COLUMNS,
-} from './pile-wall-schedule';
+import { buildShoringPileScheduleRows, SHORING_PILE_SCHEDULE_COLUMNS } from './pile-wall-schedule';
 import type {
   DraftingScheduleGroup,
   DraftingScheduleGroupDefinition,
@@ -67,12 +58,15 @@ export const DRAFTING_SCHEDULE_GROUP_DEFINITIONS = [
 ] as const satisfies readonly DraftingScheduleGroupDefinition[];
 
 export function buildDraftingScheduleSummary(model: DraftingModel): DraftingScheduleSummary {
+  const objectsById = new Map(model.objects.map((object) => [object.id, object] as const));
   const groups = DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map<DraftingScheduleGroup>((definition) => ({
     key: definition.key,
     title: definition.title,
     description: definition.description,
     columns: definition.columns,
-    rows: definition.buildRows(model),
+    rows: definition
+      .buildRows(model)
+      .map((row) => withDraftingScheduleRowProvenance(row, objectsById.get(row.sourceObjectId))),
   }));
 
   return {
@@ -86,6 +80,30 @@ export function buildDraftingScheduleSummary(model: DraftingModel): DraftingSche
       }),
       {} as Record<DraftingScheduleGroupKey, number>,
     ),
+  };
+}
+
+function withDraftingScheduleRowProvenance(
+  row: DraftingScheduleGroup['rows'][number],
+  object: DraftingObject | undefined,
+) {
+  const provenance = object ? hydrateDraftingObjectProvenance(object) : null;
+
+  return provenance
+    ? {
+        ...row,
+        provenance,
+      }
+    : row;
+}
+
+function hydrateDraftingObjectProvenance(object: DraftingObject): DraftingObjectProvenance {
+  return {
+    createdAt: object.provenance?.createdAt ?? object.createdAt,
+    ...(object.provenance?.createdBy ? { createdBy: object.provenance.createdBy } : {}),
+    updatedAt: object.provenance?.updatedAt ?? object.updatedAt,
+    ...(object.provenance?.updatedBy ? { updatedBy: object.provenance.updatedBy } : {}),
+    lastAction: object.provenance?.lastAction ?? 'unknown',
   };
 }
 

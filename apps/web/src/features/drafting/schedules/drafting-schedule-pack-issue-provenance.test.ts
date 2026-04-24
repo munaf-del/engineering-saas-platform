@@ -295,7 +295,18 @@ describe('drafting schedule pack issue provenance', () => {
     changedAnchor.parameters.designLoadKn = 400;
     const removedPile = buildPileObject(issuedModel, 'P1');
     const issuedNote = buildLeaderNoteObject(issuedModel, 'note-1', 'Issued reference note');
-    issuedModel.objects = [unchangedAnchor, changedAnchor, removedPile, issuedNote];
+    issuedModel.objects = [unchangedAnchor, changedAnchor, removedPile, issuedNote].map(
+      (object) => ({
+        ...object,
+        provenance: {
+          createdAt: '2026-04-23T00:00:00.000Z',
+          createdBy: 'Issue Drafter',
+          updatedAt: '2026-04-23T00:00:00.000Z',
+          updatedBy: 'Issue Drafter',
+          lastAction: 'created' as const,
+        },
+      }),
+    );
 
     const liveModel = cloneModel(issuedModel);
     const liveChangedAnchor = liveModel.objects.find(
@@ -305,15 +316,44 @@ describe('drafting schedule pack issue provenance', () => {
       throw new Error('Expected changed anchor');
     }
     liveChangedAnchor.parameters.designLoadKn = 425;
+    liveChangedAnchor.provenance = {
+      ...liveChangedAnchor.provenance,
+      updatedAt: '2026-04-24T00:00:00.000Z',
+      updatedBy: 'Avery Drafter',
+      lastAction: 'updated',
+    };
     liveModel.objects = liveModel.objects.filter(
       (object) => !(object.type === 'pile' && object.metadata.pileId === 'P1'),
     );
-    liveModel.objects.push(buildAnchorObject(liveModel, 'A3'));
+    liveModel.objectChangeEvents = [
+      {
+        id: 'event-delete-p1',
+        objectId: removedPile.id,
+        objectType: 'pile',
+        action: 'deleted',
+        at: '2026-04-24T01:00:00.000Z',
+        by: 'Avery Drafter',
+        summary: 'Deleted pile P1',
+        source: 'drafting-editor',
+      },
+    ];
+    liveModel.objects.push({
+      ...buildAnchorObject(liveModel, 'A3'),
+      provenance: {
+        createdAt: '2026-04-24T02:00:00.000Z',
+        createdBy: 'Avery Drafter',
+        updatedAt: '2026-04-24T02:00:00.000Z',
+        updatedBy: 'Avery Drafter',
+        lastAction: 'created',
+      },
+    });
 
     const rowComparison = buildDraftingSchedulePackIssueRowComparison({
       issue: {
+        issuedAt: '2026-04-23T12:00:00.000Z',
         lockedScheduleSummary: cloneScheduleSummary(buildDraftingScheduleSummary(issuedModel)),
       },
+      liveModel,
       liveSummary: buildDraftingScheduleSummary(liveModel),
       relevantGroupKeys: ['shoring_piles', 'anchors', 'annotations_references'],
     });
@@ -329,6 +369,8 @@ describe('drafting schedule pack issue provenance', () => {
         changedRowCount: 1,
         removedRowCount: 1,
         unchangedRowCount: 2,
+        knownProvenanceRowCount: 5,
+        unknownProvenanceRowCount: 0,
       }),
     );
     expect(anchors?.addedRows[0]).toEqual(
@@ -336,6 +378,17 @@ describe('drafting schedule pack issue provenance', () => {
         label: 'A3',
         rowKey: 'anchors:anchor_tieback:a3',
         status: 'added',
+      }),
+    );
+    expect(anchors?.addedRows[0]?.provenance).toEqual(
+      expect.objectContaining({
+        action: 'created_after_issue',
+        fallbackMessage: null,
+        known: true,
+        liveObjectProvenance: expect.objectContaining({
+          by: 'Avery Drafter',
+          source: 'live_object',
+        }),
       }),
     );
     expect(anchors?.changedRows[0]).toEqual(
@@ -352,10 +405,32 @@ describe('drafting schedule pack issue provenance', () => {
         ],
       }),
     );
+    expect(anchors?.changedRows[0]?.provenance).toEqual(
+      expect.objectContaining({
+        action: 'changed_after_issue',
+        issuedSnapshotProvenance: expect.objectContaining({
+          by: 'Issue Drafter',
+          source: 'issued_snapshot',
+        }),
+        liveObjectProvenance: expect.objectContaining({
+          by: 'Avery Drafter',
+          source: 'live_object',
+        }),
+      }),
+    );
     expect(shoring?.removedRows[0]).toEqual(
       expect.objectContaining({
         label: 'P1',
         status: 'removed',
+      }),
+    );
+    expect(shoring?.removedRows[0]?.provenance).toEqual(
+      expect.objectContaining({
+        action: 'removed_after_issue',
+        removalProvenance: expect.objectContaining({
+          by: 'Avery Drafter',
+          source: 'object_change_log',
+        }),
       }),
     );
     expect(annotations?.unchangedRowCount).toBe(1);
@@ -399,7 +474,32 @@ describe('drafting schedule pack issue provenance', () => {
     expect(legacy.emptyState).toBe('Legacy snapshot does not contain row-level schedule data');
     expect(legacy.addedRowCount).toBe(0);
     expect(legacy.groups[0]?.legacySnapshotMissingRowData).toBe(true);
+    expect(legacy.unknownProvenanceRowCount).toBe(0);
     expect(empty.emptyState).toBe('No locked schedule rows in this snapshot');
+  });
+
+  it('labels removed rows with an unavailable deletion author when no change log is available', () => {
+    const issuedModel = createEmptyDraftingModel('drawing-row-removed-fallback');
+    const removedPile = buildPileObject(issuedModel, 'P1');
+    issuedModel.objects = [removedPile];
+
+    const rowComparison = buildDraftingSchedulePackIssueRowComparison({
+      issue: {
+        lockedScheduleSummary: cloneScheduleSummary(buildDraftingScheduleSummary(issuedModel)),
+      },
+      liveModel: createEmptyDraftingModel('drawing-row-removed-fallback'),
+      liveSummary: buildDraftingScheduleSummary(
+        createEmptyDraftingModel('drawing-row-removed-fallback'),
+      ),
+      relevantGroupKeys: ['shoring_piles'],
+    });
+
+    expect(rowComparison.groups[0]?.removedRows[0]?.provenance).toEqual(
+      expect.objectContaining({
+        action: 'removed_after_issue',
+        fallbackMessage: 'Removed from live model; deletion author unavailable',
+      }),
+    );
   });
 
   it('labels legacy snapshots without fabricating locked template metadata', () => {
@@ -513,7 +613,19 @@ describe('drafting schedule pack issue provenance', () => {
     expect(JSON.parse(exported).comparison.rowComparison.groups[0]).toEqual(
       expect.objectContaining({
         groupKey: 'anchors',
+        knownProvenanceRowCount: 1,
         unchangedRowCount: 1,
+      }),
+    );
+    expect(JSON.parse(exported).comparison.rowComparison.groups[0].rows[0].provenance).toEqual(
+      expect.objectContaining({
+        action: 'unchanged_since_issue',
+        issuedSnapshotProvenance: expect.objectContaining({
+          source: 'issued_snapshot',
+        }),
+        liveObjectProvenance: expect.objectContaining({
+          source: 'live_object',
+        }),
       }),
     );
   });
@@ -684,6 +796,7 @@ function cloneScheduleSummary(
         cells: { ...row.cells },
         id: row.id,
         objectType: row.objectType,
+        provenance: row.provenance ? { ...row.provenance } : undefined,
         sourceObjectId: row.sourceObjectId,
       })),
       title: group.title,
