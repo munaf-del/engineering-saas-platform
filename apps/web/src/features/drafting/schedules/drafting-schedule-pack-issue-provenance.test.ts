@@ -1,17 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel, type DraftingModel } from '@eng/shared';
+import {
+  createEmptyDraftingModel,
+  type DraftingModel,
+  type DraftingSchedulePackIssue,
+} from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { createGenericTemplateDocument } from '@/features/templates/core/generic-template-document';
 import { createDraftingObject } from '../model-utils';
 import { createDraftingSchedulePackIssueSnapshot } from './drafting-schedule-pack-issue-utils';
 import {
+  buildDraftingSchedulePackIssueRowComparison,
   buildDraftingSchedulePackIssueDetail,
   buildDraftingSchedulePackIssueHistoryRows,
   buildDraftingSchedulePackIssueManifest,
+  deriveDraftingScheduleRowKey,
   serializeDraftingSchedulePackIssueManifestJson,
 } from './drafting-schedule-pack-issue-provenance';
 import { createDraftingScheduleSheetDefinition } from './drafting-schedule-sheet-definition-utils';
 import { buildDraftingScheduleSheetTemplateSnapshotMap } from './drafting-schedule-template-snapshot';
+import { buildDraftingScheduleSummary } from './drafting-schedule-utils';
 
 describe('drafting schedule pack issue provenance', () => {
   it('derives issue history rows with snapshot and drift states', () => {
@@ -31,13 +38,23 @@ describe('drafting schedule pack issue provenance', () => {
       currentRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Current QA template', currentTemplate, '2'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Current QA template',
+            currentTemplate,
+            '2',
+          ),
         ],
       ]),
       lockedRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Locked QA template', lockedTemplate, '1'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Locked QA template',
+            lockedTemplate,
+            '1',
+          ),
         ],
       ]),
     });
@@ -82,13 +99,23 @@ describe('drafting schedule pack issue provenance', () => {
       currentRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Current QA template', currentTemplate, '2'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Current QA template',
+            currentTemplate,
+            '2',
+          ),
         ],
       ]),
       lockedRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Locked QA template', lockedTemplate, '1'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Locked QA template',
+            lockedTemplate,
+            '1',
+          ),
         ],
       ]),
     });
@@ -154,7 +181,12 @@ describe('drafting schedule pack issue provenance', () => {
     const currentRootTemplatesById = new Map([
       [
         'root-template-1',
-        buildRootSheetTemplateRecord('root-template-1', 'Current QA template', currentTemplate, '2'),
+        buildRootSheetTemplateRecord(
+          'root-template-1',
+          'Current QA template',
+          currentTemplate,
+          '2',
+        ),
       ],
     ]);
     const base = buildIssuedPackFixture({
@@ -201,13 +233,173 @@ describe('drafting schedule pack issue provenance', () => {
     expect(rowDrift.comparison.driftState).toBe('row_summary_drift');
 
     const mixedDriftModel = cloneModel(base.model);
-    mixedDriftModel.objects = [...mixedDriftModel.objects, buildAnchorObject(mixedDriftModel, 'A2')];
+    mixedDriftModel.objects = [
+      ...mixedDriftModel.objects,
+      buildAnchorObject(mixedDriftModel, 'A2'),
+    ];
     const mixedDrift = buildDraftingSchedulePackIssueDetail({
       issue: base.issue,
       model: mixedDriftModel,
       rootTemplatesById: currentRootTemplatesById,
     });
     expect(mixedDrift.comparison.driftState).toBe('mixed_drift');
+  });
+
+  it('derives stable row keys from semantic ids before deterministic fallbacks', () => {
+    const semantic = {
+      id: 'object-1',
+      sourceObjectId: 'object-1',
+      objectType: 'anchor_tieback' as const,
+      cells: {
+        anchorId: 'A-101',
+      },
+    };
+    const fallback = {
+      id: '',
+      sourceObjectId: '',
+      objectType: 'leader_note' as const,
+      cells: {
+        titleOrText: 'Temporary note',
+      },
+    };
+
+    expect(
+      deriveDraftingScheduleRowKey({
+        groupKey: 'anchors',
+        index: 0,
+        row: semantic,
+      }),
+    ).toEqual({
+      keySource: 'semantic_id',
+      label: 'A-101',
+      rowKey: 'anchors:anchor_tieback:a-101',
+    });
+    expect(
+      deriveDraftingScheduleRowKey({
+        groupKey: 'annotations_references',
+        index: 2,
+        row: fallback,
+      }),
+    ).toEqual({
+      keySource: 'deterministic_fallback',
+      label: 'Temporary note',
+      rowKey: 'annotations_references:leader_note:leader_note:temporary note:3:2',
+    });
+  });
+
+  it('derives group row diffs for added, removed, changed, and unchanged rows', () => {
+    const issuedModel = createEmptyDraftingModel('drawing-row-diff');
+    const unchangedAnchor = buildAnchorObject(issuedModel, 'A1');
+    unchangedAnchor.parameters.designLoadKn = 350;
+    const changedAnchor = buildAnchorObject(issuedModel, 'A2');
+    changedAnchor.parameters.designLoadKn = 400;
+    const removedPile = buildPileObject(issuedModel, 'P1');
+    const issuedNote = buildLeaderNoteObject(issuedModel, 'note-1', 'Issued reference note');
+    issuedModel.objects = [unchangedAnchor, changedAnchor, removedPile, issuedNote];
+
+    const liveModel = cloneModel(issuedModel);
+    const liveChangedAnchor = liveModel.objects.find(
+      (object) => object.type === 'anchor_tieback' && object.parameters.anchorId === 'A2',
+    );
+    if (!liveChangedAnchor || liveChangedAnchor.type !== 'anchor_tieback') {
+      throw new Error('Expected changed anchor');
+    }
+    liveChangedAnchor.parameters.designLoadKn = 425;
+    liveModel.objects = liveModel.objects.filter(
+      (object) => !(object.type === 'pile' && object.metadata.pileId === 'P1'),
+    );
+    liveModel.objects.push(buildAnchorObject(liveModel, 'A3'));
+
+    const rowComparison = buildDraftingSchedulePackIssueRowComparison({
+      issue: {
+        lockedScheduleSummary: cloneScheduleSummary(buildDraftingScheduleSummary(issuedModel)),
+      },
+      liveSummary: buildDraftingScheduleSummary(liveModel),
+      relevantGroupKeys: ['shoring_piles', 'anchors', 'annotations_references'],
+    });
+    const anchors = rowComparison.groups.find((group) => group.groupKey === 'anchors');
+    const shoring = rowComparison.groups.find((group) => group.groupKey === 'shoring_piles');
+    const annotations = rowComparison.groups.find(
+      (group) => group.groupKey === 'annotations_references',
+    );
+
+    expect(rowComparison).toEqual(
+      expect.objectContaining({
+        addedRowCount: 1,
+        changedRowCount: 1,
+        removedRowCount: 1,
+        unchangedRowCount: 2,
+      }),
+    );
+    expect(anchors?.addedRows[0]).toEqual(
+      expect.objectContaining({
+        label: 'A3',
+        rowKey: 'anchors:anchor_tieback:a3',
+        status: 'added',
+      }),
+    );
+    expect(anchors?.changedRows[0]).toEqual(
+      expect.objectContaining({
+        label: 'A2',
+        status: 'changed',
+        changedFields: [
+          {
+            fieldKey: 'designLoad',
+            issuedValue: '400 kN',
+            label: 'Design Load',
+            liveValue: '425 kN',
+          },
+        ],
+      }),
+    );
+    expect(shoring?.removedRows[0]).toEqual(
+      expect.objectContaining({
+        label: 'P1',
+        status: 'removed',
+      }),
+    );
+    expect(annotations?.unchangedRowCount).toBe(1);
+  });
+
+  it('reports legacy and empty locked row states without fabricating row diffs', () => {
+    const liveModel = createEmptyDraftingModel('drawing-row-legacy');
+    liveModel.objects = [buildAnchorObject(liveModel, 'A-live')];
+
+    const legacy = buildDraftingSchedulePackIssueRowComparison({
+      issue: {
+        lockedScheduleSummary: {
+          counts: { anchors: 1 },
+          drawingId: liveModel.drawingId,
+          groups: [],
+          units: 'mm',
+        },
+      },
+      liveSummary: buildDraftingScheduleSummary(liveModel),
+      relevantGroupKeys: ['anchors'],
+    });
+    const empty = buildDraftingSchedulePackIssueRowComparison({
+      issue: {
+        lockedScheduleSummary: {
+          counts: { anchors: 0 },
+          drawingId: liveModel.drawingId,
+          groups: [],
+          units: 'mm',
+        },
+      },
+      liveSummary: {
+        ...buildDraftingScheduleSummary(liveModel),
+        counts: { ...buildDraftingScheduleSummary(liveModel).counts, anchors: 0 },
+        groups: buildDraftingScheduleSummary(liveModel).groups.map((group) =>
+          group.key === 'anchors' ? { ...group, rows: [] } : group,
+        ),
+      },
+      relevantGroupKeys: ['anchors'],
+    });
+
+    expect(legacy.emptyState).toBe('Legacy snapshot does not contain row-level schedule data');
+    expect(legacy.addedRowCount).toBe(0);
+    expect(legacy.groups[0]?.legacySnapshotMissingRowData).toBe(true);
+    expect(empty.emptyState).toBe('No locked schedule rows in this snapshot');
   });
 
   it('labels legacy snapshots without fabricating locked template metadata', () => {
@@ -250,7 +442,9 @@ describe('drafting schedule pack issue provenance', () => {
     });
 
     expect(detail.snapshotStatus).toBe('legacy_snapshot');
-    expect(detail.legacyWarning).toContain('Legacy issue snapshot created before template snapshot locking');
+    expect(detail.legacyWarning).toContain(
+      'Legacy issue snapshot created before template snapshot locking',
+    );
     expect(detail.selectedSheetDefinitions[0]?.templateSnapshotInfo).toEqual(
       expect.objectContaining({
         legacy: true,
@@ -274,13 +468,23 @@ describe('drafting schedule pack issue provenance', () => {
       currentRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Locked QA template', lockedTemplate, '1'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Locked QA template',
+            lockedTemplate,
+            '1',
+          ),
         ],
       ]),
       lockedRootTemplatesById: new Map([
         [
           'root-template-1',
-          buildRootSheetTemplateRecord('root-template-1', 'Locked QA template', lockedTemplate, '1'),
+          buildRootSheetTemplateRecord(
+            'root-template-1',
+            'Locked QA template',
+            lockedTemplate,
+            '1',
+          ),
         ],
       ]),
     });
@@ -305,6 +509,13 @@ describe('drafting schedule pack issue provenance', () => {
     );
     expect(exported).toContain('"selectedSheetDefinitions"');
     expect(exported).toContain('"lockedScheduleGroupCounts"');
+    expect(exported).toContain('"rowComparison"');
+    expect(JSON.parse(exported).comparison.rowComparison.groups[0]).toEqual(
+      expect.objectContaining({
+        groupKey: 'anchors',
+        unchangedRowCount: 1,
+      }),
+    );
   });
 
   it('builds live-vs-issued comparison summaries with deterministic pack deltas', () => {
@@ -438,6 +649,47 @@ function buildAnchorObject(model: DraftingModel, anchorId: string) {
   }
   anchor.parameters.anchorId = anchorId;
   return anchor;
+}
+
+function buildPileObject(model: DraftingModel, pileId: string) {
+  const pile = createDraftingObject('pile', { x: 500, y: 800 }, model);
+  if (pile.type !== 'pile') {
+    throw new Error('Expected pile');
+  }
+  pile.metadata.pileId = pileId;
+  return pile;
+}
+
+function buildLeaderNoteObject(model: DraftingModel, id: string, text: string) {
+  const note = createDraftingObject('leader_note', { x: 1200, y: 2200 }, model);
+  if (note.type !== 'leader_note') {
+    throw new Error('Expected leader note');
+  }
+  note.id = id;
+  note.metadata.text = text;
+  return note;
+}
+
+function cloneScheduleSummary(
+  summary: ReturnType<typeof buildDraftingScheduleSummary>,
+): DraftingSchedulePackIssue['lockedScheduleSummary'] {
+  return {
+    counts: { ...summary.counts },
+    drawingId: summary.drawingId,
+    groups: summary.groups.map((group) => ({
+      columns: group.columns.map((column) => ({ ...column })),
+      description: group.description,
+      key: group.key,
+      rows: group.rows.map((row) => ({
+        cells: { ...row.cells },
+        id: row.id,
+        objectType: row.objectType,
+        sourceObjectId: row.sourceObjectId,
+      })),
+      title: group.title,
+    })),
+    units: summary.units,
+  };
 }
 
 function buildRootSheetTemplateRecord(

@@ -12,6 +12,11 @@ import type {
   DraftingScheduleSheetMetadata,
   DraftingScheduleSheetTemplateSource,
 } from './drafting-schedule-sheet';
+import type {
+  DraftingScheduleGroup,
+  DraftingScheduleRow,
+  DraftingScheduleSummary,
+} from './drafting-schedule-types';
 import { buildDraftingScheduleSheetPack } from './drafting-schedule-sheet';
 import {
   getOrderedScheduleSheetDefinitions,
@@ -92,6 +97,57 @@ export type DraftingSchedulePackIssueComparisonGroupCount = {
   title: string;
 };
 
+export type DraftingSchedulePackIssueRowStatus = 'unchanged' | 'added' | 'removed' | 'changed';
+
+export type DraftingSchedulePackIssueRowKeySource =
+  | 'semantic_id'
+  | 'source_object_id'
+  | 'deterministic_fallback';
+
+export type DraftingSchedulePackIssueChangedField = {
+  fieldKey: string;
+  label: string;
+  issuedValue: string;
+  liveValue: string;
+};
+
+export type DraftingSchedulePackIssueRowComparison = {
+  changedFields: DraftingSchedulePackIssueChangedField[];
+  issuedRow: DraftingScheduleRow | null;
+  keySource: DraftingSchedulePackIssueRowKeySource;
+  label: string;
+  liveRow: DraftingScheduleRow | null;
+  objectType: string;
+  rowKey: string;
+  status: DraftingSchedulePackIssueRowStatus;
+};
+
+export type DraftingSchedulePackIssueGroupRowComparison = {
+  addedRows: DraftingSchedulePackIssueRowComparison[];
+  changedRows: DraftingSchedulePackIssueRowComparison[];
+  emptyState: string | null;
+  groupKey: string;
+  issuedRowCount: number;
+  legacySnapshotMissingRowData: boolean;
+  liveRowCount: number;
+  removedRows: DraftingSchedulePackIssueRowComparison[];
+  rows: DraftingSchedulePackIssueRowComparison[];
+  title: string;
+  unchangedRowCount: number;
+  unchangedRows: DraftingSchedulePackIssueRowComparison[];
+};
+
+export type DraftingSchedulePackIssueRowComparisonSummary = {
+  addedRowCount: number;
+  changedRowCount: number;
+  emptyState: string | null;
+  groups: DraftingSchedulePackIssueGroupRowComparison[];
+  legacySnapshotMissingRowData: boolean;
+  noLockedRows: boolean;
+  removedRowCount: number;
+  unchangedRowCount: number;
+};
+
 export type DraftingSchedulePackIssueComparisonSummary = {
   driftMessages: string[];
   driftState: DraftingSchedulePackIssueDriftState;
@@ -109,6 +165,7 @@ export type DraftingSchedulePackIssueComparisonSummary = {
     issued: number;
     live: number;
   };
+  rowComparison: DraftingSchedulePackIssueRowComparisonSummary;
   sheetCount: {
     difference: number;
     issued: number;
@@ -359,8 +416,7 @@ function buildSheetDetail(args: {
       (args.lockedDefinition.subtitle ?? null) !== (args.liveDefinition.subtitle ?? null) ||
       (args.lockedDefinition.revisionLabel ?? null) !==
         (args.liveDefinition.revisionLabel ?? null) ||
-      (args.lockedDefinition.issuePurpose ?? null) !==
-        (args.liveDefinition.issuePurpose ?? null)
+      (args.lockedDefinition.issuePurpose ?? null) !== (args.liveDefinition.issuePurpose ?? null)
     ) {
       hasSheetDefinitionDrift = true;
       definitionMessages.push('Sheet definition metadata changed since issue time.');
@@ -406,7 +462,9 @@ function buildSheetDetail(args: {
       !hasSheetDefinitionDrift
     ) {
       hasTemplateDrift = true;
-      templateMessages.push('Live pack render configuration differs from the issued template snapshot.');
+      templateMessages.push(
+        'Live pack render configuration differs from the issued template snapshot.',
+      );
     }
   }
 
@@ -419,11 +477,11 @@ function buildSheetDetail(args: {
       templateSnapshotInfo.source !== 'legacy' &&
       Boolean(
         currentLiveTemplate &&
-          ((templateSnapshotInfo.rootSheetTemplateId ?? null) !==
-            currentLiveTemplate.rootSheetTemplateId ||
-            (templateSnapshotInfo.rootSheetTemplateVersionId ?? null) !==
-              currentLiveTemplate.rootSheetTemplateVersionId ||
-            templateSnapshotInfo.source !== currentLiveTemplate.source),
+        ((templateSnapshotInfo.rootSheetTemplateId ?? null) !==
+          currentLiveTemplate.rootSheetTemplateId ||
+          (templateSnapshotInfo.rootSheetTemplateVersionId ?? null) !==
+            currentLiveTemplate.rootSheetTemplateVersionId ||
+          templateSnapshotInfo.source !== currentLiveTemplate.source),
       ),
     driftMessages: [...templateMessages, ...definitionMessages],
     hasSheetDefinitionDrift,
@@ -471,6 +529,11 @@ function buildComparisonSummary(args: {
       (group) =>
         `${group.title}: issued ${group.issuedRowCount} row(s), live ${group.liveRowCount} row(s).`,
     );
+  const rowComparison = buildDraftingSchedulePackIssueRowComparison({
+    issue: args.issue,
+    liveSummary: args.liveContext.summary,
+    relevantGroupKeys,
+  });
   const lockedDefinitionById = new Map(
     args.issue.lockedSheetDefinitions.map((definition) => [definition.id, definition] as const),
   );
@@ -486,7 +549,17 @@ function buildComparisonSummary(args: {
   const hasTemplateDrift = args.selectedSheetDefinitions.some(
     (definition) => definition.hasTemplateDrift,
   );
-  const hasRowSummaryDrift = groupCounts.some((group) => group.issuedRowCount !== group.liveRowCount);
+  const hasRowSummaryDrift =
+    groupCounts.some((group) => group.issuedRowCount !== group.liveRowCount) ||
+    rowComparison.addedRowCount > 0 ||
+    rowComparison.removedRowCount > 0 ||
+    rowComparison.changedRowCount > 0;
+
+  for (const group of rowComparison.groups) {
+    if (group.changedRows.length > 0) {
+      driftMessages.push(`${group.title}: ${group.changedRows.length} changed row(s).`);
+    }
+  }
 
   if (extraLiveDefinitions.length > 0) {
     driftMessages.unshift(
@@ -540,6 +613,7 @@ function buildComparisonSummary(args: {
       issued: issuedRowCount,
       live: liveRowCount,
     },
+    rowComparison,
     sheetCount: {
       difference: args.liveContext.definitions.length - args.issue.lockedSheetDefinitions.length,
       issued: args.issue.lockedSheetDefinitions.length,
@@ -548,12 +622,296 @@ function buildComparisonSummary(args: {
   };
 }
 
+export function buildDraftingSchedulePackIssueRowComparison(args: {
+  issue: Pick<DraftingSchedulePackIssue, 'lockedScheduleSummary'>;
+  liveSummary: DraftingScheduleSummary;
+  relevantGroupKeys?: string[];
+}): DraftingSchedulePackIssueRowComparisonSummary {
+  const lockedSummary = args.issue.lockedScheduleSummary;
+  const lockedGroupKeys = new Set((lockedSummary.groups ?? []).map((group) => group.key));
+  const liveGroupKeys = new Set(args.liveSummary.groups.map((group) => group.key));
+  const relevantGroupKeys =
+    args.relevantGroupKeys ??
+    DRAFTING_SCHEDULE_GROUP_DEFINITIONS.map((group) => group.key).filter(
+      (key) =>
+        lockedGroupKeys.has(key) ||
+        liveGroupKeys.has(key) ||
+        (lockedSummary.counts[key] ?? 0) > 0 ||
+        (args.liveSummary.counts[key] ?? 0) > 0,
+    );
+  const groups = relevantGroupKeys.map((groupKey) =>
+    buildGroupRowComparison({
+      groupKey,
+      issuedGroup: findScheduleGroup(lockedSummary, groupKey),
+      issuedRowCount: lockedSummary.counts[groupKey] ?? 0,
+      liveGroup: findScheduleGroup(args.liveSummary, groupKey),
+      liveRowCount: (args.liveSummary.counts as Record<string, number>)[groupKey] ?? 0,
+    }),
+  );
+  const issuedCountFromSnapshot = relevantGroupKeys.reduce(
+    (total, groupKey) => total + (lockedSummary.counts[groupKey] ?? 0),
+    0,
+  );
+  const issuedRowDataCount = groups.reduce((total, group) => total + group.issuedRowCount, 0);
+  const legacySnapshotMissingRowData =
+    issuedCountFromSnapshot > 0 && groups.some((group) => group.legacySnapshotMissingRowData);
+  const noLockedRows = issuedCountFromSnapshot === 0 && issuedRowDataCount === 0;
+  const addedRowCount = groups.reduce((total, group) => total + group.addedRows.length, 0);
+  const changedRowCount = groups.reduce((total, group) => total + group.changedRows.length, 0);
+  const removedRowCount = groups.reduce((total, group) => total + group.removedRows.length, 0);
+
+  return {
+    addedRowCount,
+    changedRowCount,
+    emptyState: legacySnapshotMissingRowData
+      ? 'Legacy snapshot does not contain row-level schedule data'
+      : noLockedRows && addedRowCount === 0
+        ? 'No locked schedule rows in this snapshot'
+        : null,
+    groups,
+    legacySnapshotMissingRowData,
+    noLockedRows,
+    removedRowCount,
+    unchangedRowCount: groups.reduce((total, group) => total + group.unchangedRows.length, 0),
+  };
+}
+
+export function deriveDraftingScheduleRowKey(args: {
+  groupKey: string;
+  index: number;
+  row: DraftingScheduleRow;
+}): {
+  keySource: DraftingSchedulePackIssueRowKeySource;
+  label: string;
+  rowKey: string;
+} {
+  const semanticValue = firstNonEmpty([
+    ...semanticCellKeysForRow(args.row).map((key) => args.row.cells[key]),
+    args.row.id,
+  ]);
+
+  if (semanticValue) {
+    return {
+      keySource: 'semantic_id',
+      label: buildRowLabel(args.row, semanticValue),
+      rowKey: stableRowKey(args.groupKey, args.row.objectType, semanticValue),
+    };
+  }
+
+  if (args.row.sourceObjectId) {
+    return {
+      keySource: 'source_object_id',
+      label: buildRowLabel(args.row, args.row.sourceObjectId),
+      rowKey: stableRowKey(args.groupKey, args.row.objectType, args.row.sourceObjectId),
+    };
+  }
+
+  const fallbackLabel = buildFallbackRowLabel(args.row, args.index);
+  return {
+    keySource: 'deterministic_fallback',
+    label: buildRowLabel(args.row, fallbackLabel),
+    rowKey: stableRowKey(args.groupKey, args.row.objectType, `${fallbackLabel}:${args.index}`),
+  };
+}
+
+function buildGroupRowComparison(args: {
+  groupKey: string;
+  issuedGroup: DraftingScheduleGroup | null;
+  issuedRowCount: number;
+  liveGroup: DraftingScheduleGroup | null;
+  liveRowCount: number;
+}): DraftingSchedulePackIssueGroupRowComparison {
+  const issuedRows = args.issuedGroup?.rows ?? [];
+  const liveRows = args.liveGroup?.rows ?? [];
+  const legacySnapshotMissingRowData =
+    args.issuedRowCount > 0 && issuedRows.length === 0 && args.issuedGroup === null;
+  const liveRowsForDiff = legacySnapshotMissingRowData ? [] : liveRows;
+  const columns = args.issuedGroup?.columns ?? args.liveGroup?.columns ?? [];
+  const issuedByKey = mapRowsByKey(args.groupKey, issuedRows);
+  const liveByKey = mapRowsByKey(args.groupKey, liveRowsForDiff);
+  const rowKeys = Array.from(new Set([...issuedByKey.keys(), ...liveByKey.keys()])).sort();
+  const rows = rowKeys.map((rowKey) => {
+    const issued = issuedByKey.get(rowKey) ?? null;
+    const live = liveByKey.get(rowKey) ?? null;
+    const row = live?.row ?? issued?.row;
+    const changedFields = issued && live ? deriveChangedFields(issued.row, live.row, columns) : [];
+    const status: DraftingSchedulePackIssueRowStatus = !issued
+      ? 'added'
+      : !live
+        ? 'removed'
+        : changedFields.length > 0
+          ? 'changed'
+          : 'unchanged';
+
+    return {
+      changedFields,
+      issuedRow: issued?.row ?? null,
+      keySource: live?.keySource ?? issued?.keySource ?? 'deterministic_fallback',
+      label: live?.label ?? issued?.label ?? rowKey,
+      liveRow: live?.row ?? null,
+      objectType: row?.objectType ?? 'unknown',
+      rowKey,
+      status,
+    };
+  });
+  return {
+    addedRows: rows.filter((row) => row.status === 'added'),
+    changedRows: rows.filter((row) => row.status === 'changed'),
+    emptyState: legacySnapshotMissingRowData
+      ? 'Legacy snapshot does not contain row-level schedule data'
+      : args.issuedRowCount === 0 && issuedRows.length === 0 && liveRows.length === 0
+        ? 'No locked schedule rows in this snapshot'
+        : null,
+    groupKey: args.groupKey,
+    issuedRowCount: args.issuedRowCount || issuedRows.length,
+    legacySnapshotMissingRowData,
+    liveRowCount: args.liveRowCount || liveRows.length,
+    removedRows: rows.filter((row) => row.status === 'removed'),
+    rows,
+    title: resolveGroupTitle(args.groupKey),
+    unchangedRowCount: rows.filter((row) => row.status === 'unchanged').length,
+    unchangedRows: rows.filter((row) => row.status === 'unchanged'),
+  };
+}
+
+function mapRowsByKey(groupKey: string, rows: DraftingScheduleRow[]) {
+  return new Map(
+    rows.map((row, index) => {
+      const derived = deriveDraftingScheduleRowKey({ groupKey, index, row });
+      return [
+        derived.rowKey,
+        {
+          ...derived,
+          row,
+        },
+      ] as const;
+    }),
+  );
+}
+
+function deriveChangedFields(
+  issued: DraftingScheduleRow,
+  live: DraftingScheduleRow,
+  columns: DraftingScheduleGroup['columns'],
+): DraftingSchedulePackIssueChangedField[] {
+  const columnLabelsByKey = new Map(columns.map((column) => [column.key, column.label] as const));
+  const cellKeys = Array.from(
+    new Set([
+      ...columns.map((column) => column.key),
+      ...Object.keys(issued.cells),
+      ...Object.keys(live.cells),
+    ]),
+  );
+  const fields = cellKeys.flatMap((fieldKey) => {
+    const issuedValue = issued.cells[fieldKey] ?? '';
+    const liveValue = live.cells[fieldKey] ?? '';
+    if (issuedValue === liveValue) {
+      return [];
+    }
+
+    return [
+      {
+        fieldKey,
+        issuedValue,
+        label: columnLabelsByKey.get(fieldKey) ?? fieldKey,
+        liveValue,
+      },
+    ];
+  });
+
+  if (issued.objectType !== live.objectType) {
+    fields.unshift({
+      fieldKey: 'objectType',
+      issuedValue: issued.objectType,
+      label: 'Object Type',
+      liveValue: live.objectType,
+    });
+  }
+
+  return fields;
+}
+
+function findScheduleGroup(
+  summary:
+    | DraftingScheduleSummary
+    | Pick<DraftingSchedulePackIssue['lockedScheduleSummary'], 'groups'>,
+  groupKey: string,
+): DraftingScheduleGroup | null {
+  const group = summary.groups.find((candidate) => candidate.key === groupKey);
+  return group ? (group as DraftingScheduleGroup) : null;
+}
+
+function semanticCellKeysForRow(row: DraftingScheduleRow) {
+  switch (row.objectType) {
+    case 'anchor_tieback':
+      return ['anchorId'];
+    case 'borehole':
+      return ['boreholeId'];
+    case 'capping_beam':
+    case 'waler':
+      return ['beamOrWalerId'];
+    case 'service_run':
+    case 'service_crossing':
+      return ['serviceOrCrossingId'];
+    case 'pile':
+    case 'secant_pile_wall':
+    case 'soldier_pile_wall':
+    case 'excavation_line':
+      return ['idOrWallId'];
+    case 'section_marker':
+    case 'callout':
+    case 'dimension_chain':
+    case 'leader_note':
+    case 'monitoring_point':
+      return ['id'];
+    default:
+      return [];
+  }
+}
+
+function buildRowLabel(row: DraftingScheduleRow, fallback: string) {
+  return firstNonEmpty([
+    row.cells.id,
+    row.cells.anchorId,
+    row.cells.idOrWallId,
+    row.cells.beamOrWalerId,
+    row.cells.boreholeId,
+    row.cells.serviceOrCrossingId,
+    row.cells.label,
+    row.cells.titleOrText,
+    row.id,
+    fallback,
+  ])!;
+}
+
+function buildFallbackRowLabel(row: DraftingScheduleRow, index: number) {
+  return `${row.objectType}:${
+    firstNonEmpty([row.cells.label, row.cells.titleOrText, row.cells.objectType, row.id]) ?? 'row'
+  }:${index + 1}`;
+}
+
+function stableRowKey(groupKey: string, objectType: string, value: string) {
+  return `${groupKey}:${objectType}:${normalizeKeyPart(value)}`;
+}
+
+function normalizeKeyPart(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function firstNonEmpty(values: Array<string | null | undefined>) {
+  return (
+    values.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim() ?? null
+  );
+}
+
 function buildLivePackContext(
   model: DraftingModel,
   rootTemplatesById: ReadonlyMap<string, RootSheetTemplate>,
 ) {
   const definitions = getOrderedScheduleSheetDefinitions(model);
-  const definitionById = new Map(definitions.map((definition) => [definition.id, definition] as const));
+  const definitionById = new Map(
+    definitions.map((definition) => [definition.id, definition] as const),
+  );
   const summary = buildDraftingScheduleSummary(model);
   const templateSourcesById = Object.fromEntries(
     definitions.flatMap((definition) => {
@@ -656,9 +1014,11 @@ function deriveDriftState(args: {
   hasSheetDefinitionDrift: boolean;
   hasTemplateDrift: boolean;
 }): DraftingSchedulePackIssueDriftState {
-  const activeCount = [args.hasTemplateDrift, args.hasSheetDefinitionDrift, args.hasRowSummaryDrift]
-    .filter(Boolean)
-    .length;
+  const activeCount = [
+    args.hasTemplateDrift,
+    args.hasSheetDefinitionDrift,
+    args.hasRowSummaryDrift,
+  ].filter(Boolean).length;
 
   if (activeCount === 0) {
     return 'in_sync';
@@ -719,8 +1079,5 @@ function formatGroupLabels(groupKeys: string[]) {
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {
-  return (
-    left.length === right.length &&
-    left.every((value, index) => value === right[index])
-  );
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

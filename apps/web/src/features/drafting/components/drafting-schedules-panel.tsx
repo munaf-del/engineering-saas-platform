@@ -48,6 +48,8 @@ import {
   formatDraftingSchedulePackIssueDriftState,
   formatDraftingSchedulePackIssueSnapshotStatus,
   type DraftingSchedulePackIssueComparisonSummary,
+  type DraftingSchedulePackIssueGroupRowComparison,
+  type DraftingSchedulePackIssueRowComparison,
   type DraftingSchedulePackIssueSheetDetail,
   type DraftingSchedulePackIssueSnapshotStatus,
 } from '../schedules/drafting-schedule-pack-issue-provenance';
@@ -687,7 +689,10 @@ export function DraftingSchedulesPanel({
         {activeIssue && activeIssueDetail ? (
           <div className="space-y-4">
             <div className="rounded-md border">
-              <Table className="min-w-[1120px] text-xs" data-testid="drafting-schedule-issue-history-table">
+              <Table
+                className="min-w-[1120px] text-xs"
+                data-testid="drafting-schedule-issue-history-table"
+              >
                 <TableHeader>
                   <TableRow>
                     <TableHead className="whitespace-nowrap">Name</TableHead>
@@ -738,7 +743,10 @@ export function DraftingSchedulesPanel({
               </Table>
             </div>
 
-            <div className="space-y-4 rounded-md border p-3" data-testid="drafting-schedule-issue-detail">
+            <div
+              className="space-y-4 rounded-md border p-3"
+              data-testid="drafting-schedule-issue-detail"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -755,7 +763,9 @@ export function DraftingSchedulesPanel({
                         activeIssueDetail.snapshotStatus,
                       )}
                     </Badge>
-                    <Badge variant={driftStateBadgeVariant(activeIssueDetail.comparison.driftState)}>
+                    <Badge
+                      variant={driftStateBadgeVariant(activeIssueDetail.comparison.driftState)}
+                    >
                       {formatDraftingSchedulePackIssueDriftState(
                         activeIssueDetail.comparison.driftState,
                       )}
@@ -832,7 +842,10 @@ export function DraftingSchedulesPanel({
                   label="Issued At"
                   value={formatOptionalDate(activeIssueDetail.issuedAt)}
                 />
-                <DetailStat label="Issued By" value={activeIssueDetail.issuedBy ?? 'Not recorded'} />
+                <DetailStat
+                  label="Issued By"
+                  value={activeIssueDetail.issuedBy ?? 'Not recorded'}
+                />
                 <DetailStat label="Locked Pages" value={`${activeIssueDetail.pageCount}`} />
                 <DetailStat
                   label="Locked Sheets"
@@ -841,6 +854,8 @@ export function DraftingSchedulesPanel({
               </div>
 
               <IssueComparisonSummary comparison={activeIssueDetail.comparison} />
+
+              <IssueRowDiffDrillDown comparison={activeIssueDetail.comparison} />
 
               <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <div className="space-y-3 rounded-md border p-3">
@@ -1130,6 +1145,171 @@ function IssueComparisonSummary({
   );
 }
 
+function IssueRowDiffDrillDown({
+  comparison,
+}: {
+  comparison: DraftingSchedulePackIssueComparisonSummary;
+}) {
+  const rowComparison = comparison.rowComparison;
+
+  return (
+    <div className="space-y-3 rounded-md border p-3" data-testid="drafting-schedule-row-diff">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-medium">Row-Level Drill-Down</div>
+          <p className="text-xs text-muted-foreground">
+            Added, removed, and changed rows grouped by schedule section.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={rowComparison.addedRowCount > 0 ? 'outline' : 'secondary'}>
+            +{rowComparison.addedRowCount} added
+          </Badge>
+          <Badge variant={rowComparison.removedRowCount > 0 ? 'outline' : 'secondary'}>
+            -{rowComparison.removedRowCount} removed
+          </Badge>
+          <Badge variant={rowComparison.changedRowCount > 0 ? 'outline' : 'secondary'}>
+            {rowComparison.changedRowCount} changed
+          </Badge>
+        </div>
+      </div>
+
+      {rowComparison.emptyState ? (
+        <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+          {rowComparison.emptyState}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {rowComparison.groups.map((group) => (
+          <div className="rounded-md border px-3 py-2" key={group.groupKey}>
+            <div className="text-xs uppercase text-muted-foreground">{group.title}</div>
+            <div className="mt-1 text-sm font-medium">
+              {group.liveRowCount} live / {group.issuedRowCount} issued
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <Badge variant={group.addedRows.length > 0 ? 'outline' : 'secondary'}>
+                +{group.addedRows.length}
+              </Badge>
+              <Badge variant={group.removedRows.length > 0 ? 'outline' : 'secondary'}>
+                -{group.removedRows.length}
+              </Badge>
+              <Badge variant={group.changedRows.length > 0 ? 'outline' : 'secondary'}>
+                {group.changedRows.length} changed
+              </Badge>
+              <Badge variant="secondary">{group.unchangedRowCount} unchanged</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {rowComparison.groups.map((group) => (
+          <IssueRowDiffGroup key={group.groupKey} group={group} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IssueRowDiffGroup({ group }: { group: DraftingSchedulePackIssueGroupRowComparison }) {
+  const changedRows = [...group.addedRows, ...group.removedRows, ...group.changedRows];
+
+  return (
+    <details className="rounded-md border px-3 py-2" open={changedRows.length > 0}>
+      <summary className="cursor-pointer text-sm font-medium">
+        {group.title} · {group.liveRowCount} live / {group.issuedRowCount} issued ·{' '}
+        {group.addedRows.length} added · {group.removedRows.length} removed ·{' '}
+        {group.changedRows.length} changed · {group.unchangedRowCount} unchanged
+      </summary>
+
+      {group.emptyState ? (
+        <div className="mt-3 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground">
+          {group.emptyState}
+        </div>
+      ) : changedRows.length > 0 ? (
+        <div className="mt-3 space-y-3">
+          {group.addedRows.length > 0 ? (
+            <IssueRowDiffList label="Added Rows" rows={group.addedRows} />
+          ) : null}
+          {group.removedRows.length > 0 ? (
+            <IssueRowDiffList label="Removed Rows" rows={group.removedRows} />
+          ) : null}
+          {group.changedRows.length > 0 ? (
+            <IssueRowDiffList label="Changed Rows" rows={group.changedRows} />
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">No row-level drift in this group.</p>
+      )}
+    </details>
+  );
+}
+
+function IssueRowDiffList({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: DraftingSchedulePackIssueRowComparison[];
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
+      <div className="rounded-md border">
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Row</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Stable Key</TableHead>
+              <TableHead>Changed Fields</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.rowKey}>
+                <TableCell className="align-top">
+                  <div className="font-medium">{row.label}</div>
+                  <div className="text-muted-foreground">{row.objectType}</div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <Badge variant={row.status === 'unchanged' ? 'secondary' : 'outline'}>
+                    {row.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[240px] break-all align-top text-muted-foreground">
+                  {row.rowKey}
+                </TableCell>
+                <TableCell className="align-top">
+                  {row.changedFields.length > 0 ? (
+                    <div className="space-y-1">
+                      {row.changedFields.map((field) => (
+                        <div key={field.fieldKey}>
+                          <span className="font-medium text-foreground">{field.label}:</span>{' '}
+                          <span className="text-muted-foreground">
+                            {field.issuedValue || 'blank'} -&gt; {field.liveValue || 'blank'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {row.status === 'added'
+                        ? summarizeRowCells(row.liveRow)
+                        : summarizeRowCells(row.issuedRow)}
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function IssueSheetDetailCard({ sheet }: { sheet: DraftingSchedulePackIssueSheetDetail }) {
   return (
     <div className="space-y-3 rounded-md border p-3 text-xs">
@@ -1166,7 +1346,9 @@ function IssueSheetDetailCard({ sheet }: { sheet: DraftingSchedulePackIssueSheet
               versionId: sheet.templateSnapshotInfo.rootSheetTemplateVersionId,
             })}
           </div>
-          <p className="mt-2 text-muted-foreground">{sheet.templateSnapshotInfo.fallbackProvenance}</p>
+          <p className="mt-2 text-muted-foreground">
+            {sheet.templateSnapshotInfo.fallbackProvenance}
+          </p>
         </div>
 
         <div className="rounded-md border px-3 py-2">
@@ -1234,6 +1416,15 @@ function formatSignedDelta(value: number) {
   }
 
   return value > 0 ? `+${value}` : String(value);
+}
+
+function summarizeRowCells(row: DraftingSchedulePackIssueRowComparison['issuedRow']) {
+  if (!row) {
+    return 'No row values available.';
+  }
+
+  const values = Object.values(row.cells).filter((value) => value.trim().length > 0);
+  return values.slice(0, 4).join(' / ') || 'No populated fields.';
 }
 
 function renderTemplateIdentity(args: {
