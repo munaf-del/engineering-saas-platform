@@ -17,6 +17,9 @@ export const DEFAULT_DRAFTING_DRAWING_SHEET_ORIENTATION = 'landscape';
 export const DEFAULT_DRAFTING_DRAWING_SHEET_SCALE_LABEL = 'Fit';
 export const DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM = 360;
 export const DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM = 220;
+const MIN_DRAFTING_DRAWING_SHEET_VIEWPORT_SCALE = 0.0001;
+const MAX_DRAFTING_DRAWING_SHEET_VIEWPORT_SCALE = 10;
+const DEFAULT_DRAFTING_DRAWING_SHEET_NUDGE_RATIO = 0.1;
 
 export type CreateDraftingDrawingSheetDefinitionArgs = {
   id: string;
@@ -138,33 +141,54 @@ export function fitDrawingSheetViewportToModelExtents({
   frameWidthMm: number;
   paddingRatio?: number;
 }): DraftingDrawingSheetDefinition['viewport'] {
-  if (!bounds) {
-    return {
-      center: { x: 0, y: 0 },
-      fitMode: 'model_extents',
-      heightMm: frameHeightMm,
-      rotationDeg: 0,
-      scale: 0.01,
-      widthMm: frameWidthMm,
-    };
-  }
+  return fitDrawingSheetViewportToBounds({
+    bounds,
+    fitMode: 'model_extents',
+    frameHeightMm,
+    frameWidthMm,
+    paddingRatio,
+  });
+}
 
-  const spanX = Math.max(1, bounds.maxX - bounds.minX);
-  const spanY = Math.max(1, bounds.maxY - bounds.minY);
-  const usableWidth = frameWidthMm * (1 - paddingRatio * 2);
-  const usableHeight = frameHeightMm * (1 - paddingRatio * 2);
+export function fitDrawingSheetViewportToSelectedObjects({
+  frameHeightMm,
+  frameWidthMm,
+  objects,
+  paddingRatio = 0.08,
+}: {
+  frameHeightMm: number;
+  frameWidthMm: number;
+  objects: DraftingObject[];
+  paddingRatio?: number;
+}): DraftingDrawingSheetDefinition['viewport'] {
+  return fitDrawingSheetViewportToBounds({
+    bounds: getDraftingModelBounds(objects),
+    fitMode: 'selected_extents',
+    frameHeightMm,
+    frameWidthMm,
+    paddingRatio,
+  });
+}
+
+export function fitDrawingSheetDefinitionToSelectedObjects(
+  model: DraftingModel,
+  sheet: DraftingDrawingSheetDefinition,
+  selectedObjectIds: string[],
+  frameWidthMm = sheet.viewport.widthMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
+  frameHeightMm = sheet.viewport.heightMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
+) {
+  const selectedObjects = getVisibleDraftingObjects(model).filter((object) =>
+    selectedObjectIds.includes(object.id),
+  );
 
   return {
-    center: {
-      x: (bounds.minX + bounds.maxX) / 2,
-      y: (bounds.minY + bounds.maxY) / 2,
-    },
-    fitMode: 'model_extents',
-    heightMm: frameHeightMm,
-    rotationDeg: 0,
-    scale: Math.min(usableWidth / spanX, usableHeight / spanY),
-    widthMm: frameWidthMm,
-  };
+    ...sheet,
+    viewport: fitDrawingSheetViewportToSelectedObjects({
+      frameHeightMm,
+      frameWidthMm,
+      objects: selectedObjects,
+    }),
+  } satisfies DraftingDrawingSheetDefinition;
 }
 
 export function fitDrawingSheetDefinitionToModel(
@@ -181,6 +205,90 @@ export function fitDrawingSheetDefinitionToModel(
       frameWidthMm,
     }),
   } satisfies DraftingDrawingSheetDefinition;
+}
+
+export function fitDrawingSheetViewportToCurrentCanvasView({
+  canvasHeightPx,
+  canvasWidthPx,
+  frameHeightMm,
+  frameWidthMm,
+  view,
+}: {
+  canvasHeightPx: number;
+  canvasWidthPx: number;
+  frameHeightMm: number;
+  frameWidthMm: number;
+  view: DraftingModel['view'];
+}): DraftingDrawingSheetDefinition['viewport'] {
+  const safeCanvasWidth = Math.max(1, canvasWidthPx);
+  const safeCanvasHeight = Math.max(1, canvasHeightPx);
+  const safeViewScale = clampViewportScale(view.scale);
+  const worldWidth = safeCanvasWidth / safeViewScale;
+  const worldHeight = safeCanvasHeight / safeViewScale;
+
+  return {
+    center: {
+      x: (safeCanvasWidth / 2 - view.offsetX) / safeViewScale,
+      y: (safeCanvasHeight / 2 - view.offsetY) / safeViewScale,
+    },
+    fitMode: 'manual',
+    heightMm: frameHeightMm,
+    rotationDeg: 0,
+    scale: clampViewportScale(Math.min(frameWidthMm / worldWidth, frameHeightMm / worldHeight)),
+    widthMm: frameWidthMm,
+  };
+}
+
+export function nudgeDrawingSheetViewport(
+  viewport: DraftingDrawingSheetDefinition['viewport'],
+  direction: 'left' | 'right' | 'up' | 'down',
+  ratio = DEFAULT_DRAFTING_DRAWING_SHEET_NUDGE_RATIO,
+): DraftingDrawingSheetDefinition['viewport'] {
+  const worldWidth =
+    (viewport.widthMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM) /
+    clampViewportScale(viewport.scale);
+  const worldHeight =
+    (viewport.heightMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM) /
+    clampViewportScale(viewport.scale);
+  const deltaX =
+    direction === 'left' ? -worldWidth * ratio : direction === 'right' ? worldWidth * ratio : 0;
+  const deltaY =
+    direction === 'up' ? -worldHeight * ratio : direction === 'down' ? worldHeight * ratio : 0;
+
+  return {
+    ...viewport,
+    center: {
+      x: viewport.center.x + deltaX,
+      y: viewport.center.y + deltaY,
+    },
+    fitMode: 'manual',
+  };
+}
+
+export function zoomDrawingSheetViewport(
+  viewport: DraftingDrawingSheetDefinition['viewport'],
+  direction: 'in' | 'out',
+  factor = 1.25,
+): DraftingDrawingSheetDefinition['viewport'] {
+  return {
+    ...viewport,
+    fitMode: 'manual',
+    scale: clampViewportScale(viewport.scale * (direction === 'in' ? factor : 1 / factor)),
+  };
+}
+
+export function resetDrawingSheetViewport(
+  frameWidthMm = DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
+  frameHeightMm = DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
+): DraftingDrawingSheetDefinition['viewport'] {
+  return {
+    center: { x: 0, y: 0 },
+    fitMode: 'manual',
+    heightMm: frameHeightMm,
+    rotationDeg: 0,
+    scale: 0.01,
+    widthMm: frameWidthMm,
+  };
 }
 
 export function isLayerAllowedByDrawingSheet(
@@ -219,4 +327,57 @@ export function getDrawingSheetVisibleUnderlays(
 
 function nextSheetNumber(index: number) {
   return `S-${String(index).padStart(3, '0')}`;
+}
+
+function fitDrawingSheetViewportToBounds({
+  bounds,
+  fitMode,
+  frameHeightMm,
+  frameWidthMm,
+  paddingRatio,
+}: {
+  bounds: DraftingBounds | null;
+  fitMode: DraftingDrawingSheetDefinition['viewport']['fitMode'];
+  frameHeightMm: number;
+  frameWidthMm: number;
+  paddingRatio: number;
+}): DraftingDrawingSheetDefinition['viewport'] {
+  if (!bounds) {
+    return {
+      center: { x: 0, y: 0 },
+      fitMode,
+      heightMm: frameHeightMm,
+      rotationDeg: 0,
+      scale: 0.01,
+      widthMm: frameWidthMm,
+    };
+  }
+
+  const spanX = Math.max(1, bounds.maxX - bounds.minX);
+  const spanY = Math.max(1, bounds.maxY - bounds.minY);
+  const usableWidth = frameWidthMm * (1 - paddingRatio * 2);
+  const usableHeight = frameHeightMm * (1 - paddingRatio * 2);
+
+  return {
+    center: {
+      x: (bounds.minX + bounds.maxX) / 2,
+      y: (bounds.minY + bounds.maxY) / 2,
+    },
+    fitMode,
+    heightMm: frameHeightMm,
+    rotationDeg: 0,
+    scale: clampViewportScale(Math.min(usableWidth / spanX, usableHeight / spanY)),
+    widthMm: frameWidthMm,
+  };
+}
+
+function clampViewportScale(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0.01;
+  }
+
+  return Math.min(
+    Math.max(value, MIN_DRAFTING_DRAWING_SHEET_VIEWPORT_SCALE),
+    MAX_DRAFTING_DRAWING_SHEET_VIEWPORT_SCALE,
+  );
 }

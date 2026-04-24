@@ -1,5 +1,11 @@
 import * as React from 'react';
-import type { DraftingModel, DraftingObject, DraftingPoint, DraftingUnderlay } from '@eng/shared';
+import type {
+  DraftingDrawingSheetDefinition,
+  DraftingModel,
+  DraftingObject,
+  DraftingPoint,
+  DraftingUnderlay,
+} from '@eng/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -25,7 +31,9 @@ export function DraftingStage({
   onObjectPointerDown,
   onUnderlayPointerDown,
   pendingLinePoints,
+  selectedDrawingSheet,
   selectedUnderlayId,
+  showDrawingSheetViewportOverlay,
   underlayCalibrationState,
   underlayCropPreview,
   underlayInteractionEnabled,
@@ -46,7 +54,9 @@ export function DraftingStage({
     metrics: PdfUnderlayPageMetrics,
   ) => void;
   pendingLinePoints: DraftingPoint[];
+  selectedDrawingSheet: DraftingDrawingSheetDefinition | null;
   selectedUnderlayId: string | null;
+  showDrawingSheetViewportOverlay: boolean;
   underlayCalibrationState: {
     underlayId: string;
     pointA?: DraftingPoint | null;
@@ -147,6 +157,10 @@ export function DraftingStage({
                   vectorEffect="non-scaling-stroke"
                 />
               ) : null}
+
+              {showDrawingSheetViewportOverlay && selectedDrawingSheet ? (
+                <DrawingSheetViewportOverlay sheet={selectedDrawingSheet} />
+              ) : null}
             </g>
           </svg>
 
@@ -157,6 +171,45 @@ export function DraftingStage({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DrawingSheetViewportOverlay({ sheet }: { sheet: DraftingDrawingSheetDefinition }) {
+  const width = (sheet.viewport.widthMm ?? 360) / Math.max(0.0001, Math.abs(sheet.viewport.scale));
+  const height =
+    (sheet.viewport.heightMm ?? 220) / Math.max(0.0001, Math.abs(sheet.viewport.scale));
+  const label = `${sheet.sheetNumber || sheet.name} - ${sheet.scaleLabel || sheet.viewport.scale.toFixed(4)}`;
+
+  return (
+    <g
+      data-testid="drafting-sheet-viewport-overlay"
+      pointerEvents="none"
+      transform={`translate(${sheet.viewport.center.x} ${sheet.viewport.center.y}) rotate(${sheet.viewport.rotationDeg ?? 0})`}
+    >
+      <rect
+        fill="rgba(14, 165, 233, 0.08)"
+        height={height}
+        stroke="#0284c7"
+        strokeDasharray="220 140"
+        strokeWidth={24}
+        vectorEffect="non-scaling-stroke"
+        width={width}
+        x={-width / 2}
+        y={-height / 2}
+      />
+      <text
+        fill="#0369a1"
+        fontSize={260}
+        fontWeight={700}
+        stroke="#ffffff"
+        strokeWidth={18}
+        vectorEffect="non-scaling-stroke"
+        x={-width / 2}
+        y={-height / 2 - 180}
+      >
+        {label}
+      </text>
+    </g>
   );
 }
 

@@ -78,6 +78,8 @@ describe('drafting drawing sheet preview', () => {
 
     expect(markup).toContain('data-testid="drafting-drawing-sheet-page"');
     expect(markup).toContain('data-testid="drafting-geometry-viewport"');
+    expect(markup).toContain('data-testid="drafting-sheet-viewport-clip"');
+    expect(markup).toContain('clip-path="url(#drafting-sheet-viewport-clip-drawing-sheet-1)"');
     expect(markup).toContain('data-drafting-object="true"');
     expect(markup).toContain('P1');
     expect(markup).toContain('Retention Plan');
@@ -113,6 +115,50 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('.drafting-sheet-hide-labels text{display:none}');
   });
 
+  it('clips optional grid and object labels inside the geometry viewport', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeGrid: true,
+      includeObjectLabels: true,
+    };
+    drawing.model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 0, y: 0 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    const clipIndex = markup.indexOf('data-testid="drafting-sheet-viewport-clip"');
+    const gridIndex = markup.indexOf('data-testid="drafting-sheet-grid"');
+    const labelIndex = markup.indexOf('P1');
+
+    expect(clipIndex).toBeGreaterThan(-1);
+    expect(gridIndex).toBeGreaterThan(clipIndex);
+    expect(labelIndex).toBeGreaterThan(clipIndex);
+    expect(markup).toContain('<svg class=""');
+  });
+
   it('uses existing PDF underlay rendering when underlays are included and preserves fallback metadata', () => {
     const drawing = createDrawing();
     const sheet = {
@@ -134,6 +180,20 @@ describe('drafting drawing sheet preview', () => {
       createdAt: '2026-04-24T00:00:00.000Z',
       updatedAt: '2026-04-24T00:00:00.000Z',
     });
+    drawing.model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 0, y: 0 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
 
     const markup = renderToStaticMarkup(
       <DraftingDrawingSheetPage
@@ -150,6 +210,65 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('data-testid="mock-drafting-pdf-underlay"');
     expect(markup).toContain('PDF underlay:');
     expect(markup).toContain('survey.pdf');
+    expect(markup.indexOf('data-testid="mock-drafting-pdf-underlay"')).toBeLessThan(
+      markup.indexOf('data-drafting-object="true"'),
+    );
+  });
+
+  it('applies sheet layer filters without mutating the editor model', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      layerFilter: {
+        hiddenLayerIds: ['notes' as const],
+      },
+    };
+    drawing.model.objects.push(
+      {
+        id: 'pile-1',
+        type: 'pile',
+        layerId: 'piles',
+        geometry: {
+          centre: { x: 0, y: 0 },
+          diameterMm: 600,
+        },
+        metadata: {
+          pileId: 'P1',
+        },
+        createdAt: '2026-04-24T00:00:00.000Z',
+        updatedAt: '2026-04-24T00:00:00.000Z',
+      },
+      {
+        id: 'pile-hidden-by-sheet-filter',
+        type: 'pile',
+        layerId: 'notes',
+        geometry: {
+          centre: { x: 1000, y: 0 },
+          diameterMm: 600,
+        },
+        metadata: {
+          pileId: 'P-NOTES',
+        },
+        createdAt: '2026-04-24T00:00:00.000Z',
+        updatedAt: '2026-04-24T00:00:00.000Z',
+      },
+    );
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).toContain('P1');
+    expect(markup).not.toContain('P-NOTES');
+    expect(drawing.model.objects).toHaveLength(2);
   });
 });
 

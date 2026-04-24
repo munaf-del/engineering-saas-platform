@@ -267,6 +267,7 @@ export function DraftingDrawingSheetPage({
     rotationDeg: viewport.rotationDeg ?? 0,
     scale: viewport.scale,
   });
+  const viewportClipPathId = `drafting-sheet-viewport-clip-${sanitizeSvgId(sheet.id)}`;
 
   return (
     <article
@@ -306,6 +307,16 @@ export function DraftingDrawingSheetPage({
           width="100%"
         >
           <style>{'.drafting-sheet-hide-labels text{display:none}'}</style>
+          <defs>
+            <clipPath id={viewportClipPathId}>
+              <rect
+                height={sheetLayout.viewport.height}
+                width={sheetLayout.viewport.width}
+                x={0}
+                y={0}
+              />
+            </clipPath>
+          </defs>
           <rect
             fill="#f8fafc"
             height={sheetLayout.viewport.height}
@@ -313,41 +324,44 @@ export function DraftingDrawingSheetPage({
             x={0}
             y={0}
           />
-          {sheet.includeGrid ? (
-            <DrawingSheetGrid
-              frameHeightMm={sheetLayout.viewport.height}
-              frameWidthMm={sheetLayout.viewport.width}
-              viewport={viewport}
-            />
-          ) : null}
 
-          <g transform={transform}>
-            {visibleUnderlays.map((underlay) => (
-              <DraftingPdfUnderlay
-                calibrationPoints={null}
-                cropPreview={null}
-                interactionEnabled={false}
-                isSelected={false}
-                key={underlay.id}
-                underlay={underlay}
+          <g clipPath={`url(#${viewportClipPathId})`} data-testid="drafting-sheet-viewport-clip">
+            {sheet.includeGrid ? (
+              <DrawingSheetGrid
+                frameHeightMm={sheetLayout.viewport.height}
+                frameWidthMm={sheetLayout.viewport.width}
+                viewport={viewport}
               />
-            ))}
+            ) : null}
 
-            {visibleObjects.map((object) => (
-              <React.Fragment key={object.id}>
-                {renderDraftingObject({
-                  isSelected: false,
-                  layer: getLayerById(drawing.model, object.layerId),
-                  object,
-                  onPointerDown: () => {},
-                })}
-              </React.Fragment>
-            ))}
+            {sheet.includeUnderlays && visibleUnderlays.length > 0 ? (
+              <UnderlayMetadataPlaceholders underlays={visibleUnderlays} />
+            ) : null}
+
+            <g transform={transform}>
+              {visibleUnderlays.map((underlay) => (
+                <DraftingPdfUnderlay
+                  calibrationPoints={null}
+                  cropPreview={null}
+                  interactionEnabled={false}
+                  isSelected={false}
+                  key={underlay.id}
+                  underlay={underlay}
+                />
+              ))}
+
+              {visibleObjects.map((object) => (
+                <React.Fragment key={object.id}>
+                  {renderDraftingObject({
+                    isSelected: false,
+                    layer: getLayerById(drawing.model, object.layerId),
+                    object,
+                    onPointerDown: () => {},
+                  })}
+                </React.Fragment>
+              ))}
+            </g>
           </g>
-
-          {sheet.includeUnderlays && visibleUnderlays.length > 0 ? (
-            <UnderlayMetadataPlaceholders underlays={visibleUnderlays} />
-          ) : null}
         </svg>
       </section>
 
@@ -386,7 +400,7 @@ function DrawingSheetGrid({
   const yValues = createGridAxisValues(minY, maxY, step);
 
   return (
-    <g stroke="#e2e8f0" strokeWidth={0.25}>
+    <g data-testid="drafting-sheet-grid" stroke="#e2e8f0" strokeWidth={0.25}>
       {xValues.map((x) => (
         <line
           key={`grid-x-${x}`}
@@ -617,4 +631,8 @@ function buildViewportTransform({
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+function sanitizeSvgId(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '-');
 }

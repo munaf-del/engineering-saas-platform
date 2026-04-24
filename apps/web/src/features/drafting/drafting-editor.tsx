@@ -55,6 +55,9 @@ export function DraftingEditor({
 }) {
   const { user } = useAuth();
   const [titleRevisionOpen, setTitleRevisionOpen] = React.useState(false);
+  const [activeDrawingSheetId, setActiveDrawingSheetId] = React.useState<string | null>(null);
+  const [showDrawingSheetViewportOverlay, setShowDrawingSheetViewportOverlay] =
+    React.useState(true);
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
   const history = useDraftingHistory(projectId, drawingId);
@@ -108,6 +111,10 @@ export function DraftingEditor({
   };
   const visibleUnderlays = getVisibleDraftingUnderlays(currentModel);
   const visibleObjects = getVisibleDraftingObjects(currentModel);
+  const selectedDrawingSheet =
+    currentModel.drawingSheets.find((sheet) => sheet.id === activeDrawingSheetId) ??
+    currentModel.drawingSheets[0] ??
+    null;
 
   async function handleSaveModel() {
     try {
@@ -289,8 +296,10 @@ export function DraftingEditor({
           onObjectPointerDown={selection.handleObjectPointerDown}
           onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
           pendingLinePoints={drafting.pendingLinePoints}
+          selectedDrawingSheet={selectedDrawingSheet}
           selectedObjectId={selection.selectedObjectId}
           selectedUnderlayId={underlays.selectedUnderlayId}
+          showDrawingSheetViewportOverlay={showDrawingSheetViewportOverlay}
           underlayCalibrationState={
             underlays.calibrationState
               ? {
@@ -383,10 +392,19 @@ export function DraftingEditor({
               <TabsContent value="sheets">
                 <ScrollArea className="h-[580px] pr-3">
                   <DraftingDrawingSheetsPanel
+                    activeSheetId={activeDrawingSheetId}
+                    canvasSize={view.canvasSize}
+                    currentView={currentModel.view}
                     drawingTitle={currentDrawing.title}
                     model={currentModel}
+                    onActiveSheetChange={setActiveDrawingSheetId}
                     onModelChange={history.replaceModel}
+                    onViewportOverlayEnabledChange={setShowDrawingSheetViewportOverlay}
                     projectId={projectId}
+                    selectedObjectIds={
+                      selection.selectedObjectId ? [selection.selectedObjectId] : []
+                    }
+                    viewportOverlayEnabled={showDrawingSheetViewportOverlay}
                   />
                 </ScrollArea>
               </TabsContent>
