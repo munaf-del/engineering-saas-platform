@@ -3,6 +3,7 @@ import type { DraftingPoint } from '@eng/shared';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
 export type DraftingInspectorTab =
+  | 'setup'
   | 'properties'
   | 'layers'
   | 'underlays'

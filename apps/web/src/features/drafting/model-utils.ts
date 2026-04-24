@@ -1,4 +1,5 @@
 import {
+  ensureDraftingDrawingSetup,
   ensureDraftingModelLayers,
   type DraftingImplementedObjectType,
   type DraftingLayer,
@@ -50,6 +51,33 @@ export type DraftingRect = {
 
 export function cloneDraftingModel(model: DraftingModel) {
   return structuredClone(ensureDraftingModelLayers(model));
+}
+
+export function updateDraftingDrawingSetup(
+  model: DraftingModel,
+  updater: (
+    setup: NonNullable<DraftingModel['drawingSetup']>,
+  ) => NonNullable<DraftingModel['drawingSetup']>,
+): DraftingModel {
+  return {
+    ...model,
+    drawingSetup: updater(ensureDraftingDrawingSetup(model)),
+  };
+}
+
+export function centerDraftingViewOnPoint(
+  model: DraftingModel,
+  point: DraftingPoint,
+  canvasSize: { height: number; width: number },
+): DraftingModel {
+  return {
+    ...model,
+    view: {
+      ...model.view,
+      offsetX: canvasSize.width / 2 - point.x * model.view.scale,
+      offsetY: canvasSize.height / 2 - point.y * model.view.scale,
+    },
+  };
 }
 
 export function createDraftingObject(

@@ -74,6 +74,14 @@ export type DraftingFutureObjectType = (typeof DRAFTING_FUTURE_OBJECT_TYPES)[num
 
 export const DRAFTING_LINE_STYLES = ['solid', 'dashed'] as const;
 export type DraftingLineStyle = (typeof DRAFTING_LINE_STYLES)[number];
+export const DRAFTING_MODEL_UNITS = ['mm'] as const;
+export const DRAFTING_DISPLAY_UNITS = ['mm', 'm'] as const;
+export const DRAFTING_LINE_WEIGHT_MODES = ['screen_constant', 'paper_preview'] as const;
+export const DRAFTING_TEXT_SCALE_MODES = ['model', 'screen_constant'] as const;
+export type DraftingModelUnits = (typeof DRAFTING_MODEL_UNITS)[number];
+export type DraftingDisplayUnits = (typeof DRAFTING_DISPLAY_UNITS)[number];
+export type DraftingLineWeightMode = (typeof DRAFTING_LINE_WEIGHT_MODES)[number];
+export type DraftingTextScaleMode = (typeof DRAFTING_TEXT_SCALE_MODES)[number];
 
 export const DRAFTING_PILE_TYPES = [
   'bored',
@@ -161,10 +169,69 @@ export type DraftingPoint = {
   y: number;
 };
 
+export type DraftingModelPoint3d = DraftingPoint & {
+  z: number;
+};
+
+export type DraftingSitePoint = {
+  easting?: number;
+  northing?: number;
+  elevation?: number;
+};
+
+export type DraftingReferencePoint = {
+  id: string;
+  label: string;
+  modelPoint: DraftingModelPoint3d;
+  sitePoint?: DraftingSitePoint;
+  datum?: string;
+  coordinateSystem?: string;
+  description?: string;
+  locked?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+};
+
+export type DraftingNorthSetup = {
+  /**
+   * Angle convention: model +Y is project north at 0 degrees; positive angles rotate clockwise.
+   * True north is stored independently so survey north can differ from project/document north.
+   */
+  projectNorthAngleDeg: number;
+  trueNorthAngleDeg: number;
+  showProjectNorth: boolean;
+  showTrueNorth: boolean;
+};
+
+export type DraftingScaleSetup = {
+  defaultSheetScale: string;
+  defaultCanvasScaleLabel: string;
+  allowedScales: string[];
+};
+
+export type DraftingGraphicsSetup = {
+  lineWeightMode: DraftingLineWeightMode;
+  defaultLineWeightMm: number;
+  lineWeightScale: number;
+  textScaleMode: DraftingTextScaleMode;
+};
+
+export type DraftingDrawingSetup = {
+  modelUnits: DraftingModelUnits;
+  displayUnits: DraftingDisplayUnits;
+  coordinatePrecision: number;
+  referencePoint: DraftingReferencePoint;
+  north: DraftingNorthSetup;
+  scale: DraftingScaleSetup;
+  graphics: DraftingGraphicsSetup;
+  standardsNote?: string;
+};
+
 export type DraftingStyle = {
   stroke?: string;
   fill?: string;
   lineWeight?: number;
+  lineWeightMm?: number;
   lineStyle?: DraftingLineStyle;
   textSize?: number;
 };
@@ -898,6 +965,7 @@ export type DraftingModel = {
   version: 1;
   units: 'mm';
   drawingId: string;
+  drawingSetup?: DraftingDrawingSetup;
   view: {
     scale: number;
     offsetX: number;
@@ -1144,6 +1212,62 @@ export function createDefaultDraftingLayers(): DraftingLayer[] {
   return DEFAULT_DRAFTING_LAYERS.map((layer) => ({ ...layer }));
 }
 
+export function createDefaultDraftingDrawingSetup(
+  patch: Partial<DraftingDrawingSetup> = {},
+): DraftingDrawingSetup {
+  const referencePatch: Partial<DraftingReferencePoint> = patch.referencePoint ?? {};
+  const sitePoint =
+    referencePatch.sitePoint && Object.keys(referencePatch.sitePoint).length > 0
+      ? { ...referencePatch.sitePoint }
+      : undefined;
+
+  return {
+    modelUnits: patch.modelUnits ?? 'mm',
+    displayUnits: patch.displayUnits ?? 'm',
+    coordinatePrecision: patch.coordinatePrecision ?? 3,
+    referencePoint: {
+      id: referencePatch.id ?? 'model-origin',
+      label: referencePatch.label ?? 'Model origin / survey mark',
+      modelPoint: {
+        x: referencePatch.modelPoint?.x ?? 0,
+        y: referencePatch.modelPoint?.y ?? 0,
+        z: referencePatch.modelPoint?.z ?? 0,
+      },
+      ...(sitePoint ? { sitePoint } : {}),
+      datum: referencePatch.datum ?? '',
+      coordinateSystem: referencePatch.coordinateSystem ?? '',
+      description: referencePatch.description ?? '',
+      locked: referencePatch.locked ?? false,
+      updatedAt: referencePatch.updatedAt,
+      updatedBy: referencePatch.updatedBy,
+    },
+    north: {
+      projectNorthAngleDeg: patch.north?.projectNorthAngleDeg ?? 0,
+      trueNorthAngleDeg: patch.north?.trueNorthAngleDeg ?? 0,
+      showProjectNorth: patch.north?.showProjectNorth ?? true,
+      showTrueNorth: patch.north?.showTrueNorth ?? false,
+    },
+    scale: {
+      defaultSheetScale: patch.scale?.defaultSheetScale ?? '1:100',
+      defaultCanvasScaleLabel: patch.scale?.defaultCanvasScaleLabel ?? 'Editing zoom',
+      allowedScales: patch.scale?.allowedScales ?? ['1:20', '1:50', '1:100', '1:200', '1:500'],
+    },
+    graphics: {
+      lineWeightMode: patch.graphics?.lineWeightMode ?? 'screen_constant',
+      defaultLineWeightMm: patch.graphics?.defaultLineWeightMm ?? 0.25,
+      lineWeightScale: patch.graphics?.lineWeightScale ?? 1,
+      textScaleMode: patch.graphics?.textScaleMode ?? 'model',
+    },
+    standardsNote:
+      patch.standardsNote ??
+      'Configurable engineering drawing defaults. Exact AS 1100.101 coordinate, north, and line-weight defaults can be wired when the licensed reference is available.',
+  };
+}
+
+export function ensureDraftingDrawingSetup(model: DraftingModel): DraftingDrawingSetup {
+  return createDefaultDraftingDrawingSetup(model.drawingSetup);
+}
+
 export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
   const existingLayersById = new Map(model.layers.map((layer) => [layer.id, layer]));
   const defaultLayerIds = new Set(DEFAULT_DRAFTING_LAYERS.map((layer) => layer.id));
@@ -1154,6 +1278,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
 
   return {
     ...model,
+    drawingSetup: ensureDraftingDrawingSetup(model),
     layers: [...orderedLayers, ...extraLayers],
     objectChangeEvents: model.objectChangeEvents ?? [],
     titleBlock: model.titleBlock ?? {},

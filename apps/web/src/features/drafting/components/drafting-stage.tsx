@@ -12,6 +12,7 @@ import {
   createGridAxisValues,
   getGridStep,
   getVisibleWorldBounds,
+  screenToWorldPoint,
   type DraftingCanvasSize,
 } from '../geometry-utils';
 import { getDraftingModelBounds, getLayerById } from '../model-utils';
@@ -73,6 +74,27 @@ export function DraftingStage({
 }) {
   const visibleWorldBounds = getVisibleWorldBounds(model.view, canvasSize);
   const gridStep = getGridStep(model.view.scale);
+  const [cursorPoint, setCursorPoint] = React.useState<DraftingPoint | null>(null);
+  const setup = model.drawingSetup!;
+  const referencePoint = setup.referencePoint.modelPoint;
+  const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
+
+  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+
+    setCursorPoint(
+      screenToWorldPoint(
+        {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        },
+        model.view,
+      ),
+    );
+  }
 
   return (
     <Card className="min-h-[720px]">
@@ -81,10 +103,16 @@ export function DraftingStage({
           <div>
             <CardTitle className="text-base">Canvas</CardTitle>
             <CardDescription>
-              Model space units are millimetres. Pan, zoom, select, move, and edit saved objects.
+              Model units {setup.modelUnits}; display units {setup.displayUnits}. Canvas zoom and
+              plotted sheet scale are separate.
             </CardDescription>
           </div>
-          <Badge variant="outline">{Math.round(model.view.scale * 1000)} px / m</Badge>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Badge variant="outline">Model {setup.modelUnits}</Badge>
+            <Badge variant="outline">Display {setup.displayUnits}</Badge>
+            <Badge variant="outline">Zoom {Math.round(model.view.scale * 100)}%</Badge>
+            <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
+          </div>
         </div>
       </CardHeader>
 
@@ -97,6 +125,7 @@ export function DraftingStage({
             className="h-full w-full touch-none"
             onWheel={onCanvasWheel}
             onClick={onCanvasClick}
+            onPointerMove={handlePointerMove}
             onPointerDown={onBackgroundPointerDown}
           >
             <rect x={0} y={0} width={canvasSize.width} height={canvasSize.height} fill="#f8fafc" />
@@ -147,6 +176,12 @@ export function DraftingStage({
                 }),
               )}
 
+              <ReferencePointMarker
+                label={setup.referencePoint.label}
+                point={referencePoint}
+                scale={model.view.scale}
+              />
+
               {pendingLinePoints.length > 0 ? (
                 <polyline
                   fill="none"
@@ -162,15 +197,95 @@ export function DraftingStage({
                 <DrawingSheetViewportOverlay sheet={selectedDrawingSheet} />
               ) : null}
             </g>
+            <CanvasNorthOverlay setup={setup} width={canvasSize.width} />
           </svg>
 
           <DraftingStatusBar
+            cursorPoint={cursorPoint}
+            displayUnits={setup.displayUnits}
             hasModelExtents={Boolean(getDraftingModelBounds(visibleObjects))}
             visibleObjectCount={visibleObjects.length}
           />
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ReferencePointMarker({
+  label,
+  point,
+  scale,
+}: {
+  label: string;
+  point: DraftingPoint & { z: number };
+  scale: number;
+}) {
+  const safeScale = Math.max(0.0001, scale);
+
+  return (
+    <g
+      data-testid="drafting-reference-point"
+      pointerEvents="none"
+      transform={`translate(${point.x} ${point.y}) scale(${1 / safeScale})`}
+    >
+      <circle fill="#ffffff" r={9} stroke="#0f766e" strokeWidth={2} />
+      <line stroke="#0f766e" strokeWidth={2} x1={-16} x2={16} y1={0} y2={0} />
+      <line stroke="#0f766e" strokeWidth={2} x1={0} x2={0} y1={-16} y2={16} />
+      <text fill="#0f766e" fontSize={12} fontWeight={700} x={20} y={-12}>
+        {label}
+      </text>
+      <text fill="#475569" fontSize={10} x={20} y={2}>
+        X {point.x.toFixed(0)} Y {point.y.toFixed(0)} Z {point.z.toFixed(0)}
+      </text>
+    </g>
+  );
+}
+
+function CanvasNorthOverlay({
+  setup,
+  width,
+}: {
+  setup: NonNullable<DraftingModel['drawingSetup']>;
+  width: number;
+}) {
+  const arrows = [
+    setup.north.showProjectNorth
+      ? { angle: setup.north.projectNorthAngleDeg, color: '#1e293b', label: 'PN' }
+      : null,
+    setup.north.showTrueNorth
+      ? { angle: setup.north.trueNorthAngleDeg, color: '#b91c1c', label: 'TN' }
+      : null,
+  ].filter((arrow): arrow is { angle: number; color: string; label: string } => arrow !== null);
+
+  if (arrows.length === 0) {
+    return null;
+  }
+
+  const originX = Math.max(72, width - 86);
+
+  return (
+    <g data-testid="drafting-north-overlay" pointerEvents="none">
+      {arrows.map((arrow, index) => (
+        <g
+          key={arrow.label}
+          transform={`translate(${originX - index * 46} 76) rotate(${arrow.angle})`}
+        >
+          <line stroke={arrow.color} strokeWidth={2.5} x1={0} x2={0} y1={28} y2={-28} />
+          <polygon fill={arrow.color} points="0,-38 -8,-22 8,-22" />
+          <text
+            fill={arrow.color}
+            fontSize={12}
+            fontWeight={700}
+            textAnchor="middle"
+            transform={`rotate(${-arrow.angle})`}
+            y={48}
+          >
+            {arrow.label}
+          </text>
+        </g>
+      ))}
+    </g>
   );
 }
 

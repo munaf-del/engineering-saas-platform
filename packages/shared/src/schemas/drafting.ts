@@ -3,14 +3,17 @@ import {
   DRAFTING_CALLOUT_ARROW_STYLES,
   DRAFTING_CALLOUT_LEADER_STYLES,
   DRAFTING_DIMENSION_UNITS,
+  DRAFTING_DISPLAY_UNITS,
   DRAFTING_DRAWING_SHEET_ISSUE_STATUSES,
   DRAFTING_DRAWING_TRANSMITTAL_STATUSES,
   DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES,
   DRAFTING_DRAWING_STATUSES,
   DRAFTING_FUTURE_OBJECT_TYPES,
   DRAFTING_LAYER_IDS,
+  DRAFTING_LINE_WEIGHT_MODES,
   DRAFTING_LINE_STYLES,
   DRAFTING_MONITORING_TYPES,
+  DRAFTING_MODEL_UNITS,
   DRAFTING_OBJECT_TYPES,
   DRAFTING_OBJECT_PROVENANCE_ACTIONS,
   DRAFTING_PILE_MATERIALS,
@@ -27,6 +30,7 @@ import {
   DRAFTING_SERVICE_RISK_STATUSES,
   DRAFTING_SERVICE_STATUSES,
   DRAFTING_SERVICE_TYPES,
+  DRAFTING_TEXT_SCALE_MODES,
   DRAFTING_TITLE_BLOCK_STATUSES,
 } from '../types/drafting.js';
 
@@ -39,8 +43,63 @@ const DraftingStyleSchema = z.object({
   stroke: z.string().optional(),
   fill: z.string().optional(),
   lineWeight: z.number().finite().optional(),
+  lineWeightMm: z.number().finite().positive().optional(),
   lineStyle: z.enum(DRAFTING_LINE_STYLES).optional(),
   textSize: z.number().finite().optional(),
+});
+
+const DraftingModelPoint3dSchema = DraftingPointSchema.extend({
+  z: z.number().finite(),
+});
+
+const DraftingSitePointSchema = z.object({
+  easting: z.number().finite().optional(),
+  northing: z.number().finite().optional(),
+  elevation: z.number().finite().optional(),
+});
+
+const DraftingReferencePointSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  modelPoint: DraftingModelPoint3dSchema,
+  sitePoint: DraftingSitePointSchema.optional(),
+  datum: z.string().optional(),
+  coordinateSystem: z.string().optional(),
+  description: z.string().optional(),
+  locked: z.boolean().optional(),
+  updatedAt: z.string().datetime().optional(),
+  updatedBy: z.string().optional(),
+});
+
+const DraftingNorthSetupSchema = z.object({
+  projectNorthAngleDeg: z.number().finite(),
+  trueNorthAngleDeg: z.number().finite(),
+  showProjectNorth: z.boolean(),
+  showTrueNorth: z.boolean(),
+});
+
+const DraftingScaleSetupSchema = z.object({
+  defaultSheetScale: z.string().min(1),
+  defaultCanvasScaleLabel: z.string().min(1),
+  allowedScales: z.array(z.string().min(1)),
+});
+
+const DraftingGraphicsSetupSchema = z.object({
+  lineWeightMode: z.enum(DRAFTING_LINE_WEIGHT_MODES),
+  defaultLineWeightMm: z.number().positive(),
+  lineWeightScale: z.number().positive(),
+  textScaleMode: z.enum(DRAFTING_TEXT_SCALE_MODES),
+});
+
+const DraftingDrawingSetupSchema = z.object({
+  modelUnits: z.enum(DRAFTING_MODEL_UNITS),
+  displayUnits: z.enum(DRAFTING_DISPLAY_UNITS),
+  coordinatePrecision: z.number().int().min(0).max(6),
+  referencePoint: DraftingReferencePointSchema,
+  north: DraftingNorthSetupSchema,
+  scale: DraftingScaleSetupSchema,
+  graphics: DraftingGraphicsSetupSchema,
+  standardsNote: z.string().optional(),
 });
 
 export const DraftingLayerSchema = z.object({
@@ -810,6 +869,7 @@ export const DraftingModelSchema = z.object({
   version: z.literal(1),
   units: z.literal('mm'),
   drawingId: z.string().min(1),
+  drawingSetup: DraftingDrawingSetupSchema.optional(),
   view: z.object({
     scale: z.number().positive(),
     offsetX: z.number().finite(),

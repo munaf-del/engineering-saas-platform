@@ -11,6 +11,7 @@ import {
   applyTwoPointUniformCalibration,
   canEditDraftingUnderlay,
   canEditDraftingObject,
+  centerDraftingViewOnPoint,
   createDraftingObject,
   getVisibleDraftingObjects,
   getVisibleDraftingUnderlays,
@@ -20,12 +21,56 @@ import {
   removeDraftingObjectWithProvenance,
   replaceDraftingObjectWithProvenance,
   translateDraftingObject,
+  updateDraftingDrawingSetup,
   updateDraftingUnderlay,
   updateDraftingObject,
   updateLayer,
 } from './model-utils';
 
 describe('drafting model utils', () => {
+  it('updates drawing setup without moving drafting objects', () => {
+    const model = createEmptyDraftingModel('drawing-setup');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);
+    const withPile = { ...model, objects: [pile] };
+
+    const updated = updateDraftingDrawingSetup(withPile, (setup) => ({
+      ...setup,
+      referencePoint: {
+        ...setup.referencePoint,
+        sitePoint: { easting: 334000, northing: 6251000, elevation: 41.2 },
+        datum: 'AHD',
+        coordinateSystem: 'MGA2020 Zone 56',
+      },
+      north: {
+        ...setup.north,
+        projectNorthAngleDeg: 10,
+        trueNorthAngleDeg: 13.5,
+      },
+    }));
+
+    expect(updated.drawingSetup?.referencePoint.sitePoint).toEqual({
+      easting: 334000,
+      northing: 6251000,
+      elevation: 41.2,
+    });
+    expect(updated.drawingSetup?.north.trueNorthAngleDeg).toBe(13.5);
+    expect(updated.objects[0]).toEqual(pile);
+    expect(DraftingModelSchema.parse(updated).drawingSetup?.referencePoint.datum).toBe('AHD');
+  });
+
+  it('centres the canvas view on the reference point without changing scale', () => {
+    const model = createEmptyDraftingModel('drawing-reference-view');
+    const centred = centerDraftingViewOnPoint(
+      model,
+      { x: 1000, y: 2000 },
+      { width: 1200, height: 640 },
+    );
+
+    expect(centred.view.scale).toBe(model.view.scale);
+    expect(centred.view.offsetX).toBe(1200 / 2 - 1000 * model.view.scale);
+    expect(centred.view.offsetY).toBe(640 / 2 - 2000 * model.view.scale);
+  });
+
   it('updates and removes drafting objects without mutating the original model', () => {
     const model = createEmptyDraftingModel('drawing-1');
     const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);

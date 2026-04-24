@@ -411,13 +411,17 @@ export function DraftingDrawingSheetPage({
         }}
       >
         <svg
-          className={sheet.includeObjectLabels ? '' : 'drafting-sheet-hide-labels'}
+          className={`drafting-sheet-paper-preview ${sheet.includeObjectLabels ? '' : 'drafting-sheet-hide-labels'}`}
           height="100%"
           preserveAspectRatio="none"
           viewBox={`0 0 ${sheetLayout.viewport.width} ${sheetLayout.viewport.height}`}
           width="100%"
         >
-          <style>{'.drafting-sheet-hide-labels text{display:none}'}</style>
+          <style>
+            {
+              '.drafting-sheet-hide-labels text{display:none}.drafting-sheet-paper-preview *{vector-effect:none}'
+            }
+          </style>
           <defs>
             <clipPath id={viewportClipPathId}>
               <rect
@@ -472,6 +476,11 @@ export function DraftingDrawingSheetPage({
                 </React.Fragment>
               ))}
             </g>
+
+            <DrawingSheetNorthOverlay
+              frameWidthMm={sheetLayout.viewport.width}
+              setup={drawing.model.drawingSetup}
+            />
           </g>
         </svg>
       </section>
@@ -487,6 +496,57 @@ export function DraftingDrawingSheetPage({
         sheet={sheet}
       />
     </article>
+  );
+}
+
+function DrawingSheetNorthOverlay({
+  frameWidthMm,
+  setup,
+}: {
+  frameWidthMm: number;
+  setup: DraftingDrawing['model']['drawingSetup'];
+}) {
+  if (!setup) {
+    return null;
+  }
+
+  const arrows = [
+    setup.north.showProjectNorth
+      ? { angle: setup.north.projectNorthAngleDeg, color: '#111827', label: 'PN', x: 0 }
+      : null,
+    setup.north.showTrueNorth
+      ? { angle: setup.north.trueNorthAngleDeg, color: '#991b1b', label: 'TN', x: -14 }
+      : null,
+  ].filter(
+    (arrow): arrow is { angle: number; color: string; label: string; x: number } => arrow !== null,
+  );
+
+  if (arrows.length === 0) {
+    return null;
+  }
+
+  return (
+    <g data-testid="drafting-sheet-north-overlay" pointerEvents="none">
+      {arrows.map((arrow) => (
+        <g
+          key={arrow.label}
+          transform={`translate(${frameWidthMm - 14 + arrow.x} 18) rotate(${arrow.angle})`}
+        >
+          <line stroke={arrow.color} strokeWidth={0.35} x1={0} x2={0} y1={8} y2={-8} />
+          <polygon fill={arrow.color} points="0,-11 -2.2,-6 2.2,-6" />
+          <text
+            fill={arrow.color}
+            fontSize={3.2}
+            fontWeight={700}
+            textAnchor="middle"
+            transform={`rotate(${-arrow.angle})`}
+            y={13.5}
+          >
+            {arrow.label}
+          </text>
+        </g>
+      ))}
+    </g>
   );
 }
 

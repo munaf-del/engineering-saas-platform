@@ -76,5 +76,6 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('SR1');
     expect(markup).toContain('SC1');
     expect(markup).toContain('EX1');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
 });

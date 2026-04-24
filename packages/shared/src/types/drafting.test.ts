@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createEmptyDraftingModel,
+  ensureDraftingDrawingSetup,
   createDefaultDraftingLayers,
   defaultLayerIdForDraftingObjectType,
   ensureDraftingModelLayers,
@@ -14,6 +15,12 @@ describe('drafting defaults', () => {
 
     expect(parsed.drawingId).toBe('drawing-123');
     expect(parsed.units).toBe('mm');
+    expect(parsed.drawingSetup?.modelUnits).toBe('mm');
+    expect(parsed.drawingSetup?.displayUnits).toBe('m');
+    expect(parsed.drawingSetup?.referencePoint.modelPoint).toEqual({ x: 0, y: 0, z: 0 });
+    expect(parsed.drawingSetup?.north.projectNorthAngleDeg).toBe(0);
+    expect(parsed.drawingSetup?.north.trueNorthAngleDeg).toBe(0);
+    expect(parsed.drawingSetup?.graphics.lineWeightMode).toBe('screen_constant');
     expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
     expect(parsed.titleBlock).toEqual({});
@@ -23,6 +30,70 @@ describe('drafting defaults', () => {
     expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.drawingSheetIssues).toEqual([]);
     expect(parsed.drawingTransmittals).toEqual([]);
+  });
+
+  it('hydrates older drafting models with drawing setup defaults', () => {
+    const legacyModel = createEmptyDraftingModel('drawing-legacy') as ReturnType<
+      typeof createEmptyDraftingModel
+    > & { drawingSetup?: never };
+    delete legacyModel.drawingSetup;
+
+    const hydrated = ensureDraftingModelLayers(legacyModel);
+
+    expect(hydrated.drawingSetup?.modelUnits).toBe('mm');
+    expect(hydrated.drawingSetup?.referencePoint.modelPoint).toEqual({ x: 0, y: 0, z: 0 });
+    expect(hydrated.drawingSetup?.referencePoint.sitePoint).toBeUndefined();
+    expect(hydrated.drawingSetup?.north.showProjectNorth).toBe(true);
+    expect(hydrated.drawingSetup?.graphics.defaultLineWeightMm).toBe(0.25);
+  });
+
+  it('preserves site coordinate and north setup without changing object geometry', () => {
+    const model = createEmptyDraftingModel('drawing-coordinate-setup');
+    const object = {
+      id: 'survey-note',
+      type: 'leader_note' as const,
+      layerId: 'notes' as const,
+      geometry: {
+        anchor: { x: 2500, y: 3000 },
+        textPoint: { x: 3100, y: 3400 },
+      },
+      metadata: { text: 'Survey tie' },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    };
+    const configured = {
+      ...model,
+      drawingSetup: ensureDraftingDrawingSetup({
+        ...model,
+        drawingSetup: {
+          ...model.drawingSetup!,
+          referencePoint: {
+            ...model.drawingSetup!.referencePoint,
+            sitePoint: { easting: 334000.125, northing: 6251000.25, elevation: 42.75 },
+            datum: 'AHD',
+            coordinateSystem: 'MGA2020 Zone 56',
+          },
+          north: {
+            ...model.drawingSetup!.north,
+            projectNorthAngleDeg: 12,
+            trueNorthAngleDeg: 16.5,
+            showTrueNorth: true,
+          },
+        },
+      }),
+      objects: [object],
+    };
+
+    const parsed = DraftingModelSchema.parse(configured);
+
+    expect(parsed.drawingSetup?.referencePoint.sitePoint).toEqual({
+      easting: 334000.125,
+      northing: 6251000.25,
+      elevation: 42.75,
+    });
+    expect(parsed.drawingSetup?.north.projectNorthAngleDeg).toBe(12);
+    expect(parsed.drawingSetup?.north.trueNorthAngleDeg).toBe(16.5);
+    expect(parsed.objects[0]).toMatchObject({ geometry: object.geometry });
   });
 
   it('accepts transmittal lifecycle and evidence metadata', () => {

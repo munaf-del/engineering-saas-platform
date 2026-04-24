@@ -22,6 +22,7 @@ export function SecantPileWallRenderer({
         stroke={stroke}
         strokeDasharray={object.parameters.secantType === 'tangent' ? '300 200' : undefined}
         strokeWidth={70}
+        vectorEffect="non-scaling-stroke"
       />
       {object.geometry.pileCentres.map((point, index) => {
         const useAlternatingFill = pattern !== 'contiguous';
@@ -36,6 +37,7 @@ export function SecantPileWallRenderer({
             r={radius}
             stroke={stroke}
             strokeWidth={isSelected ? 90 : 55}
+            vectorEffect="non-scaling-stroke"
           />
         );
       })}

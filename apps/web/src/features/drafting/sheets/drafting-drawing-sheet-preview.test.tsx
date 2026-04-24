@@ -91,6 +91,8 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('data-testid="drafting-drawing-sheet-page"');
     expect(markup).toContain('data-testid="drafting-geometry-viewport"');
     expect(markup).toContain('data-testid="drafting-sheet-viewport-clip"');
+    expect(markup).toContain('drafting-sheet-paper-preview');
+    expect(markup).toContain('data-testid="drafting-sheet-north-overlay"');
     expect(markup).toContain('clip-path="url(#drafting-sheet-viewport-clip-drawing-sheet-1)"');
     expect(markup).toContain('data-drafting-object="true"');
     expect(markup).toContain('P1');
@@ -168,7 +170,7 @@ describe('drafting drawing sheet preview', () => {
     expect(clipIndex).toBeGreaterThan(-1);
     expect(gridIndex).toBeGreaterThan(clipIndex);
     expect(labelIndex).toBeGreaterThan(clipIndex);
-    expect(markup).toContain('<svg class=""');
+    expect(markup).toContain('drafting-sheet-paper-preview');
   });
 
   it('uses existing PDF underlay rendering when underlays are included and preserves fallback metadata', () => {

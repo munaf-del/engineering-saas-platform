@@ -19,6 +19,7 @@ export function AnchorTiebackRenderer({
       <line
         stroke={isSelected ? '#0d9488' : stroke}
         strokeWidth={lineWeight * 70}
+        vectorEffect="non-scaling-stroke"
         x1={headPoint.x}
         x2={tailPoint.x}
         y1={headPoint.y}
@@ -31,6 +32,7 @@ export function AnchorTiebackRenderer({
         r={160}
         stroke={stroke}
         strokeWidth={60}
+        vectorEffect="non-scaling-stroke"
       />
       <polygon fill={stroke} points={arrow} />
       <text fill={stroke} fontSize={220} x={labelX} y={labelY}>

@@ -12,6 +12,7 @@ import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
+import { DraftingSetupPanel } from './components/drafting-setup-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
@@ -33,6 +34,7 @@ import { useDraftingView } from './hooks/use-drafting-view';
 import {
   addDraftingObject,
   addDraftingUnderlay,
+  centerDraftingViewOnPoint,
   createDraftingObject,
   formatDrawingRevision,
   formatDraftingTimestamp,
@@ -40,6 +42,7 @@ import {
   getDraftingDrawingTitle,
   getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
+  updateDraftingDrawingSetup,
   updateLayer,
 } from './model-utils';
 
@@ -87,6 +90,22 @@ export function DraftingEditor({
     onClearObjectSelection: selection.clearSelection,
     patchModel: history.patchModel,
   });
+
+  React.useEffect(() => {
+    const model = history.model;
+    if (!model || model.objects.length > 0 || model.underlays.length > 0) {
+      return;
+    }
+
+    if (model.view.offsetX !== 160 || model.view.offsetY !== 160) {
+      return;
+    }
+
+    const reference = model.drawingSetup?.referencePoint.modelPoint ?? { x: 0, y: 0 };
+    history.replaceModel(centerDraftingViewOnPoint(model, reference, view.canvasSize), {
+      dirty: false,
+    });
+  }, [history, view.canvasSize]);
 
   if (history.isLoading || !history.drawing || !history.model) {
     return <PageLoading />;
@@ -255,6 +274,40 @@ export function DraftingEditor({
     drafting.setActiveTab('properties');
   }
 
+  function handleCenterViewOnReference() {
+    const reference = currentModel.drawingSetup!.referencePoint.modelPoint;
+    history.replaceModel(centerDraftingViewOnPoint(currentModel, reference, view.canvasSize), {
+      dirty: false,
+    });
+  }
+
+  function handleSetReferenceToViewCentre() {
+    const stageRect = view.containerRef.current?.getBoundingClientRect();
+    const point = screenToWorldPoint(
+      {
+        x: stageRect?.width ? stageRect.width / 2 : view.canvasSize.width / 2,
+        y: stageRect?.height ? stageRect.height / 2 : view.canvasSize.height / 2,
+      },
+      currentModel.view,
+    );
+
+    history.replaceModel(
+      updateDraftingDrawingSetup(currentModel, (setup) => ({
+        ...setup,
+        referencePoint: {
+          ...setup.referencePoint,
+          modelPoint: {
+            x: point.x,
+            y: point.y,
+            z: setup.referencePoint.modelPoint.z,
+          },
+          updatedAt: new Date().toISOString(),
+          ...(currentUserName ? { updatedBy: currentUserName } : {}),
+        },
+      })),
+    );
+  }
+
   return (
     <>
       <DraftingToolbar
@@ -327,7 +380,8 @@ export function DraftingEditor({
           <CardHeader>
             <CardTitle className="text-base">Inspector</CardTitle>
             <CardDescription>
-              Edit object properties, layer controls, underlays, sheets, and derived schedules.
+              Edit drawing setup, object properties, layer controls, underlays, sheets, and derived
+              schedules.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -335,7 +389,8 @@ export function DraftingEditor({
               value={drafting.activeTab}
               onValueChange={(value) => drafting.setActiveTab(value as typeof drafting.activeTab)}
             >
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-7">
+                <TabsTrigger value="setup">Setup</TabsTrigger>
                 <TabsTrigger value="properties">Properties</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 <TabsTrigger value="underlays">Underlays</TabsTrigger>
@@ -343,6 +398,17 @@ export function DraftingEditor({
                 <TabsTrigger value="transmittals">Transmittals</TabsTrigger>
                 <TabsTrigger value="schedules">Schedules</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="setup">
+                <ScrollArea className="h-[580px] pr-3">
+                  <DraftingSetupPanel
+                    model={currentModel}
+                    onCenterViewOnReference={handleCenterViewOnReference}
+                    onModelChange={history.replaceModel}
+                    onSetReferenceToViewCentre={handleSetReferenceToViewCentre}
+                  />
+                </ScrollArea>
+              </TabsContent>
 
               <TabsContent value="properties">
                 <ScrollArea className="h-[580px] pr-3">

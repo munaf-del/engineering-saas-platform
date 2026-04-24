@@ -22,6 +22,7 @@ export function SoldierPileWallRenderer({
         stroke={stroke}
         strokeDasharray={object.parameters.laggingType ? undefined : '250 180'}
         strokeWidth={isSelected ? 95 : 65}
+        vectorEffect="non-scaling-stroke"
       />
       {object.geometry.pilePositions.map((point, index) => (
         <circle
@@ -32,6 +33,7 @@ export function SoldierPileWallRenderer({
           r={radius}
           stroke={stroke}
           strokeWidth={isSelected ? 80 : 45}
+          vectorEffect="non-scaling-stroke"
         />
       ))}
       {firstPile ? (
