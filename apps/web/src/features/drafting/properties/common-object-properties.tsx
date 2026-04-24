@@ -123,9 +123,13 @@ export function NumberField({
     <Field label={label}>
       <Input
         type="number"
-        value={value}
+        value={formatNumberInputValue(value)}
         disabled={disabled}
         onChange={(event) => {
+          if (event.target.value === '') {
+            return;
+          }
+
           const nextValue = Number(event.target.value);
           if (Number.isFinite(nextValue)) {
             onChange(nextValue);
@@ -151,7 +155,7 @@ export function OptionalNumberField({
     <Field label={label}>
       <Input
         type="number"
-        value={value ?? ''}
+        value={formatNumberInputValue(value)}
         disabled={disabled}
         onChange={(event) => {
           if (event.target.value === '') {
@@ -179,4 +183,17 @@ export function normalizeColorInput(value: string | undefined, fallback: string)
   }
 
   return fallback;
+}
+
+export function formatNumberInputValue(value: number | string | undefined) {
+  if (value === undefined || value === '') {
+    return '';
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '';
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? value : '';
 }

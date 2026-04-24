@@ -49,6 +49,10 @@ export type DraftingRect = {
   height: number;
 };
 
+export const DRAFTING_VIEW_MIN_SCALE = 0.005;
+export const DRAFTING_VIEW_MAX_SCALE = 2;
+export const DRAFTING_VIEW_RESET_SCALE = 1;
+
 export function cloneDraftingModel(model: DraftingModel) {
   return structuredClone(ensureDraftingModelLayers(model));
 }
@@ -78,6 +82,38 @@ export function centerDraftingViewOnPoint(
       offsetY: canvasSize.height / 2 - point.y * model.view.scale,
     },
   };
+}
+
+export function zoomDraftingViewAtPoint(
+  view: DraftingModel['view'],
+  worldPoint: DraftingPoint,
+  screenPoint: DraftingPoint,
+  nextScale: number,
+): DraftingModel['view'] {
+  const scale = clampNumber(nextScale, DRAFTING_VIEW_MIN_SCALE, DRAFTING_VIEW_MAX_SCALE);
+
+  return {
+    scale,
+    offsetX: screenPoint.x - worldPoint.x * scale,
+    offsetY: screenPoint.y - worldPoint.y * scale,
+  };
+}
+
+export function resetDraftingViewZoom(
+  model: DraftingModel,
+  canvasSize: { height: number; width: number },
+): DraftingModel['view'] {
+  const centerWorld = {
+    x: (canvasSize.width / 2 - model.view.offsetX) / model.view.scale,
+    y: (canvasSize.height / 2 - model.view.offsetY) / model.view.scale,
+  };
+
+  return zoomDraftingViewAtPoint(
+    model.view,
+    centerWorld,
+    { x: canvasSize.width / 2, y: canvasSize.height / 2 },
+    DRAFTING_VIEW_RESET_SCALE,
+  );
 }
 
 export function createDraftingObject(
@@ -728,23 +764,41 @@ export function fitDraftingModelView(
   width: number,
   height: number,
 ): DraftingModel['view'] {
-  const bounds = getDraftingModelBounds(model.objects);
+  return fitDraftingObjectsView(model.objects, width, height, {
+    scale: createEmptyDraftingModel(model.drawingId).view.scale,
+    offsetX: width / 2,
+    offsetY: height / 2,
+  });
+}
 
+export function fitDraftingObjectsView(
+  objects: DraftingObject[],
+  width: number,
+  height: number,
+  fallbackView?: DraftingModel['view'],
+): DraftingModel['view'] {
+  const bounds = getDraftingModelBounds(objects);
   if (!bounds) {
-    return {
-      scale: createEmptyDraftingModel(model.drawingId).view.scale,
-      offsetX: width / 2,
-      offsetY: height / 2,
-    };
+    return (
+      fallbackView ?? { scale: DRAFTING_VIEW_RESET_SCALE, offsetX: width / 2, offsetY: height / 2 }
+    );
   }
 
+  return fitDraftingBoundsView(bounds, width, height);
+}
+
+export function fitDraftingBoundsView(
+  bounds: DraftingBounds,
+  width: number,
+  height: number,
+): DraftingModel['view'] {
   const padding = 64;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1000);
   const spanY = Math.max(bounds.maxY - bounds.minY, 1000);
   const scale = clampNumber(
     Math.min((width - padding * 2) / spanX, (height - padding * 2) / spanY),
-    0.01,
-    1,
+    DRAFTING_VIEW_MIN_SCALE,
+    DRAFTING_VIEW_RESET_SCALE,
   );
 
   return {

@@ -1,8 +1,15 @@
 import type * as React from 'react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import type { DraftingModel } from '@eng/shared';
+import type { DraftingModel, DraftingObject } from '@eng/shared';
 import { clientToWorldPoint } from '../geometry-utils';
-import { clampNumber, fitDraftingModelView } from '../model-utils';
+import {
+  DRAFTING_VIEW_MAX_SCALE,
+  DRAFTING_VIEW_MIN_SCALE,
+  fitDraftingModelView,
+  fitDraftingObjectsView,
+  resetDraftingViewZoom,
+  zoomDraftingViewAtPoint,
+} from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
 type PanState = {
@@ -31,6 +38,7 @@ export function useDraftingView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 720 });
   const [panState, setPanState] = useState<PanState | null>(null);
+  const zoomStep = 1.25;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -111,7 +119,6 @@ export function useDraftingView({
     }
 
     const scaleFactor = event.deltaY < 0 ? 1.1 : 0.9;
-    const nextScale = clampNumber(model.view.scale * scaleFactor, 0.005, 2);
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) {
       return;
@@ -120,14 +127,18 @@ export function useDraftingView({
     const localX = event.clientX - rect.left;
     const localY = event.clientY - rect.top;
 
-    replaceModel({
-      ...model,
-      view: {
-        scale: nextScale,
-        offsetX: localX - point.x * nextScale,
-        offsetY: localY - point.y * nextScale,
+    replaceModel(
+      {
+        ...model,
+        view: zoomDraftingViewAtPoint(
+          model.view,
+          point,
+          { x: localX, y: localY },
+          model.view.scale * scaleFactor,
+        ),
       },
-    });
+      { dirty: false },
+    );
   }
 
   function handleBackgroundPointerDown(event: React.PointerEvent<SVGSVGElement>) {
@@ -148,10 +159,81 @@ export function useDraftingView({
       return;
     }
 
-    replaceModel({
-      ...model,
-      view: fitDraftingModelView(model, canvasSize.width, canvasSize.height),
-    });
+    replaceModel(
+      {
+        ...model,
+        view: fitDraftingModelView(model, canvasSize.width, canvasSize.height),
+      },
+      { dirty: false },
+    );
+  }
+
+  function updateView(nextView: DraftingModel['view']) {
+    if (!model) {
+      return;
+    }
+
+    replaceModel({ ...model, view: nextView }, { dirty: false });
+  }
+
+  function handleZoomBy(factor: number) {
+    if (!model) {
+      return;
+    }
+
+    const centerScreenPoint = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
+    const centerWorldPoint = {
+      x: (centerScreenPoint.x - model.view.offsetX) / model.view.scale,
+      y: (centerScreenPoint.y - model.view.offsetY) / model.view.scale,
+    };
+
+    updateView(
+      zoomDraftingViewAtPoint(
+        model.view,
+        centerWorldPoint,
+        centerScreenPoint,
+        model.view.scale * factor,
+      ),
+    );
+  }
+
+  function handleZoomIn() {
+    handleZoomBy(zoomStep);
+  }
+
+  function handleZoomOut() {
+    handleZoomBy(1 / zoomStep);
+  }
+
+  function handleResetZoom() {
+    if (!model) {
+      return;
+    }
+
+    updateView(resetDraftingViewZoom(model, canvasSize));
+  }
+
+  function handleSetZoomScale(scale: number) {
+    if (!model || !Number.isFinite(scale)) {
+      return;
+    }
+
+    const nextScale = Math.min(Math.max(scale, DRAFTING_VIEW_MIN_SCALE), DRAFTING_VIEW_MAX_SCALE);
+    const centerScreenPoint = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
+    const centerWorldPoint = {
+      x: (centerScreenPoint.x - model.view.offsetX) / model.view.scale,
+      y: (centerScreenPoint.y - model.view.offsetY) / model.view.scale,
+    };
+
+    updateView(zoomDraftingViewAtPoint(model.view, centerWorldPoint, centerScreenPoint, nextScale));
+  }
+
+  function handleFitSelected(objects: DraftingObject[]) {
+    if (!model || objects.length === 0) {
+      return;
+    }
+
+    updateView(fitDraftingObjectsView(objects, canvasSize.width, canvasSize.height, model.view));
   }
 
   return {
@@ -160,5 +242,10 @@ export function useDraftingView({
     handleBackgroundPointerDown,
     handleCanvasWheel,
     handleFitView,
+    handleFitSelected,
+    handleResetZoom,
+    handleSetZoomScale,
+    handleZoomIn,
+    handleZoomOut,
   };
 }

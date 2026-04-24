@@ -13,6 +13,8 @@ import {
   canEditDraftingObject,
   centerDraftingViewOnPoint,
   createDraftingObject,
+  fitDraftingModelView,
+  fitDraftingObjectsView,
   getVisibleDraftingObjects,
   getVisibleDraftingUnderlays,
   recordDraftingObjectChangeEvent,
@@ -20,11 +22,13 @@ import {
   removeDraftingObject,
   removeDraftingObjectWithProvenance,
   replaceDraftingObjectWithProvenance,
+  resetDraftingViewZoom,
   translateDraftingObject,
   updateDraftingDrawingSetup,
   updateDraftingUnderlay,
   updateDraftingObject,
   updateLayer,
+  zoomDraftingViewAtPoint,
 } from './model-utils';
 
 describe('drafting model utils', () => {
@@ -69,6 +73,65 @@ describe('drafting model utils', () => {
     expect(centred.view.scale).toBe(model.view.scale);
     expect(centred.view.offsetX).toBe(1200 / 2 - 1000 * model.view.scale);
     expect(centred.view.offsetY).toBe(640 / 2 - 2000 * model.view.scale);
+  });
+
+  it('zooms the editor view around an anchor point without changing drafting geometry', () => {
+    const model = createEmptyDraftingModel('drawing-zoom');
+    const pile = createDraftingObject('pile', { x: 1000, y: 500 }, model);
+    if (pile.type !== 'pile') {
+      throw new Error('Expected pile object');
+    }
+    const zoomedView = zoomDraftingViewAtPoint(
+      model.view,
+      pile.geometry.centre,
+      { x: 400, y: 300 },
+      model.view.scale * 2,
+    );
+
+    expect(zoomedView.scale).toBe(model.view.scale * 2);
+    expect(zoomedView.offsetX).toBe(400 - pile.geometry.centre.x * zoomedView.scale);
+    expect(zoomedView.offsetY).toBe(300 - pile.geometry.centre.y * zoomedView.scale);
+    expect(pile.geometry).toEqual({ centre: { x: 1000, y: 500 }, diameterMm: 600 });
+  });
+
+  it('resets editor zoom to 100 percent around the current view centre', () => {
+    const model = {
+      ...createEmptyDraftingModel('drawing-reset-zoom'),
+      view: { scale: 0.05, offsetX: 100, offsetY: 200 },
+    };
+    const reset = resetDraftingViewZoom(model, { width: 1200, height: 640 });
+
+    expect(reset.scale).toBe(1);
+    expect((1200 / 2 - reset.offsetX) / reset.scale).toBe(
+      (1200 / 2 - model.view.offsetX) / model.view.scale,
+    );
+    expect((640 / 2 - reset.offsetY) / reset.scale).toBe(
+      (640 / 2 - model.view.offsetY) / model.view.scale,
+    );
+  });
+
+  it('fits the full model and selected objects using view scale only', () => {
+    const model = createEmptyDraftingModel('drawing-fit-selected');
+    const pileA = createDraftingObject('pile', { x: 0, y: 0 }, model);
+    const pileB = createDraftingObject('pile', { x: 10000, y: 0 }, model);
+    if (pileA.type !== 'pile' || pileB.type !== 'pile') {
+      throw new Error('Expected pile objects');
+    }
+    const withObjects = { ...model, objects: [pileA, pileB] };
+
+    const modelFit = fitDraftingModelView(withObjects, 1200, 640);
+    const selectedFit = fitDraftingObjectsView([pileB], 1200, 640, model.view);
+    const selectedScreenPoint = {
+      x: pileB.geometry.centre.x * selectedFit.scale + selectedFit.offsetX,
+      y: pileB.geometry.centre.y * selectedFit.scale + selectedFit.offsetY,
+    };
+
+    expect(modelFit.scale).toBeLessThan(selectedFit.scale);
+    expect(selectedScreenPoint.x).toBeGreaterThan(64);
+    expect(selectedScreenPoint.x).toBeLessThan(1200 - 64);
+    expect(selectedScreenPoint.y).toBeGreaterThan(64);
+    expect(selectedScreenPoint.y).toBeLessThan(640 - 64);
+    expect(withObjects.objects).toEqual([pileA, pileB]);
   });
 
   it('updates and removes drafting objects without mutating the original model', () => {

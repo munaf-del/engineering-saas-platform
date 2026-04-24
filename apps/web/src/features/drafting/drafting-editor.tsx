@@ -107,6 +107,57 @@ export function DraftingEditor({
     });
   }, [history, view.canvasSize]);
 
+  React.useEffect(() => {
+    function isTextEntryTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      return (
+        target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT'
+      );
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTextEntryTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        view.handleZoomIn();
+        return;
+      }
+
+      if (event.key === '-') {
+        event.preventDefault();
+        view.handleZoomOut();
+        return;
+      }
+
+      if (event.key === '0') {
+        event.preventDefault();
+        view.handleResetZoom();
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        if (event.shiftKey && selection.selectedObject) {
+          view.handleFitSelected([selection.selectedObject]);
+        } else if (!event.shiftKey) {
+          view.handleFitView();
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selection.selectedObject, view]);
+
   if (history.isLoading || !history.drawing || !history.model) {
     return <PageLoading />;
   }
@@ -281,6 +332,14 @@ export function DraftingEditor({
     });
   }
 
+  function handleFitSelectedView() {
+    if (!selection.selectedObject) {
+      return;
+    }
+
+    view.handleFitSelected([selection.selectedObject]);
+  }
+
   function handleSetReferenceToViewCentre() {
     const stageRect = view.containerRef.current?.getBoundingClientRect();
     const point = screenToWorldPoint(
@@ -347,8 +406,15 @@ export function DraftingEditor({
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
           onCanvasWheel={view.handleCanvasWheel}
+          onCenterReference={handleCenterViewOnReference}
+          onFitModel={view.handleFitView}
+          onFitSelected={handleFitSelectedView}
           onObjectPointerDown={selection.handleObjectPointerDown}
+          onResetZoom={view.handleResetZoom}
+          onSetZoomScale={view.handleSetZoomScale}
           onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
+          onZoomIn={view.handleZoomIn}
+          onZoomOut={view.handleZoomOut}
           pendingLinePoints={drafting.pendingLinePoints}
           selectedDrawingSheet={selectedDrawingSheet}
           selectedObjectId={selection.selectedObjectId}

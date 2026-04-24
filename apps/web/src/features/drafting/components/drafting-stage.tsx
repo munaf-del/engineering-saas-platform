@@ -6,8 +6,17 @@ import type {
   DraftingPoint,
   DraftingUnderlay,
 } from '@eng/shared';
+import { Crosshair, Maximize2, Minus, Plus, RotateCcw, ScanSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   createGridAxisValues,
   getGridStep,
@@ -29,8 +38,15 @@ export function DraftingStage({
   onBackgroundPointerDown,
   onCanvasClick,
   onCanvasWheel,
+  onCenterReference,
+  onFitModel,
+  onFitSelected,
   onObjectPointerDown,
+  onResetZoom,
+  onSetZoomScale,
   onUnderlayPointerDown,
+  onZoomIn,
+  onZoomOut,
   pendingLinePoints,
   selectedDrawingSheet,
   selectedUnderlayId,
@@ -48,12 +64,19 @@ export function DraftingStage({
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onCanvasClick: (event: React.MouseEvent<SVGSVGElement>) => void;
   onCanvasWheel: (event: React.WheelEvent<SVGSVGElement>) => void;
+  onCenterReference: () => void;
+  onFitModel: () => void;
+  onFitSelected: () => void;
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
+  onResetZoom: () => void;
+  onSetZoomScale: (scale: number) => void;
   onUnderlayPointerDown: (
     event: React.PointerEvent<SVGElement>,
     underlay: DraftingUnderlay,
     metrics: PdfUnderlayPageMetrics,
   ) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
   pendingLinePoints: DraftingPoint[];
   selectedDrawingSheet: DraftingDrawingSheetDefinition | null;
   selectedUnderlayId: string | null;
@@ -78,6 +101,7 @@ export function DraftingStage({
   const setup = model.drawingSetup!;
   const referencePoint = setup.referencePoint.modelPoint;
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
+  const zoomPercent = Math.round(model.view.scale * 100);
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -110,7 +134,7 @@ export function DraftingStage({
           <div className="flex flex-wrap justify-end gap-2">
             <Badge variant="outline">Model {setup.modelUnits}</Badge>
             <Badge variant="outline">Display {setup.displayUnits}</Badge>
-            <Badge variant="outline">Zoom {Math.round(model.view.scale * 100)}%</Badge>
+            <Badge variant="outline">Canvas zoom {zoomPercent}%</Badge>
             <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
           </div>
         </div>
@@ -121,6 +145,18 @@ export function DraftingStage({
           ref={containerRef}
           className="relative h-[640px] overflow-hidden rounded-lg border bg-slate-50"
         >
+          <DraftingCanvasZoomControls
+            onCenterReference={onCenterReference}
+            onFitModel={onFitModel}
+            onFitSelected={onFitSelected}
+            onResetZoom={onResetZoom}
+            onSetZoomScale={onSetZoomScale}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+            selectedObjectId={selectedObjectId}
+            sheetScale={selectedSheetScale}
+            zoomPercent={zoomPercent}
+          />
           <svg
             className="h-full w-full touch-none"
             onWheel={onCanvasWheel}
@@ -167,14 +203,16 @@ export function DraftingStage({
                 />
               ))}
 
-              {visibleObjects.map((object) =>
-                renderDraftingObject({
-                  isSelected: object.id === selectedObjectId,
-                  layer: getLayerById(model, object.layerId),
-                  object,
-                  onPointerDown: (event) => onObjectPointerDown(event, object),
-                }),
-              )}
+              {visibleObjects.map((object) => (
+                <React.Fragment key={object.id}>
+                  {renderDraftingObject({
+                    isSelected: object.id === selectedObjectId,
+                    layer: getLayerById(model, object.layerId),
+                    object,
+                    onPointerDown: (event) => onObjectPointerDown(event, object),
+                  })}
+                </React.Fragment>
+              ))}
 
               <ReferencePointMarker
                 label={setup.referencePoint.label}
@@ -209,6 +247,100 @@ export function DraftingStage({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DraftingCanvasZoomControls({
+  onCenterReference,
+  onFitModel,
+  onFitSelected,
+  onResetZoom,
+  onSetZoomScale,
+  onZoomIn,
+  onZoomOut,
+  selectedObjectId,
+  sheetScale,
+  zoomPercent,
+}: {
+  onCenterReference: () => void;
+  onFitModel: () => void;
+  onFitSelected: () => void;
+  onResetZoom: () => void;
+  onSetZoomScale: (scale: number) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  selectedObjectId: string | null;
+  sheetScale: string;
+  zoomPercent: number;
+}) {
+  return (
+    <div className="absolute right-3 top-3 z-10 flex flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm">
+      <div className="flex items-center gap-1">
+        <Button aria-label="Zoom out" size="icon" variant="outline" onClick={onZoomOut}>
+          <Minus className="h-4 w-4" />
+        </Button>
+        <div className="min-w-16 text-center text-sm font-medium" aria-label="Current canvas zoom">
+          {zoomPercent}%
+        </div>
+        <Button aria-label="Zoom in" size="icon" variant="outline" onClick={onZoomIn}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <Select
+        value="custom"
+        onValueChange={(value) => {
+          if (value === 'fit') {
+            onFitModel();
+            return;
+          }
+
+          const nextScale = Number(value);
+          if (Number.isFinite(nextScale)) {
+            onSetZoomScale(nextScale);
+          }
+        }}
+      >
+        <SelectTrigger className="h-9 w-[116px]" aria-label="Zoom preset">
+          <SelectValue placeholder="Preset" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="custom">Preset</SelectItem>
+          <SelectItem value="0.25">25%</SelectItem>
+          <SelectItem value="0.5">50%</SelectItem>
+          <SelectItem value="1">100%</SelectItem>
+          <SelectItem value="2">200%</SelectItem>
+          <SelectItem value="fit">Fit</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="flex items-center gap-1">
+        <Button aria-label="Reset zoom to 100%" size="icon" variant="outline" onClick={onResetZoom}>
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button aria-label="Fit model" size="icon" variant="outline" onClick={onFitModel}>
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+        <Button
+          aria-label="Fit selected"
+          size="icon"
+          variant="outline"
+          onClick={onFitSelected}
+          disabled={!selectedObjectId}
+        >
+          <ScanSearch className="h-4 w-4" />
+        </Button>
+        <Button
+          aria-label="Centre on reference point"
+          size="icon"
+          variant="outline"
+          onClick={onCenterReference}
+        >
+          <Crosshair className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="basis-full text-right text-[11px] text-muted-foreground">
+        Sheet scale {sheetScale}
+      </div>
+    </div>
   );
 }
 

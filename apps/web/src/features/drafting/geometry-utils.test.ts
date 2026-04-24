@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createGridAxisValues, getGridStep, getVisibleWorldBounds, screenToWorldPoint, worldToScreenPoint } from './geometry-utils';
+import {
+  createGridAxisValues,
+  getGridStep,
+  getVisibleWorldBounds,
+  screenToWorldPoint,
+  worldToScreenPoint,
+} from './geometry-utils';
 
 describe('drafting geometry utils', () => {
   it('converts between screen and world coordinates', () => {
@@ -39,5 +45,17 @@ describe('drafting geometry utils', () => {
       -5000, 0, 5000, 10000, 15000, 20000, 25000,
     ]);
     expect(getGridStep(0.05)).toBe(500);
+  });
+
+  it('keeps cursor coordinate conversion stable after zoom and pan', () => {
+    const view = {
+      scale: 0.5,
+      offsetX: -150,
+      offsetY: 75,
+    };
+    const worldPoint = { x: 1200, y: -400 };
+    const screenPoint = worldToScreenPoint(worldPoint, view);
+
+    expect(screenToWorldPoint(screenPoint, view)).toEqual(worldPoint);
   });
 });
