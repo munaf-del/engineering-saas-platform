@@ -3,6 +3,7 @@ import {
   DRAFTING_CALLOUT_ARROW_STYLES,
   DRAFTING_CALLOUT_LEADER_STYLES,
   DRAFTING_DIMENSION_UNITS,
+  DRAFTING_DRAWING_SHEET_ISSUE_STATUSES,
   DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES,
   DRAFTING_DRAWING_STATUSES,
   DRAFTING_FUTURE_OBJECT_TYPES,
@@ -228,6 +229,26 @@ export const DraftingSchedulePackIssueSchema = z.object({
   lockedScheduleSummary: DraftingScheduleSummarySnapshotSchema,
   pageCount: z.number().int().nonnegative(),
 });
+
+export const DraftingDrawingSheetTemplateSnapshotSchema = z.object({
+  label: z.string().min(1),
+  rootSheetTemplateId: z.string().min(1).nullable().optional(),
+  rootSheetTemplateName: z.string().min(1).nullable().optional(),
+  rootSheetTemplateVersionId: z.string().min(1).nullable().optional(),
+  templateFingerprint: z.string().min(1).nullable().optional(),
+  source: z.enum([
+    'default_layout',
+    'root_template',
+    'missing_template_fallback',
+    'incompatible_template_fallback',
+  ]),
+  renderDefinition: z.record(z.unknown()),
+});
+
+export const DraftingLockedDrawingSheetDefinitionSchema =
+  DraftingDrawingSheetDefinitionSchema.extend({
+    templateSnapshot: DraftingDrawingSheetTemplateSnapshotSchema.optional(),
+  });
 
 export const DraftingTitleBlockMetadataSchema = z.object({
   projectName: z.string().optional(),
@@ -627,6 +648,49 @@ export const DraftingObjectSchema = z
     }
   });
 
+export const DraftingDrawingSheetIssueObjectSnapshotSchema = z.object({
+  objectId: z.string().min(1),
+  objectType: z.enum(DRAFTING_OBJECT_TYPES),
+  layerId: z.enum(DRAFTING_LAYER_IDS),
+  label: z.string().optional(),
+  geometrySummary: z.string().optional(),
+  scheduleKey: z.string().optional(),
+  provenance: DraftingObjectProvenanceSchema.optional(),
+  renderedState: z.record(z.unknown()).optional(),
+});
+
+export const DraftingDrawingSheetIssueUnderlaySnapshotSchema = z.object({
+  underlayId: z.string().min(1),
+  fileId: z.string().min(1),
+  fileName: z.string().min(1),
+  pageNumber: z.number().int().positive(),
+  transform: DraftingUnderlayTransformSchema,
+  crop: DraftingUnderlayCropSchema.nullable().optional(),
+  calibration: DraftingUnderlayCalibrationSchema.nullable().optional(),
+  visible: z.boolean(),
+  opacity: z.number().min(0).max(1),
+  locked: z.boolean(),
+});
+
+export const DraftingDrawingSheetIssueSchema = z.object({
+  id: z.string().min(1),
+  issueNumber: z.string().min(1),
+  revision: z.string().min(1),
+  issueDate: z.string().datetime(),
+  issuedBy: z.string().optional(),
+  purpose: z.string().min(1),
+  status: z.enum(DRAFTING_DRAWING_SHEET_ISSUE_STATUSES),
+  notes: z.string().optional(),
+  sheetIds: z.array(z.string().min(1)),
+  lockedTitleBlock: DraftingTitleBlockMetadataSchema,
+  lockedRevisionBlock: DraftingRevisionBlockMetadataSchema,
+  lockedDrawingSheets: z.array(DraftingLockedDrawingSheetDefinitionSchema),
+  lockedObjects: z.array(DraftingDrawingSheetIssueObjectSnapshotSchema),
+  lockedUnderlays: z.array(DraftingDrawingSheetIssueUnderlaySnapshotSchema),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
 export const DraftingModelSchema = z.object({
   version: z.literal(1),
   units: z.literal('mm'),
@@ -645,6 +709,7 @@ export const DraftingModelSchema = z.object({
   scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
   schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
   drawingSheets: z.array(DraftingDrawingSheetDefinitionSchema).default([]),
+  drawingSheetIssues: z.array(DraftingDrawingSheetIssueSchema).default([]),
 });
 
 export const DraftingDrawingSummarySchema = z.object({

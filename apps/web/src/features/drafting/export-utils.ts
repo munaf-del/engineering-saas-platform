@@ -1,4 +1,4 @@
-import type { DraftingModel } from '@eng/shared';
+import type { DraftingDrawingSheetIssue, DraftingModel } from '@eng/shared';
 import type { DraftingSchedulePackIssue } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { buildDraftingExportFilename } from './model-utils';
@@ -8,6 +8,10 @@ import {
   buildDraftingSchedulePackIssueManifest,
   serializeDraftingSchedulePackIssueManifestJson,
 } from './schedules/drafting-schedule-pack-issue-provenance';
+import {
+  buildDraftingDrawingSheetIssueManifest,
+  serializeDraftingDrawingSheetIssueManifestJson,
+} from './sheets/drafting-drawing-sheet-issue-utils';
 import {
   buildDraftingScheduleSheetPack,
   serializeDraftingScheduleSheetPackJson,
@@ -90,6 +94,25 @@ export function downloadDraftingSchedulePackIssueManifestJson(args: {
   downloadTextFile(
     `${buildDraftingExportFilename(args.title)}-schedule-issue-${sanitizeFilenameSegment(args.issue.revisionLabel)}-manifest.json`,
     serializeDraftingSchedulePackIssueManifestJson(manifest),
+    'application/json',
+  );
+}
+
+export function downloadDraftingDrawingSheetIssueManifestJson(args: {
+  issue: DraftingDrawingSheetIssue;
+  model: DraftingModel;
+  rootTemplatesById: ReadonlyMap<string, RootSheetTemplate>;
+  title: string;
+}) {
+  const manifest = buildDraftingDrawingSheetIssueManifest({
+    issue: args.issue,
+    model: args.model,
+    rootTemplatesById: args.rootTemplatesById,
+  });
+
+  downloadTextFile(
+    `${buildDraftingExportFilename(args.title)}-drawing-sheet-issue-${sanitizeFilenameSegment(args.issue.issueNumber)}-manifest.json`,
+    serializeDraftingDrawingSheetIssueManifestJson(manifest),
     'application/json',
   );
 }

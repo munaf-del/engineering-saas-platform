@@ -17,10 +17,10 @@ export default function ProjectDraftingDrawingSheetPreviewPage({
   searchParams,
 }: {
   params: Promise<{ id: string; drawingId: string }>;
-  searchParams: Promise<{ mode?: string; sheetId?: string }>;
+  searchParams: Promise<{ issueId?: string; mode?: string; sheetId?: string }>;
 }) {
   const { id: projectId, drawingId } = use(params);
-  const { mode, sheetId } = use(searchParams);
+  const { issueId, mode, sheetId } = use(searchParams);
   const { data: project, isLoading, error } = useProject(projectId);
 
   if (isLoading) {
@@ -68,6 +68,7 @@ export default function ProjectDraftingDrawingSheetPreviewPage({
     <DraftingDrawingSheetPreviewPage
       drawingId={drawingId}
       initialMode={(mode === 'all' ? 'all' : 'sheet') satisfies DraftingDrawingSheetPreviewMode}
+      initialIssueId={issueId}
       initialSheetId={sheetId}
       project={project}
       projectId={projectId}

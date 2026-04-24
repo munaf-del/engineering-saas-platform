@@ -21,9 +21,10 @@ describe('drafting defaults', () => {
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.drawingSheets).toEqual([]);
+    expect(parsed.drawingSheetIssues).toEqual([]);
   });
 
-  it('hydrates older drafting models without title, revision, schedule sheet, issue, or drawing sheet metadata', () => {
+  it('hydrates older drafting models without title, revision, schedule, or drawing sheet issue metadata', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));
     delete legacyModel.titleBlock;
@@ -31,6 +32,7 @@ describe('drafting defaults', () => {
     delete legacyModel.scheduleSheets;
     delete legacyModel.schedulePackIssues;
     delete legacyModel.drawingSheets;
+    delete legacyModel.drawingSheetIssues;
     const parsed = DraftingModelSchema.parse(legacyModel);
 
     expect(parsed.titleBlock).toEqual({});
@@ -38,6 +40,7 @@ describe('drafting defaults', () => {
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.drawingSheets).toEqual([]);
+    expect(parsed.drawingSheetIssues).toEqual([]);
     expect(parsed.objectChangeEvents).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);
@@ -370,6 +373,186 @@ describe('drafting defaults', () => {
         center: { x: 12500, y: 4500 },
         fitMode: 'model_extents',
       },
+    });
+  });
+
+  it('accepts and preserves drawing sheet issue snapshots', () => {
+    const model = createEmptyDraftingModel('drawing-sheet-issue');
+    const now = '2026-04-24T00:00:00.000Z';
+    model.titleBlock = {
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Plan',
+      projectName: 'NORTH SYDNEY',
+    };
+    model.revisionBlock = {
+      currentRevision: 'A',
+      revisions: [
+        {
+          approvedBy: 'APR',
+          checkedBy: 'CHK',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'DRN',
+          id: 'revision-a',
+          issuedFor: 'Review',
+          revision: 'A',
+          status: 'for_review',
+        },
+      ],
+    };
+    model.drawingSheets.push({
+      id: 'drawing-sheet-1',
+      name: 'Geometry Sheet 1',
+      title: 'Retention Plan',
+      sheetNumber: 'S-101',
+      rootSheetTemplateId: 'root-template-1',
+      pageSize: 'a3',
+      orientation: 'landscape',
+      scaleLabel: '1:100',
+      viewport: {
+        center: { x: 12500, y: 4500 },
+        scale: 0.12,
+        rotationDeg: 0,
+        widthMm: 360,
+        heightMm: 220,
+        fitMode: 'manual',
+      },
+      layerFilter: {
+        hiddenLayerIds: ['notes'],
+      },
+      includeUnderlays: true,
+      includeGrid: false,
+      includeObjectLabels: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 1000, y: 2000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    model.underlays.push({
+      id: 'underlay-1',
+      name: 'Survey',
+      fileId: 'document-1',
+      fileName: 'survey.pdf',
+      pageNumber: 1,
+      visible: true,
+      opacity: 0.65,
+      locked: true,
+      transform: { x: 10, y: 20, scale: 1, rotationDeg: 0 },
+      crop: null,
+      calibration: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    model.drawingSheetIssues.push({
+      id: 'drawing-sheet-issue-1',
+      issueNumber: 'ISS-001',
+      revision: 'A',
+      issueDate: now,
+      issuedBy: 'Avery Drafter',
+      purpose: 'For review',
+      status: 'issued',
+      notes: 'Frozen geometry sheet issue.',
+      sheetIds: ['drawing-sheet-1'],
+      lockedTitleBlock: model.titleBlock,
+      lockedRevisionBlock: model.revisionBlock,
+      lockedDrawingSheets: [
+        {
+          ...model.drawingSheets[0]!,
+          templateSnapshot: {
+            label: 'Geometry title sheet',
+            rootSheetTemplateId: 'root-template-1',
+            rootSheetTemplateName: 'Geometry title sheet',
+            rootSheetTemplateVersionId: 'root-template-version-1',
+            source: 'root_template',
+            templateFingerprint: 'template-fingerprint-1',
+            renderDefinition: {
+              id: 'root-template-1',
+              kind: 'shared_sheet',
+              name: 'Geometry title sheet',
+              objects: [],
+              orientation: 'landscape',
+              paperSize: 'a3',
+            },
+          },
+        },
+      ],
+      lockedObjects: [
+        {
+          objectId: 'pile-1',
+          objectType: 'pile',
+          layerId: 'piles',
+          label: 'P1',
+          geometrySummary: 'pile at 1000,2000',
+          scheduleKey: 'pile:P1',
+          renderedState: model.objects[0],
+        },
+      ],
+      lockedUnderlays: [
+        {
+          underlayId: 'underlay-1',
+          fileId: 'document-1',
+          fileName: 'survey.pdf',
+          pageNumber: 1,
+          visible: true,
+          opacity: 0.65,
+          locked: true,
+          transform: { x: 10, y: 20, scale: 1, rotationDeg: 0 },
+          crop: null,
+          calibration: null,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.drawingSheetIssues).toHaveLength(1);
+    expect(parsed.drawingSheetIssues[0]).toMatchObject({
+      id: 'drawing-sheet-issue-1',
+      issueNumber: 'ISS-001',
+      lockedDrawingSheets: [
+        {
+          id: 'drawing-sheet-1',
+          layerFilter: {
+            hiddenLayerIds: ['notes'],
+          },
+          templateSnapshot: {
+            rootSheetTemplateVersionId: 'root-template-version-1',
+            source: 'root_template',
+          },
+          viewport: {
+            center: { x: 12500, y: 4500 },
+            fitMode: 'manual',
+          },
+        },
+      ],
+      lockedObjects: [
+        {
+          objectId: 'pile-1',
+          objectType: 'pile',
+          label: 'P1',
+        },
+      ],
+      lockedUnderlays: [
+        {
+          underlayId: 'underlay-1',
+          fileName: 'survey.pdf',
+        },
+      ],
+      status: 'issued',
     });
   });
 

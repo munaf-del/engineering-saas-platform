@@ -2,8 +2,13 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Printer } from 'lucide-react';
-import type { DraftingDrawing, DraftingDrawingSheetDefinition, Project } from '@eng/shared';
+import { ArrowLeft, FileJson, Lock, Printer } from 'lucide-react';
+import type {
+  DraftingDrawing,
+  DraftingDrawingSheetDefinition,
+  DraftingDrawingSheetTemplateSnapshot,
+  Project,
+} from '@eng/shared';
 import { PageLoading } from '@/components/loading';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -23,6 +28,7 @@ import {
 import { getTemplatePageLayout } from '@/features/templates/core/template-page';
 import type { GenericTemplateDocument } from '@/features/templates/core/generic-template-document';
 import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
+import { downloadDraftingDrawingSheetIssueManifestJson } from '../export-utils';
 import { createGridAxisValues } from '../geometry-utils';
 import {
   formatDrawingRevision,
@@ -39,18 +45,25 @@ import {
   getDrawingSheetVisibleObjects,
   getDrawingSheetVisibleUnderlays,
 } from './drafting-drawing-sheet-utils';
+import {
+  buildIssuedDrawingModel,
+  compareDraftingDrawingSheetIssue,
+  getDrawingSheetIssues,
+} from './drafting-drawing-sheet-issue-utils';
 
 export type DraftingDrawingSheetPreviewMode = 'all' | 'sheet';
 
 export function DraftingDrawingSheetPreviewPage({
   drawingId,
   initialMode = 'sheet',
+  initialIssueId,
   initialSheetId,
   project,
   projectId,
 }: {
   drawingId: string;
   initialMode?: DraftingDrawingSheetPreviewMode;
+  initialIssueId?: string;
   initialSheetId?: string;
   project: Project;
   projectId: string;
@@ -74,6 +87,7 @@ export function DraftingDrawingSheetPreviewPage({
       project={project}
       projectId={projectId}
       rootTemplates={rootTemplates}
+      selectedIssueId={initialIssueId}
       selectedSheetId={selectedSheetId}
     />
   );
@@ -87,6 +101,7 @@ export function DraftingDrawingSheetPreview({
   project,
   projectId,
   rootTemplates,
+  selectedIssueId,
   selectedSheetId,
 }: {
   drawing: DraftingDrawing;
@@ -96,22 +111,45 @@ export function DraftingDrawingSheetPreview({
   project: Project;
   projectId: string;
   rootTemplates: RootSheetTemplate[];
+  selectedIssueId?: string;
   selectedSheetId: string;
 }) {
-  const sheets = React.useMemo(() => getDrawingSheetDefinitions(drawing.model), [drawing.model]);
+  const selectedIssue = React.useMemo(
+    () => getDrawingSheetIssues(drawing.model).find((issue) => issue.id === selectedIssueId),
+    [drawing.model, selectedIssueId],
+  );
+  const previewModel = React.useMemo(
+    () => (selectedIssue ? buildIssuedDrawingModel(drawing.model, selectedIssue) : drawing.model),
+    [drawing.model, selectedIssue],
+  );
+  const previewDrawing = React.useMemo(
+    () => ({ ...drawing, model: previewModel }),
+    [drawing, previewModel],
+  );
+  const sheets = React.useMemo(() => getDrawingSheetDefinitions(previewModel), [previewModel]);
   const selectedSheet = sheets.find((sheet) => sheet.id === selectedSheetId) ?? sheets[0] ?? null;
   const sheetsToRender = previewMode === 'all' ? sheets : selectedSheet ? [selectedSheet] : [];
   const rootTemplatesById = React.useMemo(
     () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
     [rootTemplates],
   );
+  const issueLockedSheetsById = React.useMemo(
+    () =>
+      new Map(
+        (selectedIssue?.lockedDrawingSheets ?? []).map((sheet) => [sheet.id, sheet] as const),
+      ),
+    [selectedIssue],
+  );
+  const issueComparison = selectedIssue
+    ? compareDraftingDrawingSheetIssue(drawing.model, selectedIssue, rootTemplatesById)
+    : null;
   const drawingRevision =
-    getDraftingCurrentRevisionLabel(drawing.model) ?? formatDrawingRevision(drawing);
+    getDraftingCurrentRevisionLabel(previewModel) ?? formatDrawingRevision(drawing);
   const currentRevisionRow =
-    drawing.model.revisionBlock?.revisions.find((row) => row.revision === drawingRevision) ??
-    drawing.model.revisionBlock?.revisions.at(-1) ??
+    previewModel.revisionBlock?.revisions.find((row) => row.revision === drawingRevision) ??
+    previewModel.revisionBlock?.revisions.at(-1) ??
     null;
-  const drawingTitle = getDraftingDrawingTitle(drawing.model, drawing.title);
+  const drawingTitle = getDraftingDrawingTitle(previewModel, drawing.title);
 
   React.useEffect(() => {
     if (selectedSheetId || !selectedSheet) {
@@ -135,6 +173,12 @@ export function DraftingDrawingSheetPreview({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">Drawing Sheet Preview</h1>
+              {selectedIssue ? (
+                <Badge className="gap-1" variant="destructive">
+                  <Lock className="h-3 w-3" />
+                  Frozen issued snapshot
+                </Badge>
+              ) : null}
               {selectedSheet ? (
                 <>
                   <Badge variant="secondary">{selectedSheet.pageSize.toUpperCase()}</Badge>
@@ -147,6 +191,12 @@ export function DraftingDrawingSheetPreview({
             <p className="text-sm text-muted-foreground">
               {project.code} - {drawingTitle} - {selectedSheet?.name ?? 'No drawing sheets'}
             </p>
+            {selectedIssue ? (
+              <p className="text-sm text-muted-foreground">
+                Issue {selectedIssue.issueNumber} - Rev {selectedIssue.revision} - read-only, frozen
+                at {formatIssueDate(selectedIssue.issueDate)}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -187,6 +237,23 @@ export function DraftingDrawingSheetPreview({
           >
             Editor
           </Link>
+          {selectedIssue ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                downloadDraftingDrawingSheetIssueManifestJson({
+                  issue: selectedIssue,
+                  model: drawing.model,
+                  rootTemplatesById,
+                  title: drawingTitle,
+                })
+              }
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Manifest JSON
+            </Button>
+          ) : null}
           <Button
             disabled={sheetsToRender.length === 0}
             type="button"
@@ -197,6 +264,39 @@ export function DraftingDrawingSheetPreview({
           </Button>
         </div>
       </div>
+
+      {selectedIssue && issueComparison ? (
+        <div className="rounded-md border bg-white p-4 text-sm print:hidden">
+          <div className="font-medium">Live vs issued comparison</div>
+          <div className="mt-2 grid gap-1 text-muted-foreground">
+            <div>
+              Title/revision:{' '}
+              {issueComparison.titleRevision.hasDrift
+                ? issueComparison.titleRevision.messages.join(' ')
+                : 'No drift.'}
+            </div>
+            <div>
+              Viewports:{' '}
+              {issueComparison.sheets.some((sheet) => sheet.hasDrift)
+                ? issueComparison.sheets
+                    .filter((sheet) => sheet.hasDrift)
+                    .map((sheet) => sheet.issuedSheetLabel)
+                    .join(', ')
+                : 'No drift.'}
+            </div>
+            <div>
+              Objects: {issueComparison.objects.added.length} added,{' '}
+              {issueComparison.objects.removed.length} removed,{' '}
+              {issueComparison.objects.changed.length} changed.
+            </div>
+            <div>
+              Underlays: {issueComparison.underlays.added.length} added,{' '}
+              {issueComparison.underlays.removed.length} removed,{' '}
+              {issueComparison.underlays.changed.length} changed.
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {sheetsToRender.length === 0 ? (
         <div className="rounded-md border border-dashed bg-white px-6 py-12 text-center text-sm text-muted-foreground print:hidden">
@@ -210,15 +310,22 @@ export function DraftingDrawingSheetPreview({
           {sheetsToRender.map((sheet) => (
             <DraftingDrawingSheetPage
               currentRevisionRow={currentRevisionRow}
-              drawing={drawing}
+              drawing={previewDrawing}
               drawingRevision={drawingRevision}
               drawingTitle={drawingTitle}
               key={sheet.id}
               project={project}
               rootTemplate={
-                sheet.rootSheetTemplateId ? rootTemplatesById.get(sheet.rootSheetTemplateId) : null
+                selectedIssue
+                  ? null
+                  : sheet.rootSheetTemplateId
+                    ? rootTemplatesById.get(sheet.rootSheetTemplateId)
+                    : null
               }
               sheet={sheet}
+              templateSnapshot={
+                selectedIssue ? issueLockedSheetsById.get(sheet.id)?.templateSnapshot : undefined
+              }
             />
           ))}
         </div>
@@ -235,6 +342,7 @@ export function DraftingDrawingSheetPage({
   project,
   rootTemplate,
   sheet,
+  templateSnapshot,
 }: {
   currentRevisionRow:
     | NonNullable<DraftingDrawing['model']['revisionBlock']>['revisions'][number]
@@ -245,8 +353,11 @@ export function DraftingDrawingSheetPage({
   project: Project;
   rootTemplate: RootSheetTemplate | null | undefined;
   sheet: DraftingDrawingSheetDefinition;
+  templateSnapshot?: DraftingDrawingSheetTemplateSnapshot;
 }) {
-  const rootTemplateDocument = coerceRootSheetTemplateDocument(rootTemplate);
+  const rootTemplateDocument =
+    coerceTemplateSnapshotDocument(templateSnapshot) ??
+    coerceRootSheetTemplateDocument(rootTemplate);
   const layout = getTemplatePageLayout(
     rootTemplateDocument?.paperSize ?? sheet.pageSize,
     rootTemplateDocument?.orientation ?? sheet.orientation,
@@ -457,7 +568,7 @@ function TitleBlock({
   drawingTitle: string;
   layout: SheetRect;
   project: Project;
-  rootTemplateDocument: GenericTemplateDocument | null;
+  rootTemplateDocument: DrawingSheetTemplateDocument | null;
   sheet: DraftingDrawingSheetDefinition;
 }) {
   const titleBlock = drawing.model.titleBlock ?? {};
@@ -555,7 +666,7 @@ type SheetRect = {
 
 function resolveDrawingSheetLayout(
   sheet: DraftingDrawingSheetDefinition,
-  rootTemplateDocument: GenericTemplateDocument | null,
+  rootTemplateDocument: DrawingSheetTemplateDocument | null,
 ): { titleBlock: SheetRect; viewport: SheetRect } {
   const layout = getTemplatePageLayout(
     rootTemplateDocument?.paperSize ?? sheet.pageSize,
@@ -635,4 +746,44 @@ function buildViewportTransform({
 
 function sanitizeSvgId(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+type DrawingSheetTemplateDocument = Pick<
+  GenericTemplateDocument,
+  'name' | 'objects' | 'orientation' | 'paperSize'
+>;
+
+function coerceTemplateSnapshotDocument(
+  snapshot: DraftingDrawingSheetTemplateSnapshot | undefined,
+): DrawingSheetTemplateDocument | null {
+  const definition = snapshot?.renderDefinition;
+  if (!definition || typeof definition !== 'object') {
+    return null;
+  }
+  const candidate = definition as Partial<DrawingSheetTemplateDocument>;
+  if (!candidate.paperSize || !candidate.orientation || !Array.isArray(candidate.objects)) {
+    return null;
+  }
+
+  return {
+    name: snapshot.label,
+    objects: candidate.objects,
+    orientation: candidate.orientation,
+    paperSize: candidate.paperSize,
+  } as DrawingSheetTemplateDocument;
+}
+
+function formatIssueDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }

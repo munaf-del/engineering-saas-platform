@@ -394,6 +394,7 @@ export function DraftingEditor({
                   <DraftingDrawingSheetsPanel
                     activeSheetId={activeDrawingSheetId}
                     canvasSize={view.canvasSize}
+                    currentUserName={currentUserName}
                     currentView={currentModel.view}
                     drawingTitle={currentDrawing.title}
                     model={currentModel}

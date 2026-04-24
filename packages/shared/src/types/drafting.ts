@@ -243,6 +243,10 @@ export const DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES = ['draft', 'issued', 'supers
 export type DraftingSchedulePackIssueStatus =
   (typeof DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES)[number];
 
+export const DRAFTING_DRAWING_SHEET_ISSUE_STATUSES = ['draft', 'issued', 'superseded'] as const;
+export type DraftingDrawingSheetIssueStatus =
+  (typeof DRAFTING_DRAWING_SHEET_ISSUE_STATUSES)[number];
+
 export const DRAFTING_TITLE_BLOCK_STATUSES = [
   'draft',
   'for_review',
@@ -425,6 +429,67 @@ export type DraftingSchedulePackIssue = {
   lockedSheetDefinitions: DraftingLockedScheduleSheetDefinition[];
   lockedScheduleSummary: DraftingScheduleSummarySnapshot;
   pageCount: number;
+};
+
+export type DraftingDrawingSheetTemplateSnapshot = {
+  label: string;
+  rootSheetTemplateId?: string | null;
+  rootSheetTemplateName?: string | null;
+  rootSheetTemplateVersionId?: string | null;
+  templateFingerprint?: string | null;
+  source:
+    | 'default_layout'
+    | 'root_template'
+    | 'missing_template_fallback'
+    | 'incompatible_template_fallback';
+  renderDefinition: Record<string, unknown>;
+};
+
+export type DraftingLockedDrawingSheetDefinition = DraftingDrawingSheetDefinition & {
+  templateSnapshot?: DraftingDrawingSheetTemplateSnapshot;
+};
+
+export type DraftingDrawingSheetIssueObjectSnapshot = {
+  objectId: string;
+  objectType: DraftingObjectType;
+  layerId: DraftingLayerId;
+  label?: string;
+  geometrySummary?: string;
+  scheduleKey?: string;
+  provenance?: DraftingObjectProvenance;
+  renderedState?: Record<string, unknown>;
+};
+
+export type DraftingDrawingSheetIssueUnderlaySnapshot = {
+  underlayId: string;
+  fileId: string;
+  fileName: string;
+  pageNumber: number;
+  transform: DraftingUnderlayTransform;
+  crop?: DraftingUnderlayCrop | null;
+  calibration?: DraftingUnderlayCalibration | null;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+};
+
+export type DraftingDrawingSheetIssue = {
+  id: string;
+  issueNumber: string;
+  revision: string;
+  issueDate: string;
+  issuedBy?: string;
+  purpose: string;
+  status: DraftingDrawingSheetIssueStatus;
+  notes?: string;
+  sheetIds: string[];
+  lockedTitleBlock: DraftingTitleBlockMetadata;
+  lockedRevisionBlock: DraftingRevisionBlockMetadata;
+  lockedDrawingSheets: DraftingLockedDrawingSheetDefinition[];
+  lockedObjects: DraftingDrawingSheetIssueObjectSnapshot[];
+  lockedUnderlays: DraftingDrawingSheetIssueUnderlaySnapshot[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DraftingObjectBase = {
@@ -764,6 +829,7 @@ export type DraftingModel = {
   scheduleSheets: DraftingScheduleSheetDefinition[];
   schedulePackIssues: DraftingSchedulePackIssue[];
   drawingSheets: DraftingDrawingSheetDefinition[];
+  drawingSheetIssues: DraftingDrawingSheetIssue[];
 };
 
 export type DraftingObjectChangeEvent = {
@@ -952,6 +1018,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     scheduleSheets: model.scheduleSheets ?? [],
     schedulePackIssues: model.schedulePackIssues ?? [],
     drawingSheets: model.drawingSheets ?? [],
+    drawingSheetIssues: model.drawingSheetIssues ?? [],
   };
 }
 
@@ -976,6 +1043,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     scheduleSheets: [],
     schedulePackIssues: [],
     drawingSheets: [],
+    drawingSheetIssues: [],
   });
 }
 

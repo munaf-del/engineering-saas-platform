@@ -9,6 +9,10 @@ import {
   Copy,
   Crosshair,
   ExternalLink,
+  FileJson,
+  GitCompare,
+  History,
+  Lock,
   Maximize2,
   Plus,
   RotateCcw,
@@ -20,6 +24,8 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { downloadDraftingDrawingSheetIssueManifestJson } from '../export-utils';
 import {
   Select,
   SelectContent,
@@ -44,12 +50,19 @@ import {
   updateDrawingSheetDefinition,
   zoomDrawingSheetViewport,
 } from '../sheets/drafting-drawing-sheet-utils';
+import {
+  addDrawingSheetIssue,
+  compareDraftingDrawingSheetIssue,
+  createDraftingDrawingSheetIssueSnapshot,
+  getDrawingSheetIssues,
+} from '../sheets/drafting-drawing-sheet-issue-utils';
 
 const DEFAULT_TEMPLATE_VALUE = 'default';
 
 export function DraftingDrawingSheetsPanel({
   activeSheetId,
   canvasSize,
+  currentUserName,
   currentView,
   drawingTitle,
   model,
@@ -62,6 +75,7 @@ export function DraftingDrawingSheetsPanel({
 }: {
   activeSheetId: string | null;
   canvasSize: { height: number; width: number };
+  currentUserName: string | null;
   currentView: DraftingModel['view'];
   drawingTitle: string;
   model: DraftingModel;
@@ -73,8 +87,20 @@ export function DraftingDrawingSheetsPanel({
   projectId: string;
 }) {
   const sheets = React.useMemo(() => getDrawingSheetDefinitions(model), [model]);
+  const issues = React.useMemo(() => getDrawingSheetIssues(model), [model]);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId) ?? sheets[0] ?? null;
   const { data: rootTemplates = [] } = useRootSheetTemplates();
+  const rootTemplatesById = React.useMemo(
+    () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
+    [rootTemplates],
+  );
+  const [issueNumber, setIssueNumber] = React.useState('ISS-001');
+  const [issueRevision, setIssueRevision] = React.useState('A');
+  const [issuePurpose, setIssuePurpose] = React.useState('For review');
+  const [issueStatus, setIssueStatus] = React.useState<'draft' | 'issued' | 'superseded'>('issued');
+  const [issueNotes, setIssueNotes] = React.useState('');
+  const [selectedIssueSheetIds, setSelectedIssueSheetIds] = React.useState<string[]>([]);
+  const [selectedIssueId, setSelectedIssueId] = React.useState('');
   const templateOptions = React.useMemo(
     () =>
       rootTemplates
@@ -102,6 +128,20 @@ export function DraftingDrawingSheetsPanel({
 
     onActiveSheetChange(sheets[0]?.id ?? null);
   }, [activeSheetId, onActiveSheetChange, sheets]);
+
+  React.useEffect(() => {
+    if (selectedIssueSheetIds.length > 0) {
+      return;
+    }
+    setSelectedIssueSheetIds(activeSheet ? [activeSheet.id] : sheets[0] ? [sheets[0].id] : []);
+  }, [activeSheet, selectedIssueSheetIds.length, sheets]);
+
+  React.useEffect(() => {
+    if (selectedIssueId && issues.some((issue) => issue.id === selectedIssueId)) {
+      return;
+    }
+    setSelectedIssueId(issues.at(-1)?.id ?? '');
+  }, [issues, selectedIssueId]);
 
   function handleCreateSheet() {
     const nextName = `Drawing Sheet ${sheets.length + 1}`;
@@ -260,6 +300,36 @@ export function DraftingDrawingSheetsPanel({
           : undefined,
     });
   }
+
+  function handleIssueSheetSelection(sheetId: string, checked: boolean) {
+    setSelectedIssueSheetIds((current) =>
+      checked
+        ? [...new Set([...current, sheetId])]
+        : current.filter((candidate) => candidate !== sheetId),
+    );
+  }
+
+  function handleCreateIssue() {
+    const issue = createDraftingDrawingSheetIssueSnapshot(model, {
+      id: crypto.randomUUID(),
+      issueNumber: issueNumber.trim() || `ISS-${String(issues.length + 1).padStart(3, '0')}`,
+      issuedBy: currentUserName,
+      notes: issueNotes.trim() || undefined,
+      purpose: issuePurpose.trim() || 'For review',
+      revision: issueRevision.trim() || 'A',
+      rootTemplatesById,
+      sheetIds: selectedIssueSheetIds,
+      status: issueStatus,
+    });
+    onModelChange(addDrawingSheetIssue(model, issue));
+    setSelectedIssueId(issue.id);
+    setIssueNumber(nextIssueNumber(issue.issueNumber, issues.length + 2));
+  }
+
+  const selectedIssue = issues.find((issue) => issue.id === selectedIssueId) ?? issues.at(-1);
+  const selectedIssueComparison = selectedIssue
+    ? compareDraftingDrawingSheetIssue(model, selectedIssue, rootTemplatesById)
+    : null;
 
   function handleTemplateChange(value: string) {
     if (!activeSheet) {
@@ -626,6 +696,216 @@ export function DraftingDrawingSheetsPanel({
           No drawing sheet definitions.
         </div>
       )}
+
+      <div className="space-y-3 rounded-md border p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Lock className="h-4 w-4" />
+              Drawing Sheet Issues
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {issues.length} frozen issue snapshot{issues.length === 1 ? '' : 's'}
+            </div>
+          </div>
+          <Button
+            disabled={selectedIssueSheetIds.length === 0}
+            size="sm"
+            type="button"
+            onClick={handleCreateIssue}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Issue
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <LabeledInput
+            id="drawing-sheet-issue-number"
+            label="Issue number"
+            value={issueNumber}
+            onChange={setIssueNumber}
+          />
+          <LabeledInput
+            id="drawing-sheet-issue-revision"
+            label="Revision"
+            value={issueRevision}
+            onChange={setIssueRevision}
+          />
+        </div>
+        <LabeledInput
+          id="drawing-sheet-issue-purpose"
+          label="Purpose"
+          value={issuePurpose}
+          onChange={setIssuePurpose}
+        />
+        <div className="space-y-1">
+          <Label htmlFor="drawing-sheet-issue-status">Status</Label>
+          <Select
+            value={issueStatus}
+            onValueChange={(value) => setIssueStatus(value as 'draft' | 'issued' | 'superseded')}
+          >
+            <SelectTrigger id="drawing-sheet-issue-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="issued">Issued</SelectItem>
+              <SelectItem value="superseded">Superseded</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="drawing-sheet-issue-notes">Notes</Label>
+          <Textarea
+            id="drawing-sheet-issue-notes"
+            value={issueNotes}
+            onChange={(event) => setIssueNotes(event.target.value)}
+          />
+        </div>
+        <div className="space-y-2 rounded-md border p-2">
+          <div className="text-xs font-medium uppercase text-muted-foreground">Sheets to issue</div>
+          {sheets.map((sheet) => (
+            <CheckboxRow
+              checked={selectedIssueSheetIds.includes(sheet.id)}
+              id={`drawing-sheet-issue-include-${sheet.id}`}
+              key={sheet.id}
+              label={`${sheet.sheetNumber} - ${sheet.name}`}
+              onChange={(checked) => handleIssueSheetSelection(sheet.id, checked)}
+            />
+          ))}
+        </div>
+
+        {issues.length > 0 ? (
+          <div className="space-y-3 rounded-md border p-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <History className="h-4 w-4" />
+              Issued history
+            </div>
+            <Select value={selectedIssue?.id ?? ''} onValueChange={setSelectedIssueId}>
+              <SelectTrigger aria-label="Drawing sheet issue history">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {issues.map((issue) => (
+                  <SelectItem key={issue.id} value={issue.id}>
+                    {issue.issueNumber} - Rev {issue.revision} - {issue.status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedIssue ? (
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <div>
+                  Issued {formatIssueDate(selectedIssue.issueDate)}
+                  {selectedIssue.issuedBy ? ` by ${selectedIssue.issuedBy}` : ''}
+                </div>
+                <div>{selectedIssue.lockedDrawingSheets.length} locked sheet(s)</div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    className={buttonVariants({ size: 'sm', variant: 'outline' })}
+                    href={`/projects/${projectId}/drafting/${model.drawingId}/sheets/preview?issueId=${selectedIssue.id}`}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open issued preview
+                  </Link>
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      downloadDraftingDrawingSheetIssueManifestJson({
+                        issue: selectedIssue,
+                        model,
+                        rootTemplatesById,
+                        title: drawingTitle,
+                      })
+                    }
+                  >
+                    <FileJson className="mr-2 h-4 w-4" />
+                    Manifest JSON
+                  </Button>
+                </div>
+                {selectedIssueComparison ? (
+                  <IssueComparisonSummary comparison={selectedIssueComparison} />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function IssueComparisonSummary({
+  comparison,
+}: {
+  comparison: ReturnType<typeof compareDraftingDrawingSheetIssue>;
+}) {
+  const objectDriftCount =
+    comparison.objects.added.length +
+    comparison.objects.changed.length +
+    comparison.objects.removed.length;
+  const underlayDriftCount =
+    comparison.underlays.added.length +
+    comparison.underlays.changed.length +
+    comparison.underlays.removed.length;
+
+  return (
+    <div className="space-y-2 rounded-md bg-muted p-2">
+      <div className="flex items-center gap-2 font-medium text-foreground">
+        <GitCompare className="h-4 w-4" />
+        Live vs issued comparison
+      </div>
+      <ComparisonLine
+        label="Title / revision"
+        value={
+          comparison.titleRevision.hasDrift
+            ? comparison.titleRevision.messages.join(' ')
+            : 'No title or revision drift.'
+        }
+      />
+      <ComparisonLine
+        label="Viewport / sheets"
+        value={
+          comparison.sheets.some((sheet) => sheet.hasDrift)
+            ? comparison.sheets
+                .flatMap((sheet) =>
+                  sheet.messages.length
+                    ? sheet.messages.map((message) => `${sheet.issuedSheetLabel}: ${message}`)
+                    : [`${sheet.issuedSheetLabel}: changed`],
+                )
+                .join(' ')
+            : 'No sheet definition or viewport drift.'
+        }
+      />
+      <ComparisonLine
+        label="Objects"
+        value={
+          objectDriftCount
+            ? `${comparison.objects.added.length} added, ${comparison.objects.removed.length} removed, ${comparison.objects.changed.length} changed.`
+            : 'No object drift.'
+        }
+      />
+      <ComparisonLine
+        label="Underlays"
+        value={
+          underlayDriftCount
+            ? `${comparison.underlays.added.length} added, ${comparison.underlays.removed.length} removed, ${comparison.underlays.changed.length} changed.`
+            : 'No underlay metadata drift.'
+        }
+      />
+    </div>
+  );
+}
+
+function ComparisonLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="font-medium text-foreground">{label}: </span>
+      {value}
     </div>
   );
 }
@@ -699,4 +979,28 @@ function CheckboxRow({
       <span>{label}</span>
     </label>
   );
+}
+
+function nextIssueNumber(current: string, fallbackIndex: number) {
+  const numericMatch = /^(.*?)(\d+)$/.exec(current.trim());
+  if (!numericMatch) {
+    return `ISS-${String(fallbackIndex).padStart(3, '0')}`;
+  }
+
+  const prefix = numericMatch[1] ?? '';
+  const next = Number(numericMatch[2]) + 1;
+  return `${prefix}${String(next).padStart(numericMatch[2]!.length, '0')}`;
+}
+
+function formatIssueDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }

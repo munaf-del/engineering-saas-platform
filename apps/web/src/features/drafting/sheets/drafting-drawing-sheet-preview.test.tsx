@@ -1,8 +1,20 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { createEmptyDraftingModel, type DraftingDrawing, type Project } from '@eng/shared';
-import { DraftingDrawingSheetPage } from './drafting-drawing-sheet-preview';
+import {
+  createEmptyDraftingModel,
+  type DraftingDrawing,
+  type DraftingObject,
+  type Project,
+} from '@eng/shared';
+import {
+  DraftingDrawingSheetPage,
+  DraftingDrawingSheetPreview,
+} from './drafting-drawing-sheet-preview';
+import {
+  addDrawingSheetIssue,
+  createDraftingDrawingSheetIssueSnapshot,
+} from './drafting-drawing-sheet-issue-utils';
 import { createDraftingDrawingSheetDefinition } from './drafting-drawing-sheet-utils';
 
 vi.mock('../components/drafting-pdf-underlay', () => ({
@@ -269,6 +281,109 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('P1');
     expect(markup).not.toContain('P-NOTES');
     expect(drawing.model.objects).toHaveLength(2);
+  });
+
+  it('renders issued previews from locked snapshots instead of the live model', () => {
+    const drawing = createDrawing();
+    const sheet = createDraftingDrawingSheetDefinition({
+      id: 'drawing-sheet-1',
+      name: 'Geometry Sheet',
+      sheetNumber: 'S-101',
+      title: 'Locked Retention Plan',
+      viewport: {
+        center: { x: 1000, y: 1000 },
+        scale: 0.05,
+      },
+    });
+    drawing.model.titleBlock = {
+      drawingTitle: 'Locked Drawing Title',
+      projectName: 'NORTH SYDNEY',
+    };
+    drawing.model.revisionBlock = {
+      currentRevision: 'A',
+      revisions: [
+        {
+          approvedBy: 'APR',
+          checkedBy: 'CHK',
+          date: '2026-04-24',
+          description: 'Issued',
+          drawnBy: 'DRN',
+          id: 'revision-a',
+          issuedFor: 'Review',
+          revision: 'A',
+          status: 'issued',
+        },
+      ],
+    };
+    drawing.model.drawingSheets = [sheet];
+    drawing.model.objects.push({
+      id: 'pile-locked',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 1000, y: 1000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P-LOCKED',
+      },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+    const issue = createDraftingDrawingSheetIssueSnapshot(drawing.model, {
+      id: 'issue-1',
+      issueDate: '2026-04-24T00:00:00.000Z',
+      issueNumber: 'ISS-001',
+      purpose: 'For review',
+      revision: 'A',
+      sheetIds: ['drawing-sheet-1'],
+    });
+    drawing.model = addDrawingSheetIssue(drawing.model, issue);
+    drawing.model.titleBlock = {
+      ...drawing.model.titleBlock,
+      drawingTitle: 'Changed Live Drawing Title',
+    };
+    drawing.model.drawingSheets = [
+      {
+        ...sheet,
+        title: 'Changed Live Sheet',
+        viewport: {
+          ...sheet.viewport,
+          center: { x: 9000, y: 9000 },
+        },
+      },
+    ];
+    drawing.model.objects = [
+      {
+        ...drawing.model.objects[0]!,
+        id: 'pile-live',
+        metadata: {
+          pileId: 'P-LIVE',
+        },
+      } as DraftingObject,
+    ];
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPreview
+        drawing={drawing}
+        onModeChange={() => {}}
+        onSelectedSheetIdChange={() => {}}
+        previewMode="sheet"
+        project={project}
+        projectId={project.id}
+        rootTemplates={[]}
+        selectedIssueId="issue-1"
+        selectedSheetId="drawing-sheet-1"
+      />,
+    );
+
+    expect(markup).toContain('Frozen issued snapshot');
+    expect(markup).toContain('Locked Retention Plan');
+    expect(markup).toContain('Locked Drawing Title');
+    expect(markup).toContain('P-LOCKED');
+    expect(markup).not.toContain('Changed Live Sheet');
+    expect(markup).not.toContain('Changed Live Drawing Title');
+    expect(markup).not.toContain('P-LIVE');
   });
 });
 

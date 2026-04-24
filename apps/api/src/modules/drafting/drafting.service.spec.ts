@@ -95,6 +95,7 @@ jest.mock('@eng/shared', () => {
     scheduleSheets: z.array(z.unknown()).default([]),
     schedulePackIssues: z.array(z.unknown()).default([]),
     drawingSheets: z.array(z.unknown()).default([]),
+    drawingSheetIssues: z.array(z.unknown()).default([]),
   });
 
   return {
@@ -336,5 +337,6 @@ function createEmptyModel(drawingId: string) {
     scheduleSheets: [],
     schedulePackIssues: [],
     drawingSheets: [],
+    drawingSheetIssues: [],
   };
 }
