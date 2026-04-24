@@ -44,6 +44,71 @@ describe('DraftingScheduleSheet', () => {
     expect(markup).toContain('DRAFTING SCHEDULE SHEET QA SCHEDULES');
   });
 
+  it('renders drawing title block and current revision metadata in the schedule preview header', () => {
+    const model = createEmptyDraftingModel('drawing-preview');
+    model.titleBlock = {
+      drawingTitle: 'Retention Wall General Arrangement',
+      projectName: 'NORTH SYDNEY',
+    };
+    model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'Drafter',
+          id: 'revision-b',
+          issuedFor: 'Review',
+          revision: 'B',
+          status: 'for_review',
+        },
+      ],
+    };
+    const drawing = {
+      createdAt: '2026-04-22T00:00:00.000Z',
+      createdById: 'user-1',
+      currentRevision: 0,
+      id: 'drawing-preview',
+      model,
+      modelVersion: 1,
+      objectCount: model.objects.length,
+      projectId: 'project-1',
+      revisions: [],
+      status: 'draft' as const,
+      title: 'Drafting Schedule Sheet QA',
+      updatedAt: '2026-04-23T00:00:00.000Z',
+      updatedById: 'user-1',
+    };
+    const markup = renderToStaticMarkup(
+      <DraftingScheduleSheetPreview
+        drawing={drawing}
+        groupSelection={DRAFTING_SCHEDULE_ALL_GROUPS}
+        onGroupSelectionChange={() => {}}
+        onModeChange={() => {}}
+        onSelectedIssueIdChange={() => {}}
+        onSelectedSheetIdChange={() => {}}
+        onTemplateValueChange={() => {}}
+        previewMode="legacy"
+        project={project()}
+        projectId="project-1"
+        rootTemplatesById={new Map()}
+        selectedIssueId=""
+        selectedSheetId=""
+        selectedTemplateSource={{ label: 'Default drafting schedule sheet', template: null }}
+        templateBindingWarningsById={{}}
+        templateOptions={[]}
+        templateValue="default"
+      />,
+    );
+
+    expect(markup).toContain('Retention Wall General Arrangement');
+    expect(markup).toContain('Drawing rev B');
+    expect(markup).toContain('Revision');
+    expect(markup).toContain('B');
+  });
+
   it('renders all schedule groups as multiple sections', () => {
     const model = createEmptyDraftingModel('drawing-preview');
     model.objects = [
@@ -220,7 +285,11 @@ describe('DraftingScheduleSheet', () => {
         new Map([
           [
             'root-template-1',
-            buildRootSheetTemplateRecord('root-template-1', 'Locked issue template', lockedTemplate),
+            buildRootSheetTemplateRecord(
+              'root-template-1',
+              'Locked issue template',
+              lockedTemplate,
+            ),
           ],
         ]),
       ),
@@ -290,7 +359,9 @@ describe('DraftingScheduleSheet', () => {
     expect(markup).toContain('Template drift');
     expect(markup).toContain('Locked template snapshots');
     expect(markup).toContain('Live pack = current model + current template binding');
-    expect(markup).toContain('Issued pack = locked rows + locked sheet definitions + locked template snapshot');
+    expect(markup).toContain(
+      'Issued pack = locked rows + locked sheet definitions + locked template snapshot',
+    );
     expect(markup).toContain('Locked issue template');
   });
 });

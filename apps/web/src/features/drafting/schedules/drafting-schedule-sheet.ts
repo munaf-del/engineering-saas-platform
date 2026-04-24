@@ -1,5 +1,6 @@
 import type {
   DraftingModel,
+  DraftingRevisionBlockRow,
   DraftingSchedulePackIssue,
   DraftingScheduleSheetDefinition,
   DraftingScheduleSheetTemplateSnapshot,
@@ -47,7 +48,10 @@ export type DraftingScheduleSheetGroupSelection =
 
 export type DraftingScheduleSheetMetadata = {
   checkedBy?: string;
+  clientName?: string;
   drawingId: string;
+  drawingNumber?: string;
+  drawingRevision?: string;
   drawingStatus?: string;
   drawingTitle: string;
   generatedAtLabel?: string;
@@ -65,6 +69,15 @@ export type DraftingScheduleSheetMetadata = {
   sheetNumber?: string;
   subtitle?: string;
   title?: string;
+};
+
+export type DraftingScheduleDrawingMetadata = {
+  clientName: string | null;
+  currentRevision: string | null;
+  currentRevisionRow: DraftingRevisionBlockRow | null;
+  drawingNumber: string | null;
+  drawingTitle: string | null;
+  titleBlock: DraftingModel['titleBlock'];
 };
 
 export type DraftingScheduleSheetTemplateSource = {
@@ -113,6 +126,7 @@ export type DraftingScheduleSheetPackPage = {
 
 export type DraftingScheduleSheetPack = {
   definitions: DraftingScheduleSheetDefinitionWithOptionalSnapshot[];
+  drawingMetadata: DraftingScheduleDrawingMetadata;
   drawingId: string;
   pages: DraftingScheduleSheetPackPage[];
   summary: DraftingScheduleSummary;
@@ -211,6 +225,7 @@ export function buildDraftingScheduleSheetPack({
 
   return {
     definitions: orderedDefinitions,
+    drawingMetadata: buildScheduleDrawingMetadata(model, metadata),
     drawingId: summary.drawingId,
     pages,
     summary,
@@ -279,6 +294,7 @@ export function serializeDraftingScheduleSheetPackJson(pack: DraftingScheduleShe
         templateId: definition.templateId ?? null,
         title: definition.title,
       })),
+      drawingMetadata: pack.drawingMetadata,
       drawingId: pack.drawingId,
       pageCount: pack.pages.length,
       pages: pack.pages.map((page) => ({
@@ -605,7 +621,9 @@ function buildTemplateSourceRenderModel(
   };
 }
 
-function resolveTemplateSourceDefinition(templateSource: DraftingScheduleSheetTemplateSource | null) {
+function resolveTemplateSourceDefinition(
+  templateSource: DraftingScheduleSheetTemplateSource | null,
+) {
   if (templateSource?.definition) {
     return templateSource.definition;
   }
@@ -790,8 +808,21 @@ function buildMetadataRows({
   const rows = [
     { id: 'project', label: 'Project', value: metadata.projectName },
     { id: 'drawing', label: 'Drawing', value: metadata.drawingTitle },
+    ...(metadata.drawingNumber
+      ? [{ id: 'drawing-number', label: 'Drawing Number', value: metadata.drawingNumber }]
+      : []),
     { id: 'drawing-id', label: 'Drawing ID', value: metadata.drawingId },
     { id: 'revision', label: 'Revision', value: metadata.revision ?? 'A' },
+    ...(metadata.drawingRevision && metadata.drawingRevision !== metadata.revision
+      ? [
+          {
+            id: 'drawing-revision',
+            label: 'Drawing Revision',
+            value: metadata.drawingRevision,
+          },
+        ]
+      : []),
+    ...(metadata.clientName ? [{ id: 'client', label: 'Client', value: metadata.clientName }] : []),
     { id: 'status', label: 'Status', value: metadata.drawingStatus ?? 'draft' },
     { id: 'groups', label: 'Groups', value: groupLabel },
     { id: 'objects', label: 'Objects', value: `${sourceContext.objectCount}` },
@@ -840,6 +871,30 @@ function buildMetadataRows({
   }
 
   return rows;
+}
+
+export function buildScheduleDrawingMetadata(
+  model: DraftingModel,
+  metadata?: DraftingScheduleSheetMetadata,
+): DraftingScheduleDrawingMetadata {
+  const titleBlock = model.titleBlock ?? {};
+  const revisionBlock = model.revisionBlock ?? { revisions: [] };
+  const currentRevision =
+    metadata?.drawingRevision ??
+    revisionBlock.currentRevision ??
+    revisionBlock.revisions.at(-1)?.revision ??
+    null;
+  const currentRevisionRow =
+    revisionBlock.revisions.find((row) => row.revision === currentRevision) ?? null;
+
+  return {
+    clientName: titleBlock.clientName ?? metadata?.clientName ?? null,
+    currentRevision,
+    currentRevisionRow,
+    drawingNumber: titleBlock.drawingNumber ?? metadata?.drawingNumber ?? null,
+    drawingTitle: titleBlock.drawingTitle ?? metadata?.drawingTitle ?? null,
+    titleBlock,
+  };
 }
 
 export function normalizeDraftingScheduleSummarySnapshot(

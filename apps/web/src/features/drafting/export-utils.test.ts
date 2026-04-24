@@ -156,4 +156,40 @@ describe('drafting export utils', () => {
     expect(exported).not.toContain('data:application/pdf');
     expect(exported).not.toContain('"buffer"');
   });
+
+  it('serializes title block and revision block metadata through the DraftingModel export', () => {
+    const model = createEmptyDraftingModel('drawing-title-revision-export');
+    model.titleBlock = {
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+      status: 'for_review',
+    };
+    model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'Drafter',
+          id: 'revision-b',
+          issuedFor: 'Review',
+          revision: 'B',
+          status: 'for_review',
+        },
+      ],
+    };
+    const parsed = JSON.parse(serializeDraftingModelJson(model));
+
+    expect(parsed.titleBlock).toMatchObject({
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+      status: 'for_review',
+    });
+    expect(parsed.revisionBlock).toMatchObject({
+      currentRevision: 'B',
+      revisions: [expect.objectContaining({ revision: 'B' })],
+    });
+  });
 });

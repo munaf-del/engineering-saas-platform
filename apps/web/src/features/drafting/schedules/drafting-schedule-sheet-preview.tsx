@@ -45,7 +45,12 @@ import {
   resolveDraftingScheduleSheetTemplateState,
 } from './drafting-schedule-template-snapshot';
 import { DRAFTING_SCHEDULE_GROUP_DEFINITIONS } from './drafting-schedule-utils';
-import { formatDrawingRevision, formatDraftingTimestamp } from '../model-utils';
+import {
+  formatDrawingRevision,
+  formatDraftingTimestamp,
+  getDraftingCurrentRevisionLabel,
+  getDraftingDrawingTitle,
+} from '../model-utils';
 
 const DEFAULT_TEMPLATE_VALUE = 'default';
 
@@ -222,18 +227,24 @@ export function DraftingScheduleSheetPreview({
       ) as Record<string, DraftingScheduleSheetTemplateSource>,
     [templateOptions],
   );
-  const metadata = React.useMemo<DraftingScheduleSheetMetadata>(
-    () => ({
+  const metadata = React.useMemo<DraftingScheduleSheetMetadata>(() => {
+    const drawingRevision =
+      getDraftingCurrentRevisionLabel(drawing.model) ?? formatDrawingRevision(drawing);
+
+    return {
+      checkedBy: drawing.model.titleBlock?.checkedBy,
+      clientName: drawing.model.titleBlock?.clientName,
       drawingId: drawing.id,
+      drawingNumber: drawing.model.titleBlock?.drawingNumber,
+      drawingRevision,
       drawingStatus: drawing.status,
-      drawingTitle: drawing.title,
+      drawingTitle: getDraftingDrawingTitle(drawing.model, drawing.title),
       generatedAtLabel: `Updated ${formatDraftingTimestamp(drawing.updatedAt)}`,
       projectCode: project.code,
-      projectName: project.name,
-      revision: formatDrawingRevision(drawing),
-    }),
-    [drawing, project.code, project.name],
-  );
+      projectName: drawing.model.titleBlock?.projectName ?? project.name,
+      revision: drawingRevision,
+    };
+  }, [drawing, project.code, project.name]);
   const pack = React.useMemo(() => {
     if (previewMode === 'issue' && selectedIssue) {
       const issuedAtLabel = selectedIssue.issuedAt
@@ -362,9 +373,13 @@ export function DraftingScheduleSheetPreview({
               ) : null}
               <Badge variant="outline">{activeGroupCount} group(s)</Badge>
               <Badge variant="outline">{pack.pages.length} page(s)</Badge>
+              {metadata.drawingRevision ? (
+                <Badge variant="secondary">Drawing rev {metadata.drawingRevision}</Badge>
+              ) : null}
             </div>
             <p className="text-sm text-muted-foreground">
-              {project.code} - {drawing.title} - {previewLabel(previewMode, selectedDefinition)}
+              {project.code} - {metadata.drawingTitle} -{' '}
+              {previewLabel(previewMode, selectedDefinition)}
             </p>
           </div>
         </div>
@@ -475,7 +490,10 @@ export function DraftingScheduleSheetPreview({
 
       {selectedIssue && previewMode === 'issue' ? (
         <div className="flex flex-wrap items-center gap-2 text-sm print:hidden">
-          <Badge variant="secondary">Revision {selectedIssue.revisionLabel}</Badge>
+          <Badge variant="secondary">Issue revision {selectedIssue.revisionLabel}</Badge>
+          {metadata.drawingRevision && metadata.drawingRevision !== selectedIssue.revisionLabel ? (
+            <Badge variant="outline">Drawing revision {metadata.drawingRevision}</Badge>
+          ) : null}
           <Badge variant={selectedIssue.issueStatus === 'issued' ? 'default' : 'outline'}>
             {selectedIssue.issueStatus}
           </Badge>
@@ -489,9 +507,7 @@ export function DraftingScheduleSheetPreview({
       ) : null}
 
       <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm print:hidden">
-        <div className="font-medium">
-          Live pack = current model + current template binding
-        </div>
+        <div className="font-medium">Live pack = current model + current template binding</div>
         <div className="text-muted-foreground">
           Issued pack = locked rows + locked sheet definitions + locked template snapshot
         </div>
@@ -511,8 +527,7 @@ export function DraftingScheduleSheetPreview({
                 ) : null}
               </div>
               <p className="mt-1 text-muted-foreground">
-                Issued:{' '}
-                {describeLockedTemplateState(state.lockedDefinition)} -{' '}
+                Issued: {describeLockedTemplateState(state.lockedDefinition)} -{' '}
                 {formatSheetLayoutSummary(state.lockedDefinition)}
               </p>
               <p className="text-muted-foreground">
@@ -698,9 +713,7 @@ function buildTemplateFallbackWarnings({
   });
 }
 
-function describeLockedTemplateState(
-  definition: DraftingScheduleSheetPack['definitions'][number],
-) {
+function describeLockedTemplateState(definition: DraftingScheduleSheetPack['definitions'][number]) {
   const snapshot = definition.templateSnapshot;
   if (!snapshot) {
     return 'Legacy snapshot without a locked template snapshot';

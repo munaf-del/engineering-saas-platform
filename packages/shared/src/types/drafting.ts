@@ -235,6 +235,52 @@ export const DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES = ['draft', 'issued', 'supers
 export type DraftingSchedulePackIssueStatus =
   (typeof DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES)[number];
 
+export const DRAFTING_TITLE_BLOCK_STATUSES = [
+  'draft',
+  'for_review',
+  'for_information',
+  'for_construction',
+  'as_built',
+  'superseded',
+] as const;
+export type DraftingTitleBlockStatus = (typeof DRAFTING_TITLE_BLOCK_STATUSES)[number];
+
+export type DraftingTitleBlockMetadata = {
+  projectName?: string;
+  projectNumber?: string;
+  clientName?: string;
+  drawingTitle?: string;
+  drawingNumber?: string;
+  sheetNumber?: string;
+  sheetTotal?: string;
+  scale?: string;
+  discipline?: string;
+  status?: DraftingTitleBlockStatus;
+  designedBy?: string;
+  drawnBy?: string;
+  checkedBy?: string;
+  approvedBy?: string;
+  organisationName?: string;
+  notes?: string;
+};
+
+export type DraftingRevisionBlockRow = {
+  id: string;
+  revision: string;
+  date: string;
+  description: string;
+  issuedFor: string;
+  drawnBy: string;
+  checkedBy: string;
+  approvedBy: string;
+  status: string;
+};
+
+export type DraftingRevisionBlockMetadata = {
+  currentRevision?: string;
+  revisions: DraftingRevisionBlockRow[];
+};
+
 export type DraftingScheduleSheetProjectMetadataOverrides = {
   checkedBy?: string;
   preparedBy?: string;
@@ -673,6 +719,8 @@ export type DraftingModel = {
   underlays: DraftingUnderlay[];
   objects: DraftingObject[];
   objectChangeEvents?: DraftingObjectChangeEvent[];
+  titleBlock?: DraftingTitleBlockMetadata;
+  revisionBlock?: DraftingRevisionBlockMetadata;
   scheduleSheets: DraftingScheduleSheetDefinition[];
   schedulePackIssues: DraftingSchedulePackIssue[];
 };
@@ -855,6 +903,11 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     ...model,
     layers: [...orderedLayers, ...extraLayers],
     objectChangeEvents: model.objectChangeEvents ?? [],
+    titleBlock: model.titleBlock ?? {},
+    revisionBlock: {
+      currentRevision: model.revisionBlock?.currentRevision,
+      revisions: model.revisionBlock?.revisions ?? [],
+    },
     scheduleSheets: model.scheduleSheets ?? [],
     schedulePackIssues: model.schedulePackIssues ?? [],
   };
@@ -874,6 +927,10 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     underlays: [],
     objects: [],
     objectChangeEvents: [],
+    titleBlock: {},
+    revisionBlock: {
+      revisions: [],
+    },
     scheduleSheets: [],
     schedulePackIssues: [],
   });

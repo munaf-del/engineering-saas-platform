@@ -901,6 +901,14 @@ export function formatDrawingRevision(drawing: { currentRevision: number }) {
   return `R${drawing.currentRevision}`;
 }
 
+export function getDraftingCurrentRevisionLabel(model: DraftingModel) {
+  return model.revisionBlock?.currentRevision || model.revisionBlock?.revisions.at(-1)?.revision;
+}
+
+export function getDraftingDrawingTitle(model: DraftingModel, fallback: string) {
+  return model.titleBlock?.drawingTitle?.trim() || fallback;
+}
+
 export function buildDraftingExportFilename(title: string) {
   return (
     title

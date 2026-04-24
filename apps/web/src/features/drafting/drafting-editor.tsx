@@ -12,6 +12,7 @@ import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingStage } from './components/drafting-stage';
+import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
 import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
@@ -33,6 +34,8 @@ import {
   createDraftingObject,
   formatDrawingRevision,
   formatDraftingTimestamp,
+  getDraftingCurrentRevisionLabel,
+  getDraftingDrawingTitle,
   getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
   updateLayer,
@@ -50,6 +53,7 @@ export function DraftingEditor({
   project: Project;
 }) {
   const { user } = useAuth();
+  const [titleRevisionOpen, setTitleRevisionOpen] = React.useState(false);
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
   const history = useDraftingHistory(projectId, drawingId);
@@ -85,14 +89,21 @@ export function DraftingEditor({
 
   const currentDrawing = history.drawing;
   const currentModel = history.model;
+  const drawingRevisionLabel =
+    getDraftingCurrentRevisionLabel(currentModel) ?? formatDrawingRevision(currentDrawing);
+  const drawingTitle = getDraftingDrawingTitle(currentModel, currentDrawing.title);
   const scheduleMetadata = {
+    checkedBy: currentModel.titleBlock?.checkedBy,
+    clientName: currentModel.titleBlock?.clientName,
     drawingId: currentDrawing.id,
+    drawingNumber: currentModel.titleBlock?.drawingNumber,
+    drawingRevision: drawingRevisionLabel,
     drawingStatus: currentDrawing.status,
-    drawingTitle: currentDrawing.title,
+    drawingTitle,
     generatedAtLabel: `Updated ${formatDraftingTimestamp(currentDrawing.updatedAt)}`,
     projectCode: project.code,
-    projectName: project.name,
-    revision: formatDrawingRevision(currentDrawing),
+    projectName: currentModel.titleBlock?.projectName ?? project.name,
+    revision: drawingRevisionLabel,
   };
   const visibleUnderlays = getVisibleDraftingUnderlays(currentModel);
   const visibleObjects = getVisibleDraftingObjects(currentModel);
@@ -241,11 +252,19 @@ export function DraftingEditor({
         drawing={currentDrawing}
         isDirty={history.isDirty}
         isSaving={history.isSaving}
+        currentRevisionLabel={drawingRevisionLabel}
         onExportJson={() => downloadDraftingModelJson(currentModel, currentDrawing.title)}
         onFitView={view.handleFitView}
+        onOpenTitleRevision={() => setTitleRevisionOpen(true)}
         onSave={handleSaveModel}
         projectCode={project.code}
         projectId={projectId}
+      />
+      <DraftingTitleRevisionDialog
+        model={currentModel}
+        onModelChange={history.patchModel}
+        onOpenChange={setTitleRevisionOpen}
+        open={titleRevisionOpen}
       />
 
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_340px]">

@@ -17,6 +17,7 @@ describe('DraftingToolbar', () => {
         isSaving={false}
         onExportJson={() => undefined}
         onFitView={() => undefined}
+        onOpenTitleRevision={() => undefined}
         onSave={() => undefined}
         projectCode="NSYD"
         projectId="project-1"
@@ -26,6 +27,26 @@ describe('DraftingToolbar', () => {
     expect(markup).toContain('/projects/project-1/drafting/drawing-1/schedules/preview');
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('Schedule Preview');
+    expect(markup).toContain('Title / Revision');
+  });
+
+  it('shows the current drawing revision metadata badge when available', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingToolbar
+        currentRevisionLabel="B"
+        drawing={drawing()}
+        isDirty={false}
+        isSaving={false}
+        onExportJson={() => undefined}
+        onFitView={() => undefined}
+        onOpenTitleRevision={() => undefined}
+        onSave={() => undefined}
+        projectCode="NSYD"
+        projectId="project-1"
+      />,
+    );
+
+    expect(markup).toContain('Current rev B');
   });
 });
 

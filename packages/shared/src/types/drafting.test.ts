@@ -16,22 +16,97 @@ describe('drafting defaults', () => {
     expect(parsed.units).toBe('mm');
     expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
+    expect(parsed.titleBlock).toEqual({});
+    expect(parsed.revisionBlock).toEqual({ revisions: [] });
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
   });
 
-  it('hydrates older drafting models without schedule sheet definitions or issue snapshots', () => {
+  it('hydrates older drafting models without title, revision, schedule sheet, or issue metadata', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));
+    delete legacyModel.titleBlock;
+    delete legacyModel.revisionBlock;
     delete legacyModel.scheduleSheets;
     delete legacyModel.schedulePackIssues;
     const parsed = DraftingModelSchema.parse(legacyModel);
 
+    expect(parsed.titleBlock).toEqual({});
+    expect(parsed.revisionBlock).toEqual({ revisions: [] });
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.objectChangeEvents).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);
+  });
+
+  it('accepts and preserves title block metadata', () => {
+    const model = createEmptyDraftingModel('drawing-title-block');
+    model.titleBlock = {
+      approvedBy: 'Principal',
+      checkedBy: 'Checker',
+      clientName: 'Harbour Client',
+      discipline: 'Structural',
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Plan',
+      drawnBy: 'Drafter',
+      organisationName: 'EngPlatform Demo',
+      projectName: 'NORTH SYDNEY',
+      projectNumber: 'NS-001',
+      scale: '1:100',
+      sheetNumber: '1',
+      sheetTotal: '3',
+      status: 'for_review',
+    };
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.titleBlock).toMatchObject({
+      clientName: 'Harbour Client',
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Plan',
+      status: 'for_review',
+    });
+  });
+
+  it('accepts and preserves revision block metadata with the current revision selection', () => {
+    const model = createEmptyDraftingModel('drawing-revision-block');
+    model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'Drafter',
+          id: 'revision-a',
+          issuedFor: 'Review',
+          revision: 'A',
+          status: 'for_review',
+        },
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-25',
+          description: 'Client markups incorporated',
+          drawnBy: 'Drafter',
+          id: 'revision-b',
+          issuedFor: 'Information',
+          revision: 'B',
+          status: 'for_information',
+        },
+      ],
+    };
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.revisionBlock.currentRevision).toBe('B');
+    expect(parsed.revisionBlock.revisions).toHaveLength(2);
+    expect(parsed.revisionBlock.revisions[1]).toMatchObject({
+      description: 'Client markups incorporated',
+      revision: 'B',
+    });
   });
 
   it('accepts optional object provenance and model change events', () => {

@@ -285,6 +285,51 @@ describe('drafting schedule sheet render model', () => {
     expect(exported).not.toContain('"buffer"');
   });
 
+  it('includes drawing title and revision metadata in the schedule pack manifest json', () => {
+    const model = modelWith(['pile']);
+    model.titleBlock = {
+      clientName: 'North Client',
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+      projectName: 'NORTH SYDNEY',
+    };
+    model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'Drafter',
+          id: 'revision-b',
+          issuedFor: 'Review',
+          revision: 'B',
+          status: 'for_review',
+        },
+      ],
+    };
+    const pack = buildDraftingScheduleSheetPack({
+      definitions: [
+        createDraftingScheduleSheetDefinition({
+          id: 'sheet-shoring',
+          includedScheduleGroups: ['shoring_piles'],
+          name: 'Shoring Pack',
+        }),
+      ],
+      metadata: metadata(),
+      model,
+    });
+    const parsed = JSON.parse(serializeDraftingScheduleSheetPackJson(pack));
+
+    expect(parsed.drawingMetadata).toMatchObject({
+      clientName: 'North Client',
+      currentRevision: 'B',
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+    });
+  });
+
   it('returns an empty printable pack for an empty sheet definition list', () => {
     const pack = buildDraftingScheduleSheetPack({
       definitions: [],
@@ -378,7 +423,11 @@ describe('drafting schedule sheet render model', () => {
         new Map([
           [
             'root-template-1',
-            buildRootSheetTemplateRecord('root-template-1', 'Locked issue template', lockedTemplate),
+            buildRootSheetTemplateRecord(
+              'root-template-1',
+              'Locked issue template',
+              lockedTemplate,
+            ),
           ],
         ]),
       ),

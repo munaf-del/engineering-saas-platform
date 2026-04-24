@@ -24,6 +24,7 @@ import {
   DRAFTING_SERVICE_RISK_STATUSES,
   DRAFTING_SERVICE_STATUSES,
   DRAFTING_SERVICE_TYPES,
+  DRAFTING_TITLE_BLOCK_STATUSES,
 } from '../types/drafting.js';
 
 const DraftingPointSchema = z.object({
@@ -193,6 +194,42 @@ export const DraftingSchedulePackIssueSchema = z.object({
   lockedSheetDefinitions: z.array(DraftingLockedScheduleSheetDefinitionSchema),
   lockedScheduleSummary: DraftingScheduleSummarySnapshotSchema,
   pageCount: z.number().int().nonnegative(),
+});
+
+export const DraftingTitleBlockMetadataSchema = z.object({
+  projectName: z.string().optional(),
+  projectNumber: z.string().optional(),
+  clientName: z.string().optional(),
+  drawingTitle: z.string().optional(),
+  drawingNumber: z.string().optional(),
+  sheetNumber: z.string().optional(),
+  sheetTotal: z.string().optional(),
+  scale: z.string().optional(),
+  discipline: z.string().optional(),
+  status: z.enum(DRAFTING_TITLE_BLOCK_STATUSES).optional(),
+  designedBy: z.string().optional(),
+  drawnBy: z.string().optional(),
+  checkedBy: z.string().optional(),
+  approvedBy: z.string().optional(),
+  organisationName: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const DraftingRevisionBlockRowSchema = z.object({
+  id: z.string().min(1),
+  revision: z.string(),
+  date: z.string(),
+  description: z.string(),
+  issuedFor: z.string(),
+  drawnBy: z.string(),
+  checkedBy: z.string(),
+  approvedBy: z.string(),
+  status: z.string(),
+});
+
+export const DraftingRevisionBlockMetadataSchema = z.object({
+  currentRevision: z.string().optional(),
+  revisions: z.array(DraftingRevisionBlockRowSchema).default([]),
 });
 
 const DraftingObjectBaseSchema = z.object({
@@ -570,6 +607,8 @@ export const DraftingModelSchema = z.object({
   underlays: z.array(DraftingUnderlaySchema),
   objects: z.array(DraftingObjectSchema),
   objectChangeEvents: z.array(DraftingObjectChangeEventSchema).default([]),
+  titleBlock: DraftingTitleBlockMetadataSchema.default({}),
+  revisionBlock: DraftingRevisionBlockMetadataSchema.default({ revisions: [] }),
   scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
   schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
 });

@@ -79,6 +79,19 @@ jest.mock('@eng/shared', () => {
         }),
       ]),
     ),
+    titleBlock: z
+      .object({
+        drawingTitle: z.string().optional(),
+        drawingNumber: z.string().optional(),
+        status: z.string().optional(),
+      })
+      .default({}),
+    revisionBlock: z
+      .object({
+        currentRevision: z.string().optional(),
+        revisions: z.array(z.record(z.unknown())).default([]),
+      })
+      .default({ revisions: [] }),
     scheduleSheets: z.array(z.unknown()).default([]),
     schedulePackIssues: z.array(z.unknown()).default([]),
   });
@@ -200,6 +213,46 @@ describe('DraftingService', () => {
     );
     expect(result.status).toBe('draft');
   });
+
+  it('persists title block and revision block metadata through the model save path', async () => {
+    const model = {
+      ...createEmptyModel(drawingId),
+      revisionBlock: {
+        currentRevision: 'B',
+        revisions: [
+          {
+            approvedBy: 'Approver',
+            checkedBy: 'Checker',
+            date: '2026-04-24',
+            description: 'Issued for review',
+            drawnBy: 'Drafter',
+            id: 'revision-b',
+            issuedFor: 'Review',
+            revision: 'B',
+            status: 'for_review',
+          },
+        ],
+      },
+      titleBlock: {
+        drawingNumber: 'S-1001',
+        drawingTitle: 'Retention Wall General Arrangement',
+        status: 'for_review',
+      },
+    };
+
+    await service.saveModel(access, drawingId, model);
+
+    expect(prisma.draftingDrawing.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          modelJson: expect.objectContaining({
+            revisionBlock: model.revisionBlock,
+            titleBlock: model.titleBlock,
+          }),
+        }),
+      }),
+    );
+  });
 });
 
 function createEmptyModel(drawingId: string) {
@@ -232,6 +285,10 @@ function createEmptyModel(drawingId: string) {
     ],
     underlays: [],
     objects: [],
+    titleBlock: {},
+    revisionBlock: {
+      revisions: [],
+    },
     scheduleSheets: [],
     schedulePackIssues: [],
   };

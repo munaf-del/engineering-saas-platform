@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import type { DraftingDrawing } from '@eng/shared';
-import { ArrowLeft, Download, ExternalLink, Save } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, FileText, Save } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -11,19 +11,23 @@ import { formatDrawingRevision } from '../model-utils';
 
 export function DraftingToolbar({
   drawing,
+  currentRevisionLabel,
   isDirty,
   isSaving,
   onExportJson,
   onFitView,
+  onOpenTitleRevision,
   onSave,
   projectCode,
   projectId,
 }: {
   drawing: DraftingDrawing;
+  currentRevisionLabel?: string;
   isDirty: boolean;
   isSaving: boolean;
   onExportJson: () => void;
   onFitView: () => void;
+  onOpenTitleRevision: () => void;
   onSave: () => void;
   projectCode: string;
   projectId: string;
@@ -49,6 +53,9 @@ export function DraftingToolbar({
               {drawing.status}
             </Badge>
             <Badge variant="outline">{formatDrawingRevision(drawing)}</Badge>
+            {currentRevisionLabel ? (
+              <Badge variant="secondary">Current rev {currentRevisionLabel}</Badge>
+            ) : null}
             {isDirty ? (
               <Badge variant="warning">Unsaved changes</Badge>
             ) : (
@@ -74,8 +81,9 @@ export function DraftingToolbar({
               <Download className="mr-2 h-4 w-4" />
               Export JSON
             </Button>
-            <Button variant="outline" disabled>
-              Revision Placeholder
+            <Button variant="outline" onClick={onOpenTitleRevision}>
+              <FileText className="mr-2 h-4 w-4" />
+              Title / Revision
             </Button>
             <Button onClick={onSave} disabled={!isDirty || isSaving}>
               <Save className="mr-2 h-4 w-4" />

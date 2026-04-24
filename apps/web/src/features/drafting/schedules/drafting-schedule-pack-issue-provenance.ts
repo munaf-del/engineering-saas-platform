@@ -11,6 +11,7 @@ import type {
 } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import type {
+  DraftingScheduleDrawingMetadata,
   DraftingScheduleSheetMetadata,
   DraftingScheduleSheetTemplateSource,
 } from './drafting-schedule-sheet';
@@ -19,7 +20,10 @@ import type {
   DraftingScheduleRow,
   DraftingScheduleSummary,
 } from './drafting-schedule-types';
-import { buildDraftingScheduleSheetPack } from './drafting-schedule-sheet';
+import {
+  buildDraftingScheduleSheetPack,
+  buildScheduleDrawingMetadata,
+} from './drafting-schedule-sheet';
 import {
   getOrderedScheduleSheetDefinitions,
   getScheduleSheetRootTemplateId,
@@ -252,6 +256,7 @@ export type DraftingSchedulePackIssueHistoryRow = {
 
 export type DraftingSchedulePackIssueManifest = {
   comparison: DraftingSchedulePackIssueComparisonSummary;
+  drawingMetadata: DraftingScheduleDrawingMetadata;
   driftStatus: DraftingSchedulePackIssueDriftState;
   issueId: string;
   issueName: string;
@@ -363,6 +368,7 @@ export function buildDraftingSchedulePackIssueManifest(args: {
 
   return {
     comparison: detail.comparison,
+    drawingMetadata: buildScheduleDrawingMetadata(args.model),
     driftStatus: detail.comparison.driftState,
     issueId: detail.issueId,
     issueName: detail.issueName,

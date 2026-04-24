@@ -566,6 +566,14 @@ describe('drafting schedule pack issue provenance', () => {
             rowCount: { difference: 0, issued: 1, live: 1 },
             sheetCount: { difference: 0, issued: 0, live: 0 },
           },
+          drawingMetadata: {
+            clientName: null,
+            currentRevision: null,
+            currentRevisionRow: null,
+            drawingNumber: null,
+            drawingTitle: null,
+            titleBlock: {},
+          },
           driftStatus: 'row_summary_drift',
           issueId: 'issue-moved',
           issueName: 'Moved Issue',
@@ -676,6 +684,26 @@ describe('drafting schedule pack issue provenance', () => {
         ],
       ]),
     });
+    base.model.titleBlock = {
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+    };
+    base.model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'Approver',
+          checkedBy: 'Checker',
+          date: '2026-04-24',
+          description: 'Drawing metadata revision',
+          drawnBy: 'Drafter',
+          id: 'revision-b',
+          issuedFor: 'Review',
+          revision: 'B',
+          status: 'for_review',
+        },
+      ],
+    };
 
     const manifest = buildDraftingSchedulePackIssueManifest({
       issue: base.issue,
@@ -690,6 +718,11 @@ describe('drafting schedule pack issue provenance', () => {
         issueId: 'issue-a',
         issuePurpose: 'For construction',
         issueStatus: 'issued',
+        drawingMetadata: expect.objectContaining({
+          currentRevision: 'B',
+          drawingNumber: 'S-1001',
+          drawingTitle: 'Retention Wall General Arrangement',
+        }),
         pageCount: 1,
         revisionLabel: 'A',
         snapshotStatus: 'locked_template_snapshot',
