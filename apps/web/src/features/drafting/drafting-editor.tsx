@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
+import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingStage } from './components/drafting-stage';
@@ -316,7 +317,7 @@ export function DraftingEditor({
           <CardHeader>
             <CardTitle className="text-base">Inspector</CardTitle>
             <CardDescription>
-              Edit object properties, layer controls, underlays, and derived schedules.
+              Edit object properties, layer controls, underlays, sheets, and derived schedules.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -324,10 +325,11 @@ export function DraftingEditor({
               value={drafting.activeTab}
               onValueChange={(value) => drafting.setActiveTab(value as typeof drafting.activeTab)}
             >
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="properties">Properties</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 <TabsTrigger value="underlays">Underlays</TabsTrigger>
+                <TabsTrigger value="sheets">Sheets</TabsTrigger>
                 <TabsTrigger value="schedules">Schedules</TabsTrigger>
               </TabsList>
 
@@ -374,6 +376,17 @@ export function DraftingEditor({
                     underlays={currentModel.underlays}
                     calibrationState={underlays.calibrationState}
                     cropModeUnderlayId={underlays.activeCropUnderlayId}
+                  />
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="sheets">
+                <ScrollArea className="h-[580px] pr-3">
+                  <DraftingDrawingSheetsPanel
+                    drawingTitle={currentDrawing.title}
+                    model={currentModel}
+                    onModelChange={history.replaceModel}
+                    projectId={projectId}
                   />
                 </ScrollArea>
               </TabsContent>

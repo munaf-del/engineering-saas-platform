@@ -1,0 +1,182 @@
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
+import { createEmptyDraftingModel, type DraftingDrawing, type Project } from '@eng/shared';
+import { DraftingDrawingSheetPage } from './drafting-drawing-sheet-preview';
+import { createDraftingDrawingSheetDefinition } from './drafting-drawing-sheet-utils';
+
+vi.mock('../components/drafting-pdf-underlay', () => ({
+  DraftingPdfUnderlay({ underlay }: { underlay: { id: string } }) {
+    return <g data-testid="mock-drafting-pdf-underlay" data-underlay-id={underlay.id} />;
+  },
+}));
+
+describe('drafting drawing sheet preview', () => {
+  it('renders drafting geometry on a formal sheet with title and current revision metadata', () => {
+    const drawing = createDrawing();
+    const sheet = createDraftingDrawingSheetDefinition({
+      id: 'drawing-sheet-1',
+      name: 'Geometry Sheet',
+      sheetNumber: 'S-101',
+      title: 'Retention Plan',
+      viewport: {
+        center: { x: 1000, y: 1000 },
+        scale: 0.05,
+      },
+    });
+    drawing.model.titleBlock = {
+      approvedBy: 'APP',
+      checkedBy: 'CHK',
+      drawingNumber: 'S-1001',
+      drawingTitle: 'Retention Wall General Arrangement',
+      drawnBy: 'DRN',
+      projectName: 'NORTH SYDNEY',
+      status: 'for_review',
+    };
+    drawing.model.revisionBlock = {
+      currentRevision: 'B',
+      revisions: [
+        {
+          approvedBy: 'APR',
+          checkedBy: 'CKR',
+          date: '2026-04-24',
+          description: 'Issued for review',
+          drawnBy: 'AVD',
+          id: 'revision-b',
+          issuedFor: 'Review',
+          revision: 'B',
+          status: 'for_review',
+        },
+      ],
+    };
+    drawing.model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 1000, y: 1000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={drawing.model.revisionBlock.revisions[0]!}
+        drawing={drawing}
+        drawingRevision="B"
+        drawingTitle="Retention Wall General Arrangement"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="drafting-drawing-sheet-page"');
+    expect(markup).toContain('data-testid="drafting-geometry-viewport"');
+    expect(markup).toContain('data-drafting-object="true"');
+    expect(markup).toContain('P1');
+    expect(markup).toContain('Retention Plan');
+    expect(markup).toContain('Retention Wall General Arrangement');
+    expect(markup).toContain('S-1001');
+    expect(markup).toContain('S-101');
+    expect(markup).toContain('for_review');
+    expect(markup).toContain('AVD');
+    expect(markup).toContain('CKR');
+    expect(markup).toContain('APR');
+  });
+
+  it('hides renderer text labels when object labels are disabled', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeObjectLabels: false,
+    };
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).toContain('drafting-sheet-hide-labels');
+    expect(markup).toContain('.drafting-sheet-hide-labels text{display:none}');
+  });
+
+  it('uses existing PDF underlay rendering when underlays are included and preserves fallback metadata', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeUnderlays: true,
+    };
+    drawing.model.underlays.push({
+      id: 'underlay-1',
+      name: 'Survey underlay',
+      fileId: 'document-1',
+      fileName: 'survey.pdf',
+      pageNumber: 2,
+      visible: true,
+      opacity: 0.65,
+      locked: false,
+      transform: { x: 0, y: 0, scale: 1, rotationDeg: 0 },
+      crop: null,
+      calibration: null,
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="mock-drafting-pdf-underlay"');
+    expect(markup).toContain('PDF underlay:');
+    expect(markup).toContain('survey.pdf');
+  });
+});
+
+const project = {
+  id: 'project-1',
+  code: 'NSYD',
+  name: 'NORTH SYDNEY',
+  organisationId: 'org-1',
+  status: 'active',
+  createdAt: '2026-04-24T00:00:00.000Z',
+  updatedAt: '2026-04-24T00:00:00.000Z',
+} as Project;
+
+function createDrawing(): DraftingDrawing {
+  return {
+    id: 'drawing-1',
+    projectId: 'project-1',
+    title: 'Drafting Geometry Sheet QA',
+    status: 'draft',
+    currentRevision: 0,
+    modelVersion: 1,
+    objectCount: 0,
+    createdById: null,
+    updatedById: null,
+    createdAt: '2026-04-24T00:00:00.000Z',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+    model: createEmptyDraftingModel('drawing-1'),
+    revisions: [],
+  };
+}

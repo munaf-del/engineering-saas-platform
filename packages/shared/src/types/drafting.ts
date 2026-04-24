@@ -227,6 +227,14 @@ export const DRAFTING_SCHEDULE_SHEET_ORIENTATIONS = ['portrait', 'landscape'] as
 export type DraftingScheduleSheetOrientation =
   (typeof DRAFTING_SCHEDULE_SHEET_ORIENTATIONS)[number];
 
+export const DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES = [
+  'model_extents',
+  'selected_extents',
+  'manual',
+] as const;
+export type DraftingDrawingSheetViewportFitMode =
+  (typeof DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES)[number];
+
 export const DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES = ['normal', 'compact'] as const;
 export type DraftingScheduleSheetTableDensity =
   (typeof DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES)[number];
@@ -314,6 +322,38 @@ export type DraftingScheduleSheetDefinition = {
   projectMetadata?: DraftingScheduleSheetProjectMetadataOverrides;
   tableDensity: DraftingScheduleSheetTableDensity;
   pageOrder: number;
+};
+
+export type DraftingDrawingSheetLayerFilter = {
+  visibleLayerIds?: DraftingLayerId[];
+  hiddenLayerIds?: DraftingLayerId[];
+};
+
+export type DraftingDrawingSheetViewport = {
+  center: DraftingPoint;
+  scale: number;
+  rotationDeg?: number;
+  widthMm?: number;
+  heightMm?: number;
+  fitMode: DraftingDrawingSheetViewportFitMode;
+};
+
+export type DraftingDrawingSheetDefinition = {
+  id: string;
+  name: string;
+  title: string;
+  sheetNumber: string;
+  rootSheetTemplateId?: string | null;
+  pageSize: DraftingScheduleSheetPageSize;
+  orientation: DraftingScheduleSheetOrientation;
+  scaleLabel: string;
+  viewport: DraftingDrawingSheetViewport;
+  layerFilter?: DraftingDrawingSheetLayerFilter;
+  includeUnderlays: boolean;
+  includeGrid: boolean;
+  includeObjectLabels: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DraftingScheduleSheetTemplateRectSnapshot = {
@@ -723,6 +763,7 @@ export type DraftingModel = {
   revisionBlock?: DraftingRevisionBlockMetadata;
   scheduleSheets: DraftingScheduleSheetDefinition[];
   schedulePackIssues: DraftingSchedulePackIssue[];
+  drawingSheets: DraftingDrawingSheetDefinition[];
 };
 
 export type DraftingObjectChangeEvent = {
@@ -910,6 +951,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     },
     scheduleSheets: model.scheduleSheets ?? [],
     schedulePackIssues: model.schedulePackIssues ?? [],
+    drawingSheets: model.drawingSheets ?? [],
   };
 }
 
@@ -933,6 +975,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     },
     scheduleSheets: [],
     schedulePackIssues: [],
+    drawingSheets: [],
   });
 }
 

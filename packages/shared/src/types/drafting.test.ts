@@ -20,21 +20,24 @@ describe('drafting defaults', () => {
     expect(parsed.revisionBlock).toEqual({ revisions: [] });
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
+    expect(parsed.drawingSheets).toEqual([]);
   });
 
-  it('hydrates older drafting models without title, revision, schedule sheet, or issue metadata', () => {
+  it('hydrates older drafting models without title, revision, schedule sheet, issue, or drawing sheet metadata', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));
     delete legacyModel.titleBlock;
     delete legacyModel.revisionBlock;
     delete legacyModel.scheduleSheets;
     delete legacyModel.schedulePackIssues;
+    delete legacyModel.drawingSheets;
     const parsed = DraftingModelSchema.parse(legacyModel);
 
     expect(parsed.titleBlock).toEqual({});
     expect(parsed.revisionBlock).toEqual({ revisions: [] });
     expect(parsed.scheduleSheets).toEqual([]);
     expect(parsed.schedulePackIssues).toEqual([]);
+    expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.objectChangeEvents).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);
@@ -320,6 +323,53 @@ describe('drafting defaults', () => {
       rootSheetTemplateId: 'root-template-1',
       tableDensity: 'compact',
       title: 'Anchor Installation Schedule',
+    });
+  });
+
+  it('accepts and preserves drawing sheet definitions', () => {
+    const model = createEmptyDraftingModel('drawing-geometry-sheets');
+    model.drawingSheets.push({
+      id: 'drawing-sheet-1',
+      name: 'Geometry Sheet 1',
+      title: 'Retention Plan',
+      sheetNumber: 'S-101',
+      rootSheetTemplateId: 'root-template-1',
+      pageSize: 'a3',
+      orientation: 'landscape',
+      scaleLabel: '1:100',
+      viewport: {
+        center: { x: 12500, y: 4500 },
+        scale: 0.12,
+        rotationDeg: 0,
+        widthMm: 36000,
+        heightMm: 22000,
+        fitMode: 'model_extents',
+      },
+      layerFilter: {
+        visibleLayerIds: ['piles', 'shoring'],
+        hiddenLayerIds: ['notes'],
+      },
+      includeUnderlays: true,
+      includeGrid: false,
+      includeObjectLabels: true,
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.drawingSheets).toHaveLength(1);
+    expect(parsed.drawingSheets[0]).toMatchObject({
+      id: 'drawing-sheet-1',
+      includeUnderlays: true,
+      pageSize: 'a3',
+      rootSheetTemplateId: 'root-template-1',
+      scaleLabel: '1:100',
+      sheetNumber: 'S-101',
+      viewport: {
+        center: { x: 12500, y: 4500 },
+        fitMode: 'model_extents',
+      },
     });
   });
 

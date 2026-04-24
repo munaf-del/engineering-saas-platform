@@ -94,6 +94,7 @@ jest.mock('@eng/shared', () => {
       .default({ revisions: [] }),
     scheduleSheets: z.array(z.unknown()).default([]),
     schedulePackIssues: z.array(z.unknown()).default([]),
+    drawingSheets: z.array(z.unknown()).default([]),
   });
 
   return {
@@ -253,6 +254,49 @@ describe('DraftingService', () => {
       }),
     );
   });
+
+  it('persists drawing sheet definitions through the model save path', async () => {
+    const model = {
+      ...createEmptyModel(drawingId),
+      drawingSheets: [
+        {
+          id: 'drawing-sheet-1',
+          name: 'Geometry Sheet',
+          title: 'Retention Wall Plan',
+          sheetNumber: 'S-101',
+          rootSheetTemplateId: null,
+          pageSize: 'a3',
+          orientation: 'landscape',
+          scaleLabel: 'Fit',
+          viewport: {
+            center: { x: 1000, y: 2000 },
+            fitMode: 'model_extents',
+            heightMm: 220,
+            rotationDeg: 0,
+            scale: 0.01,
+            widthMm: 360,
+          },
+          includeUnderlays: true,
+          includeGrid: true,
+          includeObjectLabels: true,
+          createdAt: '2026-04-24T00:00:00.000Z',
+          updatedAt: '2026-04-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    await service.saveModel(access, drawingId, model);
+
+    expect(prisma.draftingDrawing.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          modelJson: expect.objectContaining({
+            drawingSheets: model.drawingSheets,
+          }),
+        }),
+      }),
+    );
+  });
 });
 
 function createEmptyModel(drawingId: string) {
@@ -291,5 +335,6 @@ function createEmptyModel(drawingId: string) {
     },
     scheduleSheets: [],
     schedulePackIssues: [],
+    drawingSheets: [],
   };
 }

@@ -972,6 +972,7 @@ function createScheduleOnlyModel(summary: DraftingScheduleSummary): DraftingMode
     objects: [],
     scheduleSheets: [],
     schedulePackIssues: [],
+    drawingSheets: [],
   };
 }
 

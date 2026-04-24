@@ -3,6 +3,7 @@ import {
   DRAFTING_CALLOUT_ARROW_STYLES,
   DRAFTING_CALLOUT_LEADER_STYLES,
   DRAFTING_DIMENSION_UNITS,
+  DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES,
   DRAFTING_DRAWING_STATUSES,
   DRAFTING_FUTURE_OBJECT_TYPES,
   DRAFTING_LAYER_IDS,
@@ -114,6 +115,38 @@ export const DraftingScheduleSheetDefinitionSchema = z.object({
   projectMetadata: DraftingScheduleSheetProjectMetadataOverridesSchema.optional(),
   tableDensity: z.enum(DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES),
   pageOrder: z.number().int().nonnegative(),
+});
+
+export const DraftingDrawingSheetLayerFilterSchema = z.object({
+  visibleLayerIds: z.array(z.enum(DRAFTING_LAYER_IDS)).optional(),
+  hiddenLayerIds: z.array(z.enum(DRAFTING_LAYER_IDS)).optional(),
+});
+
+export const DraftingDrawingSheetViewportSchema = z.object({
+  center: DraftingPointSchema,
+  scale: z.number().positive(),
+  rotationDeg: z.number().finite().optional(),
+  widthMm: z.number().positive().optional(),
+  heightMm: z.number().positive().optional(),
+  fitMode: z.enum(DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES),
+});
+
+export const DraftingDrawingSheetDefinitionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  title: z.string().min(1),
+  sheetNumber: z.string().min(1),
+  rootSheetTemplateId: z.string().min(1).nullable().optional(),
+  pageSize: z.enum(DRAFTING_SCHEDULE_SHEET_PAGE_SIZES),
+  orientation: z.enum(DRAFTING_SCHEDULE_SHEET_ORIENTATIONS),
+  scaleLabel: z.string().min(1),
+  viewport: DraftingDrawingSheetViewportSchema,
+  layerFilter: DraftingDrawingSheetLayerFilterSchema.optional(),
+  includeUnderlays: z.boolean(),
+  includeGrid: z.boolean(),
+  includeObjectLabels: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export const DraftingScheduleSheetTemplateRectSnapshotSchema = z.object({
@@ -611,6 +644,7 @@ export const DraftingModelSchema = z.object({
   revisionBlock: DraftingRevisionBlockMetadataSchema.default({ revisions: [] }),
   scheduleSheets: z.array(DraftingScheduleSheetDefinitionSchema).default([]),
   schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
+  drawingSheets: z.array(DraftingDrawingSheetDefinitionSchema).default([]),
 });
 
 export const DraftingDrawingSummarySchema = z.object({

@@ -192,4 +192,45 @@ describe('drafting export utils', () => {
       revisions: [expect.objectContaining({ revision: 'B' })],
     });
   });
+
+  it('serializes drawing sheet definitions through the DraftingModel export', () => {
+    const model = createEmptyDraftingModel('drawing-sheet-export');
+    model.drawingSheets.push({
+      id: 'drawing-sheet-1',
+      name: 'Geometry Sheet',
+      title: 'Retention Plan',
+      sheetNumber: 'S-101',
+      rootSheetTemplateId: 'root-template-1',
+      pageSize: 'a3',
+      orientation: 'landscape',
+      scaleLabel: 'Fit',
+      viewport: {
+        center: { x: 5000, y: 3000 },
+        fitMode: 'model_extents',
+        heightMm: 220,
+        rotationDeg: 0,
+        scale: 0.02,
+        widthMm: 360,
+      },
+      includeUnderlays: true,
+      includeGrid: true,
+      includeObjectLabels: false,
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const parsed = JSON.parse(serializeDraftingModelJson(model));
+
+    expect(parsed.drawingSheets).toHaveLength(1);
+    expect(parsed.drawingSheets[0]).toMatchObject({
+      id: 'drawing-sheet-1',
+      includeUnderlays: true,
+      rootSheetTemplateId: 'root-template-1',
+      sheetNumber: 'S-101',
+      viewport: {
+        center: { x: 5000, y: 3000 },
+        fitMode: 'model_extents',
+      },
+    });
+  });
 });
