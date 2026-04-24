@@ -513,6 +513,20 @@ export type DraftingDrawingTransmittalSheet = {
   snapshotLabel: string;
 };
 
+export type DraftingTransmittalEvidenceSource = 'browser_print_pdf' | 'manual_upload';
+export type DraftingTransmittalEvidenceStatus = 'attached' | 'replaced' | 'removed';
+
+export type DraftingTransmittalEvidenceEvent = {
+  id: string;
+  action: DraftingTransmittalEvidenceStatus;
+  at: string;
+  by?: string;
+  artifactDocumentId?: string;
+  artifactFileName?: string;
+  artifactNotes?: string;
+  artifactSource: DraftingTransmittalEvidenceSource;
+};
+
 export type DraftingDrawingTransmittal = {
   id: string;
   transmittalNumber: string;
@@ -531,9 +545,20 @@ export type DraftingDrawingTransmittal = {
   lastExportedBy?: string;
   artifactFileName?: string;
   artifactDocumentId?: string;
+  artifactMimeType?: string;
+  artifactSizeBytes?: number;
+  artifactUploadedAt?: string;
+  artifactUploadedBy?: string;
+  artifactAttachedAt?: string;
+  artifactAttachedBy?: string;
   artifactAddedAt?: string;
   artifactAddedBy?: string;
   artifactNotes?: string;
+  artifactSource?: DraftingTransmittalEvidenceSource;
+  artifactStatus?: DraftingTransmittalEvidenceStatus;
+  artifactVersion?: number;
+  evidenceSignature?: string;
+  evidenceEvents?: DraftingTransmittalEvidenceEvent[];
   supersededAt?: string;
   supersededBy?: string;
   supersededByTransmittalId?: string;

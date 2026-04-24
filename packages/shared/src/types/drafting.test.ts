@@ -30,8 +30,18 @@ describe('drafting defaults', () => {
     model.drawingTransmittals.push({
       artifactAddedAt: '2026-04-24T02:00:00.000Z',
       artifactAddedBy: 'Avery Drafter',
+      artifactAttachedAt: '2026-04-24T02:00:00.000Z',
+      artifactAttachedBy: 'Avery Drafter',
+      artifactDocumentId: 'document-1',
       artifactFileName: 'TRN-001.pdf',
+      artifactMimeType: 'application/pdf',
       artifactNotes: 'Saved from browser print.',
+      artifactSizeBytes: 12345,
+      artifactSource: 'browser_print_pdf',
+      artifactStatus: 'attached',
+      artifactUploadedAt: '2026-04-24T01:30:00.000Z',
+      artifactUploadedBy: 'user-1',
+      artifactVersion: 1,
       cc: [],
       createdAt: '2026-04-24T00:00:00.000Z',
       id: 'transmittal-1',
@@ -54,6 +64,19 @@ describe('drafting defaults', () => {
       issuedBy: 'Avery Drafter',
       issuedTo: ['client@example.com'],
       manifestSignature: 'sig-12345678',
+      evidenceSignature: 'ev-12345678',
+      evidenceEvents: [
+        {
+          id: 'event-1',
+          action: 'attached',
+          at: '2026-04-24T02:00:00.000Z',
+          by: 'Avery Drafter',
+          artifactDocumentId: 'document-1',
+          artifactFileName: 'TRN-001.pdf',
+          artifactNotes: 'Saved from browser print.',
+          artifactSource: 'browser_print_pdf',
+        },
+      ],
       purpose: 'For information',
       status: 'superseded',
       supersededAt: '2026-04-24T03:00:00.000Z',
@@ -66,6 +89,12 @@ describe('drafting defaults', () => {
 
     expect(parsed.drawingTransmittals[0]).toMatchObject({
       artifactFileName: 'TRN-001.pdf',
+      artifactStatus: 'attached',
+      evidenceEvents: [
+        {
+          action: 'attached',
+        },
+      ],
       issueActionId: 'issue-transmittal-1-20260424010000000Z',
       issuedAt: '2026-04-24T01:00:00.000Z',
       manifestSignature: 'sig-12345678',

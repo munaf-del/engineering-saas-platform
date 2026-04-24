@@ -1,17 +1,20 @@
 import * as React from 'react';
 import Link from 'next/link';
-import type { DraftingDrawingTransmittalStatus, DraftingModel } from '@eng/shared';
+import type { Document, DraftingDrawingTransmittalStatus, DraftingModel } from '@eng/shared';
 import {
   Ban,
   CheckCircle2,
   Copy,
   ExternalLink,
+  FileText,
   FileJson,
   LockKeyhole,
   Plus,
   Save,
   TriangleAlert,
+  Upload,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,10 +27,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useProjectDocuments, useUploadProjectDocument } from '@/hooks/use-documents';
 import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
 import { downloadDraftingTransmittalManifestJson } from '../export-utils';
 import {
   addDrawingTransmittal,
+  attachDraftingTransmittalPdfEvidence,
   buildDraftingTransmittalWarnings,
   createDraftingTransmittal,
   duplicateDraftingTransmittalToDraft,
@@ -38,6 +43,7 @@ import {
   isDraftingTransmittalEditable,
   issueDraftingTransmittal,
   recordDraftingTransmittalManifestExport,
+  removeDraftingTransmittalPdfEvidence,
   suggestNextTransmittalNumber,
   supersedeDraftingTransmittal,
   updateDraftingTransmittal,
@@ -55,9 +61,6 @@ type TransmittalFormState = {
   status: DraftingDrawingTransmittalStatus;
   title: string;
   transmittalNumber: string;
-  artifactFileName: string;
-  artifactDocumentId: string;
-  artifactNotes: string;
 };
 
 export function DraftingTransmittalsPanel({
@@ -75,6 +78,8 @@ export function DraftingTransmittalsPanel({
 }) {
   const transmittals = React.useMemo(() => getDrawingTransmittals(model), [model]);
   const frozenIssues = React.useMemo(() => getFrozenDrawingSheetIssues(model), [model]);
+  const documentsQuery = useProjectDocuments(projectId, 'application/pdf');
+  const uploadDocument = useUploadProjectDocument(projectId);
   const { data: rootTemplates = [] } = useRootSheetTemplates();
   const rootTemplatesById = React.useMemo(
     () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
@@ -84,8 +89,16 @@ export function DraftingTransmittalsPanel({
   const [form, setForm] = React.useState<TransmittalFormState>(() =>
     createEmptyForm(currentUserName, suggestNextTransmittalNumber(model)),
   );
+  const [evidenceDocumentId, setEvidenceDocumentId] = React.useState('');
+  const [evidenceNotes, setEvidenceNotes] = React.useState('');
+  const [evidenceUploadFile, setEvidenceUploadFile] = React.useState<File | null>(null);
   const selectedTransmittal =
     transmittals.find((transmittal) => transmittal.id === selectedTransmittalId) ?? null;
+  const projectPdfDocuments = React.useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
+  const selectedEvidenceDocument =
+    projectPdfDocuments.find((document) => document.id === evidenceDocumentId) ??
+    projectPdfDocuments[0] ??
+    null;
   const selectedWarnings = selectedTransmittal
     ? buildDraftingTransmittalWarnings({
         model,
@@ -159,10 +172,9 @@ export function DraftingTransmittalsPanel({
       status: transmittal.status,
       title: transmittal.title,
       transmittalNumber: transmittal.transmittalNumber,
-      artifactDocumentId: transmittal.artifactDocumentId ?? '',
-      artifactFileName: transmittal.artifactFileName ?? '',
-      artifactNotes: transmittal.artifactNotes ?? '',
     });
+    setEvidenceDocumentId(transmittal.artifactDocumentId ?? projectPdfDocuments[0]?.id ?? '');
+    setEvidenceNotes(transmittal.artifactNotes ?? '');
   }
 
   function handleSave() {
@@ -181,17 +193,6 @@ export function DraftingTransmittalsPanel({
       status: form.status,
       title: form.title,
       transmittalNumber: form.transmittalNumber,
-      artifactAddedAt:
-        form.artifactFileName || form.artifactDocumentId || form.artifactNotes
-          ? new Date().toISOString()
-          : undefined,
-      artifactAddedBy:
-        form.artifactFileName || form.artifactDocumentId || form.artifactNotes
-          ? (currentUserName ?? form.issuedBy)
-          : undefined,
-      artifactDocumentId: form.artifactDocumentId,
-      artifactFileName: form.artifactFileName,
-      artifactNotes: form.artifactNotes,
     };
 
     if (selectedTransmittal) {
@@ -216,9 +217,6 @@ export function DraftingTransmittalsPanel({
       status: transmittal.status,
       title: transmittal.title,
       transmittalNumber: transmittal.transmittalNumber,
-      artifactDocumentId: transmittal.artifactDocumentId ?? '',
-      artifactFileName: transmittal.artifactFileName ?? '',
-      artifactNotes: transmittal.artifactNotes ?? '',
     });
   }
 
@@ -282,6 +280,114 @@ export function DraftingTransmittalsPanel({
         exportedBy: currentUserName ?? undefined,
         model,
         transmittalId,
+      }),
+    );
+  }
+
+  async function handleUploadEvidencePdf() {
+    if (!evidenceUploadFile || !selectedTransmittal) {
+      return;
+    }
+    if (!canAttachEvidence(selectedTransmittal.status)) {
+      toast.error('Issue or finalise the transmittal before attaching PDF evidence');
+      return;
+    }
+    if (
+      evidenceUploadFile.type !== 'application/pdf' &&
+      !evidenceUploadFile.name.toLowerCase().endsWith('.pdf')
+    ) {
+      toast.error('Only PDF files can be attached as transmittal evidence');
+      return;
+    }
+    if (selectedTransmittal.artifactDocumentId) {
+      const confirmed = window.confirm(
+        'Upload and replace the currently attached PDF evidence metadata? The issued sheet package stays locked.',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    try {
+      const document = await uploadDocument.mutateAsync({
+        file: evidenceUploadFile,
+        name: evidenceUploadFile.name.replace(/\.pdf$/i, ''),
+        entityType: 'drafting_transmittal_pdf_evidence',
+        entityId: selectedTransmittal.id,
+      });
+      setEvidenceUploadFile(null);
+      setEvidenceDocumentId(document.id);
+      attachEvidenceDocument(document, evidenceNotes, true, { skipReplaceConfirm: true });
+      toast.success('PDF evidence uploaded and attached');
+    } catch {
+      toast.error('Failed to upload PDF evidence');
+    }
+  }
+
+  function handleAttachSelectedEvidence() {
+    if (!selectedEvidenceDocument) {
+      return;
+    }
+    attachEvidenceDocument(selectedEvidenceDocument, evidenceNotes, false);
+  }
+
+  function attachEvidenceDocument(
+    document: Document,
+    notes: string,
+    fromUpload: boolean,
+    options: { skipReplaceConfirm?: boolean } = {},
+  ) {
+    if (!selectedTransmittal) {
+      return;
+    }
+    if (!canAttachEvidence(selectedTransmittal.status)) {
+      toast.error('Issue or finalise the transmittal before attaching PDF evidence');
+      return;
+    }
+    if (selectedTransmittal.artifactDocumentId && !options.skipReplaceConfirm) {
+      const confirmed = window.confirm(
+        'Replace the currently attached PDF evidence metadata? The issued sheet package stays locked.',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    onModelChange(
+      attachDraftingTransmittalPdfEvidence({
+        attachedBy: currentUserName ?? selectedTransmittal.issuedBy,
+        evidence: {
+          artifactDocumentId: document.id,
+          artifactFileName: document.fileName,
+          artifactMimeType: document.mimeType,
+          artifactNotes: notes,
+          artifactSizeBytes: document.sizeBytes,
+          artifactSource: fromUpload ? 'manual_upload' : 'browser_print_pdf',
+          artifactUploadedAt: document.createdAt,
+          artifactUploadedBy: document.uploadedBy,
+        },
+        model,
+        transmittalId: selectedTransmittal.id,
+      }),
+    );
+  }
+
+  function handleRemoveEvidence() {
+    if (!selectedTransmittal?.artifactDocumentId && !selectedTransmittal?.artifactFileName) {
+      return;
+    }
+    const confirmed = window.confirm(
+      'Remove the attached PDF evidence metadata from this transmittal? The project document file is not deleted.',
+    );
+    if (!confirmed) {
+      return;
+    }
+    onModelChange(
+      removeDraftingTransmittalPdfEvidence({
+        model,
+        notes: evidenceNotes,
+        removedBy: currentUserName ?? selectedTransmittal.issuedBy,
+        transmittalId: selectedTransmittal.id,
       }),
     );
   }
@@ -528,41 +634,22 @@ export function DraftingTransmittalsPanel({
           />
         </div>
 
-        <div className="space-y-2 rounded-md border p-2">
-          <div className="text-xs font-medium uppercase text-muted-foreground">
-            PDF evidence artifact
-          </div>
-          <WarningLine message="Browser Print / Save PDF remains the PDF path. Record the saved PDF evidence here after export." />
-          <div className="grid grid-cols-2 gap-2">
-            <LabeledInput
-              id="drafting-transmittal-artifact-file"
-              label="Artifact file name"
-              disabled={selectedIsLocked}
-              value={form.artifactFileName}
-              onChange={(value) => patchForm({ artifactFileName: value })}
-            />
-            <LabeledInput
-              id="drafting-transmittal-artifact-document"
-              label="Artifact document ID"
-              disabled={selectedIsLocked}
-              value={form.artifactDocumentId}
-              onChange={(value) => patchForm({ artifactDocumentId: value })}
-            />
-          </div>
-          <LabeledInput
-            id="drafting-transmittal-artifact-notes"
-            label="Artifact notes"
-            disabled={selectedIsLocked}
-            value={form.artifactNotes}
-            onChange={(value) => patchForm({ artifactNotes: value })}
-          />
-          {selectedTransmittal &&
-          selectedTransmittal.status !== 'draft' &&
-          !selectedTransmittal.artifactFileName &&
-          !selectedTransmittal.artifactDocumentId ? (
-            <WarningLine message="PDF evidence metadata is not attached yet." />
-          ) : null}
-        </div>
+        <EvidencePdfSection
+          documents={projectPdfDocuments}
+          documentsLoading={documentsQuery.isLoading}
+          evidenceDocumentId={selectedEvidenceDocument?.id ?? ''}
+          evidenceNotes={evidenceNotes}
+          isUploadPending={uploadDocument.isPending}
+          selectedTransmittal={selectedTransmittal}
+          uploadFile={evidenceUploadFile}
+          onAttachSelected={handleAttachSelectedEvidence}
+          onRefreshDocuments={() => documentsQuery.refetch()}
+          onRemove={handleRemoveEvidence}
+          onSelectDocument={setEvidenceDocumentId}
+          onSetNotes={setEvidenceNotes}
+          onSetUploadFile={setEvidenceUploadFile}
+          onUpload={handleUploadEvidencePdf}
+        />
 
         <div className="space-y-2 rounded-md border p-2">
           <div className="text-xs font-medium uppercase text-muted-foreground">
@@ -684,9 +771,6 @@ function createEmptyForm(
   transmittalNumber: string,
 ): TransmittalFormState {
   return {
-    artifactDocumentId: '',
-    artifactFileName: '',
-    artifactNotes: '',
     cc: '',
     issueDate: new Date().toISOString().slice(0, 10),
     issuedBy: currentUserName ?? '',
@@ -698,6 +782,186 @@ function createEmptyForm(
     title: 'Drawing issue package',
     transmittalNumber,
   };
+}
+
+function EvidencePdfSection({
+  documents,
+  documentsLoading,
+  evidenceDocumentId,
+  evidenceNotes,
+  isUploadPending,
+  onAttachSelected,
+  onRefreshDocuments,
+  onRemove,
+  onSelectDocument,
+  onSetNotes,
+  onSetUploadFile,
+  onUpload,
+  selectedTransmittal,
+  uploadFile,
+}: {
+  documents: Document[];
+  documentsLoading: boolean;
+  evidenceDocumentId: string;
+  evidenceNotes: string;
+  isUploadPending: boolean;
+  selectedTransmittal: ReturnType<typeof getDrawingTransmittals>[number] | null;
+  uploadFile: File | null;
+  onAttachSelected: () => void;
+  onRefreshDocuments: () => void;
+  onRemove: () => void;
+  onSelectDocument: (documentId: string) => void;
+  onSetNotes: (notes: string) => void;
+  onSetUploadFile: (file: File | null) => void;
+  onUpload: () => void;
+}) {
+  const canAttach = selectedTransmittal ? canAttachEvidence(selectedTransmittal.status) : false;
+  const hasAttachedEvidence = Boolean(
+    selectedTransmittal?.artifactDocumentId || selectedTransmittal?.artifactFileName,
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+            <FileText className="h-3.5 w-3.5" />
+            Evidence PDF
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Use Browser Print / Save PDF from the preview, then attach the saved PDF evidence here.
+          </p>
+        </div>
+        {selectedTransmittal?.artifactStatus ? (
+          <Badge variant={hasAttachedEvidence ? 'default' : 'secondary'}>
+            {hasAttachedEvidence ? 'Attached' : selectedTransmittal.artifactStatus}
+          </Badge>
+        ) : null}
+      </div>
+
+      {!selectedTransmittal ? (
+        <WarningLine message="Save a draft transmittal before evidence can be attached." />
+      ) : null}
+      {selectedTransmittal?.status === 'draft' ? (
+        <WarningLine message="Issue/finalise before attaching PDF evidence." />
+      ) : null}
+      {selectedTransmittal && canAttach && !hasAttachedEvidence ? (
+        <WarningLine message="No PDF evidence attached." />
+      ) : null}
+
+      {hasAttachedEvidence && selectedTransmittal ? (
+        <div className="rounded-md bg-muted/40 p-3 text-sm">
+          <div className="font-medium">
+            {selectedTransmittal.artifactFileName ?? 'PDF evidence'}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {selectedTransmittal.artifactSizeBytes
+              ? `${formatBytes(selectedTransmittal.artifactSizeBytes)} · `
+              : ''}
+            attached{' '}
+            {selectedTransmittal.artifactAttachedAt
+              ? formatDateTime(selectedTransmittal.artifactAttachedAt)
+              : '-'}
+            {selectedTransmittal.artifactAttachedBy
+              ? ` by ${selectedTransmittal.artifactAttachedBy}`
+              : ''}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Uploaded{' '}
+            {selectedTransmittal.artifactUploadedAt
+              ? formatDateTime(selectedTransmittal.artifactUploadedAt)
+              : '-'}
+            {selectedTransmittal.artifactDocumentId
+              ? ` · document ${selectedTransmittal.artifactDocumentId}`
+              : ''}
+          </div>
+          {selectedTransmittal.artifactNotes ? (
+            <p className="mt-2 text-xs">{selectedTransmittal.artifactNotes}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="space-y-1">
+        <Label htmlFor="drafting-transmittal-evidence-document">Project PDF document</Label>
+        <select
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canAttach || documentsLoading || documents.length === 0}
+          id="drafting-transmittal-evidence-document"
+          value={evidenceDocumentId}
+          onChange={(event) => onSelectDocument(event.target.value)}
+        >
+          {documents.length === 0 ? <option value="">No project PDFs uploaded yet</option> : null}
+          {documents.map((document) => (
+            <option key={document.id} value={document.id}>
+              {document.name} ({document.fileName})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="drafting-transmittal-evidence-notes">Evidence notes</Label>
+        <Input
+          disabled={!canAttach}
+          id="drafting-transmittal-evidence-notes"
+          value={evidenceNotes}
+          onChange={(event) => onSetNotes(event.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={!canAttach || !evidenceDocumentId}
+          size="sm"
+          type="button"
+          variant={hasAttachedEvidence ? 'outline' : 'default'}
+          onClick={onAttachSelected}
+        >
+          {hasAttachedEvidence ? 'Replace evidence' : 'Attach selected PDF'}
+        </Button>
+        <Button
+          disabled={!canAttach}
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={onRefreshDocuments}
+        >
+          Refresh PDFs
+        </Button>
+        <Button
+          disabled={!canAttach || !hasAttachedEvidence}
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={onRemove}
+        >
+          Remove evidence
+        </Button>
+      </div>
+
+      <div className="rounded-md border p-3">
+        <p className="mb-3 text-sm font-medium">Upload new evidence PDF</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input
+            accept=".pdf,application/pdf"
+            disabled={!canAttach}
+            type="file"
+            onChange={(event) => onSetUploadFile(event.target.files?.[0] ?? null)}
+          />
+          <Button
+            disabled={!canAttach || !uploadFile || isUploadPending}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={onUpload}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Upload and attach
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function splitList(value: string) {
@@ -713,4 +977,25 @@ function toIsoDate(value: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-AU', { dateStyle: 'medium' }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('en-AU', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function canAttachEvidence(status: DraftingDrawingTransmittalStatus) {
+  return status === 'issued' || status === 'superseded' || status === 'void';
 }

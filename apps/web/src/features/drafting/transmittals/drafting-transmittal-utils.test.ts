@@ -4,6 +4,7 @@ import { createDraftingDrawingSheetIssueSnapshot } from '../sheets/drafting-draw
 import { createDraftingDrawingSheetDefinition } from '../sheets/drafting-drawing-sheet-utils';
 import {
   addDrawingTransmittal,
+  attachDraftingTransmittalPdfEvidence,
   buildDraftingTransmittalManifest,
   buildDraftingTransmittalWarnings,
   createDraftingTransmittal,
@@ -12,6 +13,7 @@ import {
   getDrawingTransmittals,
   getIssueCompletenessWarnings,
   issueDraftingTransmittal,
+  removeDraftingTransmittalPdfEvidence,
   serializeDraftingTransmittalManifestJson,
   suggestNextTransmittalNumber,
   supersedeDraftingTransmittal,
@@ -181,6 +183,113 @@ describe('drafting transmittal helpers', () => {
     ).toThrow('Issued, superseded, void, and archived transmittals are locked.');
   });
 
+  it('attaches PDF evidence metadata to an issued transmittal without unlocking content', () => {
+    const issuedModel = createIssuedModel();
+    const issuedBefore = getDrawingTransmittals(issuedModel)[0]!;
+    const withEvidence = attachDraftingTransmittalPdfEvidence({
+      attachedAt: '2026-04-24T04:00:00.000Z',
+      attachedBy: 'Avery Drafter',
+      evidence: createEvidenceInput(),
+      model: issuedModel,
+      transmittalId: 'transmittal-1',
+    });
+    const issuedAfter = getDrawingTransmittals(withEvidence)[0]!;
+
+    expect(issuedAfter.includedDrawingSheetIssueIds).toEqual(
+      issuedBefore.includedDrawingSheetIssueIds,
+    );
+    expect(issuedAfter.includedSheets).toEqual(issuedBefore.includedSheets);
+    expect(issuedAfter.manifestSignature).toBe(issuedBefore.manifestSignature);
+    expect(issuedAfter.status).toBe('issued');
+    expect(issuedAfter).toMatchObject({
+      artifactDocumentId: 'document-1',
+      artifactFileName: 'TRN-001.pdf',
+      artifactMimeType: 'application/pdf',
+      artifactSizeBytes: 12345,
+      artifactStatus: 'attached',
+      artifactVersion: 1,
+      evidenceSignature: expect.stringMatching(/^ev-[0-9a-f]{8}$/),
+    });
+    expect(issuedAfter.evidenceEvents).toHaveLength(1);
+    expect(issuedAfter.evidenceEvents?.[0]).toMatchObject({
+      action: 'attached',
+      artifactDocumentId: 'document-1',
+    });
+  });
+
+  it('rejects attaching PDF evidence to a draft transmittal', () => {
+    const model = createModelWithIssue();
+    const draft = createDraftingTransmittal(model, {
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      issueDate: now,
+      purpose: 'For review',
+      title: 'Draft package',
+      transmittalNumber: 'TRN-001',
+    });
+
+    expect(() =>
+      attachDraftingTransmittalPdfEvidence({
+        evidence: createEvidenceInput(),
+        model: addDrawingTransmittal(model, draft),
+        transmittalId: 'transmittal-1',
+      }),
+    ).toThrow('Issue or finalise the transmittal before attaching PDF evidence.');
+  });
+
+  it('replaces and removes PDF evidence metadata with event state', () => {
+    const attached = attachDraftingTransmittalPdfEvidence({
+      attachedAt: '2026-04-24T04:00:00.000Z',
+      attachedBy: 'Avery Drafter',
+      evidence: createEvidenceInput(),
+      model: createIssuedModel(),
+      transmittalId: 'transmittal-1',
+    });
+    const replaced = attachDraftingTransmittalPdfEvidence({
+      attachedAt: '2026-04-24T05:00:00.000Z',
+      attachedBy: 'Casey Checker',
+      evidence: {
+        ...createEvidenceInput(),
+        artifactDocumentId: 'document-2',
+        artifactFileName: 'TRN-001-reprint.pdf',
+        artifactSizeBytes: 23456,
+      },
+      model: attached,
+      transmittalId: 'transmittal-1',
+    });
+    const replacedTransmittal = getDrawingTransmittals(replaced)[0]!;
+    expect(replacedTransmittal).toMatchObject({
+      artifactDocumentId: 'document-2',
+      artifactFileName: 'TRN-001-reprint.pdf',
+      artifactStatus: 'replaced',
+      artifactVersion: 2,
+    });
+    expect(replacedTransmittal.evidenceEvents?.map((event) => event.action)).toEqual([
+      'attached',
+      'replaced',
+    ]);
+
+    const removed = removeDraftingTransmittalPdfEvidence({
+      model: replaced,
+      notes: 'Superseded by revised saved PDF.',
+      removedAt: '2026-04-24T06:00:00.000Z',
+      removedBy: 'Casey Checker',
+      transmittalId: 'transmittal-1',
+    });
+    const removedTransmittal = getDrawingTransmittals(removed)[0]!;
+    expect(removedTransmittal).toMatchObject({
+      artifactDocumentId: undefined,
+      artifactFileName: undefined,
+      artifactStatus: 'removed',
+      artifactVersion: 3,
+    });
+    expect(removedTransmittal.evidenceEvents?.map((event) => event.action)).toEqual([
+      'attached',
+      'replaced',
+      'removed',
+    ]);
+  });
+
   it('duplicates an issued transmittal into an editable draft', () => {
     const model = createIssuedModel();
     const duplicated = duplicateDraftingTransmittalToDraft({
@@ -269,6 +378,28 @@ describe('drafting transmittal helpers', () => {
     });
   });
 
+  it('includes PDF evidence metadata in the manifest separately from the issue package signature', () => {
+    const attached = attachDraftingTransmittalPdfEvidence({
+      attachedAt: '2026-04-24T04:00:00.000Z',
+      attachedBy: 'Avery Drafter',
+      evidence: createEvidenceInput(),
+      model: createIssuedModel(),
+      transmittalId: 'transmittal-1',
+    });
+    const transmittal = getDrawingTransmittals(attached)[0]!;
+    const manifest = buildDraftingTransmittalManifest({ model: attached, transmittal });
+
+    expect(manifest.manifestSignature).toBe(transmittal.manifestSignature);
+    expect(manifest.pdfEvidence).toMatchObject({
+      artifactDocumentId: 'document-1',
+      artifactFileName: 'TRN-001.pdf',
+      artifactMimeType: 'application/pdf',
+      status: 'attached',
+    });
+    expect(manifest.evidenceEvents).toHaveLength(1);
+    expect(manifest.pdfEvidence.evidenceSignature).toBe(transmittal.evidenceSignature);
+  });
+
   it('serializes a manifest without raw token, binary, or image fields', () => {
     const model = createModelWithIssue();
     model.drawingSheetIssues[0]!.lockedObjects[0]!.provenance = {
@@ -294,6 +425,40 @@ describe('drafting transmittal helpers', () => {
     expect(json).not.toContain('raw-token');
     expect(json).not.toContain('not-for-manifest');
     expect(json).not.toContain('base64-image');
+  });
+
+  it('serializes PDF evidence metadata without PDF binary, images, tokens, or secrets', () => {
+    const attached = attachDraftingTransmittalPdfEvidence({
+      attachedAt: '2026-04-24T04:00:00.000Z',
+      attachedBy: 'Avery Drafter',
+      evidence: {
+        ...createEvidenceInput(),
+        artifactNotes:
+          'Saved PDF evidence. Do not include binary payloads, rendered images, or tokens here.',
+      },
+      model: createIssuedModel(),
+      transmittalId: 'transmittal-1',
+    });
+    const transmittal = getDrawingTransmittals(attached)[0]!;
+    const transmittalWithUnsafeFields = {
+      ...transmittal,
+      pdfBinaryPayload: 'JVBERi0xLjQK',
+      renderedImage: 'base64-image',
+      omnidotsToken: 'secret-token',
+      browserSessionSecret: 'session-secret',
+    } as typeof transmittal & Record<string, unknown>;
+    const json = serializeDraftingTransmittalManifestJson(
+      buildDraftingTransmittalManifest({
+        model: attached,
+        transmittal: transmittalWithUnsafeFields,
+      }),
+    );
+
+    expect(json).toContain('TRN-001.pdf');
+    expect(json).not.toContain('JVBERi0xLjQK');
+    expect(json).not.toContain('base64-image');
+    expect(json).not.toContain('secret-token');
+    expect(json).not.toContain('session-secret');
   });
 
   it('warns for legacy or incomplete issue snapshots and live-vs-issued drift', () => {
@@ -406,6 +571,19 @@ function createIssuedModel() {
     model: addDrawingTransmittal(model, transmittal),
     transmittalId: 'transmittal-1',
   });
+}
+
+function createEvidenceInput() {
+  return {
+    artifactDocumentId: 'document-1',
+    artifactFileName: 'TRN-001.pdf',
+    artifactMimeType: 'application/pdf',
+    artifactNotes: 'Saved from browser print.',
+    artifactSizeBytes: 12345,
+    artifactSource: 'browser_print_pdf' as const,
+    artifactUploadedAt: '2026-04-24T03:30:00.000Z',
+    artifactUploadedBy: 'user-1',
+  };
 }
 
 function createPile(): DraftingObject {

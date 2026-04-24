@@ -3,6 +3,7 @@ import type {
   DraftingDrawingTransmittal,
   DraftingDrawingTransmittalStatus,
   DraftingModel,
+  DraftingTransmittalEvidenceSource,
 } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import {
@@ -12,11 +13,6 @@ import {
 
 export type DraftingTransmittalInput = {
   allowExistingDuplicateNumber?: boolean;
-  artifactAddedAt?: string;
-  artifactAddedBy?: string;
-  artifactDocumentId?: string;
-  artifactFileName?: string;
-  artifactNotes?: string;
   cc?: string[];
   id: string;
   includedDrawingSheetIssueIds: string[];
@@ -30,14 +26,37 @@ export type DraftingTransmittalInput = {
   transmittalNumber: string;
 };
 
+export type DraftingTransmittalEvidenceInput = {
+  artifactAttachedAt?: string;
+  artifactAttachedBy?: string;
+  artifactDocumentId: string;
+  artifactFileName: string;
+  artifactMimeType: string;
+  artifactNotes?: string;
+  artifactSizeBytes: number;
+  artifactSource?: DraftingTransmittalEvidenceSource;
+  artifactUploadedAt?: string;
+  artifactUploadedBy?: string;
+};
+
 export type DraftingTransmittalManifest = {
-  artifactEvidence?: {
-    artifactAddedAt?: string;
-    artifactAddedBy?: string;
+  pdfEvidence: {
+    artifactAttachedAt?: string;
+    artifactAttachedBy?: string;
     artifactDocumentId?: string;
     artifactFileName?: string;
+    artifactMimeType?: string;
     artifactNotes?: string;
+    artifactSizeBytes?: number;
+    artifactSource?: DraftingTransmittalEvidenceSource;
+    artifactStatus?: DraftingDrawingTransmittal['artifactStatus'];
+    artifactUploadedAt?: string;
+    artifactUploadedBy?: string;
+    artifactVersion?: number;
+    evidenceSignature?: string;
+    status: 'attached' | 'missing' | 'removed';
   };
+  evidenceEvents: NonNullable<DraftingDrawingTransmittal['evidenceEvents']>;
   comparisonSummary: {
     hasDrift: boolean;
     issueWarnings: Array<{
@@ -127,13 +146,7 @@ export function createDraftingTransmittal(
     issuedTo: normalizePartyList(input.issuedTo),
     cc: normalizePartyList(input.cc),
     ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
-    ...(input.artifactFileName?.trim() ? { artifactFileName: input.artifactFileName.trim() } : {}),
-    ...(input.artifactDocumentId?.trim()
-      ? { artifactDocumentId: input.artifactDocumentId.trim() }
-      : {}),
-    ...(input.artifactAddedAt ? { artifactAddedAt: input.artifactAddedAt } : {}),
-    ...(input.artifactAddedBy?.trim() ? { artifactAddedBy: input.artifactAddedBy.trim() } : {}),
-    ...(input.artifactNotes?.trim() ? { artifactNotes: input.artifactNotes.trim() } : {}),
+    evidenceEvents: [],
     includedDrawingSheetIssueIds: selectedIssues.map((issue) => issue.id),
     includedSheets: selectedIssues.flatMap((issue) => mapIssueToTransmittalSheets(issue)),
     createdAt: now,
@@ -187,6 +200,7 @@ export function updateDraftingTransmittal(
             lastExportedAt: existing.lastExportedAt,
             lastExportedBy: existing.lastExportedBy,
             manifestSignature: existing.manifestSignature,
+            evidenceEvents: existing.evidenceEvents ?? [],
             updatedAt: new Date().toISOString(),
           }
         : candidate,
@@ -234,6 +248,123 @@ export function issueDraftingTransmittal(args: {
   };
 
   return replaceDrawingTransmittal(args.model, issuedTransmittal);
+}
+
+export function attachDraftingTransmittalPdfEvidence(args: {
+  attachedAt?: string;
+  attachedBy?: string;
+  evidence: DraftingTransmittalEvidenceInput;
+  model: DraftingModel;
+  transmittalId: string;
+}): DraftingModel {
+  const transmittal = getDrawingTransmittals(args.model).find(
+    (candidate) => candidate.id === args.transmittalId,
+  );
+  if (!transmittal) {
+    return args.model;
+  }
+  assertCanAttachPdfEvidence(transmittal);
+
+  const attachedAt =
+    args.attachedAt ?? args.evidence.artifactAttachedAt ?? new Date().toISOString();
+  const attachedBy = args.attachedBy ?? args.evidence.artifactAttachedBy;
+  const previousEvents = transmittal.evidenceEvents ?? [];
+  const previousVersion = transmittal.artifactVersion ?? 0;
+  const action = transmittal.artifactDocumentId ? 'replaced' : 'attached';
+  const nextVersion = previousVersion + 1;
+  const evidenceSource = args.evidence.artifactSource ?? 'browser_print_pdf';
+  const event = {
+    id: `evidence-${transmittal.id}-${compactTimestamp(attachedAt)}-${nextVersion}`,
+    action,
+    at: attachedAt,
+    by: attachedBy?.trim() || undefined,
+    artifactDocumentId: args.evidence.artifactDocumentId,
+    artifactFileName: args.evidence.artifactFileName.trim(),
+    artifactNotes: args.evidence.artifactNotes?.trim() || undefined,
+    artifactSource: evidenceSource,
+  } satisfies NonNullable<DraftingDrawingTransmittal['evidenceEvents']>[number];
+
+  const nextTransmittal: DraftingDrawingTransmittal = {
+    ...transmittal,
+    artifactAttachedAt: attachedAt,
+    artifactAttachedBy: attachedBy?.trim() || undefined,
+    artifactAddedAt: attachedAt,
+    artifactAddedBy: attachedBy?.trim() || undefined,
+    artifactDocumentId: args.evidence.artifactDocumentId,
+    artifactFileName: args.evidence.artifactFileName.trim(),
+    artifactMimeType: args.evidence.artifactMimeType,
+    artifactNotes: args.evidence.artifactNotes?.trim() || undefined,
+    artifactSizeBytes: args.evidence.artifactSizeBytes,
+    artifactSource: evidenceSource,
+    artifactStatus: action,
+    artifactUploadedAt: args.evidence.artifactUploadedAt,
+    artifactUploadedBy: args.evidence.artifactUploadedBy,
+    artifactVersion: nextVersion,
+    evidenceEvents: [...previousEvents, event],
+    updatedAt: attachedAt,
+  };
+
+  return replaceDrawingTransmittal(args.model, {
+    ...nextTransmittal,
+    evidenceSignature: buildEvidenceSignature(nextTransmittal),
+  });
+}
+
+export function removeDraftingTransmittalPdfEvidence(args: {
+  removedAt?: string;
+  removedBy?: string;
+  notes?: string;
+  model: DraftingModel;
+  transmittalId: string;
+}): DraftingModel {
+  const transmittal = getDrawingTransmittals(args.model).find(
+    (candidate) => candidate.id === args.transmittalId,
+  );
+  if (!transmittal) {
+    return args.model;
+  }
+  assertCanAttachPdfEvidence(transmittal);
+  if (!transmittal.artifactDocumentId && !transmittal.artifactFileName) {
+    return args.model;
+  }
+
+  const removedAt = args.removedAt ?? new Date().toISOString();
+  const nextVersion = (transmittal.artifactVersion ?? 0) + 1;
+  const event = {
+    id: `evidence-${transmittal.id}-${compactTimestamp(removedAt)}-${nextVersion}`,
+    action: 'removed',
+    at: removedAt,
+    by: args.removedBy?.trim() || undefined,
+    artifactDocumentId: transmittal.artifactDocumentId,
+    artifactFileName: transmittal.artifactFileName,
+    artifactNotes: args.notes?.trim() || transmittal.artifactNotes,
+    artifactSource: transmittal.artifactSource ?? 'browser_print_pdf',
+  } satisfies NonNullable<DraftingDrawingTransmittal['evidenceEvents']>[number];
+
+  const nextTransmittal: DraftingDrawingTransmittal = {
+    ...transmittal,
+    artifactAttachedAt: undefined,
+    artifactAttachedBy: undefined,
+    artifactAddedAt: undefined,
+    artifactAddedBy: undefined,
+    artifactDocumentId: undefined,
+    artifactFileName: undefined,
+    artifactMimeType: undefined,
+    artifactNotes: args.notes?.trim() || transmittal.artifactNotes,
+    artifactSizeBytes: undefined,
+    artifactSource: transmittal.artifactSource ?? 'browser_print_pdf',
+    artifactStatus: 'removed',
+    artifactUploadedAt: undefined,
+    artifactUploadedBy: undefined,
+    artifactVersion: nextVersion,
+    evidenceEvents: [...(transmittal.evidenceEvents ?? []), event],
+    updatedAt: removedAt,
+  };
+
+  return replaceDrawingTransmittal(args.model, {
+    ...nextTransmittal,
+    evidenceSignature: buildEvidenceSignature(nextTransmittal),
+  });
 }
 
 export function duplicateDraftingTransmittalToDraft(args: {
@@ -438,14 +569,14 @@ export function buildDraftingTransmittalManifest(args: {
     transmittal: args.transmittal,
   }).filter((warning) => warning.messages.length > 0);
 
-  const artifactEvidence = buildArtifactEvidence(args.transmittal);
+  const pdfEvidence = buildPdfEvidence(args.transmittal);
   const manifestWithoutSignature: DraftingTransmittalManifest = {
-    artifactEvidence,
     comparisonSummary: {
       hasDrift: issueManifests.some((issue) => issue.comparison.hasDrift),
       issueWarnings,
     },
     createdAt: args.transmittal.createdAt,
+    evidenceEvents: args.transmittal.evidenceEvents ?? [],
     finalisation: {
       issueActionId: args.transmittal.issueActionId,
       issuedAt: args.transmittal.issuedAt,
@@ -459,15 +590,25 @@ export function buildDraftingTransmittalManifest(args: {
     includedSheets: args.transmittal.includedSheets,
     issueManifests,
     manifestSchemaVersion: 'drafting.transmittal.manifest.v1',
+    pdfEvidence,
     status: args.transmittal.status,
     transmittal: {
-      artifactAddedAt: args.transmittal.artifactAddedAt,
-      artifactAddedBy: args.transmittal.artifactAddedBy,
+      artifactAttachedAt: args.transmittal.artifactAttachedAt,
+      artifactAttachedBy: args.transmittal.artifactAttachedBy,
       artifactDocumentId: args.transmittal.artifactDocumentId,
       artifactFileName: args.transmittal.artifactFileName,
+      artifactMimeType: args.transmittal.artifactMimeType,
       artifactNotes: args.transmittal.artifactNotes,
+      artifactSizeBytes: args.transmittal.artifactSizeBytes,
+      artifactSource: args.transmittal.artifactSource,
+      artifactStatus: args.transmittal.artifactStatus,
+      artifactUploadedAt: args.transmittal.artifactUploadedAt,
+      artifactUploadedBy: args.transmittal.artifactUploadedBy,
+      artifactVersion: args.transmittal.artifactVersion,
       cc: args.transmittal.cc,
       createdAt: args.transmittal.createdAt,
+      evidenceEvents: args.transmittal.evidenceEvents ?? [],
+      evidenceSignature: args.transmittal.evidenceSignature,
       id: args.transmittal.id,
       includedDrawingSheetIssueIds: args.transmittal.includedDrawingSheetIssueIds,
       issueDate: args.transmittal.issueDate,
@@ -591,25 +732,58 @@ function replaceDrawingTransmittal(
   };
 }
 
-function buildArtifactEvidence(transmittal: DraftingDrawingTransmittal) {
-  if (
-    !transmittal.artifactFileName &&
-    !transmittal.artifactDocumentId &&
-    !transmittal.artifactNotes
-  ) {
-    return undefined;
+function assertCanAttachPdfEvidence(transmittal: DraftingDrawingTransmittal) {
+  if (transmittal.status === 'draft' || transmittal.status === 'archived') {
+    throw new Error('Issue or finalise the transmittal before attaching PDF evidence.');
   }
+}
+
+function buildPdfEvidence(transmittal: DraftingDrawingTransmittal) {
+  const hasEvidence = Boolean(transmittal.artifactFileName || transmittal.artifactDocumentId);
+  const status: DraftingTransmittalManifest['pdfEvidence']['status'] = hasEvidence
+    ? 'attached'
+    : transmittal.artifactStatus === 'removed'
+      ? 'removed'
+      : 'missing';
   return {
-    artifactAddedAt: transmittal.artifactAddedAt,
-    artifactAddedBy: transmittal.artifactAddedBy,
+    artifactAttachedAt: transmittal.artifactAttachedAt ?? transmittal.artifactAddedAt,
+    artifactAttachedBy: transmittal.artifactAttachedBy ?? transmittal.artifactAddedBy,
     artifactDocumentId: transmittal.artifactDocumentId,
     artifactFileName: transmittal.artifactFileName,
+    artifactMimeType: transmittal.artifactMimeType,
     artifactNotes: transmittal.artifactNotes,
+    artifactSizeBytes: transmittal.artifactSizeBytes,
+    artifactSource: transmittal.artifactSource,
+    artifactStatus: transmittal.artifactStatus,
+    artifactUploadedAt: transmittal.artifactUploadedAt,
+    artifactUploadedBy: transmittal.artifactUploadedBy,
+    artifactVersion: transmittal.artifactVersion,
+    evidenceSignature: transmittal.evidenceSignature,
+    status,
   };
 }
 
 function buildManifestSignature(manifest: DraftingTransmittalManifest) {
   return `sig-${fnv1a32(stableStringify(sanitizeManifestValue(manifest)))
+    .toString(16)
+    .padStart(8, '0')}`;
+}
+
+function buildEvidenceSignature(transmittal: DraftingDrawingTransmittal) {
+  return `ev-${fnv1a32(
+    stableStringify(
+      sanitizeManifestValue({
+        artifactAttachedAt: transmittal.artifactAttachedAt,
+        artifactDocumentId: transmittal.artifactDocumentId,
+        artifactFileName: transmittal.artifactFileName,
+        artifactMimeType: transmittal.artifactMimeType,
+        artifactSizeBytes: transmittal.artifactSizeBytes,
+        artifactStatus: transmittal.artifactStatus,
+        artifactVersion: transmittal.artifactVersion,
+        evidenceEvents: transmittal.evidenceEvents ?? [],
+      }),
+    ),
+  )
     .toString(16)
     .padStart(8, '0')}`;
 }

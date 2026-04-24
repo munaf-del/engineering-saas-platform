@@ -22,8 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, RequestUser } from '../auth/decorators/current-user.decorator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { CreateDocumentDto } from './dto/document.dto';
+import { CreateDocumentDto, ListDocumentsDto } from './dto/document.dto';
 
 @ApiTags('documents')
 @ApiBearerAuth()
@@ -36,17 +35,12 @@ export class DocumentsController {
   @ApiOperation({ summary: 'List documents for the current organisation' })
   @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'mimeType', required: false })
-  async findAll(
-    @CurrentUser() user: RequestUser,
-    @Query() pagination: PaginationDto,
-    @Query('projectId') projectId?: string,
-    @Query('mimeType') mimeType?: string,
-  ) {
+  async findAll(@CurrentUser() user: RequestUser, @Query() query: ListDocumentsDto) {
     return this.documentsService.findAll(
       this.documentsService.accessFor(user),
-      pagination,
-      projectId,
-      mimeType,
+      { page: query.page ?? 1, limit: query.limit ?? 20 },
+      query.projectId,
+      query.mimeType,
     );
   }
 

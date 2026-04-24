@@ -185,8 +185,8 @@ export function DraftingTransmittalPreview({
         ) : (
           <WarningLine message="This transmittal is locked; included drawing sheet issue references are read-only." />
         )}
-        {!manifest.artifactEvidence && transmittal.status !== 'draft' ? (
-          <WarningLine message="PDF evidence metadata is not attached yet. Browser Print / Save PDF remains the PDF path." />
+        {manifest.pdfEvidence.status === 'missing' && transmittal.status !== 'draft' ? (
+          <WarningLine message="No PDF evidence attached. Browser Print / Save PDF remains the PDF path." />
         ) : null}
         {warnings.flatMap((warning) =>
           warning.messages.map((message) => (
@@ -229,6 +229,7 @@ export function DraftingTransmittalPreview({
               ['Locked sheet records', String(transmittal.includedSheets.length)],
               ['Issue action ID', manifest.finalisation.issueActionId ?? '-'],
               ['Manifest signature', manifest.manifestSignature ?? '-'],
+              ['Evidence signature', manifest.pdfEvidence.evidenceSignature ?? '-'],
               ['Created', formatDateTime(transmittal.createdAt)],
               ['Updated', formatDateTime(transmittal.updatedAt)],
             ]}
@@ -267,18 +268,54 @@ export function DraftingTransmittalPreview({
 
         <MetadataBlock
           rows={[
-            ['Artifact file', manifest.artifactEvidence?.artifactFileName ?? '-'],
-            ['Artifact document ID', manifest.artifactEvidence?.artifactDocumentId ?? '-'],
+            ['Evidence status', manifest.pdfEvidence.status],
+            ['Artifact file', manifest.pdfEvidence.artifactFileName ?? '-'],
+            ['Artifact document ID', manifest.pdfEvidence.artifactDocumentId ?? '-'],
+            ['MIME type', manifest.pdfEvidence.artifactMimeType ?? '-'],
             [
-              'Artifact added',
-              manifest.artifactEvidence?.artifactAddedAt
-                ? formatDateTime(manifest.artifactEvidence.artifactAddedAt)
+              'Size',
+              manifest.pdfEvidence.artifactSizeBytes
+                ? formatBytes(manifest.pdfEvidence.artifactSizeBytes)
                 : '-',
             ],
-            ['Artifact added by', manifest.artifactEvidence?.artifactAddedBy ?? '-'],
-            ['Artifact notes', manifest.artifactEvidence?.artifactNotes ?? '-'],
+            [
+              'Attached',
+              manifest.pdfEvidence.artifactAttachedAt
+                ? formatDateTime(manifest.pdfEvidence.artifactAttachedAt)
+                : '-',
+            ],
+            ['Attached by', manifest.pdfEvidence.artifactAttachedBy ?? '-'],
+            [
+              'Uploaded',
+              manifest.pdfEvidence.artifactUploadedAt
+                ? formatDateTime(manifest.pdfEvidence.artifactUploadedAt)
+                : '-',
+            ],
+            ['Uploaded by', manifest.pdfEvidence.artifactUploadedBy ?? '-'],
+            ['Source', manifest.pdfEvidence.artifactSource ?? '-'],
+            ['Version', manifest.pdfEvidence.artifactVersion?.toString() ?? '-'],
+            ['Artifact notes', manifest.pdfEvidence.artifactNotes ?? '-'],
           ]}
           title="PDF Evidence"
+        />
+
+        <MetadataBlock
+          rows={[
+            ['Evidence events', String(manifest.evidenceEvents.length)],
+            [
+              'Latest evidence event',
+              manifest.evidenceEvents.at(-1)
+                ? `${manifest.evidenceEvents.at(-1)!.action} at ${formatDateTime(
+                    manifest.evidenceEvents.at(-1)!.at,
+                  )}`
+                : '-',
+            ],
+            [
+              'Manifest binary policy',
+              'No PDF binary, rendered images, tokens, or secrets embedded.',
+            ],
+          ]}
+          title="Evidence Manifest Controls"
         />
       </section>
     </div>
@@ -331,4 +368,14 @@ function formatDateTime(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

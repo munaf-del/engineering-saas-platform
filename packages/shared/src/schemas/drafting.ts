@@ -703,6 +703,23 @@ export const DraftingDrawingTransmittalSheetSchema = z.object({
   snapshotLabel: z.string().min(1),
 });
 
+export const DraftingTransmittalEvidenceSourceSchema = z.enum([
+  'browser_print_pdf',
+  'manual_upload',
+]);
+export const DraftingTransmittalEvidenceStatusSchema = z.enum(['attached', 'replaced', 'removed']);
+
+export const DraftingTransmittalEvidenceEventSchema = z.object({
+  id: z.string().min(1),
+  action: DraftingTransmittalEvidenceStatusSchema,
+  at: z.string().datetime(),
+  by: z.string().optional(),
+  artifactDocumentId: z.string().optional(),
+  artifactFileName: z.string().optional(),
+  artifactNotes: z.string().optional(),
+  artifactSource: DraftingTransmittalEvidenceSourceSchema,
+});
+
 export const DraftingDrawingTransmittalSchema = z.object({
   id: z.string().min(1),
   transmittalNumber: z.string().min(1),
@@ -721,9 +738,20 @@ export const DraftingDrawingTransmittalSchema = z.object({
   lastExportedBy: z.string().optional(),
   artifactFileName: z.string().optional(),
   artifactDocumentId: z.string().optional(),
+  artifactMimeType: z.string().optional(),
+  artifactSizeBytes: z.number().int().nonnegative().optional(),
+  artifactUploadedAt: z.string().datetime().optional(),
+  artifactUploadedBy: z.string().optional(),
+  artifactAttachedAt: z.string().datetime().optional(),
+  artifactAttachedBy: z.string().optional(),
   artifactAddedAt: z.string().datetime().optional(),
   artifactAddedBy: z.string().optional(),
   artifactNotes: z.string().optional(),
+  artifactSource: DraftingTransmittalEvidenceSourceSchema.optional(),
+  artifactStatus: DraftingTransmittalEvidenceStatusSchema.optional(),
+  artifactVersion: z.number().int().positive().optional(),
+  evidenceSignature: z.string().optional(),
+  evidenceEvents: z.array(DraftingTransmittalEvidenceEventSchema).default([]),
   supersededAt: z.string().datetime().optional(),
   supersededBy: z.string().optional(),
   supersededByTransmittalId: z.string().optional(),
