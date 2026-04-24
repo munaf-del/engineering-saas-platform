@@ -1,6 +1,6 @@
 'use client';
 
-import type * as React from 'react';
+import * as React from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Send } from 'lucide-react';
@@ -40,12 +40,23 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
   const { data: drawings, isLoading } = useDraftingDrawings(projectId);
   const createDrawing = useCreateDraftingDrawing(projectId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [renameState, setRenameState] = useState<RenameState>(null);
   const [newTitle, setNewTitle] = useState('General Arrangement 01');
 
   if (isLoading) {
     return <PageLoading />;
   }
+
+  const sortedDrawings = [...(drawings ?? [])].sort(
+    (first, second) =>
+      new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime() ||
+      first.title.localeCompare(second.title),
+  );
+  const activeDrawings = sortedDrawings.filter((drawing) => drawing.status !== 'archived');
+  const archivedDrawings = sortedDrawings.filter((drawing) => drawing.status === 'archived');
+  const activeCount = activeDrawings.length;
+  const archivedCount = archivedDrawings.length;
 
   async function handleCreateDrawing(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,8 +96,10 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
         }
         badges={
           <>
-            <Badge variant="outline">{drawings?.length ?? 0} drawing(s)</Badge>
-            <Badge variant="secondary">PDF underlays next</Badge>
+            <Badge variant="outline">{activeCount} active drawing(s)</Badge>
+            <Badge variant="secondary">
+              Project-native drawing register, sheets, schedules, underlays, and transmittals.
+            </Badge>
           </>
         }
       />
@@ -99,21 +112,44 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
           </p>
         </div>
 
-        {!drawings || drawings.length === 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {archivedCount > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowArchived((value) => !value)}
+            >
+              {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+            </Button>
+          ) : null}
+        </div>
+
+        {activeCount === 0 ? (
           <EmptyState
             icon={<FileText className="h-12 w-12" />}
-            title="No drafting drawings yet"
-            description="Create the first project-native drawing to start authoring piles, excavation lines, monitoring points, and notes."
+            title={archivedCount > 0 ? 'No active drafting drawings' : 'No drafting drawings yet'}
+            description={
+              archivedCount > 0
+                ? 'Archived drawings are hidden from the default register view.'
+                : 'Create the first project-native drawing to start authoring piles, excavation lines, monitoring points, and notes.'
+            }
             action={
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create drawing
-              </Button>
+              archivedCount > 0 ? (
+                <Button variant="outline" onClick={() => setShowArchived(true)}>
+                  Show archived ({archivedCount})
+                </Button>
+              ) : (
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create drawing
+                </Button>
+              )
             }
           />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {drawings.map((drawing) => (
+            {activeDrawings.map((drawing) => (
               <DraftingDrawingCard
                 key={drawing.id}
                 projectId={projectId}
@@ -123,6 +159,27 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
             ))}
           </div>
         )}
+
+        {showArchived && archivedCount > 0 ? (
+          <section className="space-y-4" aria-label="Archived drawings">
+            <div>
+              <h3 className="text-base font-semibold">Archived drawings</h3>
+              <p className="text-sm text-muted-foreground">
+                Restored drawings return to the active register.
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {archivedDrawings.map((drawing) => (
+                <DraftingDrawingCard
+                  key={drawing.id}
+                  projectId={projectId}
+                  onRename={() => setRenameState({ id: drawing.id, title: drawing.title })}
+                  drawing={drawing}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </section>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
