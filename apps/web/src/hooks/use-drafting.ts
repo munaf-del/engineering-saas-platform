@@ -3,6 +3,8 @@ import type {
   DraftingDrawing,
   DraftingDrawingSummary,
   DraftingModel,
+  DraftingProjectTransmittal,
+  DraftingProjectTransmittalInput,
   DraftingTransmittalEvidenceSource,
   UpdateDraftingDrawingInput,
 } from '@eng/shared';
@@ -15,6 +17,67 @@ export function useDraftingDrawings(projectId: string) {
     queryFn: () =>
       draftingApi<DraftingDrawingSummary[]>(`/projects/${projectId}/drafting/drawings`),
     enabled: !!projectId,
+  });
+}
+
+export function useProjectDraftingTransmittals(projectId: string) {
+  return useQuery({
+    queryKey: projectTransmittalsQueryKey(projectId),
+    queryFn: () =>
+      draftingApi<DraftingProjectTransmittal[]>(`/projects/${projectId}/drafting/transmittals`),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectDraftingTransmittal(projectId: string, transmittalId: string) {
+  return useQuery({
+    queryKey: projectTransmittalDetailQueryKey(projectId, transmittalId),
+    queryFn: () =>
+      draftingApi<DraftingProjectTransmittal>(
+        `/projects/${projectId}/drafting/transmittals/${transmittalId}`,
+      ),
+    enabled: !!projectId && !!transmittalId,
+  });
+}
+
+export function useCreateProjectDraftingTransmittal(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: DraftingProjectTransmittalInput) =>
+      draftingApi<DraftingProjectTransmittal>(`/projects/${projectId}/drafting/transmittals`, {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: async (transmittal) => {
+      queryClient.setQueryData(
+        projectTransmittalDetailQueryKey(projectId, transmittal.id),
+        transmittal,
+      );
+      await queryClient.invalidateQueries({ queryKey: projectTransmittalsQueryKey(projectId) });
+    },
+  });
+}
+
+export function useUpdateProjectDraftingTransmittal(projectId: string, transmittalId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: DraftingProjectTransmittalInput) =>
+      draftingApi<DraftingProjectTransmittal>(
+        `/projects/${projectId}/drafting/transmittals/${transmittalId}`,
+        {
+          method: 'PUT',
+          body: payload,
+        },
+      ),
+    onSuccess: async (transmittal) => {
+      queryClient.setQueryData(
+        projectTransmittalDetailQueryKey(projectId, transmittal.id),
+        transmittal,
+      );
+      await queryClient.invalidateQueries({ queryKey: projectTransmittalsQueryKey(projectId) });
+    },
   });
 }
 
@@ -171,6 +234,14 @@ function draftingListQueryKey(projectId: string) {
 
 function draftingDetailQueryKey(projectId: string, drawingId: string) {
   return [...draftingListQueryKey(projectId), drawingId] as const;
+}
+
+function projectTransmittalsQueryKey(projectId: string) {
+  return ['projects', projectId, 'drafting', 'project-transmittals'] as const;
+}
+
+function projectTransmittalDetailQueryKey(projectId: string, transmittalId: string) {
+  return [...projectTransmittalsQueryKey(projectId), transmittalId] as const;
 }
 
 type DraftingApiOptions = {

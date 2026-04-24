@@ -101,6 +101,20 @@ jest.mock('@eng/shared', () => {
 
   return {
     DraftingModelSchema: draftingModelSchema,
+    DraftingProjectTransmittalPayloadSchema: z.object({
+      cc: z.array(z.string()),
+      includedItems: z.array(z.record(z.unknown())).min(1),
+      issuedAt: z.string().optional(),
+      issuedBy: z.string().optional(),
+      issuedTo: z.array(z.string()),
+      manifestSignature: z.string().optional(),
+      notes: z.string().optional(),
+      provenanceSummary: z.record(z.unknown()),
+      purpose: z.string(),
+      status: z.string(),
+      title: z.string(),
+      warningSummary: z.array(z.string()),
+    }),
     createEmptyDraftingModel(drawingId: string) {
       return createEmptyModel(drawingId);
     },
@@ -109,19 +123,31 @@ jest.mock('@eng/shared', () => {
 
 import { DraftingService } from './drafting.service';
 
+const testProjectId = '11111111-1111-1111-1111-111111111111';
+const testOrganisationId = '22222222-2222-2222-2222-222222222222';
+const testUserId = '33333333-3333-3333-3333-333333333333';
+const testDrawingId = '44444444-4444-4444-4444-444444444444';
+
 describe('DraftingService', () => {
   const access = {
-    projectId: '11111111-1111-1111-1111-111111111111',
-    organisationId: '22222222-2222-2222-2222-222222222222',
-    userId: '33333333-3333-3333-3333-333333333333',
+    projectId: testProjectId,
+    organisationId: testOrganisationId,
+    userId: testUserId,
     orgRole: 'engineer',
   } as const;
-  const drawingId = '44444444-4444-4444-4444-444444444444';
+  const drawingId = testDrawingId;
 
   let prisma: {
     project: { findFirst: jest.Mock };
     draftingDrawing: {
+      findMany: jest.Mock;
       findFirst: jest.Mock;
+      update: jest.Mock;
+    };
+    projectDraftingTransmittal: {
+      create: jest.Mock;
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
       update: jest.Mock;
     };
   };
@@ -162,6 +188,9 @@ describe('DraftingService', () => {
         }),
       },
       draftingDrawing: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([buildDrawingRecord({ modelJson: issuedSheetModel() })]),
         findFirst: jest.fn().mockResolvedValue(buildDrawingRecord()),
         update: jest.fn().mockImplementation((args) =>
           Promise.resolve(
@@ -171,6 +200,16 @@ describe('DraftingService', () => {
             }),
           ),
         ),
+      },
+      projectDraftingTransmittal: {
+        create: jest
+          .fn()
+          .mockImplementation((args) => Promise.resolve(buildProjectTransmittalRecord(args.data))),
+        findFirst: jest.fn().mockResolvedValue(buildProjectTransmittalRecord()),
+        findMany: jest.fn().mockResolvedValue([buildProjectTransmittalRecord()]),
+        update: jest
+          .fn()
+          .mockImplementation((args) => Promise.resolve(buildProjectTransmittalRecord(args.data))),
       },
     };
 
@@ -370,6 +409,83 @@ describe('DraftingService', () => {
         }),
       }),
     );
+  });
+
+  it('creates a project transmittal with issued sheet snapshots from multiple drawings', async () => {
+    const secondDrawingId = '55555555-5555-5555-5555-555555555555';
+    prisma.draftingDrawing.findMany.mockResolvedValue([
+      buildDrawingRecord({ modelJson: issuedSheetModel({ drawingId }) }),
+      {
+        ...buildDrawingRecord({
+          modelJson: issuedSheetModel({
+            drawingId: secondDrawingId,
+            issueId: 'issue-2',
+            sheetId: 'sheet-2',
+            sheetNumber: 'S-201',
+          }),
+        }),
+        id: secondDrawingId,
+        title: 'Drafting QA Drawing 2',
+      },
+    ]);
+
+    const result = await service.createProjectTransmittal(access, {
+      includedItems: [
+        { drawingId, drawingSheetIssueId: 'issue-1', sheetId: 'sheet-1' },
+        { drawingId: secondDrawingId, drawingSheetIssueId: 'issue-2', sheetId: 'sheet-2' },
+      ],
+      issuedBy: 'Avery Drafter',
+      issuedTo: ['client@example.com'],
+      purpose: 'For information',
+      status: 'issued',
+      title: 'Multi drawing package',
+      transmittalNumber: 'TRN-001',
+    });
+
+    expect(prisma.projectDraftingTransmittal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organisationId: access.organisationId,
+          projectId: access.projectId,
+          status: 'issued',
+          transmittalNumber: 'TRN-001',
+        }),
+      }),
+    );
+    expect(result.payload.includedItems).toHaveLength(2);
+    expect(result.payload.provenanceSummary.drawingCount).toBe(2);
+    expect(result.payload.manifestSignature).toMatch(/^sig-[0-9a-f]{8}$/);
+  });
+
+  it('rejects project transmittal items that reference draft sheet issues', async () => {
+    prisma.draftingDrawing.findMany.mockResolvedValue([
+      buildDrawingRecord({ modelJson: issuedSheetModel({ issueStatus: 'draft' }) }),
+    ]);
+
+    await expect(
+      service.createProjectTransmittal(access, {
+        includedItems: [{ drawingId, drawingSheetIssueId: 'issue-1', sheetId: 'sheet-1' }],
+        purpose: 'For information',
+        title: 'Draft-only package',
+        transmittalNumber: 'TRN-001',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('locks issued project transmittals against later edits', async () => {
+    prisma.projectDraftingTransmittal.findFirst.mockResolvedValue(
+      buildProjectTransmittalRecord({ status: 'issued' }),
+    );
+
+    await expect(
+      service.updateProjectTransmittal(access, '66666666-6666-6666-6666-666666666666', {
+        includedItems: [{ drawingId, drawingSheetIssueId: 'issue-1', sheetId: 'sheet-1' }],
+        purpose: 'For information',
+        title: 'Edited package',
+        transmittalNumber: 'TRN-001',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.projectDraftingTransmittal.update).not.toHaveBeenCalled();
   });
 
   it('uploads PDF evidence for an issued transmittal', async () => {
@@ -644,6 +760,118 @@ function issuedModel(overrides: Record<string, unknown> = {}) {
         ...overrides,
       },
     ],
+  };
+}
+
+function issuedSheetModel(
+  overrides: Partial<{
+    drawingId: string;
+    issueId: string;
+    issueStatus: string;
+    sheetId: string;
+    sheetNumber: string;
+  }> = {},
+) {
+  const model = createEmptyModel(overrides.drawingId ?? testDrawingId);
+  return {
+    ...model,
+    titleBlock: {
+      drawingNumber: overrides.sheetNumber === 'S-201' ? 'DR-201' : 'DR-101',
+      drawingTitle: 'Retention Wall General Arrangement',
+    },
+    drawingSheetIssues: [
+      {
+        id: overrides.issueId ?? 'issue-1',
+        issueNumber: overrides.issueId === 'issue-2' ? 'ISS-002' : 'ISS-001',
+        revision: 'B',
+        issueDate: '2026-04-24T00:00:00.000Z',
+        issuedBy: 'Avery Drafter',
+        purpose: 'For information',
+        status: overrides.issueStatus ?? 'issued',
+        sheetIds: [overrides.sheetId ?? 'sheet-1'],
+        lockedTitleBlock: {
+          drawingNumber: overrides.sheetNumber === 'S-201' ? 'DR-201' : 'DR-101',
+          drawingTitle: 'Retention Wall General Arrangement',
+        },
+        lockedRevisionBlock: {
+          currentRevision: 'B',
+          revisions: [],
+        },
+        lockedDrawingSheets: [
+          {
+            id: overrides.sheetId ?? 'sheet-1',
+            name: 'Geometry Sheet',
+            title: 'Retention Wall Plan',
+            sheetNumber: overrides.sheetNumber ?? 'S-101',
+            rootSheetTemplateId: null,
+            pageSize: 'a3',
+            orientation: 'landscape',
+            scaleLabel: 'Fit',
+            viewport: {
+              center: { x: 0, y: 0 },
+              fitMode: 'model_extents',
+              scale: 0.01,
+            },
+            includeUnderlays: true,
+            includeGrid: true,
+            includeObjectLabels: true,
+            createdAt: '2026-04-24T00:00:00.000Z',
+            updatedAt: '2026-04-24T00:00:00.000Z',
+          },
+        ],
+        lockedObjects: [],
+        lockedUnderlays: [],
+        createdAt: '2026-04-24T00:00:00.000Z',
+        updatedAt: '2026-04-24T00:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function buildProjectTransmittalRecord(overrides: Record<string, unknown> = {}) {
+  const now = new Date('2026-04-24T01:00:00.000Z');
+  const payloadJson = overrides.payloadJson ?? {
+    cc: [],
+    includedItems: [
+      {
+        drawingId: testDrawingId,
+        drawingName: 'Drafting QA Drawing',
+        drawingNumber: 'DR-101',
+        drawingSheetIssueId: 'issue-1',
+        issueDate: '2026-04-24T00:00:00.000Z',
+        issueNumber: 'ISS-001',
+        revision: 'B',
+        sheetId: 'sheet-1',
+        sheetNumber: 'S-101',
+        sheetTitle: 'Retention Wall Plan',
+        snapshotLabel: 'ISS-001 Rev B - S-101 Retention Wall Plan',
+        status: 'issued',
+      },
+    ],
+    issuedTo: ['client@example.com'],
+    provenanceSummary: {
+      drawingCount: 1,
+      frozenIssueCount: 1,
+      sheetCount: 1,
+      source: 'drafting_drawing_sheet_issue_snapshots',
+    },
+    purpose: 'For information',
+    status: overrides.status ?? 'draft',
+    title: 'Project package',
+    warningSummary: [],
+  };
+
+  return {
+    id: '66666666-6666-6666-6666-666666666666',
+    projectId: testProjectId,
+    organisationId: testOrganisationId,
+    transmittalNumber: 'TRN-001',
+    status: overrides.status ?? 'draft',
+    payloadJson,
+    createdById: testUserId,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
   };
 }
 

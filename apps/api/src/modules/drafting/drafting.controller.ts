@@ -27,6 +27,7 @@ import {
   AttachDraftingTransmittalEvidenceDto,
   UploadDraftingTransmittalEvidenceDto,
 } from './dto/transmittal-evidence.dto';
+import { SaveProjectDraftingTransmittalDto } from './dto/project-transmittal.dto';
 
 @ApiTags('drafting')
 @ApiBearerAuth()
@@ -150,6 +151,75 @@ export class DraftingController {
       drawingId,
       transmittalId,
       dto.notes,
+    );
+  }
+
+  private access(projectId: string, user: RequestUser) {
+    if (!user.organisationId) {
+      throw new ForbiddenException('Organisation context required');
+    }
+
+    return {
+      projectId,
+      organisationId: user.organisationId,
+      userId: user.id,
+      orgRole: user.orgRole,
+    };
+  }
+}
+
+@ApiTags('drafting')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('projects/:projectId/drafting/transmittals')
+export class ProjectDraftingTransmittalsController {
+  constructor(private readonly draftingService: DraftingService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List project-level drafting transmittals' })
+  async listProjectTransmittals(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.draftingService.listProjectTransmittals(this.access(projectId, user));
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Create a project-level drafting transmittal' })
+  async createProjectTransmittal(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Body() dto: SaveProjectDraftingTransmittalDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.draftingService.createProjectTransmittal(this.access(projectId, user), dto);
+  }
+
+  @Get(':transmittalId')
+  @ApiOperation({ summary: 'Get a project-level drafting transmittal' })
+  async findProjectTransmittal(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('transmittalId', ParseUUIDPipe) transmittalId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.draftingService.findProjectTransmittal(this.access(projectId, user), transmittalId);
+  }
+
+  @Put(':transmittalId')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Update a draft project-level drafting transmittal' })
+  async updateProjectTransmittal(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('transmittalId', ParseUUIDPipe) transmittalId: string,
+    @Body() dto: SaveProjectDraftingTransmittalDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.draftingService.updateProjectTransmittal(
+      this.access(projectId, user),
+      transmittalId,
+      dto,
     );
   }
 

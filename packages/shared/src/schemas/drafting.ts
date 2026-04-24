@@ -764,6 +764,48 @@ export const DraftingDrawingTransmittalSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const DraftingProjectTransmittalStatusSchema = z.enum([
+  'draft',
+  'issued',
+  'superseded',
+  'void',
+]);
+
+export const DraftingProjectTransmittalItemSchema = z.object({
+  drawingId: z.string().min(1),
+  drawingName: z.string().min(1),
+  drawingNumber: z.string().optional(),
+  drawingSheetIssueId: z.string().min(1),
+  issueDate: z.string().datetime(),
+  issueNumber: z.string().min(1),
+  revision: z.string().min(1),
+  sheetId: z.string().min(1),
+  sheetNumber: z.string().min(1),
+  sheetTitle: z.string().min(1),
+  snapshotLabel: z.string().min(1),
+  status: z.enum(DRAFTING_DRAWING_SHEET_ISSUE_STATUSES),
+});
+
+export const DraftingProjectTransmittalPayloadSchema = z.object({
+  cc: z.array(z.string().min(1)),
+  includedItems: z.array(DraftingProjectTransmittalItemSchema).min(1),
+  issuedAt: z.string().datetime().optional(),
+  issuedBy: z.string().optional(),
+  issuedTo: z.array(z.string().min(1)),
+  manifestSignature: z.string().optional(),
+  notes: z.string().optional(),
+  provenanceSummary: z.object({
+    drawingCount: z.number().int().nonnegative(),
+    frozenIssueCount: z.number().int().nonnegative(),
+    sheetCount: z.number().int().nonnegative(),
+    source: z.literal('drafting_drawing_sheet_issue_snapshots'),
+  }),
+  purpose: z.string().min(1),
+  status: DraftingProjectTransmittalStatusSchema,
+  title: z.string().min(1),
+  warningSummary: z.array(z.string()),
+});
+
 export const DraftingModelSchema = z.object({
   version: z.literal(1),
   units: z.literal('mm'),

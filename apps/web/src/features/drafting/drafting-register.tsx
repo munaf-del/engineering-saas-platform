@@ -3,7 +3,7 @@
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Plus, Send } from 'lucide-react';
 import type { DraftingDrawingSummary, Project } from '@eng/shared';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -69,10 +69,19 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
         title="Drafting"
         description={`${project.code} · Project-native drawing register and editor`}
         actions={
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Drawing
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/projects/${projectId}/drafting/transmittals`}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Project Transmittals
+            </Link>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Drawing
+            </Button>
+          </div>
         }
         badges={
           <>
@@ -145,7 +154,10 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createDrawing.isPending || newTitle.trim().length === 0}>
+              <Button
+                type="submit"
+                disabled={createDrawing.isPending || newTitle.trim().length === 0}
+              >
                 Create drawing
               </Button>
             </DialogFooter>
@@ -194,7 +206,8 @@ function DraftingDrawingCard({
           </div>
           <CardDescription>
             {formatDrawingRevision(drawing)} · {drawing.objectCount} object
-            {drawing.objectCount === 1 ? '' : 's'} · Updated {formatDraftingTimestamp(drawing.updatedAt)}
+            {drawing.objectCount === 1 ? '' : 's'} · Updated{' '}
+            {formatDraftingTimestamp(drawing.updatedAt)}
           </CardDescription>
         </div>
 
@@ -287,7 +300,10 @@ function RenameDrawingDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!state || title.trim().length === 0 || updateDrawing.isPending}>
+            <Button
+              type="submit"
+              disabled={!state || title.trim().length === 0 || updateDrawing.isPending}
+            >
               Save title
             </Button>
           </DialogFooter>

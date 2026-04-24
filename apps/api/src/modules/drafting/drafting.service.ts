@@ -5,6 +5,12 @@ import {
   DraftingDrawingSummary,
   DraftingModel,
   DraftingModelSchema,
+  DraftingProjectTransmittal,
+  DraftingProjectTransmittalInput,
+  DraftingProjectTransmittalItem,
+  DraftingProjectTransmittalPayload,
+  DraftingProjectTransmittalPayloadSchema,
+  DraftingProjectTransmittalStatus,
   DraftingTransmittalEvidenceSource,
   DraftingRevision,
   createEmptyDraftingModel,
@@ -43,6 +49,8 @@ type DraftingDrawingRecord = Prisma.DraftingDrawingGetPayload<{
   };
 }>;
 
+type ProjectDraftingTransmittalRecord = Prisma.ProjectDraftingTransmittalGetPayload<object>;
+
 @Injectable()
 export class DraftingService {
   constructor(
@@ -64,6 +72,73 @@ export class DraftingService {
     });
 
     return drawings.map(serializeDraftingDrawingSummary);
+  }
+
+  async listProjectTransmittals(access: ProjectAccess): Promise<DraftingProjectTransmittal[]> {
+    await this.assertProjectReadAccess(access);
+
+    const transmittals = await this.prisma.projectDraftingTransmittal.findMany({
+      where: {
+        organisationId: access.organisationId,
+        projectId: access.projectId,
+      },
+      orderBy: [{ updatedAt: 'desc' }, { transmittalNumber: 'asc' }],
+    });
+
+    return transmittals.map(serializeProjectDraftingTransmittal);
+  }
+
+  async createProjectTransmittal(
+    access: ProjectAccess,
+    dto: DraftingProjectTransmittalInput,
+  ): Promise<DraftingProjectTransmittal> {
+    await this.assertProjectWriteAccess(access);
+    const payload = await this.buildProjectTransmittalPayload(access, dto);
+    const record = await this.prisma.projectDraftingTransmittal.create({
+      data: {
+        organisationId: access.organisationId,
+        projectId: access.projectId,
+        transmittalNumber: dto.transmittalNumber.trim(),
+        status: payload.status,
+        payloadJson: payload as Prisma.InputJsonValue,
+        createdById: access.userId,
+      },
+    });
+
+    return serializeProjectDraftingTransmittal(record);
+  }
+
+  async findProjectTransmittal(
+    access: ProjectAccess,
+    transmittalId: string,
+  ): Promise<DraftingProjectTransmittal> {
+    await this.assertProjectReadAccess(access);
+    const record = await this.findProjectTransmittalRecord(access, transmittalId);
+    return serializeProjectDraftingTransmittal(record);
+  }
+
+  async updateProjectTransmittal(
+    access: ProjectAccess,
+    transmittalId: string,
+    dto: DraftingProjectTransmittalInput,
+  ): Promise<DraftingProjectTransmittal> {
+    await this.assertProjectWriteAccess(access);
+    const existing = await this.findProjectTransmittalRecord(access, transmittalId);
+    if (existing.status !== 'draft') {
+      throw new BadRequestException('Issued project transmittals are locked');
+    }
+
+    const payload = await this.buildProjectTransmittalPayload(access, dto);
+    const record = await this.prisma.projectDraftingTransmittal.update({
+      where: { id: existing.id },
+      data: {
+        transmittalNumber: dto.transmittalNumber.trim(),
+        status: payload.status,
+        payloadJson: payload as Prisma.InputJsonValue,
+      },
+    });
+
+    return serializeProjectDraftingTransmittal(record);
   }
 
   async createDrawing(
@@ -262,6 +337,126 @@ export class DraftingService {
     }
 
     return drawing;
+  }
+
+  private async findProjectTransmittalRecord(access: ProjectAccess, transmittalId: string) {
+    const record = await this.prisma.projectDraftingTransmittal.findFirst({
+      where: {
+        id: transmittalId,
+        organisationId: access.organisationId,
+        projectId: access.projectId,
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Project drafting transmittal not found');
+    }
+
+    return record;
+  }
+
+  private async buildProjectTransmittalPayload(
+    access: ProjectAccess,
+    dto: DraftingProjectTransmittalInput,
+  ): Promise<DraftingProjectTransmittalPayload> {
+    const selectedRefs = uniqueProjectTransmittalRefs(dto.includedItems ?? []);
+    if (selectedRefs.length === 0) {
+      throw new BadRequestException(
+        'A project transmittal requires at least one issued sheet snapshot',
+      );
+    }
+
+    const drawings = await this.prisma.draftingDrawing.findMany({
+      where: {
+        id: { in: Array.from(new Set(selectedRefs.map((ref) => ref.drawingId))) },
+        projectId: access.projectId,
+      },
+      orderBy: [{ title: 'asc' }],
+    });
+    const drawingsById = new Map(drawings.map((drawing) => [drawing.id, drawing]));
+    const includedItems: DraftingProjectTransmittalItem[] = [];
+    const warningSummary: string[] = [];
+
+    for (const ref of selectedRefs) {
+      const drawing = drawingsById.get(ref.drawingId);
+      if (!drawing) {
+        throw new BadRequestException('Selected drawing is outside this project');
+      }
+      const model = parseStoredDraftingModel(drawing.modelJson, drawing.id);
+      const issue = model.drawingSheetIssues.find(
+        (candidate) => candidate.id === ref.drawingSheetIssueId,
+      );
+      if (!issue || issue.status === 'draft' || issue.lockedDrawingSheets.length === 0) {
+        throw new BadRequestException(
+          'Project transmittals can only include issued frozen drawing sheet snapshots',
+        );
+      }
+      const sheet = issue.lockedDrawingSheets.find((candidate) => candidate.id === ref.sheetId);
+      if (!sheet) {
+        throw new BadRequestException('Selected sheet is missing from the frozen issue snapshot');
+      }
+      const drawingNumber = issue.lockedTitleBlock.drawingNumber ?? model.titleBlock?.drawingNumber;
+      includedItems.push({
+        drawingId: drawing.id,
+        drawingName: drawing.title,
+        drawingNumber,
+        drawingSheetIssueId: issue.id,
+        issueDate: issue.issueDate,
+        issueNumber: issue.issueNumber,
+        revision: issue.revision,
+        sheetId: sheet.id,
+        sheetNumber: sheet.sheetNumber,
+        sheetTitle: sheet.title || sheet.name,
+        snapshotLabel: `${issue.issueNumber} Rev ${issue.revision} - ${sheet.sheetNumber} ${sheet.title || sheet.name}`,
+        status: issue.status,
+      });
+      if (!sheet.templateSnapshot) {
+        warningSummary.push(
+          `${drawing.title} ${sheet.sheetNumber} has no template snapshot metadata.`,
+        );
+      }
+      if (issue.lockedObjects.some((object) => !object.renderedState)) {
+        warningSummary.push(
+          `${drawing.title} ${issue.issueNumber} includes legacy object snapshots.`,
+        );
+      }
+    }
+
+    const status = dto.status ?? 'draft';
+    const payload: DraftingProjectTransmittalPayload = {
+      cc: normalizePartyList(dto.cc),
+      includedItems,
+      ...(status === 'issued' && { issuedAt: dto.issuedAt ?? new Date().toISOString() }),
+      issuedBy: dto.issuedBy?.trim() || undefined,
+      issuedTo: normalizePartyList(dto.issuedTo),
+      notes: dto.notes?.trim() || undefined,
+      provenanceSummary: {
+        drawingCount: new Set(includedItems.map((item) => item.drawingId)).size,
+        frozenIssueCount: new Set(
+          includedItems.map((item) => `${item.drawingId}:${item.drawingSheetIssueId}`),
+        ).size,
+        sheetCount: includedItems.length,
+        source: 'drafting_drawing_sheet_issue_snapshots',
+      },
+      purpose: dto.purpose.trim(),
+      status,
+      title: dto.title.trim(),
+      warningSummary: Array.from(new Set(warningSummary)),
+    };
+
+    if (payload.status !== 'draft') {
+      payload.manifestSignature = buildProjectTransmittalManifestSignature({
+        ...payload,
+        manifestSignature: undefined,
+      });
+    }
+
+    const result = DraftingProjectTransmittalPayloadSchema.safeParse(payload);
+    if (!result.success) {
+      throw new BadRequestException('Project transmittal payload is invalid');
+    }
+
+    return result.data;
   }
 
   private async persistModel(
@@ -467,6 +662,29 @@ function serializeDraftingRevision(
     modelJsonSnapshot: parseStoredDraftingModel(record.modelJsonSnapshot, record.drawingId),
     createdById: record.createdById ?? null,
     createdAt: record.createdAt.toISOString(),
+  };
+}
+
+function serializeProjectDraftingTransmittal(
+  record: ProjectDraftingTransmittalRecord,
+): DraftingProjectTransmittal {
+  const payloadResult = DraftingProjectTransmittalPayloadSchema.safeParse(record.payloadJson);
+  if (!payloadResult.success) {
+    throw new InternalServerErrorException(
+      `Stored project drafting transmittal is invalid for transmittal ${record.id}`,
+    );
+  }
+
+  return {
+    id: record.id,
+    projectId: record.projectId,
+    organisationId: record.organisationId,
+    transmittalNumber: record.transmittalNumber,
+    status: record.status as DraftingProjectTransmittalStatus,
+    payload: payloadResult.data,
+    createdById: record.createdById ?? null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
   };
 }
 
@@ -692,6 +910,37 @@ function sanitizeMetadata(value: unknown): unknown {
       })
       .map(([key, entryValue]) => [key, sanitizeMetadata(entryValue)]),
   );
+}
+
+function buildProjectTransmittalManifestSignature(payload: DraftingProjectTransmittalPayload) {
+  return `sig-${fnv1a32(stableStringify(sanitizeMetadata(payload)))
+    .toString(16)
+    .padStart(8, '0')}`;
+}
+
+function normalizePartyList(values: string[] | undefined) {
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .flatMap((value) => value.split(/[,\n]/g))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function uniqueProjectTransmittalRefs(
+  refs: DraftingProjectTransmittalInput['includedItems'],
+): DraftingProjectTransmittalInput['includedItems'] {
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    const key = `${ref.drawingId}:${ref.drawingSheetIssueId}:${ref.sheetId}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function compactTimestamp(value: string) {

@@ -256,6 +256,10 @@ export const DRAFTING_DRAWING_TRANSMITTAL_STATUSES = [
 ] as const;
 export type DraftingDrawingTransmittalStatus =
   (typeof DRAFTING_DRAWING_TRANSMITTAL_STATUSES)[number];
+export type DraftingProjectTransmittalStatus = Exclude<
+  DraftingDrawingTransmittalStatus,
+  'archived'
+>;
 
 export const DRAFTING_TITLE_BLOCK_STATUSES = [
   'draft',
@@ -953,6 +957,68 @@ export interface DraftingDrawing extends DraftingDrawingSummary {
   model: DraftingModel;
   revisions: DraftingRevision[];
 }
+
+export type DraftingProjectTransmittalItem = {
+  drawingId: string;
+  drawingName: string;
+  drawingNumber?: string;
+  drawingSheetIssueId: string;
+  issueDate: string;
+  issueNumber: string;
+  revision: string;
+  sheetId: string;
+  sheetNumber: string;
+  sheetTitle: string;
+  snapshotLabel: string;
+  status: DraftingDrawingSheetIssueStatus;
+};
+
+export type DraftingProjectTransmittalPayload = {
+  cc: string[];
+  includedItems: DraftingProjectTransmittalItem[];
+  issuedAt?: string;
+  issuedBy?: string;
+  issuedTo: string[];
+  manifestSignature?: string;
+  notes?: string;
+  provenanceSummary: {
+    drawingCount: number;
+    frozenIssueCount: number;
+    sheetCount: number;
+    source: 'drafting_drawing_sheet_issue_snapshots';
+  };
+  purpose: string;
+  status: DraftingProjectTransmittalStatus;
+  title: string;
+  warningSummary: string[];
+};
+
+export type DraftingProjectTransmittal = {
+  id: string;
+  projectId: string;
+  organisationId: string;
+  transmittalNumber: string;
+  status: DraftingProjectTransmittalStatus;
+  payload: DraftingProjectTransmittalPayload;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DraftingProjectTransmittalInput = {
+  cc?: string[];
+  includedItems: Array<
+    Pick<DraftingProjectTransmittalItem, 'drawingId' | 'drawingSheetIssueId' | 'sheetId'>
+  >;
+  issuedAt?: string;
+  issuedBy?: string;
+  issuedTo?: string[];
+  notes?: string;
+  purpose: string;
+  status?: DraftingProjectTransmittalStatus;
+  title: string;
+  transmittalNumber: string;
+};
 
 export interface CreateDraftingDrawingInput {
   title: string;
