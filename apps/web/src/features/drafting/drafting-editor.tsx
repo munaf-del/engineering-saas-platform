@@ -416,6 +416,7 @@ export function DraftingEditor({
                 <ScrollArea className="h-[580px] pr-3">
                   <DraftingTransmittalsPanel
                     currentUserName={currentUserName}
+                    drawingId={drawingId}
                     drawingTitle={currentDrawing.title}
                     model={currentModel}
                     onModelChange={history.replaceModel}

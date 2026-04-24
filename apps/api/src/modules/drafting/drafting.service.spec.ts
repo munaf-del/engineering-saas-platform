@@ -125,9 +125,15 @@ describe('DraftingService', () => {
       update: jest.Mock;
     };
   };
+  let documentsService: {
+    create: jest.Mock;
+    findById: jest.Mock;
+  };
   let service: DraftingService;
 
-  function buildDrawingRecord(overrides: Partial<{ status: 'draft' | 'archived' }> = {}) {
+  function buildDrawingRecord(
+    overrides: Partial<{ modelJson: Record<string, unknown>; status: string }> = {},
+  ) {
     const now = new Date('2026-04-21T00:00:00.000Z');
 
     return {
@@ -137,7 +143,7 @@ describe('DraftingService', () => {
       status: overrides.status ?? 'draft',
       currentRevision: 0,
       modelVersion: 1,
-      modelJson: createEmptyModel(drawingId),
+      modelJson: overrides.modelJson ?? createEmptyModel(drawingId),
       createdById: access.userId,
       updatedById: access.userId,
       createdAt: now,
@@ -157,11 +163,31 @@ describe('DraftingService', () => {
       },
       draftingDrawing: {
         findFirst: jest.fn().mockResolvedValue(buildDrawingRecord()),
-        update: jest.fn().mockResolvedValue(buildDrawingRecord()),
+        update: jest.fn().mockImplementation((args) =>
+          Promise.resolve(
+            buildDrawingRecord({
+              status: args.data?.status ?? 'draft',
+              modelJson: args.data?.modelJson,
+            }),
+          ),
+        ),
       },
     };
 
-    service = new DraftingService(prisma as never);
+    documentsService = {
+      create: jest.fn().mockImplementation((_access, _dto, file) =>
+        Promise.resolve(
+          buildDocument({
+            fileName: file.originalname,
+            mimeType: file.mimetype,
+            sizeBytes: file.size,
+          }),
+        ),
+      ),
+      findById: jest.fn().mockResolvedValue(buildDocument()),
+    };
+
+    service = new DraftingService(prisma as never, documentsService as never);
   });
 
   it('rejects invalid drafting model payloads before persisting', async () => {
@@ -345,6 +371,203 @@ describe('DraftingService', () => {
       }),
     );
   });
+
+  it('uploads PDF evidence for an issued transmittal', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel() }),
+    );
+
+    const result = await service.uploadTransmittalEvidence(
+      access,
+      drawingId,
+      'transmittal-1',
+      { notes: 'Signed PDF evidence' },
+      pdfFile(),
+    );
+
+    expect(documentsService.create).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        entityType: 'drafting_transmittal_pdf_evidence',
+        projectId: access.projectId,
+      }),
+      expect.objectContaining({ mimetype: 'application/pdf' }),
+    );
+    expect(result.model.drawingTransmittals[0]).toMatchObject({
+      artifactDocumentId: 'document-1',
+      artifactFileName: 'evidence.pdf',
+      artifactMimeType: 'application/pdf',
+      artifactStatus: 'attached',
+    });
+  });
+
+  it('rejects non-PDF evidence uploads', async () => {
+    await expect(
+      service.uploadTransmittalEvidence(
+        access,
+        drawingId,
+        'transmittal-1',
+        {},
+        pdfFile({
+          mimetype: 'text/plain',
+          originalname: 'evidence.txt',
+          buffer: Buffer.from('no'),
+        }),
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(documentsService.create).not.toHaveBeenCalled();
+  });
+
+  it('attaches an existing PDF project document to an issued transmittal', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel() }),
+    );
+
+    const result = await service.attachTransmittalEvidence(access, drawingId, 'transmittal-1', {
+      documentId: 'document-1',
+      notes: 'Saved from browser print',
+    });
+
+    expect(documentsService.findById).toHaveBeenCalledWith(
+      'document-1',
+      expect.objectContaining({ organisationId: access.organisationId }),
+    );
+    expect(result.model.drawingTransmittals[0]).toMatchObject({
+      artifactDocumentId: 'document-1',
+      artifactMimeType: 'application/pdf',
+      artifactNotes: 'Saved from browser print',
+    });
+  });
+
+  it('rejects attaching an existing non-PDF project document', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel() }),
+    );
+    documentsService.findById.mockResolvedValue(buildDocument({ mimeType: 'image/png' }));
+
+    await expect(
+      service.attachTransmittalEvidence(access, drawingId, 'transmittal-1', {
+        documentId: 'document-1',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.draftingDrawing.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects attaching a PDF from another project', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel() }),
+    );
+    documentsService.findById.mockResolvedValue(
+      buildDocument({ projectId: '99999999-9999-9999-9999-999999999999' }),
+    );
+
+    await expect(
+      service.attachTransmittalEvidence(access, drawingId, 'transmittal-1', {
+        documentId: 'document-1',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects attaching a global non-project PDF document', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel() }),
+    );
+    documentsService.findById.mockResolvedValue(buildDocument({ projectId: null }));
+
+    await expect(
+      service.attachTransmittalEvidence(access, drawingId, 'transmittal-1', {
+        documentId: 'document-1',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects attaching evidence to a draft transmittal', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({ modelJson: issuedModel({ status: 'draft' }) }),
+    );
+
+    await expect(
+      service.attachTransmittalEvidence(access, drawingId, 'transmittal-1', {
+        documentId: 'document-1',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.draftingDrawing.update).not.toHaveBeenCalled();
+  });
+
+  it('removes evidence metadata without deleting the project document', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({
+        modelJson: issuedModel({
+          artifactDocumentId: 'document-1',
+          artifactFileName: 'evidence.pdf',
+          artifactMimeType: 'application/pdf',
+          artifactStatus: 'attached',
+        }),
+      }),
+    );
+
+    const result = await service.removeTransmittalEvidence(
+      access,
+      drawingId,
+      'transmittal-1',
+      'Replaced elsewhere',
+    );
+
+    expect(result.model.drawingTransmittals[0]).toMatchObject({
+      artifactDocumentId: undefined,
+      artifactFileName: undefined,
+      artifactMimeType: undefined,
+      artifactStatus: 'removed',
+    });
+    expect((documentsService as { delete?: jest.Mock }).delete).toBeUndefined();
+  });
+
+  it('rejects manually crafted model saves with non-PDF transmittal evidence', async () => {
+    await expect(
+      service.saveModel(
+        access,
+        drawingId,
+        issuedModel({
+          artifactDocumentId: 'document-1',
+          artifactFileName: 'evidence.txt',
+          artifactMimeType: 'text/plain',
+        }),
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.draftingDrawing.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects manually crafted model saves with cross-project or global evidence documents', async () => {
+    documentsService.findById.mockResolvedValueOnce(
+      buildDocument({ projectId: '99999999-9999-9999-9999-999999999999' }),
+    );
+
+    await expect(
+      service.saveModel(
+        access,
+        drawingId,
+        issuedModel({
+          artifactDocumentId: 'document-1',
+          artifactFileName: 'evidence.pdf',
+          artifactMimeType: 'application/pdf',
+        }),
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    documentsService.findById.mockResolvedValueOnce(buildDocument({ projectId: null }));
+    await expect(
+      service.saveModel(
+        access,
+        drawingId,
+        issuedModel({
+          artifactDocumentId: 'document-1',
+          artifactFileName: 'evidence.pdf',
+          artifactMimeType: 'application/pdf',
+        }),
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
 });
 
 function createEmptyModel(drawingId: string) {
@@ -387,4 +610,68 @@ function createEmptyModel(drawingId: string) {
     drawingSheetIssues: [],
     drawingTransmittals: [],
   };
+}
+
+function issuedModel(overrides: Record<string, unknown> = {}) {
+  return {
+    ...createEmptyModel('44444444-4444-4444-4444-444444444444'),
+    drawingTransmittals: [
+      {
+        id: 'transmittal-1',
+        transmittalNumber: 'TRN-001',
+        title: 'Drawing issue package',
+        purpose: 'For information',
+        status: 'issued',
+        issueDate: '2026-04-24T00:00:00.000Z',
+        issuedBy: 'Avery Drafter',
+        issuedTo: ['client@example.com'],
+        cc: [],
+        includedDrawingSheetIssueIds: ['issue-1'],
+        includedSheets: [
+          {
+            drawingSheetIssueId: 'issue-1',
+            sheetId: 'sheet-1',
+            sheetNumber: 'S-101',
+            sheetName: 'Geometry Sheet',
+            revision: 'B',
+            status: 'issued',
+            issueNumber: 'ISS-001',
+            snapshotLabel: 'ISS-001 Rev B - S-101 Geometry Sheet',
+          },
+        ],
+        createdAt: '2026-04-24T00:00:00.000Z',
+        updatedAt: '2026-04-24T00:00:00.000Z',
+        ...overrides,
+      },
+    ],
+  };
+}
+
+function buildDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'document-1',
+    organisationId: '22222222-2222-2222-2222-222222222222',
+    projectId: '11111111-1111-1111-1111-111111111111',
+    entityType: 'drafting_transmittal_pdf_evidence',
+    entityId: 'transmittal-1',
+    name: 'Evidence',
+    fileName: 'evidence.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: 1024,
+    storagePath: 'project/document-1/evidence.pdf',
+    uploadedBy: '33333333-3333-3333-3333-333333333333',
+    createdAt: new Date('2026-04-24T01:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function pdfFile(overrides: Partial<Express.Multer.File> = {}) {
+  const buffer = overrides.buffer ?? Buffer.from('%PDF-1.7\n%test');
+  return {
+    originalname: 'evidence.pdf',
+    mimetype: 'application/pdf',
+    size: buffer.length,
+    buffer,
+    ...overrides,
+  } as Express.Multer.File;
 }

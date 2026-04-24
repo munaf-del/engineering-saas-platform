@@ -1,9 +1,11 @@
 import { randomUUID } from 'crypto';
 import {
   DraftingDrawing,
+  DraftingDrawingTransmittal,
   DraftingDrawingSummary,
   DraftingModel,
   DraftingModelSchema,
+  DraftingTransmittalEvidenceSource,
   DraftingRevision,
   createEmptyDraftingModel,
 } from '@eng/shared';
@@ -16,7 +18,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DocumentsService } from '../documents/documents.service';
 import type { CreateDraftingDrawingDto } from './dto/create-drafting-drawing.dto';
+import type {
+  AttachDraftingTransmittalEvidenceDto,
+  UploadDraftingTransmittalEvidenceDto,
+} from './dto/transmittal-evidence.dto';
 import type { UpdateDraftingDrawingDto } from './dto/update-drafting-drawing.dto';
 
 type ProjectAccess = {
@@ -38,7 +45,10 @@ type DraftingDrawingRecord = Prisma.DraftingDrawingGetPayload<{
 
 @Injectable()
 export class DraftingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly documentsService: DocumentsService,
+  ) {}
 
   async listDrawings(access: ProjectAccess): Promise<DraftingDrawingSummary[]> {
     await this.assertProjectReadAccess(access);
@@ -123,6 +133,7 @@ export class DraftingService {
     await this.assertProjectWriteAccess(access);
     const existing = await this.findDrawingRecord(access.projectId, drawingId);
     const parsedModel = parseIncomingDraftingModel(rawModel, drawingId);
+    await this.assertTransmittalEvidenceReferences(access, parsedModel);
 
     const drawing = await this.prisma.draftingDrawing.update({
       where: { id: drawingId },
@@ -153,6 +164,86 @@ export class DraftingService {
     return serializeDraftingDrawing(drawing);
   }
 
+  async uploadTransmittalEvidence(
+    access: ProjectAccess,
+    drawingId: string,
+    transmittalId: string,
+    dto: UploadDraftingTransmittalEvidenceDto,
+    file?: Express.Multer.File,
+  ): Promise<DraftingDrawing> {
+    await this.assertProjectWriteAccess(access);
+    if (!file) {
+      throw new BadRequestException('PDF evidence file is required');
+    }
+    assertPdfUpload(file);
+
+    await this.assertTransmittalCanAcceptEvidence(access.projectId, drawingId, transmittalId);
+
+    const document = await this.documentsService.create(
+      {
+        organisationId: access.organisationId,
+        userId: access.userId,
+        orgRole: access.orgRole,
+      },
+      {
+        ...(isUuid(transmittalId) && { entityId: transmittalId }),
+        entityType: 'drafting_transmittal_pdf_evidence',
+        name: dto.name?.trim() || file.originalname.replace(/\.pdf$/i, ''),
+        projectId: access.projectId,
+      },
+      file,
+    );
+
+    return this.attachTransmittalEvidence(access, drawingId, transmittalId, {
+      artifactSource: 'manual_upload',
+      documentId: document.id,
+      notes: dto.notes,
+    });
+  }
+
+  async attachTransmittalEvidence(
+    access: ProjectAccess,
+    drawingId: string,
+    transmittalId: string,
+    dto: AttachDraftingTransmittalEvidenceDto,
+  ): Promise<DraftingDrawing> {
+    await this.assertProjectWriteAccess(access);
+    const record = await this.findDrawingRecord(access.projectId, drawingId);
+    const model = parseStoredDraftingModel(record.modelJson, drawingId);
+    const document = await this.findProjectPdfEvidenceDocument(access, dto.documentId);
+    const nextModel = attachEvidenceToModel({
+      attachedAt: new Date().toISOString(),
+      attachedBy: access.userId,
+      artifactSource: dto.artifactSource ?? 'browser_print_pdf',
+      document,
+      model,
+      notes: dto.notes,
+      transmittalId,
+    });
+
+    return this.persistModel(access, drawingId, nextModel);
+  }
+
+  async removeTransmittalEvidence(
+    access: ProjectAccess,
+    drawingId: string,
+    transmittalId: string,
+    notes?: string,
+  ): Promise<DraftingDrawing> {
+    await this.assertProjectWriteAccess(access);
+    const record = await this.findDrawingRecord(access.projectId, drawingId);
+    const model = parseStoredDraftingModel(record.modelJson, drawingId);
+    const nextModel = removeEvidenceFromModel({
+      model,
+      notes,
+      removedAt: new Date().toISOString(),
+      removedBy: access.userId,
+      transmittalId,
+    });
+
+    return this.persistModel(access, drawingId, nextModel);
+  }
+
   private async findDrawingRecord(projectId: string, drawingId: string) {
     const drawing = await this.prisma.draftingDrawing.findFirst({
       where: {
@@ -171,6 +262,96 @@ export class DraftingService {
     }
 
     return drawing;
+  }
+
+  private async persistModel(
+    access: ProjectAccess,
+    drawingId: string,
+    model: DraftingModel,
+  ): Promise<DraftingDrawing> {
+    await this.assertTransmittalEvidenceReferences(access, model);
+
+    const drawing = await this.prisma.draftingDrawing.update({
+      where: { id: drawingId },
+      data: {
+        modelVersion: model.version,
+        modelJson: model as Prisma.InputJsonValue,
+        updatedById: access.userId,
+      },
+      include: {
+        revisions: {
+          orderBy: { revisionNumber: 'desc' },
+        },
+      },
+    });
+
+    return serializeDraftingDrawing(drawing);
+  }
+
+  private async assertTransmittalCanAcceptEvidence(
+    projectId: string,
+    drawingId: string,
+    transmittalId: string,
+  ) {
+    const record = await this.findDrawingRecord(projectId, drawingId);
+    const model = parseStoredDraftingModel(record.modelJson, drawingId);
+    const transmittal = findTransmittal(model, transmittalId);
+    assertCanAttachEvidence(transmittal);
+  }
+
+  private async findProjectPdfEvidenceDocument(access: ProjectAccess, documentId: string) {
+    const document = await this.documentsService.findById(documentId, {
+      organisationId: access.organisationId,
+      userId: access.userId,
+      orgRole: access.orgRole,
+    });
+
+    if (document.organisationId !== access.organisationId) {
+      throw new ForbiddenException('Transmittal evidence document is outside this organisation');
+    }
+    if (document.projectId !== access.projectId) {
+      throw new BadRequestException(
+        'Transmittal evidence must be a PDF document scoped to the same project',
+      );
+    }
+    if (document.mimeType !== 'application/pdf') {
+      throw new BadRequestException('Transmittal evidence must be an application/pdf document');
+    }
+
+    return document;
+  }
+
+  private async assertTransmittalEvidenceReferences(access: ProjectAccess, model: DraftingModel) {
+    for (const transmittal of model.drawingTransmittals ?? []) {
+      const hasCurrentEvidence = Boolean(
+        transmittal.artifactDocumentId ||
+        transmittal.artifactFileName ||
+        transmittal.artifactMimeType ||
+        transmittal.artifactSizeBytes ||
+        transmittal.artifactAttachedAt ||
+        transmittal.artifactUploadedAt,
+      );
+      if (transmittal.status === 'draft' && hasCurrentEvidence) {
+        throw new BadRequestException('Draft transmittals cannot have PDF evidence attached');
+      }
+      if (transmittal.artifactMimeType && transmittal.artifactMimeType !== 'application/pdf') {
+        throw new BadRequestException('Transmittal evidence must be application/pdf');
+      }
+      if (
+        transmittal.artifactFileName &&
+        !transmittal.artifactFileName.toLowerCase().endsWith('.pdf')
+      ) {
+        throw new BadRequestException('Transmittal evidence file name must end with .pdf');
+      }
+      if (transmittal.artifactDocumentId) {
+        await this.findProjectPdfEvidenceDocument(access, transmittal.artifactDocumentId);
+      }
+      for (const event of transmittal.evidenceEvents ?? []) {
+        if (event.artifactDocumentId) {
+          await this.findProjectPdfEvidenceDocument(access, event.artifactDocumentId);
+        }
+      }
+    }
   }
 
   private async assertProjectReadAccess(access: ProjectAccess) {
@@ -273,7 +454,9 @@ function serializeDraftingDrawingSummary(record: DraftingDrawingRecord): Draftin
   };
 }
 
-function serializeDraftingRevision(record: DraftingDrawingRecord['revisions'][number]): DraftingRevision {
+function serializeDraftingRevision(
+  record: DraftingDrawingRecord['revisions'][number],
+): DraftingRevision {
   return {
     id: record.id,
     drawingId: record.drawingId,
@@ -294,4 +477,227 @@ function countDraftingObjects(rawModel: Prisma.JsonValue) {
 
   const objects = (rawModel as Record<string, unknown>).objects;
   return Array.isArray(objects) ? objects.length : 0;
+}
+
+type EvidenceDocument = {
+  id: string;
+  organisationId: string;
+  projectId: string | null;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: Date;
+  uploadedBy: string;
+};
+
+function assertPdfUpload(file: Express.Multer.File) {
+  if (file.mimetype !== 'application/pdf') {
+    throw new BadRequestException('Drafting transmittal evidence uploads must use application/pdf');
+  }
+  if (!file.originalname.toLowerCase().endsWith('.pdf')) {
+    throw new BadRequestException('Drafting transmittal evidence uploads must use a .pdf file');
+  }
+  if (!file.buffer?.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
+    throw new BadRequestException('Drafting transmittal evidence upload is not a PDF file');
+  }
+}
+
+function findTransmittal(model: DraftingModel, transmittalId: string) {
+  const transmittal = model.drawingTransmittals.find((candidate) => candidate.id === transmittalId);
+  if (!transmittal) {
+    throw new NotFoundException('Drafting transmittal not found');
+  }
+  return transmittal;
+}
+
+function assertCanAttachEvidence(transmittal: DraftingDrawingTransmittal) {
+  if (transmittal.status === 'draft') {
+    throw new BadRequestException('Draft transmittals cannot have PDF evidence attached');
+  }
+  if (transmittal.status === 'archived') {
+    throw new BadRequestException('Archived transmittals cannot have PDF evidence attached');
+  }
+}
+
+function attachEvidenceToModel(args: {
+  attachedAt: string;
+  attachedBy: string;
+  artifactSource: DraftingTransmittalEvidenceSource;
+  document: EvidenceDocument;
+  model: DraftingModel;
+  notes?: string;
+  transmittalId: string;
+}): DraftingModel {
+  const transmittal = findTransmittal(args.model, args.transmittalId);
+  assertCanAttachEvidence(transmittal);
+
+  const nextVersion = (transmittal.artifactVersion ?? 0) + 1;
+  const action = transmittal.artifactDocumentId ? 'replaced' : 'attached';
+  const event = {
+    id: `evidence-${transmittal.id}-${compactTimestamp(args.attachedAt)}-${nextVersion}`,
+    action,
+    at: args.attachedAt,
+    by: args.attachedBy,
+    artifactDocumentId: args.document.id,
+    artifactFileName: args.document.fileName,
+    artifactNotes: args.notes?.trim() || undefined,
+    artifactSource: args.artifactSource,
+  } satisfies NonNullable<DraftingDrawingTransmittal['evidenceEvents']>[number];
+
+  const nextTransmittal: DraftingDrawingTransmittal = {
+    ...transmittal,
+    artifactAttachedAt: args.attachedAt,
+    artifactAttachedBy: args.attachedBy,
+    artifactAddedAt: args.attachedAt,
+    artifactAddedBy: args.attachedBy,
+    artifactDocumentId: args.document.id,
+    artifactFileName: args.document.fileName,
+    artifactMimeType: args.document.mimeType,
+    artifactNotes: args.notes?.trim() || undefined,
+    artifactSizeBytes: args.document.sizeBytes,
+    artifactSource: args.artifactSource,
+    artifactStatus: action,
+    artifactUploadedAt: args.document.createdAt.toISOString(),
+    artifactUploadedBy: args.document.uploadedBy,
+    artifactVersion: nextVersion,
+    evidenceEvents: [...(transmittal.evidenceEvents ?? []), event],
+    updatedAt: args.attachedAt,
+  };
+
+  return replaceTransmittal(args.model, {
+    ...nextTransmittal,
+    evidenceSignature: buildEvidenceSignature(nextTransmittal),
+  });
+}
+
+function removeEvidenceFromModel(args: {
+  model: DraftingModel;
+  notes?: string;
+  removedAt: string;
+  removedBy: string;
+  transmittalId: string;
+}): DraftingModel {
+  const transmittal = findTransmittal(args.model, args.transmittalId);
+  assertCanAttachEvidence(transmittal);
+  if (!transmittal.artifactDocumentId && !transmittal.artifactFileName) {
+    return args.model;
+  }
+
+  const nextVersion = (transmittal.artifactVersion ?? 0) + 1;
+  const event = {
+    id: `evidence-${transmittal.id}-${compactTimestamp(args.removedAt)}-${nextVersion}`,
+    action: 'removed',
+    at: args.removedAt,
+    by: args.removedBy,
+    artifactDocumentId: transmittal.artifactDocumentId,
+    artifactFileName: transmittal.artifactFileName,
+    artifactNotes: args.notes?.trim() || transmittal.artifactNotes,
+    artifactSource: transmittal.artifactSource ?? 'browser_print_pdf',
+  } satisfies NonNullable<DraftingDrawingTransmittal['evidenceEvents']>[number];
+
+  const nextTransmittal: DraftingDrawingTransmittal = {
+    ...transmittal,
+    artifactAttachedAt: undefined,
+    artifactAttachedBy: undefined,
+    artifactAddedAt: undefined,
+    artifactAddedBy: undefined,
+    artifactDocumentId: undefined,
+    artifactFileName: undefined,
+    artifactMimeType: undefined,
+    artifactNotes: args.notes?.trim() || transmittal.artifactNotes,
+    artifactSizeBytes: undefined,
+    artifactSource: transmittal.artifactSource ?? 'browser_print_pdf',
+    artifactStatus: 'removed',
+    artifactUploadedAt: undefined,
+    artifactUploadedBy: undefined,
+    artifactVersion: nextVersion,
+    evidenceEvents: [...(transmittal.evidenceEvents ?? []), event],
+    updatedAt: args.removedAt,
+  };
+
+  return replaceTransmittal(args.model, {
+    ...nextTransmittal,
+    evidenceSignature: buildEvidenceSignature(nextTransmittal),
+  });
+}
+
+function replaceTransmittal(
+  model: DraftingModel,
+  transmittal: DraftingDrawingTransmittal,
+): DraftingModel {
+  return {
+    ...model,
+    drawingTransmittals: model.drawingTransmittals.map((candidate) =>
+      candidate.id === transmittal.id ? transmittal : candidate,
+    ),
+  };
+}
+
+function buildEvidenceSignature(transmittal: DraftingDrawingTransmittal) {
+  return `ev-${fnv1a32(
+    stableStringify(
+      sanitizeMetadata({
+        artifactAttachedAt: transmittal.artifactAttachedAt,
+        artifactDocumentId: transmittal.artifactDocumentId,
+        artifactFileName: transmittal.artifactFileName,
+        artifactMimeType: transmittal.artifactMimeType,
+        artifactSizeBytes: transmittal.artifactSizeBytes,
+        artifactStatus: transmittal.artifactStatus,
+        artifactVersion: transmittal.artifactVersion,
+        evidenceEvents: transmittal.evidenceEvents ?? [],
+      }),
+    ),
+  )
+    .toString(16)
+    .padStart(8, '0')}`;
+}
+
+function fnv1a32(value: string) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+  return `{${Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => entryValue !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
+    .join(',')}}`;
+}
+
+function sanitizeMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeMetadata);
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key, entryValue]) => {
+        if (entryValue === undefined) {
+          return false;
+        }
+        return !/(token|password|secret|binary|image|thumbnail|session)/i.test(key);
+      })
+      .map(([key, entryValue]) => [key, sanitizeMetadata(entryValue)]),
+  );
+}
+
+function compactTimestamp(value: string) {
+  return value.replace(/[^0-9A-Z]/gi, '');
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

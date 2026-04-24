@@ -27,12 +27,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useProjectDocuments, useUploadProjectDocument } from '@/hooks/use-documents';
+import { useProjectDocuments } from '@/hooks/use-documents';
+import {
+  useAttachDraftingTransmittalEvidence,
+  useRemoveDraftingTransmittalEvidence,
+  useUploadDraftingTransmittalEvidence,
+} from '@/hooks/use-drafting';
 import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
 import { downloadDraftingTransmittalManifestJson } from '../export-utils';
 import {
   addDrawingTransmittal,
-  attachDraftingTransmittalPdfEvidence,
   buildDraftingTransmittalWarnings,
   createDraftingTransmittal,
   duplicateDraftingTransmittalToDraft,
@@ -43,7 +47,6 @@ import {
   isDraftingTransmittalEditable,
   issueDraftingTransmittal,
   recordDraftingTransmittalManifestExport,
-  removeDraftingTransmittalPdfEvidence,
   suggestNextTransmittalNumber,
   supersedeDraftingTransmittal,
   updateDraftingTransmittal,
@@ -65,12 +68,14 @@ type TransmittalFormState = {
 
 export function DraftingTransmittalsPanel({
   currentUserName,
+  drawingId,
   drawingTitle,
   model,
   onModelChange,
   projectId,
 }: {
   currentUserName: string | null;
+  drawingId: string;
   drawingTitle: string;
   model: DraftingModel;
   onModelChange: (model: DraftingModel) => void;
@@ -79,7 +84,9 @@ export function DraftingTransmittalsPanel({
   const transmittals = React.useMemo(() => getDrawingTransmittals(model), [model]);
   const frozenIssues = React.useMemo(() => getFrozenDrawingSheetIssues(model), [model]);
   const documentsQuery = useProjectDocuments(projectId, 'application/pdf');
-  const uploadDocument = useUploadProjectDocument(projectId);
+  const uploadEvidence = useUploadDraftingTransmittalEvidence(projectId, drawingId);
+  const attachEvidence = useAttachDraftingTransmittalEvidence(projectId, drawingId);
+  const removeEvidence = useRemoveDraftingTransmittalEvidence(projectId, drawingId);
   const { data: rootTemplates = [] } = useRootSheetTemplates();
   const rootTemplatesById = React.useMemo(
     () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
@@ -309,29 +316,32 @@ export function DraftingTransmittalsPanel({
     }
 
     try {
-      const document = await uploadDocument.mutateAsync({
+      const drawing = await uploadEvidence.mutateAsync({
         file: evidenceUploadFile,
         name: evidenceUploadFile.name.replace(/\.pdf$/i, ''),
-        entityType: 'drafting_transmittal_pdf_evidence',
-        entityId: selectedTransmittal.id,
+        notes: evidenceNotes,
+        transmittalId: selectedTransmittal.id,
       });
       setEvidenceUploadFile(null);
-      setEvidenceDocumentId(document.id);
-      attachEvidenceDocument(document, evidenceNotes, true, { skipReplaceConfirm: true });
+      const nextTransmittal = drawing.model.drawingTransmittals.find(
+        (candidate) => candidate.id === selectedTransmittal.id,
+      );
+      setEvidenceDocumentId(nextTransmittal?.artifactDocumentId ?? '');
+      onModelChange(drawing.model);
       toast.success('PDF evidence uploaded and attached');
-    } catch {
-      toast.error('Failed to upload PDF evidence');
+    } catch (error) {
+      toast.error(formatDraftingEvidenceApiError(error, 'Failed to upload PDF evidence'));
     }
   }
 
-  function handleAttachSelectedEvidence() {
+  async function handleAttachSelectedEvidence() {
     if (!selectedEvidenceDocument) {
       return;
     }
-    attachEvidenceDocument(selectedEvidenceDocument, evidenceNotes, false);
+    await attachEvidenceDocument(selectedEvidenceDocument, evidenceNotes, false);
   }
 
-  function attachEvidenceDocument(
+  async function attachEvidenceDocument(
     document: Document,
     notes: string,
     fromUpload: boolean,
@@ -353,26 +363,21 @@ export function DraftingTransmittalsPanel({
       }
     }
 
-    onModelChange(
-      attachDraftingTransmittalPdfEvidence({
-        attachedBy: currentUserName ?? selectedTransmittal.issuedBy,
-        evidence: {
-          artifactDocumentId: document.id,
-          artifactFileName: document.fileName,
-          artifactMimeType: document.mimeType,
-          artifactNotes: notes,
-          artifactSizeBytes: document.sizeBytes,
-          artifactSource: fromUpload ? 'manual_upload' : 'browser_print_pdf',
-          artifactUploadedAt: document.createdAt,
-          artifactUploadedBy: document.uploadedBy,
-        },
-        model,
+    try {
+      const drawing = await attachEvidence.mutateAsync({
+        artifactSource: fromUpload ? 'manual_upload' : 'browser_print_pdf',
+        documentId: document.id,
+        notes,
         transmittalId: selectedTransmittal.id,
-      }),
-    );
+      });
+      onModelChange(drawing.model);
+      toast.success('PDF evidence attached');
+    } catch (error) {
+      toast.error(formatDraftingEvidenceApiError(error, 'Failed to attach PDF evidence'));
+    }
   }
 
-  function handleRemoveEvidence() {
+  async function handleRemoveEvidence() {
     if (!selectedTransmittal?.artifactDocumentId && !selectedTransmittal?.artifactFileName) {
       return;
     }
@@ -382,14 +387,16 @@ export function DraftingTransmittalsPanel({
     if (!confirmed) {
       return;
     }
-    onModelChange(
-      removeDraftingTransmittalPdfEvidence({
-        model,
+    try {
+      const drawing = await removeEvidence.mutateAsync({
         notes: evidenceNotes,
-        removedBy: currentUserName ?? selectedTransmittal.issuedBy,
         transmittalId: selectedTransmittal.id,
-      }),
-    );
+      });
+      onModelChange(drawing.model);
+      toast.success('PDF evidence removed');
+    } catch (error) {
+      toast.error(formatDraftingEvidenceApiError(error, 'Failed to remove PDF evidence'));
+    }
   }
 
   return (
@@ -639,7 +646,9 @@ export function DraftingTransmittalsPanel({
           documentsLoading={documentsQuery.isLoading}
           evidenceDocumentId={selectedEvidenceDocument?.id ?? ''}
           evidenceNotes={evidenceNotes}
-          isUploadPending={uploadDocument.isPending}
+          isEvidenceMutationPending={
+            uploadEvidence.isPending || attachEvidence.isPending || removeEvidence.isPending
+          }
           selectedTransmittal={selectedTransmittal}
           uploadFile={evidenceUploadFile}
           onAttachSelected={handleAttachSelectedEvidence}
@@ -789,7 +798,7 @@ function EvidencePdfSection({
   documentsLoading,
   evidenceDocumentId,
   evidenceNotes,
-  isUploadPending,
+  isEvidenceMutationPending,
   onAttachSelected,
   onRefreshDocuments,
   onRemove,
@@ -804,7 +813,7 @@ function EvidencePdfSection({
   documentsLoading: boolean;
   evidenceDocumentId: string;
   evidenceNotes: string;
-  isUploadPending: boolean;
+  isEvidenceMutationPending: boolean;
   selectedTransmittal: ReturnType<typeof getDrawingTransmittals>[number] | null;
   uploadFile: File | null;
   onAttachSelected: () => void;
@@ -911,7 +920,7 @@ function EvidencePdfSection({
 
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={!canAttach || !evidenceDocumentId}
+          disabled={!canAttach || !evidenceDocumentId || isEvidenceMutationPending}
           size="sm"
           type="button"
           variant={hasAttachedEvidence ? 'outline' : 'default'}
@@ -929,7 +938,7 @@ function EvidencePdfSection({
           Refresh PDFs
         </Button>
         <Button
-          disabled={!canAttach || !hasAttachedEvidence}
+          disabled={!canAttach || !hasAttachedEvidence || isEvidenceMutationPending}
           size="sm"
           type="button"
           variant="outline"
@@ -949,7 +958,7 @@ function EvidencePdfSection({
             onChange={(event) => onSetUploadFile(event.target.files?.[0] ?? null)}
           />
           <Button
-            disabled={!canAttach || !uploadFile || isUploadPending}
+            disabled={!canAttach || !uploadFile || isEvidenceMutationPending}
             size="sm"
             type="button"
             variant="outline"
@@ -994,6 +1003,22 @@ function formatBytes(value: number) {
     return `${(value / 1024).toFixed(1)} KB`;
   }
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function formatDraftingEvidenceApiError(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'body' in error) {
+    const body = (error as { body?: unknown }).body;
+    if (body && typeof body === 'object' && 'message' in body) {
+      const message = (body as { message?: unknown }).message;
+      if (Array.isArray(message)) {
+        return message.filter((entry) => typeof entry === 'string').join('; ') || fallback;
+      }
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+    }
+  }
+  return fallback;
 }
 
 function canAttachEvidence(status: DraftingDrawingTransmittalStatus) {
