@@ -1,11 +1,17 @@
 import { randomUUID } from 'crypto';
 import { access as fsAccess } from 'node:fs/promises';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { RequestUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { CreateDocumentDto } from './dto/document.dto';
 import { DocumentStorageService } from './document-storage.service';
+import { findDraftingTransmittalEvidenceReferences } from './drafting-transmittal-evidence-references';
 
 type DocumentAccess = {
   organisationId: string;
@@ -140,9 +146,60 @@ export class DocumentsService {
 
   async delete(id: string, access: DocumentAccess) {
     const doc = await this.findById(id, access);
+    if (doc.projectId) {
+      const references = await this.findDraftingTransmittalEvidenceReferences(
+        doc.projectId,
+        doc.id,
+      );
+      if (references.length > 0) {
+        throw new ConflictException({
+          documentId: doc.id,
+          projectId: doc.projectId,
+          referencesCount: references.length,
+          references,
+        });
+      }
+    }
+
     const deleted = await this.prisma.document.delete({ where: { id: doc.id } });
     await this.storageService.deleteStoredFile(doc.storagePath);
     return deleted;
+  }
+
+  async findDraftingTransmittalEvidenceReferences(projectId: string, documentId: string) {
+    const drawings = await this.prisma.draftingDrawing.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        modelJson: true,
+        projectId: true,
+        revisions: {
+          select: {
+            modelJsonSnapshot: true,
+          },
+        },
+        title: true,
+      },
+    });
+
+    const models = drawings.flatMap((drawing) => {
+      const current = {
+        id: drawing.id,
+        modelJson: drawing.modelJson,
+        projectId: drawing.projectId,
+        title: drawing.title,
+      };
+
+      return [
+        current,
+        ...drawing.revisions.map((revision) => ({
+          ...current,
+          modelJson: revision.modelJsonSnapshot,
+        })),
+      ];
+    });
+
+    return findDraftingTransmittalEvidenceReferences(projectId, documentId, models);
   }
 
   private async assertProjectReadAccess(access: DocumentAccess, projectId: string) {

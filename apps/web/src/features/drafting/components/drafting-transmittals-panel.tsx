@@ -828,6 +828,9 @@ function EvidencePdfSection({
   const hasAttachedEvidence = Boolean(
     selectedTransmittal?.artifactDocumentId || selectedTransmittal?.artifactFileName,
   );
+  const evidenceProtectionMessage = selectedTransmittal
+    ? getTransmittalEvidenceProtectionMessage(selectedTransmittal)
+    : null;
 
   return (
     <div className="space-y-3 rounded-md border p-3">
@@ -889,6 +892,7 @@ function EvidencePdfSection({
           ) : null}
         </div>
       ) : null}
+      {evidenceProtectionMessage ? <WarningLine message={evidenceProtectionMessage} /> : null}
 
       <div className="space-y-1">
         <Label htmlFor="drafting-transmittal-evidence-document">Project PDF document</Label>
@@ -1019,6 +1023,24 @@ export function formatDraftingEvidenceApiError(error: unknown, fallback: string)
     }
   }
   return fallback;
+}
+
+export function getTransmittalEvidenceProtectionMessage(
+  transmittal: ReturnType<typeof getDrawingTransmittals>[number],
+) {
+  if (!transmittal.artifactDocumentId) {
+    return null;
+  }
+
+  const historyReferences = (transmittal.evidenceEvents ?? []).filter(
+    (event) => event.artifactDocumentId === transmittal.artifactDocumentId,
+  ).length;
+
+  if (historyReferences > 0) {
+    return 'Evidence document protected: this project PDF is referenced by current transmittal evidence and transmittal history.';
+  }
+
+  return 'Evidence document protected: this project PDF is referenced by current transmittal evidence.';
 }
 
 function canAttachEvidence(status: DraftingDrawingTransmittalStatus) {
