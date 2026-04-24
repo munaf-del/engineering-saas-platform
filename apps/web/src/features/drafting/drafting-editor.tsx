@@ -15,6 +15,7 @@ import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
+import { DraftingTransmittalsPanel } from './components/drafting-transmittals-panel';
 import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
 import {
@@ -334,11 +335,12 @@ export function DraftingEditor({
               value={drafting.activeTab}
               onValueChange={(value) => drafting.setActiveTab(value as typeof drafting.activeTab)}
             >
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="properties">Properties</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 <TabsTrigger value="underlays">Underlays</TabsTrigger>
                 <TabsTrigger value="sheets">Sheets</TabsTrigger>
+                <TabsTrigger value="transmittals">Transmittals</TabsTrigger>
                 <TabsTrigger value="schedules">Schedules</TabsTrigger>
               </TabsList>
 
@@ -406,6 +408,18 @@ export function DraftingEditor({
                       selection.selectedObjectId ? [selection.selectedObjectId] : []
                     }
                     viewportOverlayEnabled={showDrawingSheetViewportOverlay}
+                  />
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="transmittals">
+                <ScrollArea className="h-[580px] pr-3">
+                  <DraftingTransmittalsPanel
+                    currentUserName={currentUserName}
+                    drawingTitle={currentDrawing.title}
+                    model={currentModel}
+                    onModelChange={history.replaceModel}
+                    projectId={projectId}
                   />
                 </ScrollArea>
               </TabsContent>

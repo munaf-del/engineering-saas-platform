@@ -4,6 +4,7 @@ import {
   DRAFTING_CALLOUT_LEADER_STYLES,
   DRAFTING_DIMENSION_UNITS,
   DRAFTING_DRAWING_SHEET_ISSUE_STATUSES,
+  DRAFTING_DRAWING_TRANSMITTAL_STATUSES,
   DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES,
   DRAFTING_DRAWING_STATUSES,
   DRAFTING_FUTURE_OBJECT_TYPES,
@@ -691,6 +692,34 @@ export const DraftingDrawingSheetIssueSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const DraftingDrawingTransmittalSheetSchema = z.object({
+  drawingSheetIssueId: z.string().min(1),
+  sheetId: z.string().min(1),
+  sheetNumber: z.string().min(1),
+  sheetName: z.string().min(1),
+  revision: z.string().min(1),
+  status: z.enum(DRAFTING_DRAWING_SHEET_ISSUE_STATUSES),
+  issueNumber: z.string().min(1),
+  snapshotLabel: z.string().min(1),
+});
+
+export const DraftingDrawingTransmittalSchema = z.object({
+  id: z.string().min(1),
+  transmittalNumber: z.string().min(1),
+  title: z.string().min(1),
+  purpose: z.string().min(1),
+  status: z.enum(DRAFTING_DRAWING_TRANSMITTAL_STATUSES),
+  issueDate: z.string().datetime(),
+  issuedBy: z.string(),
+  issuedTo: z.array(z.string().min(1)),
+  cc: z.array(z.string().min(1)),
+  notes: z.string().optional(),
+  includedDrawingSheetIssueIds: z.array(z.string().min(1)),
+  includedSheets: z.array(DraftingDrawingTransmittalSheetSchema),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
 export const DraftingModelSchema = z.object({
   version: z.literal(1),
   units: z.literal('mm'),
@@ -710,6 +739,7 @@ export const DraftingModelSchema = z.object({
   schedulePackIssues: z.array(DraftingSchedulePackIssueSchema).default([]),
   drawingSheets: z.array(DraftingDrawingSheetDefinitionSchema).default([]),
   drawingSheetIssues: z.array(DraftingDrawingSheetIssueSchema).default([]),
+  drawingTransmittals: z.array(DraftingDrawingTransmittalSchema).default([]),
 });
 
 export const DraftingDrawingSummarySchema = z.object({

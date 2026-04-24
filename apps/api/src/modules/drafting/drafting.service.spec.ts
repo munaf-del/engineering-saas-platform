@@ -96,6 +96,7 @@ jest.mock('@eng/shared', () => {
     schedulePackIssues: z.array(z.unknown()).default([]),
     drawingSheets: z.array(z.unknown()).default([]),
     drawingSheetIssues: z.array(z.unknown()).default([]),
+    drawingTransmittals: z.array(z.unknown()).default([]),
   });
 
   return {
@@ -298,6 +299,52 @@ describe('DraftingService', () => {
       }),
     );
   });
+
+  it('persists drawing transmittals through the model save path', async () => {
+    const model = {
+      ...createEmptyModel(drawingId),
+      drawingTransmittals: [
+        {
+          id: 'transmittal-1',
+          transmittalNumber: 'TRN-001',
+          title: 'Drawing issue package',
+          purpose: 'For information',
+          status: 'issued',
+          issueDate: '2026-04-24T00:00:00.000Z',
+          issuedBy: 'Avery Drafter',
+          issuedTo: ['client@example.com'],
+          cc: [],
+          includedDrawingSheetIssueIds: ['issue-1'],
+          includedSheets: [
+            {
+              drawingSheetIssueId: 'issue-1',
+              sheetId: 'sheet-1',
+              sheetNumber: 'S-101',
+              sheetName: 'Geometry Sheet',
+              revision: 'B',
+              status: 'issued',
+              issueNumber: 'ISS-001',
+              snapshotLabel: 'ISS-001 Rev B - S-101 Geometry Sheet',
+            },
+          ],
+          createdAt: '2026-04-24T00:00:00.000Z',
+          updatedAt: '2026-04-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    await service.saveModel(access, drawingId, model);
+
+    expect(prisma.draftingDrawing.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          modelJson: expect.objectContaining({
+            drawingTransmittals: model.drawingTransmittals,
+          }),
+        }),
+      }),
+    );
+  });
 });
 
 function createEmptyModel(drawingId: string) {
@@ -338,5 +385,6 @@ function createEmptyModel(drawingId: string) {
     schedulePackIssues: [],
     drawingSheets: [],
     drawingSheetIssues: [],
+    drawingTransmittals: [],
   };
 }

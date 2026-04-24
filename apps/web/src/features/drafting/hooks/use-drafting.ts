@@ -2,7 +2,13 @@ import { useState } from 'react';
 import type { DraftingPoint } from '@eng/shared';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
-export type DraftingInspectorTab = 'properties' | 'layers' | 'underlays' | 'schedules' | 'sheets';
+export type DraftingInspectorTab =
+  | 'properties'
+  | 'layers'
+  | 'underlays'
+  | 'schedules'
+  | 'sheets'
+  | 'transmittals';
 
 export function useDrafting() {
   const [activeTool, setActiveTool] = useState<DraftingTool>('select');

@@ -22,9 +22,10 @@ describe('drafting defaults', () => {
     expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.drawingSheetIssues).toEqual([]);
+    expect(parsed.drawingTransmittals).toEqual([]);
   });
 
-  it('hydrates older drafting models without title, revision, schedule, or drawing sheet issue metadata', () => {
+  it('hydrates older drafting models without title, revision, schedule, issue, or transmittal metadata', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));
     delete legacyModel.titleBlock;
@@ -33,6 +34,7 @@ describe('drafting defaults', () => {
     delete legacyModel.schedulePackIssues;
     delete legacyModel.drawingSheets;
     delete legacyModel.drawingSheetIssues;
+    delete legacyModel.drawingTransmittals;
     const parsed = DraftingModelSchema.parse(legacyModel);
 
     expect(parsed.titleBlock).toEqual({});
@@ -41,6 +43,7 @@ describe('drafting defaults', () => {
     expect(parsed.schedulePackIssues).toEqual([]);
     expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.drawingSheetIssues).toEqual([]);
+    expect(parsed.drawingTransmittals).toEqual([]);
     expect(parsed.objectChangeEvents).toEqual([]);
     expect(parsed.underlays).toEqual([]);
     expect(parsed.objects).toEqual([]);

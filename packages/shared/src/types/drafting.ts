@@ -247,6 +247,10 @@ export const DRAFTING_DRAWING_SHEET_ISSUE_STATUSES = ['draft', 'issued', 'supers
 export type DraftingDrawingSheetIssueStatus =
   (typeof DRAFTING_DRAWING_SHEET_ISSUE_STATUSES)[number];
 
+export const DRAFTING_DRAWING_TRANSMITTAL_STATUSES = ['draft', 'issued', 'archived'] as const;
+export type DraftingDrawingTransmittalStatus =
+  (typeof DRAFTING_DRAWING_TRANSMITTAL_STATUSES)[number];
+
 export const DRAFTING_TITLE_BLOCK_STATUSES = [
   'draft',
   'for_review',
@@ -488,6 +492,34 @@ export type DraftingDrawingSheetIssue = {
   lockedDrawingSheets: DraftingLockedDrawingSheetDefinition[];
   lockedObjects: DraftingDrawingSheetIssueObjectSnapshot[];
   lockedUnderlays: DraftingDrawingSheetIssueUnderlaySnapshot[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DraftingDrawingTransmittalSheet = {
+  drawingSheetIssueId: string;
+  sheetId: string;
+  sheetNumber: string;
+  sheetName: string;
+  revision: string;
+  status: DraftingDrawingSheetIssueStatus;
+  issueNumber: string;
+  snapshotLabel: string;
+};
+
+export type DraftingDrawingTransmittal = {
+  id: string;
+  transmittalNumber: string;
+  title: string;
+  purpose: string;
+  status: DraftingDrawingTransmittalStatus;
+  issueDate: string;
+  issuedBy: string;
+  issuedTo: string[];
+  cc: string[];
+  notes?: string;
+  includedDrawingSheetIssueIds: string[];
+  includedSheets: DraftingDrawingTransmittalSheet[];
   createdAt: string;
   updatedAt: string;
 };
@@ -830,6 +862,7 @@ export type DraftingModel = {
   schedulePackIssues: DraftingSchedulePackIssue[];
   drawingSheets: DraftingDrawingSheetDefinition[];
   drawingSheetIssues: DraftingDrawingSheetIssue[];
+  drawingTransmittals: DraftingDrawingTransmittal[];
 };
 
 export type DraftingObjectChangeEvent = {
@@ -1019,6 +1052,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     schedulePackIssues: model.schedulePackIssues ?? [],
     drawingSheets: model.drawingSheets ?? [],
     drawingSheetIssues: model.drawingSheetIssues ?? [],
+    drawingTransmittals: model.drawingTransmittals ?? [],
   };
 }
 
@@ -1044,6 +1078,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     schedulePackIssues: [],
     drawingSheets: [],
     drawingSheetIssues: [],
+    drawingTransmittals: [],
   });
 }
 

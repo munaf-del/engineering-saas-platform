@@ -1,4 +1,8 @@
-import type { DraftingDrawingSheetIssue, DraftingModel } from '@eng/shared';
+import type {
+  DraftingDrawingSheetIssue,
+  DraftingDrawingTransmittal,
+  DraftingModel,
+} from '@eng/shared';
 import type { DraftingSchedulePackIssue } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { buildDraftingExportFilename } from './model-utils';
@@ -12,6 +16,10 @@ import {
   buildDraftingDrawingSheetIssueManifest,
   serializeDraftingDrawingSheetIssueManifestJson,
 } from './sheets/drafting-drawing-sheet-issue-utils';
+import {
+  buildDraftingTransmittalManifest,
+  serializeDraftingTransmittalManifestJson,
+} from './transmittals/drafting-transmittal-utils';
 import {
   buildDraftingScheduleSheetPack,
   serializeDraftingScheduleSheetPackJson,
@@ -113,6 +121,25 @@ export function downloadDraftingDrawingSheetIssueManifestJson(args: {
   downloadTextFile(
     `${buildDraftingExportFilename(args.title)}-drawing-sheet-issue-${sanitizeFilenameSegment(args.issue.issueNumber)}-manifest.json`,
     serializeDraftingDrawingSheetIssueManifestJson(manifest),
+    'application/json',
+  );
+}
+
+export function downloadDraftingTransmittalManifestJson(args: {
+  model: DraftingModel;
+  rootTemplatesById: ReadonlyMap<string, RootSheetTemplate>;
+  title: string;
+  transmittal: DraftingDrawingTransmittal;
+}) {
+  const manifest = buildDraftingTransmittalManifest({
+    model: args.model,
+    rootTemplatesById: args.rootTemplatesById,
+    transmittal: args.transmittal,
+  });
+
+  downloadTextFile(
+    `${buildDraftingExportFilename(args.title)}-transmittal-${sanitizeFilenameSegment(args.transmittal.transmittalNumber)}-manifest.json`,
+    serializeDraftingTransmittalManifestJson(manifest),
     'application/json',
   );
 }
