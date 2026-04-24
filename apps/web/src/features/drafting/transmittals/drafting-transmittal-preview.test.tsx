@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { createEmptyDraftingModel, type DraftingDrawing, type Project } from '@eng/shared';
 import { createDraftingDrawingSheetIssueSnapshot } from '../sheets/drafting-drawing-sheet-issue-utils';
 import { createDraftingDrawingSheetDefinition } from '../sheets/drafting-drawing-sheet-utils';
-import { createDraftingTransmittal } from './drafting-transmittal-utils';
+import {
+  addDrawingTransmittal,
+  createDraftingTransmittal,
+  issueDraftingTransmittal,
+} from './drafting-transmittal-utils';
 import { DraftingTransmittalPreview } from './drafting-transmittal-preview';
 
 const now = '2026-04-24T00:00:00.000Z';
@@ -40,15 +44,75 @@ describe('drafting transmittal preview', () => {
     });
     model.drawingSheetIssues.push(issue);
     model.drawingTransmittals = [];
-    const transmittal = createDraftingTransmittal(model, {
+    const draft = createDraftingTransmittal(model, {
+      artifactFileName: 'TRN-001.pdf',
       id: 'transmittal-1',
       includedDrawingSheetIssueIds: ['issue-1'],
       issueDate: now,
       issuedBy: 'Avery Drafter',
       issuedTo: ['client@example.com'],
       purpose: 'For information',
-      status: 'issued',
       title: 'Drawing package',
+      transmittalNumber: 'TRN-001',
+    });
+    const issuedModel = issueDraftingTransmittal({
+      issuedAt: '2026-04-24T01:00:00.000Z',
+      issuedBy: 'Avery Drafter',
+      model: addDrawingTransmittal(model, draft),
+      transmittalId: 'transmittal-1',
+    });
+    const transmittal = issuedModel.drawingTransmittals[0]!;
+
+    const markup = renderToStaticMarkup(
+      <DraftingTransmittalPreview
+        drawing={createDrawing(issuedModel)}
+        project={createProject()}
+        projectId="project-1"
+        rootTemplates={[]}
+        transmittal={transmittal}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="drafting-transmittal-preview"');
+    expect(markup).toContain('TRN-001');
+    expect(markup).toContain('NORTH SYDNEY');
+    expect(markup).toContain('S-101');
+    expect(markup).toContain('ISS-001 Rev B - S-101 Geometry Sheet 1');
+    expect(markup).toContain('Browser Print / Save PDF');
+    expect(markup).toContain('read-only locked');
+    expect(markup).toContain('issue-transmittal-1-20260424T010000000Z');
+    expect(markup).toContain('sig-');
+    expect(markup).toContain('TRN-001.pdf');
+  });
+
+  it('warns when previewing a draft transmittal', () => {
+    const model = createEmptyDraftingModel('drawing-1');
+    model.drawingSheets.push(
+      createDraftingDrawingSheetDefinition({
+        id: 'sheet-1',
+        name: 'Geometry Sheet 1',
+        now,
+        sheetNumber: 'S-101',
+        title: 'Retention Plan',
+      }),
+    );
+    model.drawingSheetIssues.push(
+      createDraftingDrawingSheetIssueSnapshot(model, {
+        id: 'issue-1',
+        issueDate: now,
+        issueNumber: 'ISS-001',
+        purpose: 'For review',
+        revision: 'B',
+        sheetIds: ['sheet-1'],
+        status: 'issued',
+      }),
+    );
+    const transmittal = createDraftingTransmittal(model, {
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      issueDate: now,
+      purpose: 'For information',
+      title: 'Draft package',
       transmittalNumber: 'TRN-001',
     });
     model.drawingTransmittals.push(transmittal);
@@ -63,12 +127,8 @@ describe('drafting transmittal preview', () => {
       />,
     );
 
-    expect(markup).toContain('data-testid="drafting-transmittal-preview"');
-    expect(markup).toContain('TRN-001');
-    expect(markup).toContain('NORTH SYDNEY');
-    expect(markup).toContain('S-101');
-    expect(markup).toContain('ISS-001 Rev B - S-101 Geometry Sheet 1');
-    expect(markup).toContain('Browser print or save as PDF');
+    expect(markup).toContain('draft / editable draft');
+    expect(markup).toContain('This transmittal is draft and is not issued evidence.');
   });
 });
 

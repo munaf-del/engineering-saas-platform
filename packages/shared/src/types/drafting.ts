@@ -247,7 +247,13 @@ export const DRAFTING_DRAWING_SHEET_ISSUE_STATUSES = ['draft', 'issued', 'supers
 export type DraftingDrawingSheetIssueStatus =
   (typeof DRAFTING_DRAWING_SHEET_ISSUE_STATUSES)[number];
 
-export const DRAFTING_DRAWING_TRANSMITTAL_STATUSES = ['draft', 'issued', 'archived'] as const;
+export const DRAFTING_DRAWING_TRANSMITTAL_STATUSES = [
+  'draft',
+  'issued',
+  'superseded',
+  'void',
+  'archived',
+] as const;
 export type DraftingDrawingTransmittalStatus =
   (typeof DRAFTING_DRAWING_TRANSMITTAL_STATUSES)[number];
 
@@ -515,9 +521,25 @@ export type DraftingDrawingTransmittal = {
   status: DraftingDrawingTransmittalStatus;
   issueDate: string;
   issuedBy: string;
+  issuedAt?: string;
   issuedTo: string[];
   cc: string[];
   notes?: string;
+  issueActionId?: string;
+  manifestSignature?: string;
+  lastExportedAt?: string;
+  lastExportedBy?: string;
+  artifactFileName?: string;
+  artifactDocumentId?: string;
+  artifactAddedAt?: string;
+  artifactAddedBy?: string;
+  artifactNotes?: string;
+  supersededAt?: string;
+  supersededBy?: string;
+  supersededByTransmittalId?: string;
+  voidedAt?: string;
+  voidedBy?: string;
+  voidReason?: string;
   includedDrawingSheetIssueIds: string[];
   includedSheets: DraftingDrawingTransmittalSheet[];
   createdAt: string;

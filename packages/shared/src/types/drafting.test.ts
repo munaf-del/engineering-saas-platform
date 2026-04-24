@@ -25,6 +25,54 @@ describe('drafting defaults', () => {
     expect(parsed.drawingTransmittals).toEqual([]);
   });
 
+  it('accepts transmittal lifecycle and evidence metadata', () => {
+    const model = createEmptyDraftingModel('drawing-transmittal-lifecycle');
+    model.drawingTransmittals.push({
+      artifactAddedAt: '2026-04-24T02:00:00.000Z',
+      artifactAddedBy: 'Avery Drafter',
+      artifactFileName: 'TRN-001.pdf',
+      artifactNotes: 'Saved from browser print.',
+      cc: [],
+      createdAt: '2026-04-24T00:00:00.000Z',
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      includedSheets: [
+        {
+          drawingSheetIssueId: 'issue-1',
+          issueNumber: 'ISS-001',
+          revision: 'A',
+          sheetId: 'sheet-1',
+          sheetName: 'Geometry Sheet',
+          sheetNumber: 'S-101',
+          snapshotLabel: 'ISS-001 Rev A - S-101 Geometry Sheet',
+          status: 'issued',
+        },
+      ],
+      issueActionId: 'issue-transmittal-1-20260424010000000Z',
+      issueDate: '2026-04-24T00:00:00.000Z',
+      issuedAt: '2026-04-24T01:00:00.000Z',
+      issuedBy: 'Avery Drafter',
+      issuedTo: ['client@example.com'],
+      manifestSignature: 'sig-12345678',
+      purpose: 'For information',
+      status: 'superseded',
+      supersededAt: '2026-04-24T03:00:00.000Z',
+      title: 'Drawing issue package',
+      transmittalNumber: 'TRN-001',
+      updatedAt: '2026-04-24T03:00:00.000Z',
+    });
+
+    const parsed = DraftingModelSchema.parse(JSON.parse(JSON.stringify(model)));
+
+    expect(parsed.drawingTransmittals[0]).toMatchObject({
+      artifactFileName: 'TRN-001.pdf',
+      issueActionId: 'issue-transmittal-1-20260424010000000Z',
+      issuedAt: '2026-04-24T01:00:00.000Z',
+      manifestSignature: 'sig-12345678',
+      status: 'superseded',
+    });
+  });
+
   it('hydrates older drafting models without title, revision, schedule, issue, or transmittal metadata', () => {
     const model = createEmptyDraftingModel('drawing-legacy');
     const legacyModel = JSON.parse(JSON.stringify(model));

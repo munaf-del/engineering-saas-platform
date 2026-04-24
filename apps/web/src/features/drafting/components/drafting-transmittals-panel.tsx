@@ -1,7 +1,17 @@
 import * as React from 'react';
 import Link from 'next/link';
 import type { DraftingDrawingTransmittalStatus, DraftingModel } from '@eng/shared';
-import { Archive, Copy, ExternalLink, FileJson, Plus, Save, TriangleAlert } from 'lucide-react';
+import {
+  Ban,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  FileJson,
+  LockKeyhole,
+  Plus,
+  Save,
+  TriangleAlert,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,11 +30,18 @@ import {
   addDrawingTransmittal,
   buildDraftingTransmittalWarnings,
   createDraftingTransmittal,
+  duplicateDraftingTransmittalToDraft,
+  findDuplicateActiveTransmittalNumbers,
   getDrawingTransmittals,
   getFrozenDrawingSheetIssues,
   getIssueCompletenessWarnings,
-  nextTransmittalNumber,
+  isDraftingTransmittalEditable,
+  issueDraftingTransmittal,
+  recordDraftingTransmittalManifestExport,
+  suggestNextTransmittalNumber,
+  supersedeDraftingTransmittal,
   updateDraftingTransmittal,
+  voidDraftingTransmittal,
 } from '../transmittals/drafting-transmittal-utils';
 
 type TransmittalFormState = {
@@ -38,6 +55,9 @@ type TransmittalFormState = {
   status: DraftingDrawingTransmittalStatus;
   title: string;
   transmittalNumber: string;
+  artifactFileName: string;
+  artifactDocumentId: string;
+  artifactNotes: string;
 };
 
 export function DraftingTransmittalsPanel({
@@ -62,7 +82,7 @@ export function DraftingTransmittalsPanel({
   );
   const [selectedTransmittalId, setSelectedTransmittalId] = React.useState('');
   const [form, setForm] = React.useState<TransmittalFormState>(() =>
-    createEmptyForm(transmittals.length, currentUserName),
+    createEmptyForm(currentUserName, suggestNextTransmittalNumber(model)),
   );
   const selectedTransmittal =
     transmittals.find((transmittal) => transmittal.id === selectedTransmittalId) ?? null;
@@ -74,7 +94,27 @@ export function DraftingTransmittalsPanel({
       }).filter((warning) => warning.messages.length > 0)
     : [];
   const selectedIssueCount = form.selectedIssueIds.length;
-  const canSave = selectedIssueCount > 0 && form.transmittalNumber.trim() && form.title.trim();
+  const selectedIsLocked = selectedTransmittal
+    ? !isDraftingTransmittalEditable(selectedTransmittal)
+    : false;
+  const duplicateNumbers = React.useMemo(
+    () => findDuplicateActiveTransmittalNumbers(model),
+    [model],
+  );
+  const duplicateFormNumber = transmittals.some(
+    (transmittal) =>
+      transmittal.id !== selectedTransmittal?.id &&
+      !['void', 'archived'].includes(transmittal.status) &&
+      transmittal.transmittalNumber.trim().toUpperCase() ===
+        form.transmittalNumber.trim().toUpperCase(),
+  );
+  const canSave = Boolean(
+    !selectedIsLocked &&
+    selectedIssueCount > 0 &&
+    form.transmittalNumber.trim() &&
+    form.title.trim() &&
+    !duplicateFormNumber,
+  );
 
   React.useEffect(() => {
     if (!selectedTransmittalId || transmittals.some((item) => item.id === selectedTransmittalId)) {
@@ -98,7 +138,7 @@ export function DraftingTransmittalsPanel({
 
   function handleCreateNew() {
     setSelectedTransmittalId('');
-    setForm(createEmptyForm(transmittals.length, currentUserName));
+    setForm(createEmptyForm(currentUserName, suggestNextTransmittalNumber(model)));
   }
 
   function handleEdit(transmittalId: string) {
@@ -119,6 +159,9 @@ export function DraftingTransmittalsPanel({
       status: transmittal.status,
       title: transmittal.title,
       transmittalNumber: transmittal.transmittalNumber,
+      artifactDocumentId: transmittal.artifactDocumentId ?? '',
+      artifactFileName: transmittal.artifactFileName ?? '',
+      artifactNotes: transmittal.artifactNotes ?? '',
     });
   }
 
@@ -138,6 +181,17 @@ export function DraftingTransmittalsPanel({
       status: form.status,
       title: form.title,
       transmittalNumber: form.transmittalNumber,
+      artifactAddedAt:
+        form.artifactFileName || form.artifactDocumentId || form.artifactNotes
+          ? new Date().toISOString()
+          : undefined,
+      artifactAddedBy:
+        form.artifactFileName || form.artifactDocumentId || form.artifactNotes
+          ? (currentUserName ?? form.issuedBy)
+          : undefined,
+      artifactDocumentId: form.artifactDocumentId,
+      artifactFileName: form.artifactFileName,
+      artifactNotes: form.artifactNotes,
     };
 
     if (selectedTransmittal) {
@@ -162,48 +216,72 @@ export function DraftingTransmittalsPanel({
       status: transmittal.status,
       title: transmittal.title,
       transmittalNumber: transmittal.transmittalNumber,
+      artifactDocumentId: transmittal.artifactDocumentId ?? '',
+      artifactFileName: transmittal.artifactFileName ?? '',
+      artifactNotes: transmittal.artifactNotes ?? '',
     });
   }
 
   function handleDuplicate(transmittalId: string) {
-    const transmittal = transmittals.find((candidate) => candidate.id === transmittalId);
-    if (!transmittal) {
-      return;
-    }
-
-    const duplicate = createDraftingTransmittal(model, {
-      cc: transmittal.cc,
-      id: crypto.randomUUID(),
-      includedDrawingSheetIssueIds: transmittal.includedDrawingSheetIssueIds,
-      issuedBy: transmittal.issuedBy,
-      issuedTo: transmittal.issuedTo,
-      notes: transmittal.notes,
-      purpose: transmittal.purpose,
-      status: 'draft',
-      title: `${transmittal.title} Copy`,
-      transmittalNumber: nextTransmittalNumber(transmittals.length),
-    });
-    onModelChange(addDrawingTransmittal(model, duplicate));
-    setSelectedTransmittalId(duplicate.id);
+    const id = crypto.randomUUID();
+    onModelChange(
+      duplicateDraftingTransmittalToDraft({ id, model, sourceTransmittalId: transmittalId }),
+    );
+    setSelectedTransmittalId(id);
   }
 
-  function handleArchive(transmittalId: string) {
+  function handleIssue(transmittalId: string) {
+    onModelChange(
+      issueDraftingTransmittal({
+        issuedBy: currentUserName ?? form.issuedBy,
+        model,
+        rootTemplatesById,
+        transmittalId,
+      }),
+    );
+  }
+
+  function handleSupersede(transmittalId: string) {
+    onModelChange(
+      supersedeDraftingTransmittal({
+        by: currentUserName ?? undefined,
+        model,
+        transmittalId,
+      }),
+    );
+  }
+
+  function handleVoid(transmittalId: string) {
+    const reason = window.prompt('Void reason');
+    if (reason === null) {
+      return;
+    }
+    onModelChange(
+      voidDraftingTransmittal({
+        by: currentUserName ?? undefined,
+        model,
+        reason,
+        transmittalId,
+      }),
+    );
+  }
+
+  function handleManifestJson(transmittalId: string) {
     const transmittal = transmittals.find((candidate) => candidate.id === transmittalId);
     if (!transmittal) {
       return;
     }
-
+    downloadDraftingTransmittalManifestJson({
+      model,
+      rootTemplatesById,
+      title: drawingTitle,
+      transmittal,
+    });
     onModelChange(
-      updateDraftingTransmittal(model, transmittalId, {
-        cc: transmittal.cc,
-        includedDrawingSheetIssueIds: transmittal.includedDrawingSheetIssueIds,
-        issuedBy: transmittal.issuedBy,
-        issuedTo: transmittal.issuedTo,
-        notes: transmittal.notes,
-        purpose: transmittal.purpose,
-        status: 'archived',
-        title: transmittal.title,
-        transmittalNumber: transmittal.transmittalNumber,
+      recordDraftingTransmittalManifestExport({
+        exportedBy: currentUserName ?? undefined,
+        model,
+        transmittalId,
       }),
     );
   }
@@ -250,9 +328,7 @@ export function DraftingTransmittalsPanel({
                   <td className="px-3 py-2">{transmittal.title}</td>
                   <td className="px-3 py-2">{transmittal.purpose}</td>
                   <td className="px-3 py-2">
-                    <Badge variant={transmittal.status === 'issued' ? 'default' : 'secondary'}>
-                      {transmittal.status}
-                    </Badge>
+                    <LifecycleBadge status={transmittal.status} />
                   </td>
                   <td className="px-3 py-2">{formatDate(transmittal.issueDate)}</td>
                   <td className="px-3 py-2">{transmittal.issuedBy || '-'}</td>
@@ -278,14 +354,7 @@ export function DraftingTransmittalsPanel({
                         size="sm"
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          downloadDraftingTransmittalManifestJson({
-                            model,
-                            rootTemplatesById,
-                            title: drawingTitle,
-                            transmittal,
-                          })
-                        }
+                        onClick={() => handleManifestJson(transmittal.id)}
                       >
                         <FileJson className="mr-2 h-4 w-4" />
                         JSON
@@ -300,15 +369,37 @@ export function DraftingTransmittalsPanel({
                         <Copy className="h-4 w-4" />
                       </Button>
                       <Button
-                        aria-label={`Archive ${transmittal.transmittalNumber}`}
-                        disabled={transmittal.status === 'archived'}
+                        aria-label={`Issue ${transmittal.transmittalNumber}`}
+                        disabled={!isDraftingTransmittalEditable(transmittal)}
                         size="icon"
                         type="button"
                         variant="ghost"
-                        onClick={() => handleArchive(transmittal.id)}
+                        onClick={() => handleIssue(transmittal.id)}
                       >
-                        <Archive className="h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4" />
                       </Button>
+                      {transmittal.status === 'issued' ? (
+                        <>
+                          <Button
+                            aria-label={`Supersede ${transmittal.transmittalNumber}`}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => handleSupersede(transmittal.id)}
+                          >
+                            <LockKeyhole className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            aria-label={`Void ${transmittal.transmittalNumber}`}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => handleVoid(transmittal.id)}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -325,7 +416,7 @@ export function DraftingTransmittalsPanel({
       <div className="space-y-3 rounded-md border p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-medium">
-            {selectedTransmittal ? 'Edit transmittal' : 'Create transmittal'}
+            {selectedTransmittal ? 'Transmittal details' : 'Create draft transmittal'}
           </div>
           <Button disabled={!canSave} size="sm" type="button" onClick={handleSave}>
             <Save className="mr-2 h-4 w-4" />
@@ -339,17 +430,30 @@ export function DraftingTransmittalsPanel({
         {form.status === 'draft' ? (
           <WarningLine message="Draft transmittals are editable register records and are not final issued packages." />
         ) : null}
+        {selectedIsLocked ? (
+          <WarningLine message="Issued, superseded, void, and archived transmittals are locked. Duplicate to draft for changes." />
+        ) : null}
+        {duplicateFormNumber ? (
+          <WarningLine message="Active transmittal numbers must be unique within this drawing." />
+        ) : null}
+        {duplicateNumbers.length > 0 ? (
+          <WarningLine
+            message={`Legacy duplicate active transmittal number warning: ${duplicateNumbers.join(', ')}.`}
+          />
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <LabeledInput
             id="drafting-transmittal-number"
             label="Transmittal number"
+            disabled={selectedIsLocked}
             value={form.transmittalNumber}
             onChange={(value) => patchForm({ transmittalNumber: value })}
           />
           <LabeledInput
             id="drafting-transmittal-issue-date"
             label="Issue date"
+            disabled={selectedIsLocked}
             type="date"
             value={form.issueDate}
             onChange={(value) => patchForm({ issueDate: value })}
@@ -358,18 +462,21 @@ export function DraftingTransmittalsPanel({
         <LabeledInput
           id="drafting-transmittal-title"
           label="Title"
+          disabled={selectedIsLocked}
           value={form.title}
           onChange={(value) => patchForm({ title: value })}
         />
         <LabeledInput
           id="drafting-transmittal-purpose"
           label="Purpose"
+          disabled={selectedIsLocked}
           value={form.purpose}
           onChange={(value) => patchForm({ purpose: value })}
         />
         <div className="space-y-1">
           <Label htmlFor="drafting-transmittal-status">Status</Label>
           <Select
+            disabled
             value={form.status}
             onValueChange={(value) =>
               patchForm({ status: value as DraftingDrawingTransmittalStatus })
@@ -381,25 +488,33 @@ export function DraftingTransmittalsPanel({
             <SelectContent>
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="issued">Issued</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
+              <SelectItem value="superseded">Superseded</SelectItem>
+              <SelectItem value="void">Void</SelectItem>
+              <SelectItem value="archived">Archived legacy</SelectItem>
             </SelectContent>
           </Select>
+          <div className="text-xs text-muted-foreground">
+            Use Issue / Finalise for draft records; issued records can only be superseded or voided.
+          </div>
         </div>
         <LabeledInput
           id="drafting-transmittal-issued-by"
           label="Issued by"
+          disabled={selectedIsLocked}
           value={form.issuedBy}
           onChange={(value) => patchForm({ issuedBy: value })}
         />
         <LabeledInput
           id="drafting-transmittal-issued-to"
           label="Issued to"
+          disabled={selectedIsLocked}
           value={form.issuedTo}
           onChange={(value) => patchForm({ issuedTo: value })}
         />
         <LabeledInput
           id="drafting-transmittal-cc"
           label="CC"
+          disabled={selectedIsLocked}
           value={form.cc}
           onChange={(value) => patchForm({ cc: value })}
         />
@@ -407,9 +522,46 @@ export function DraftingTransmittalsPanel({
           <Label htmlFor="drafting-transmittal-notes">Notes</Label>
           <Textarea
             id="drafting-transmittal-notes"
+            disabled={selectedIsLocked}
             value={form.notes}
             onChange={(event) => patchForm({ notes: event.target.value })}
           />
+        </div>
+
+        <div className="space-y-2 rounded-md border p-2">
+          <div className="text-xs font-medium uppercase text-muted-foreground">
+            PDF evidence artifact
+          </div>
+          <WarningLine message="Browser Print / Save PDF remains the PDF path. Record the saved PDF evidence here after export." />
+          <div className="grid grid-cols-2 gap-2">
+            <LabeledInput
+              id="drafting-transmittal-artifact-file"
+              label="Artifact file name"
+              disabled={selectedIsLocked}
+              value={form.artifactFileName}
+              onChange={(value) => patchForm({ artifactFileName: value })}
+            />
+            <LabeledInput
+              id="drafting-transmittal-artifact-document"
+              label="Artifact document ID"
+              disabled={selectedIsLocked}
+              value={form.artifactDocumentId}
+              onChange={(value) => patchForm({ artifactDocumentId: value })}
+            />
+          </div>
+          <LabeledInput
+            id="drafting-transmittal-artifact-notes"
+            label="Artifact notes"
+            disabled={selectedIsLocked}
+            value={form.artifactNotes}
+            onChange={(value) => patchForm({ artifactNotes: value })}
+          />
+          {selectedTransmittal &&
+          selectedTransmittal.status !== 'draft' &&
+          !selectedTransmittal.artifactFileName &&
+          !selectedTransmittal.artifactDocumentId ? (
+            <WarningLine message="PDF evidence metadata is not attached yet." />
+          ) : null}
         </div>
 
         <div className="space-y-2 rounded-md border p-2">
@@ -425,6 +577,7 @@ export function DraftingTransmittalsPanel({
                     checked={form.selectedIssueIds.includes(issue.id)}
                     id={`drafting-transmittal-issue-${issue.id}`}
                     label={`${issue.issueNumber} - Rev ${issue.revision} - ${issue.lockedDrawingSheets.length} sheet(s)`}
+                    disabled={selectedIsLocked}
                     onChange={(checked) => handleSelectIssue(issue.id, checked)}
                   />
                   {warnings.map((warning) => (
@@ -455,6 +608,7 @@ export function DraftingTransmittalsPanel({
 }
 
 function LabeledInput({
+  disabled = false,
   id,
   label,
   onChange,
@@ -462,6 +616,7 @@ function LabeledInput({
   value,
 }: {
   id: string;
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   type?: string;
@@ -470,18 +625,26 @@ function LabeledInput({
   return (
     <div className="space-y-1">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        disabled={disabled}
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }
 
 function CheckboxRow({
   checked,
+  disabled = false,
   id,
   label,
   onChange,
 }: {
   checked: boolean;
+  disabled?: boolean;
   id: string;
   label: string;
   onChange: (checked: boolean) => void;
@@ -491,6 +654,7 @@ function CheckboxRow({
       <input
         checked={checked}
         className="h-4 w-4 rounded border-border"
+        disabled={disabled}
         id={id}
         type="checkbox"
         onChange={(event) => onChange(event.target.checked)}
@@ -498,6 +662,12 @@ function CheckboxRow({
       <span>{label}</span>
     </label>
   );
+}
+
+function LifecycleBadge({ status }: { status: DraftingDrawingTransmittalStatus }) {
+  const label = status === 'void' ? 'void' : status;
+  const variant = status === 'issued' ? 'default' : 'secondary';
+  return <Badge variant={variant}>{label}</Badge>;
 }
 
 function WarningLine({ message }: { message: string }) {
@@ -509,8 +679,14 @@ function WarningLine({ message }: { message: string }) {
   );
 }
 
-function createEmptyForm(count: number, currentUserName: string | null): TransmittalFormState {
+function createEmptyForm(
+  currentUserName: string | null,
+  transmittalNumber: string,
+): TransmittalFormState {
   return {
+    artifactDocumentId: '',
+    artifactFileName: '',
+    artifactNotes: '',
     cc: '',
     issueDate: new Date().toISOString().slice(0, 10),
     issuedBy: currentUserName ?? '',
@@ -520,7 +696,7 @@ function createEmptyForm(count: number, currentUserName: string | null): Transmi
     selectedIssueIds: [],
     status: 'draft',
     title: 'Drawing issue package',
-    transmittalNumber: nextTransmittalNumber(count),
+    transmittalNumber,
   };
 }
 

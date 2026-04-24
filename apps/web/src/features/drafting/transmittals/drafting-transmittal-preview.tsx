@@ -16,6 +16,7 @@ import {
   buildDraftingTransmittalManifest,
   buildDraftingTransmittalWarnings,
   getDrawingTransmittals,
+  isDraftingTransmittalEditable,
 } from './drafting-transmittal-utils';
 
 export function DraftingTransmittalPreviewPage({
@@ -104,7 +105,7 @@ export function DraftingTransmittalPreview({
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Transmittal Preview</h1>
             <p className="text-sm text-muted-foreground">
-              Browser print or save as PDF is the export path for this cover manifest.
+              Browser Print / Save PDF remains the PDF path for this cover manifest.
             </p>
           </div>
         </div>
@@ -145,7 +146,7 @@ export function DraftingTransmittalPreview({
               <p className="text-lg">{transmittal.title}</p>
             </div>
             <Badge variant={transmittal.status === 'issued' ? 'default' : 'secondary'}>
-              {transmittal.status}
+              {transmittal.status === 'void' ? 'void' : transmittal.status}
             </Badge>
           </div>
         </div>
@@ -158,12 +159,19 @@ export function DraftingTransmittalPreview({
               ['Drawing revision', revision ?? '-'],
               ['Issue date', formatDate(transmittal.issueDate)],
               ['Purpose', transmittal.purpose],
+              [
+                'Lifecycle state',
+                `${transmittal.status} / ${
+                  isDraftingTransmittalEditable(transmittal) ? 'editable draft' : 'read-only locked'
+                }`,
+              ],
             ]}
             title="Project / Drawing"
           />
           <MetadataBlock
             rows={[
               ['Issued by', transmittal.issuedBy || '-'],
+              ['Issued at', transmittal.issuedAt ? formatDateTime(transmittal.issuedAt) : '-'],
               ['Issued to', transmittal.issuedTo.join(', ') || '-'],
               ['CC', transmittal.cc.join(', ') || '-'],
               ['Notes', transmittal.notes || '-'],
@@ -173,7 +181,12 @@ export function DraftingTransmittalPreview({
         </div>
 
         {transmittal.status === 'draft' ? (
-          <WarningLine message="This transmittal is marked draft and should not be treated as final issue evidence." />
+          <WarningLine message="This transmittal is draft and is not issued evidence." />
+        ) : (
+          <WarningLine message="This transmittal is locked; included drawing sheet issue references are read-only." />
+        )}
+        {!manifest.artifactEvidence && transmittal.status !== 'draft' ? (
+          <WarningLine message="PDF evidence metadata is not attached yet. Browser Print / Save PDF remains the PDF path." />
         ) : null}
         {warnings.flatMap((warning) =>
           warning.messages.map((message) => (
@@ -214,6 +227,8 @@ export function DraftingTransmittalPreview({
             rows={[
               ['Drawing sheet issue IDs', transmittal.includedDrawingSheetIssueIds.join(', ')],
               ['Locked sheet records', String(transmittal.includedSheets.length)],
+              ['Issue action ID', manifest.finalisation.issueActionId ?? '-'],
+              ['Manifest signature', manifest.manifestSignature ?? '-'],
               ['Created', formatDateTime(transmittal.createdAt)],
               ['Updated', formatDateTime(transmittal.updatedAt)],
             ]}
@@ -240,11 +255,31 @@ export function DraftingTransmittalPreview({
                   ),
                 ),
               ],
-              ['Export limitation', 'Use browser print/save-PDF for this cover sheet preview.'],
+              [
+                'Last manifest JSON export',
+                transmittal.lastExportedAt ? formatDateTime(transmittal.lastExportedAt) : '-',
+              ],
+              ['Export limitation', 'Use Browser Print / Save PDF for this cover sheet preview.'],
             ]}
             title="Summary"
           />
         </div>
+
+        <MetadataBlock
+          rows={[
+            ['Artifact file', manifest.artifactEvidence?.artifactFileName ?? '-'],
+            ['Artifact document ID', manifest.artifactEvidence?.artifactDocumentId ?? '-'],
+            [
+              'Artifact added',
+              manifest.artifactEvidence?.artifactAddedAt
+                ? formatDateTime(manifest.artifactEvidence.artifactAddedAt)
+                : '-',
+            ],
+            ['Artifact added by', manifest.artifactEvidence?.artifactAddedBy ?? '-'],
+            ['Artifact notes', manifest.artifactEvidence?.artifactNotes ?? '-'],
+          ]}
+          title="PDF Evidence"
+        />
       </section>
     </div>
   );

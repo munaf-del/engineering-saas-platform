@@ -7,9 +7,16 @@ import {
   buildDraftingTransmittalManifest,
   buildDraftingTransmittalWarnings,
   createDraftingTransmittal,
+  duplicateDraftingTransmittalToDraft,
+  findDuplicateActiveTransmittalNumbers,
   getDrawingTransmittals,
   getIssueCompletenessWarnings,
+  issueDraftingTransmittal,
+  serializeDraftingTransmittalManifestJson,
+  suggestNextTransmittalNumber,
+  supersedeDraftingTransmittal,
   updateDraftingTransmittal,
+  voidDraftingTransmittal,
 } from './drafting-transmittal-utils';
 
 const now = '2026-04-24T00:00:00.000Z';
@@ -25,11 +32,11 @@ describe('drafting transmittal helpers', () => {
       issuedBy: 'Avery Drafter',
       issuedTo: ['client@example.com'],
       purpose: 'For construction',
-      status: 'issued',
       title: 'Drawing package 1',
       transmittalNumber: 'TRN-001',
     });
 
+    expect(transmittal.status).toBe('draft');
     expect(transmittal.includedDrawingSheetIssueIds).toEqual(['issue-1']);
     expect(transmittal.includedSheets).toEqual([
       expect.objectContaining({
@@ -42,6 +49,51 @@ describe('drafting transmittal helpers', () => {
         snapshotLabel: 'ISS-001 Rev B - S-101 Geometry Sheet 1',
       }),
     ]);
+  });
+
+  it('suggests the next unused transmittal number and prevents duplicate active numbers', () => {
+    const model = createModelWithIssue();
+    model.drawingTransmittals.push(
+      createDraftingTransmittal(model, {
+        id: 'transmittal-1',
+        includedDrawingSheetIssueIds: ['issue-1'],
+        issueDate: now,
+        purpose: 'For review',
+        title: 'Draft package',
+        transmittalNumber: 'TRN-001',
+      }),
+    );
+
+    expect(suggestNextTransmittalNumber(model)).toBe('TRN-002');
+    expect(() =>
+      createDraftingTransmittal(model, {
+        id: 'transmittal-2',
+        includedDrawingSheetIssueIds: ['issue-1'],
+        issueDate: now,
+        purpose: 'For review',
+        title: 'Duplicate package',
+        transmittalNumber: 'trn-001',
+      }),
+    ).toThrow('Active transmittal numbers must be unique within this drawing.');
+  });
+
+  it('allows legacy duplicates to be detected without blocking hydration-style reads', () => {
+    const model = createModelWithIssue();
+    const first = createDraftingTransmittal(model, {
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      issueDate: now,
+      purpose: 'For review',
+      title: 'Draft package',
+      transmittalNumber: 'TRN-001',
+    });
+    model.drawingTransmittals.push(first, {
+      ...first,
+      id: 'legacy-duplicate',
+      title: 'Legacy duplicate',
+    });
+
+    expect(findDuplicateActiveTransmittalNumbers(model)).toEqual(['TRN-001']);
   });
 
   it('rejects transmittals without frozen drawing sheet issue snapshots', () => {
@@ -76,7 +128,6 @@ describe('drafting transmittal helpers', () => {
       issuedTo: ['client@example.com'],
       notes: 'Reissued with distribution notes.',
       purpose: 'For information',
-      status: 'issued',
       title: 'Updated package',
       transmittalNumber: 'TRN-001',
     });
@@ -85,10 +136,103 @@ describe('drafting transmittal helpers', () => {
       issuedBy: 'Casey Checker',
       issuedTo: ['client@example.com'],
       purpose: 'For information',
-      status: 'issued',
+      status: 'draft',
       title: 'Updated package',
     });
     expect(updated.drawingSheetIssues[0]).toEqual(model.drawingSheetIssues[0]);
+  });
+
+  it('issues a draft transmittal with immutable finalisation metadata and a deterministic signature', () => {
+    const model = createModelWithIssue();
+    const transmittal = createDraftingTransmittal(model, {
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      issueDate: now,
+      issuedBy: 'Avery Drafter',
+      purpose: 'For review',
+      title: 'Draft package',
+      transmittalNumber: 'TRN-001',
+    });
+    const withTransmittal = addDrawingTransmittal(model, transmittal);
+    const issuedModel = issueDraftingTransmittal({
+      issuedAt: '2026-04-24T01:00:00.000Z',
+      issuedBy: 'Avery Drafter',
+      model: withTransmittal,
+      transmittalId: 'transmittal-1',
+    });
+    const issued = getDrawingTransmittals(issuedModel)[0]!;
+
+    expect(issued).toMatchObject({
+      includedDrawingSheetIssueIds: ['issue-1'],
+      includedSheets: transmittal.includedSheets,
+      issueActionId: 'issue-transmittal-1-20260424T010000000Z',
+      issuedAt: '2026-04-24T01:00:00.000Z',
+      manifestSignature: expect.stringMatching(/^sig-[0-9a-f]{8}$/),
+      status: 'issued',
+    });
+    expect(() =>
+      updateDraftingTransmittal(issuedModel, 'transmittal-1', {
+        includedDrawingSheetIssueIds: ['issue-1'],
+        issueDate: now,
+        purpose: 'For review',
+        title: 'Should not edit',
+        transmittalNumber: 'TRN-001',
+      }),
+    ).toThrow('Issued, superseded, void, and archived transmittals are locked.');
+  });
+
+  it('duplicates an issued transmittal into an editable draft', () => {
+    const model = createIssuedModel();
+    const duplicated = duplicateDraftingTransmittalToDraft({
+      id: 'transmittal-2',
+      model,
+      sourceTransmittalId: 'transmittal-1',
+      transmittalNumber: 'TRN-002',
+    });
+    const duplicate = getDrawingTransmittals(duplicated)[1]!;
+
+    expect(duplicate).toMatchObject({
+      status: 'draft',
+      title: 'Draft package Copy',
+      transmittalNumber: 'TRN-002',
+    });
+    expect(duplicate).not.toHaveProperty('issueActionId');
+    expect(duplicate).not.toHaveProperty('manifestSignature');
+  });
+
+  it('supersedes and voids issued transmittals without unlocking them', () => {
+    const superseded = supersedeDraftingTransmittal({
+      by: 'Avery Drafter',
+      model: createIssuedModel(),
+      supersededAt: '2026-04-24T02:00:00.000Z',
+      transmittalId: 'transmittal-1',
+    });
+    expect(getDrawingTransmittals(superseded)[0]).toMatchObject({
+      status: 'superseded',
+      supersededAt: '2026-04-24T02:00:00.000Z',
+    });
+    expect(() =>
+      updateDraftingTransmittal(superseded, 'transmittal-1', {
+        includedDrawingSheetIssueIds: ['issue-1'],
+        issueDate: now,
+        purpose: 'For review',
+        title: 'Should not edit',
+        transmittalNumber: 'TRN-001',
+      }),
+    ).toThrow('Issued, superseded, void, and archived transmittals are locked.');
+
+    const voided = voidDraftingTransmittal({
+      by: 'Casey Checker',
+      model: createIssuedModel(),
+      reason: 'Issued to wrong distribution group.',
+      transmittalId: 'transmittal-1',
+      voidedAt: '2026-04-24T03:00:00.000Z',
+    });
+    expect(getDrawingTransmittals(voided)[0]).toMatchObject({
+      status: 'void',
+      voidReason: 'Issued to wrong distribution group.',
+      voidedAt: '2026-04-24T03:00:00.000Z',
+    });
   });
 
   it('builds a manifest with snapshot references, title metadata, and provenance summaries', () => {
@@ -103,6 +247,8 @@ describe('drafting transmittal helpers', () => {
     });
     const manifest = buildDraftingTransmittalManifest({ model, transmittal });
 
+    expect(manifest.manifestSchemaVersion).toBe('drafting.transmittal.manifest.v1');
+    expect(manifest.manifestSignature).toMatch(/^sig-[0-9a-f]{8}$/);
     expect(manifest.transmittal).toMatchObject({
       id: 'transmittal-1',
       transmittalNumber: 'TRN-001',
@@ -121,6 +267,33 @@ describe('drafting transmittal helpers', () => {
         createdBy: 'Avery Drafter',
       },
     });
+  });
+
+  it('serializes a manifest without raw token, binary, or image fields', () => {
+    const model = createModelWithIssue();
+    model.drawingSheetIssues[0]!.lockedObjects[0]!.provenance = {
+      apiToken: 'raw-token',
+      binaryPayload: 'not-for-manifest',
+      createdBy: 'Avery Drafter',
+      renderedImage: 'base64-image',
+    } as Record<string, unknown>;
+    const transmittal = createDraftingTransmittal(model, {
+      id: 'transmittal-1',
+      includedDrawingSheetIssueIds: ['issue-1'],
+      issueDate: now,
+      purpose: 'For review',
+      title: 'Manifest package',
+      transmittalNumber: 'TRN-001',
+    });
+
+    const json = serializeDraftingTransmittalManifestJson(
+      buildDraftingTransmittalManifest({ model, transmittal }),
+    );
+
+    expect(json).toContain('Avery Drafter');
+    expect(json).not.toContain('raw-token');
+    expect(json).not.toContain('not-for-manifest');
+    expect(json).not.toContain('base64-image');
   });
 
   it('warns for legacy or incomplete issue snapshots and live-vs-issued drift', () => {
@@ -214,6 +387,25 @@ function createModelWithIssue() {
     }),
   );
   return model;
+}
+
+function createIssuedModel() {
+  const model = createModelWithIssue();
+  const transmittal = createDraftingTransmittal(model, {
+    id: 'transmittal-1',
+    includedDrawingSheetIssueIds: ['issue-1'],
+    issueDate: now,
+    issuedBy: 'Avery Drafter',
+    purpose: 'For review',
+    title: 'Draft package',
+    transmittalNumber: 'TRN-001',
+  });
+  return issueDraftingTransmittal({
+    issuedAt: '2026-04-24T01:00:00.000Z',
+    issuedBy: 'Avery Drafter',
+    model: addDrawingTransmittal(model, transmittal),
+    transmittalId: 'transmittal-1',
+  });
 }
 
 function createPile(): DraftingObject {
