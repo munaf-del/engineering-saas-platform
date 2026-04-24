@@ -8,6 +8,7 @@ import {
   Calculator,
   ClipboardList,
   FileText,
+  FolderOpen,
   Layers,
   Map,
   PenTool,
@@ -397,6 +398,12 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
       icon: Sparkles,
       title: 'AI Reports',
       desc: 'Upload reports, index in OpenAI, and extract cited engineering summaries',
+    },
+    {
+      href: `/projects/${projectId}/documents`,
+      icon: FolderOpen,
+      title: 'Documents',
+      desc: 'Upload, open, and safely delete project-scoped files',
     },
     {
       href: `/projects/${projectId}/standards`,

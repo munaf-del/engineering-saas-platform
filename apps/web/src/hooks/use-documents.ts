@@ -1,6 +1,6 @@
 import type { Document } from '@eng/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type PaginatedResponse } from '@/lib/api-client';
+import { api, apiBlob, type PaginatedResponse } from '@/lib/api-client';
 
 type UploadProjectDocumentInput = {
   file: File;
@@ -60,6 +60,32 @@ export function useUploadProjectDocument(projectId: string) {
         projectDocumentsQueryKey(projectId),
         (current) =>
           current ? [document, ...current.filter((entry) => entry.id !== document.id)] : [document],
+      );
+      await queryClient.invalidateQueries({
+        queryKey: projectDocumentsRootQueryKey(projectId),
+      });
+    },
+  });
+}
+
+export function useDownloadProjectDocument() {
+  return useMutation({
+    mutationFn: async (documentId: string) => apiBlob(`/documents/${documentId}/download`),
+  });
+}
+
+export function useDeleteProjectDocument(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (documentId: string) =>
+      api<Document>(`/documents/${documentId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: async (document) => {
+      queryClient.setQueriesData<Document[] | undefined>(
+        { queryKey: projectDocumentsRootQueryKey(projectId) },
+        (current) => current?.filter((entry) => entry.id !== document.id),
       );
       await queryClient.invalidateQueries({
         queryKey: projectDocumentsRootQueryKey(projectId),
