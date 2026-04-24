@@ -6,7 +6,11 @@ import {
 } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { createGenericTemplateDocument } from '@/features/templates/core/generic-template-document';
-import { createDraftingObject } from '../model-utils';
+import {
+  createDraftingObject,
+  recordDraftingObjectChangeEvent,
+  translateDraftingObject,
+} from '../model-utils';
 import { createDraftingSchedulePackIssueSnapshot } from './drafting-schedule-pack-issue-utils';
 import {
   buildDraftingSchedulePackIssueRowComparison,
@@ -498,6 +502,90 @@ describe('drafting schedule pack issue provenance', () => {
       expect.objectContaining({
         action: 'removed_after_issue',
         fallbackMessage: 'Removed from live model; deletion author unavailable',
+      }),
+    );
+  });
+
+  it('carries moved object provenance in row details and manifest export', () => {
+    const issuedModel = createEmptyDraftingModel('drawing-row-moved');
+    const issuedAnchor = buildAnchorObject(issuedModel, 'A1');
+    issuedAnchor.provenance = {
+      createdAt: '2026-04-23T00:00:00.000Z',
+      createdBy: 'Issue Drafter',
+      updatedAt: '2026-04-23T00:00:00.000Z',
+      updatedBy: 'Issue Drafter',
+      lastAction: 'created',
+    };
+    issuedModel.objects = [issuedAnchor];
+
+    const movedAnchor = translateDraftingObject(issuedAnchor, 500, 0, {
+      by: 'Avery Drafter',
+    });
+    const liveModel = recordDraftingObjectChangeEvent(
+      {
+        ...cloneModel(issuedModel),
+        objects: [movedAnchor],
+      },
+      movedAnchor,
+      {
+        action: 'moved',
+        at: '2026-04-24T00:00:00.000Z',
+        by: 'Avery Drafter',
+      },
+    );
+
+    const rowComparison = buildDraftingSchedulePackIssueRowComparison({
+      issue: {
+        lockedScheduleSummary: cloneScheduleSummary(buildDraftingScheduleSummary(issuedModel)),
+      },
+      liveModel,
+      liveSummary: buildDraftingScheduleSummary(liveModel),
+      relevantGroupKeys: ['anchors'],
+    });
+    const unchangedRow = rowComparison.groups[0]?.unchangedRows[0];
+
+    expect(unchangedRow?.provenance.liveObjectProvenance).toEqual(
+      expect.objectContaining({
+        by: 'Avery Drafter',
+        lastAction: 'moved',
+        source: 'live_object',
+      }),
+    );
+    expect(
+      JSON.parse(
+        serializeDraftingSchedulePackIssueManifestJson({
+          comparison: {
+            driftMessages: [],
+            driftState: 'row_summary_drift',
+            groupCounts: [],
+            hasRowSummaryDrift: true,
+            hasSheetDefinitionDrift: false,
+            hasTemplateDrift: false,
+            pageCount: { difference: 0, issued: 0, live: 0 },
+            rowComparison,
+            rowCount: { difference: 0, issued: 1, live: 1 },
+            sheetCount: { difference: 0, issued: 0, live: 0 },
+          },
+          driftStatus: 'row_summary_drift',
+          issueId: 'issue-moved',
+          issueName: 'Moved Issue',
+          issuePurpose: 'For review',
+          issueStatus: 'issued',
+          issuedAt: null,
+          issuedBy: null,
+          legacy: false,
+          lockedScheduleGroupCounts: [],
+          notes: null,
+          pageCount: 0,
+          revisionLabel: 'A',
+          selectedSheetDefinitions: [],
+          snapshotStatus: 'locked_template_snapshot',
+        }),
+      ).comparison.rowComparison.groups[0].unchangedRows[0].provenance.liveObjectProvenance,
+    ).toEqual(
+      expect.objectContaining({
+        lastAction: 'moved',
+        source: 'live_object',
       }),
     );
   });

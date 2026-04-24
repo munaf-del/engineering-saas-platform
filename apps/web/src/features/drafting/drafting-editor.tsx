@@ -28,6 +28,7 @@ import { useDraftingSelection } from './hooks/use-drafting-selection';
 import { useDraftingUnderlays } from './hooks/use-drafting-underlays';
 import { useDraftingView } from './hooks/use-drafting-view';
 import {
+  addDraftingObject,
   addDraftingUnderlay,
   createDraftingObject,
   formatDrawingRevision,
@@ -154,10 +155,7 @@ export function DraftingEditor({
       [],
       currentUserName,
     );
-    history.replaceModel({
-      ...currentModel,
-      objects: [...currentModel.objects, nextObject],
-    });
+    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');
   }
@@ -231,10 +229,7 @@ export function DraftingEditor({
       currentUserName,
     );
 
-    history.replaceModel({
-      ...currentModel,
-      objects: [...currentModel.objects, nextObject],
-    });
+    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
     drafting.clearPendingLine();
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');

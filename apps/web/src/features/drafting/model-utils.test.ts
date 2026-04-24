@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { DraftingModelSchema, createEmptyDraftingModel } from '@eng/shared';
 import {
+  DraftingModelSchema,
+  createEmptyDraftingModel,
+  type DraftingObjectChangeEvent,
+} from '@eng/shared';
+import {
+  addDraftingObject,
   addDraftingUnderlay,
+  appendDraftingObjectChangeEvent,
   applyTwoPointUniformCalibration,
   canEditDraftingUnderlay,
   canEditDraftingObject,
   createDraftingObject,
   getVisibleDraftingObjects,
   getVisibleDraftingUnderlays,
+  recordDraftingObjectChangeEvent,
   removeDraftingUnderlay,
   removeDraftingObject,
   removeDraftingObjectWithProvenance,
+  replaceDraftingObjectWithProvenance,
   translateDraftingObject,
   updateDraftingUnderlay,
   updateDraftingObject,
@@ -46,38 +54,87 @@ describe('drafting model utils', () => {
   it('adds provenance metadata to new objects, edits, moves, and removals', () => {
     const model = createEmptyDraftingModel('drawing-provenance');
     const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model, [], 'Avery Drafter');
-    const withPile = { ...model, objects: [pile] };
-    const updated = updateDraftingObject(withPile, pile.id, (current) => ({
-      ...current,
-      provenance: {
-        ...current.provenance,
+    const withPile = addDraftingObject(model, pile, {
+      at: '2026-04-24T00:00:00.000Z',
+      by: 'Avery Drafter',
+    });
+    const createdPile = withPile.objects[0];
+    if (!createdPile || createdPile.type !== 'pile') {
+      throw new Error('Expected pile object');
+    }
+    const updated = replaceDraftingObjectWithProvenance(
+      withPile,
+      pile.id,
+      {
+        ...createdPile,
+        metadata: {
+          ...createdPile.metadata,
+          pileId: 'P-UPDATED',
+        },
         updatedAt: '2026-04-24T01:00:00.000Z',
-        updatedBy: 'Avery Drafter',
-        lastAction: 'updated',
       },
-    }));
+      {
+        action: 'updated',
+        at: '2026-04-24T01:00:00.000Z',
+        by: 'Avery Drafter',
+      },
+    );
     const moved = translateDraftingObject(updated.objects[0]!, 100, 200, {
       by: 'Avery Drafter',
     });
-    const removed = removeDraftingObjectWithProvenance({ ...updated, objects: [moved] }, pile.id, {
+    const movedModel = recordDraftingObjectChangeEvent({ ...updated, objects: [moved] }, moved, {
+      action: 'moved',
+      at: moved.provenance?.updatedAt,
+      by: 'Avery Drafter',
+    });
+    const removed = removeDraftingObjectWithProvenance(movedModel, pile.id, {
       at: '2026-04-24T02:00:00.000Z',
       by: 'Avery Drafter',
     });
 
-    expect(pile.provenance).toMatchObject({
+    expect(withPile.objects[0]?.provenance).toMatchObject({
       createdBy: 'Avery Drafter',
+      updatedBy: 'Avery Drafter',
       lastAction: 'created',
+    });
+    expect(updated.objects[0]?.provenance).toMatchObject({
+      lastAction: 'updated',
+      updatedBy: 'Avery Drafter',
     });
     expect(moved.provenance).toMatchObject({
       lastAction: 'moved',
       updatedBy: 'Avery Drafter',
     });
     expect(removed.objects).toHaveLength(0);
-    expect(removed.objectChangeEvents?.[0]).toMatchObject({
+    expect(removed.objectChangeEvents?.map((event) => event.action)).toEqual([
+      'created',
+      'updated',
+      'moved',
+      'deleted',
+    ]);
+    expect(removed.objectChangeEvents?.[3]).toMatchObject({
       action: 'deleted',
       by: 'Avery Drafter',
       objectId: pile.id,
     });
+  });
+
+  it('caps object change events deterministically to the newest entries', () => {
+    const events = Array.from({ length: 205 }, (_, index) => ({
+      id: `event-${index}`,
+      objectId: `object-${index}`,
+      objectType: 'pile' as const,
+      action: 'updated' as const,
+      at: new Date(Date.UTC(2026, 3, 24, 0, index)).toISOString(),
+      source: 'drafting-editor' as const,
+    })).reduce<DraftingObjectChangeEvent[]>(
+      (currentEvents, event) => appendDraftingObjectChangeEvent(currentEvents, event),
+      [],
+    );
+
+    expect(events).toHaveLength(200);
+    expect(events[0]?.id).toBe('event-5');
+    expect(events[199]?.id).toBe('event-204');
   });
 
   it('translates pile geometry without mutating the source object', () => {

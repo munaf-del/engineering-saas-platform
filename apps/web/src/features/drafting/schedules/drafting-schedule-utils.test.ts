@@ -18,12 +18,7 @@ const BASE_OBJECT_FIELDS = {
 describe('drafting schedule utils', () => {
   it('derives shoring and pile rows from typed semantic objects', () => {
     const summary = buildDraftingScheduleSummary(
-      modelWith([
-        pileObject(),
-        secantWallObject(),
-        soldierWallObject(),
-        excavationLineObject(),
-      ]),
+      modelWith([pileObject(), secantWallObject(), soldierWallObject(), excavationLineObject()]),
     );
     const group = getDraftingScheduleGroup(summary, 'shoring_piles');
 
@@ -51,7 +46,10 @@ describe('drafting schedule utils', () => {
   });
 
   it('derives anchor schedule rows', () => {
-    const group = getDraftingScheduleGroup(buildDraftingScheduleSummary(modelWith([anchorObject()])), 'anchors');
+    const group = getDraftingScheduleGroup(
+      buildDraftingScheduleSummary(modelWith([anchorObject()])),
+      'anchors',
+    );
 
     expect(group.rows).toHaveLength(1);
     expect(group.rows[0]?.cells).toEqual({
@@ -203,11 +201,20 @@ describe('drafting schedule utils', () => {
 
     expect(parsed.drawingId).toBe('drawing-schedules');
     expect(parsed.groups).toHaveLength(6);
-    expect(parsed.groups.find((group: { key: string }) => group.key === 'shoring_piles').rowCount).toBe(1);
+    expect(
+      parsed.groups.find((group: { key: string }) => group.key === 'shoring_piles').rowCount,
+    ).toBe(1);
     expect(exported).toContain('"objectType": "anchor_tieback"');
     expect(exported).not.toContain('pdf-file-1');
     expect(exported).not.toContain('data:application/pdf');
     expect(exported).not.toContain('"buffer"');
+  });
+
+  it('does not fabricate row provenance for legacy objects without object provenance', () => {
+    const summary = buildDraftingScheduleSummary(modelWith([pileObject()]));
+    const row = getDraftingScheduleGroup(summary, 'shoring_piles').rows[0];
+
+    expect(row?.provenance).toBeUndefined();
   });
 
   it('returns empty groups for an empty drafting model', () => {

@@ -4,9 +4,11 @@ import type { DraftingModel, DraftingObject } from '@eng/shared';
 import { clientToWorldPoint } from '../geometry-utils';
 import {
   canEditDraftingObject,
+  haveDraftingObjectGeometryOrLayerChanged,
+  recordDraftingObjectChangeEvent,
   removeDraftingObjectWithProvenance,
   replaceDraftingObject,
-  stampDraftingObjectProvenance,
+  replaceDraftingObjectWithProvenance,
   translateDraftingObject,
 } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
@@ -78,6 +80,31 @@ export function useDraftingSelection({
     );
   });
 
+  const handleDragPointerUp = useEffectEvent(() => {
+    const currentObject =
+      dragState && model ? model.objects.find((object) => object.id === dragState.objectId) : null;
+    if (
+      dragState &&
+      currentObject &&
+      haveDraftingObjectGeometryOrLayerChanged(dragState.originalObject, currentObject)
+    ) {
+      patchModel((current) => {
+        const latestObject = current.objects.find((object) => object.id === dragState.objectId);
+        if (!latestObject) {
+          return current;
+        }
+
+        return recordDraftingObjectChangeEvent(current, latestObject, {
+          action: 'moved',
+          at: latestObject.provenance?.updatedAt ?? latestObject.updatedAt,
+          by: currentUserName,
+        });
+      });
+    }
+
+    setDragState(null);
+  });
+
   useEffect(() => {
     if (!dragState) {
       return;
@@ -88,7 +115,7 @@ export function useDraftingSelection({
     }
 
     function handlePointerUp() {
-      setDragState(null);
+      handleDragPointerUp();
     }
 
     window.addEventListener('pointermove', handleWindowPointerMove);
@@ -99,9 +126,13 @@ export function useDraftingSelection({
       window.removeEventListener('pointerup', handlePointerUp);
     };
     // `useEffectEvent` handlers intentionally stay out of the dependency list here.
-  }, [dragState, handleDragPointerMove]);
+  }, [dragState, handleDragPointerMove, handleDragPointerUp]);
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (isEditableKeyboardTarget(event.target)) {
+      return;
+    }
+
     if (selectedObjectId && (event.key === 'Delete' || event.key === 'Backspace')) {
       patchModel((current) =>
         removeDraftingObjectWithProvenance(current, selectedObjectId, {
@@ -142,14 +173,11 @@ export function useDraftingSelection({
     }
 
     patchModel((current) =>
-      replaceDraftingObject(
-        current,
-        selectedObject.id,
-        stampDraftingObjectProvenance(nextObject, {
-          action: 'updated',
-          by: currentUserName,
-        }),
-      ),
+      replaceDraftingObjectWithProvenance(current, selectedObject.id, nextObject, {
+        action: 'updated',
+        at: nextObject.updatedAt,
+        by: currentUserName,
+      }),
     );
   }
 
@@ -199,4 +227,14 @@ export function useDraftingSelection({
     selectedObjectId,
     updateSelectedObject,
   };
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'),
+  );
 }

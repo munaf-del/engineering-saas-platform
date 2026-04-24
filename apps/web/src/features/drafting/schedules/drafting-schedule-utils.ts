@@ -97,13 +97,17 @@ function withDraftingScheduleRowProvenance(
     : row;
 }
 
-function hydrateDraftingObjectProvenance(object: DraftingObject): DraftingObjectProvenance {
+function hydrateDraftingObjectProvenance(object: DraftingObject): DraftingObjectProvenance | null {
+  if (!object.provenance) {
+    return null;
+  }
+
   return {
-    createdAt: object.provenance?.createdAt ?? object.createdAt,
-    ...(object.provenance?.createdBy ? { createdBy: object.provenance.createdBy } : {}),
-    updatedAt: object.provenance?.updatedAt ?? object.updatedAt,
-    ...(object.provenance?.updatedBy ? { updatedBy: object.provenance.updatedBy } : {}),
-    lastAction: object.provenance?.lastAction ?? 'unknown',
+    ...(object.provenance.createdAt ? { createdAt: object.provenance.createdAt } : {}),
+    ...(object.provenance.createdBy ? { createdBy: object.provenance.createdBy } : {}),
+    ...(object.provenance.updatedAt ? { updatedAt: object.provenance.updatedAt } : {}),
+    ...(object.provenance.updatedBy ? { updatedBy: object.provenance.updatedBy } : {}),
+    ...(object.provenance.lastAction ? { lastAction: object.provenance.lastAction } : {}),
   };
 }
 

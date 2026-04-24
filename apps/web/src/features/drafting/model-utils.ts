@@ -130,6 +130,38 @@ export function replaceDraftingObject(
   };
 }
 
+export function addDraftingObject(
+  model: DraftingModel,
+  object: DraftingObject,
+  args: {
+    at?: string;
+    by?: string | null;
+    summary?: string;
+  } = {},
+) {
+  const at = args.at ?? object.provenance?.createdAt ?? object.createdAt;
+  const nextObject = stampDraftingObjectProvenance(object, {
+    action: 'created',
+    at,
+    by: args.by,
+  });
+
+  return {
+    ...model,
+    objects: [...model.objects, nextObject],
+    objectChangeEvents: appendDraftingObjectChangeEvent(model.objectChangeEvents ?? [], {
+      id: crypto.randomUUID(),
+      objectId: nextObject.id,
+      objectType: nextObject.type,
+      action: 'created',
+      at,
+      ...(args.by ? { by: args.by } : {}),
+      source: 'drafting-editor',
+      summary: args.summary ?? summarizeDraftingObjectChange('created', nextObject),
+    }),
+  };
+}
+
 export function updateDraftingObject(
   model: DraftingModel,
   objectId: string,
@@ -141,6 +173,39 @@ export function updateDraftingObject(
   }
 
   return replaceDraftingObject(model, objectId, updater(object));
+}
+
+export function replaceDraftingObjectWithProvenance(
+  model: DraftingModel,
+  objectId: string,
+  nextObject: DraftingObject,
+  args: {
+    action: Extract<DraftingObjectProvenanceAction, 'updated' | 'moved'>;
+    at?: string;
+    by?: string | null;
+    summary?: string;
+  },
+) {
+  const at = args.at ?? nextObject.updatedAt ?? new Date().toISOString();
+  const stampedObject = stampDraftingObjectProvenance(nextObject, {
+    action: args.action,
+    at,
+    by: args.by,
+  });
+
+  return {
+    ...replaceDraftingObject(model, objectId, stampedObject),
+    objectChangeEvents: appendDraftingObjectChangeEvent(model.objectChangeEvents ?? [], {
+      id: crypto.randomUUID(),
+      objectId: stampedObject.id,
+      objectType: stampedObject.type,
+      action: args.action,
+      at,
+      ...(args.by ? { by: args.by } : {}),
+      source: 'drafting-editor',
+      summary: args.summary ?? summarizeDraftingObjectChange(args.action, stampedObject),
+    }),
+  };
 }
 
 export function removeDraftingObject(model: DraftingModel, objectId: string) {
@@ -194,6 +259,33 @@ export function removeDraftingObjectWithProvenance(
   };
 }
 
+export function recordDraftingObjectChangeEvent(
+  model: DraftingModel,
+  object: DraftingObject,
+  args: {
+    action: Extract<DraftingObjectProvenanceAction, 'created' | 'updated' | 'moved' | 'deleted'>;
+    at?: string;
+    by?: string | null;
+    summary?: string;
+  },
+) {
+  const at = args.at ?? object.updatedAt ?? new Date().toISOString();
+
+  return {
+    ...model,
+    objectChangeEvents: appendDraftingObjectChangeEvent(model.objectChangeEvents ?? [], {
+      id: crypto.randomUUID(),
+      objectId: object.id,
+      objectType: object.type,
+      action: args.action,
+      at,
+      ...(args.by ? { by: args.by } : {}),
+      source: 'drafting-editor',
+      summary: args.summary ?? summarizeDraftingObjectChange(args.action, object),
+    }),
+  };
+}
+
 export function stampDraftingObjectProvenance(
   object: DraftingObject,
   args: {
@@ -204,12 +296,14 @@ export function stampDraftingObjectProvenance(
 ): DraftingObject {
   const at = args.at ?? new Date().toISOString();
   const existing = object.provenance ?? {};
-  const createdAt = existing.createdAt ?? object.createdAt;
+  const createdAt = existing.createdAt ?? (args.action === 'created' ? at : object.createdAt);
   const createdBy =
     existing.createdBy ?? (args.action === 'created' ? (args.by ?? undefined) : undefined);
-  const updatedAt = args.action === 'created' ? (existing.updatedAt ?? object.updatedAt) : at;
+  const updatedAt = args.action === 'created' ? (existing.updatedAt ?? at) : at;
   const updatedBy =
-    args.action === 'created' ? existing.updatedBy : (args.by ?? existing.updatedBy);
+    args.action === 'created'
+      ? (existing.updatedBy ?? args.by ?? undefined)
+      : (args.by ?? existing.updatedBy);
 
   return {
     ...object,
@@ -531,11 +625,74 @@ export function translateDraftingObject(
   }
 }
 
-function appendDraftingObjectChangeEvent(
+export function haveDraftingObjectGeometryOrLayerChanged(
+  previous: DraftingObject,
+  next: DraftingObject,
+) {
+  return (
+    previous.layerId !== next.layerId ||
+    JSON.stringify(previous.geometry) !== JSON.stringify(next.geometry)
+  );
+}
+
+export function appendDraftingObjectChangeEvent(
   events: DraftingObjectChangeEvent[],
   event: DraftingObjectChangeEvent,
 ) {
   return [...events, event].slice(-MAX_DRAFTING_OBJECT_CHANGE_EVENTS);
+}
+
+function summarizeDraftingObjectChange(
+  action: Exclude<DraftingObjectProvenanceAction, 'imported' | 'unknown'>,
+  object: DraftingObject,
+) {
+  const label = object.name || getDraftingObjectSemanticLabel(object) || object.type;
+  const verb =
+    action === 'created'
+      ? 'Created'
+      : action === 'updated'
+        ? 'Updated'
+        : action === 'moved'
+          ? 'Moved'
+          : 'Deleted';
+
+  return `${verb} ${label}`;
+}
+
+function getDraftingObjectSemanticLabel(object: DraftingObject) {
+  switch (object.type) {
+    case 'pile':
+      return object.metadata.pileId;
+    case 'secant_pile_wall':
+    case 'soldier_pile_wall':
+      return object.metadata.wallId;
+    case 'anchor_tieback':
+      return object.parameters.anchorId;
+    case 'capping_beam':
+      return object.parameters.beamId;
+    case 'waler':
+      return object.parameters.walerId;
+    case 'monitoring_point':
+      return object.metadata.pointId;
+    case 'dimension_chain':
+      return object.parameters.dimensionId;
+    case 'callout':
+      return object.parameters.calloutId;
+    case 'section_marker':
+      return object.parameters.sectionId;
+    case 'borehole':
+      return object.parameters.boreholeId;
+    case 'service_run':
+      return object.parameters.serviceId;
+    case 'service_crossing':
+      return object.parameters.crossingId;
+    case 'leader_note':
+      return object.metadata.text;
+    case 'excavation_line':
+      return object.metadata.excavationId;
+    default:
+      return object.id;
+  }
 }
 
 export function fitDraftingModelView(
