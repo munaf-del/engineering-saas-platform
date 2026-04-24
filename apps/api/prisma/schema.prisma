@@ -1694,7 +1694,7 @@ model ProjectDraftingTransmittal {
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, transmittalNumber])
-  @@index([organisationId, projectId, updatedAt])
+  @@index([organisationId, projectId, updatedAt], map: "project_drafting_transmittals_organisation_id_project_id_update")
   @@index([projectId, status, updatedAt])
   @@map("project_drafting_transmittals")
 }
