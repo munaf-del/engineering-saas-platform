@@ -1,10 +1,93 @@
 import * as React from 'react';
 import type { DraftingModel } from '@eng/shared';
+import {
+  Anchor,
+  Circle,
+  Crosshair,
+  Dot,
+  Grip,
+  Landmark,
+  LocateFixed,
+  MousePointer2,
+  Move,
+  PencilLine,
+  Ruler,
+  ScanLine,
+  SplitSquareHorizontal,
+  Tags,
+  Waypoints,
+  Workflow,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDraftingTimestamp } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
+
+const TOOL_GROUPS: Array<{
+  title: string;
+  tools: Array<{
+    tool: DraftingTool;
+    label: string;
+    shortLabel: string;
+    hint?: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }>;
+}> = [
+  {
+    title: 'Navigate',
+    tools: [
+      {
+        tool: 'select',
+        label: 'Select / Move',
+        shortLabel: 'Select',
+        hint: 'V',
+        icon: MousePointer2,
+      },
+      { tool: 'pan', label: 'Pan', shortLabel: 'Pan', hint: 'Space', icon: Move },
+    ],
+  },
+  {
+    title: 'Shoring',
+    tools: [
+      { tool: 'pile', label: 'Pile', shortLabel: 'Pile', icon: Circle },
+      { tool: 'secant_pile_wall', label: 'Secant pile wall', shortLabel: 'Secant', icon: Workflow },
+      { tool: 'soldier_pile_wall', label: 'Soldier pile wall', shortLabel: 'Soldier', icon: Grip },
+      { tool: 'anchor_tieback', label: 'Anchor / tieback', shortLabel: 'Anchor', icon: Anchor },
+      {
+        tool: 'capping_beam',
+        label: 'Capping beam',
+        shortLabel: 'Cap',
+        icon: SplitSquareHorizontal,
+      },
+      { tool: 'waler', label: 'Waler', shortLabel: 'Waler', icon: ScanLine },
+      { tool: 'excavation_line', label: 'Excavation line', shortLabel: 'Excav', icon: PencilLine },
+    ],
+  },
+  {
+    title: 'Survey / Monitoring',
+    tools: [
+      { tool: 'monitoring_point', label: 'Monitoring point', shortLabel: 'Mon', icon: LocateFixed },
+      { tool: 'borehole', label: 'Borehole', shortLabel: 'BH', icon: Crosshair },
+    ],
+  },
+  {
+    title: 'Services',
+    tools: [
+      { tool: 'service_run', label: 'Service run', shortLabel: 'Run', icon: Waypoints },
+      { tool: 'service_crossing', label: 'Service crossing', shortLabel: 'Xing', icon: Dot },
+    ],
+  },
+  {
+    title: 'Annotation',
+    tools: [
+      { tool: 'dimension_chain', label: 'Dimension chain', shortLabel: 'Dim', icon: Ruler },
+      { tool: 'callout', label: 'Callout', shortLabel: 'Callout', icon: Tags },
+      { tool: 'section_marker', label: 'Section marker', shortLabel: 'Sect', icon: Landmark },
+      { tool: 'leader_note', label: 'Leader note', shortLabel: 'Note', icon: PencilLine },
+    ],
+  },
+];
 
 export function DraftingToolPalette({
   activeTool,
@@ -25,98 +108,32 @@ export function DraftingToolPalette({
 }) {
   return (
     <Card className="h-fit">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-base">Tools</CardTitle>
-        <CardDescription>
-          Choose a tool, then author typed objects into the drawing model.
-        </CardDescription>
+        <CardDescription>AS 1100-style engineering object tools.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <ToolButton active={activeTool === 'select'} onClick={() => onToolChange('select')}>
-          Select / Move
-        </ToolButton>
-        <ToolButton active={activeTool === 'pan'} onClick={() => onToolChange('pan')}>
-          Pan View
-        </ToolButton>
-        <Separator />
-        <ToolButton active={activeTool === 'pile'} onClick={() => onToolChange('pile')}>
-          Add Pile
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'secant_pile_wall'}
-          onClick={() => onToolChange('secant_pile_wall')}
-        >
-          Add Secant Pile Wall
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'soldier_pile_wall'}
-          onClick={() => onToolChange('soldier_pile_wall')}
-        >
-          Add Soldier Pile Wall
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'anchor_tieback'}
-          onClick={() => onToolChange('anchor_tieback')}
-        >
-          Add Anchor / Tieback
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'capping_beam'}
-          onClick={() => onToolChange('capping_beam')}
-        >
-          Add Capping Beam
-        </ToolButton>
-        <ToolButton active={activeTool === 'waler'} onClick={() => onToolChange('waler')}>
-          Add Waler
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'excavation_line'}
-          onClick={() => onToolChange('excavation_line')}
-        >
-          Add Excavation Line
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'monitoring_point'}
-          onClick={() => onToolChange('monitoring_point')}
-        >
-          Add Monitoring Point
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'leader_note'}
-          onClick={() => onToolChange('leader_note')}
-        >
-          Add Leader Note
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'dimension_chain'}
-          onClick={() => onToolChange('dimension_chain')}
-        >
-          Add Dimension Chain
-        </ToolButton>
-        <ToolButton active={activeTool === 'callout'} onClick={() => onToolChange('callout')}>
-          Add Callout
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'section_marker'}
-          onClick={() => onToolChange('section_marker')}
-        >
-          Add Section Marker
-        </ToolButton>
-        <ToolButton active={activeTool === 'borehole'} onClick={() => onToolChange('borehole')}>
-          Add Borehole
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'service_run'}
-          onClick={() => onToolChange('service_run')}
-        >
-          Add Service Run
-        </ToolButton>
-        <ToolButton
-          active={activeTool === 'service_crossing'}
-          onClick={() => onToolChange('service_crossing')}
-        >
-          Add Service Crossing
-        </ToolButton>
+      <CardContent className="space-y-3">
+        {TOOL_GROUPS.map((group) => (
+          <section key={group.title} className="space-y-1.5">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.title}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {group.tools.map((entry) => (
+                <ToolButton
+                  key={entry.tool}
+                  active={activeTool === entry.tool}
+                  hint={entry.hint}
+                  icon={entry.icon}
+                  label={entry.label}
+                  onClick={() => onToolChange(entry.tool)}
+                >
+                  {entry.shortLabel}
+                </ToolButton>
+              ))}
+            </div>
+          </section>
+        ))}
 
         {activeTool === 'excavation_line' ? (
           <>
@@ -153,19 +170,29 @@ export function DraftingToolPalette({
 function ToolButton({
   active,
   children,
+  hint,
+  icon: Icon,
+  label,
   onClick,
 }: {
   active: boolean;
   children: React.ReactNode;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <Button
-      className="w-full justify-start"
+      aria-pressed={active}
+      className="h-9 justify-start gap-1.5 px-2 text-xs"
+      title={hint ? `${label} (${hint})` : label}
       variant={active ? 'default' : 'outline'}
       onClick={onClick}
     >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
       {children}
+      {hint ? <span className="ml-auto text-[10px] opacity-70">{hint}</span> : null}
     </Button>
   );
 }

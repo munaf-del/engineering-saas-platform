@@ -399,6 +399,7 @@ export function DraftingEditor({
           onCenterReference={handleCenterViewOnReference}
           onFitModel={view.handleFitView}
           onFitSelected={handleFitSelectedView}
+          onObjectHandlePointerDown={selection.handleObjectHandlePointerDown}
           onObjectPointerDown={selection.handleObjectPointerDown}
           onResetZoom={view.handleResetZoom}
           onSetZoomScale={view.handleSetZoomScale}

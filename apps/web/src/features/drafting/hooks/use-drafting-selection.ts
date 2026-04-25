@@ -11,9 +11,11 @@ import {
   replaceDraftingObjectWithProvenance,
   translateDraftingObject,
 } from '../model-utils';
+import { updateDraftingObjectHandle } from '../handles/drafting-object-handles';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
 type DragState = {
+  handleId?: string;
   objectId: string;
   startWorldPoint: { x: number; y: number };
   originalObject: DraftingObject;
@@ -68,18 +70,21 @@ export function useDraftingSelection({
       return;
     }
 
-    const deltaX = point.x - dragState.startWorldPoint.x;
-    const deltaY = point.y - dragState.startWorldPoint.y;
+    const nextObject = dragState.handleId
+      ? updateDraftingObjectHandle(
+          dragState.originalObject,
+          dragState.handleId,
+          point,
+          currentUserName,
+        )
+      : translateDraftingObject(
+          dragState.originalObject,
+          point.x - dragState.startWorldPoint.x,
+          point.y - dragState.startWorldPoint.y,
+          { by: currentUserName },
+        );
 
-    patchModel((current) =>
-      replaceDraftingObject(
-        current,
-        dragState.objectId,
-        translateDraftingObject(dragState.originalObject, deltaX, deltaY, {
-          by: currentUserName,
-        }),
-      ),
-    );
+    patchModel((current) => replaceDraftingObject(current, dragState.objectId, nextObject));
   });
 
   const handleDragPointerUp = useEffectEvent(() => {
@@ -220,9 +225,37 @@ export function useDraftingSelection({
     }
   }
 
+  function handleObjectHandlePointerDown(
+    event: React.PointerEvent,
+    object: DraftingObject,
+    handleId: string,
+  ) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    if (!model || activeTool !== 'select' || !canEditDraftingObject(model, object)) {
+      return;
+    }
+
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
+    if (!point) {
+      return;
+    }
+
+    setSelectedObjectId(object.id);
+    onSelectPropertiesTab();
+    setDragState({
+      handleId,
+      objectId: object.id,
+      startWorldPoint: point,
+      originalObject: object,
+    });
+  }
+
   return {
     clearSelection,
     deleteSelectedObject,
+    handleObjectHandlePointerDown,
     handleObjectPointerDown,
     selectObject,
     selectedObject,

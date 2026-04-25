@@ -28,6 +28,7 @@ describe('DraftingStage', () => {
         onCenterReference={() => undefined}
         onFitModel={() => undefined}
         onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
         onObjectPointerDown={() => undefined}
         onResetZoom={() => undefined}
         onSetZoomScale={() => undefined}
@@ -77,6 +78,7 @@ describe('DraftingStage', () => {
         onCenterReference={() => undefined}
         onFitModel={() => undefined}
         onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
         onObjectPointerDown={() => undefined}
         onResetZoom={() => undefined}
         onSetZoomScale={() => undefined}
@@ -103,5 +105,83 @@ describe('DraftingStage', () => {
     expect(markup).toContain('Unlock view to pan, zoom, fit, or recenter.');
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('data-drafting-object="true"');
+  });
+
+  it('renders selected engineering handles and hides them when the object is locked', () => {
+    const model = createEmptyDraftingModel('drawing-stage-handles');
+    const pile = createDraftingObject('pile', { x: 0, y: 0 }, model);
+    const editableMarkup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        model={{ ...model, objects: [pile] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={pile.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[pile]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    const lockedPile = { ...pile, locked: true };
+    const lockedMarkup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        model={{ ...model, objects: [lockedPile] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={lockedPile.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[lockedPile]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(editableMarkup).toContain('data-testid="drafting-object-handles"');
+    expect(editableMarkup).toContain('data-handle-id="centre"');
+    expect(editableMarkup).toContain('data-handle-id="diameter"');
+    expect(lockedMarkup).not.toContain('data-testid="drafting-object-handles"');
   });
 });

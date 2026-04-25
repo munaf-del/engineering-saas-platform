@@ -1,6 +1,10 @@
 import * as React from 'react';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingAnchorTiebackRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  resolveRendererLineStyle,
+  resolveTechnicalStroke,
+  type DraftingAnchorTiebackRendererProps,
+} from './renderer-types';
 
 export function AnchorTiebackRenderer({
   drawingSetup,
@@ -8,9 +12,16 @@ export function AnchorTiebackRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingAnchorTiebackRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#0f766e';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'anchorTieback',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#0f766e']);
   const { headPoint, tailPoint } = object.geometry;
   const arrow = buildArrowPolygon(headPoint, tailPoint, 260);
   const labelX = (headPoint.x + tailPoint.x) / 2 + 120;
@@ -18,9 +29,21 @@ export function AnchorTiebackRenderer({
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
+      {isSelected ? (
+        <line
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={headPoint.x}
+          x2={tailPoint.x}
+          y1={headPoint.y}
+          y2={tailPoint.y}
+        />
+      ) : null}
       <line
-        stroke={isSelected ? '#0d9488' : stroke}
-        strokeWidth={lineWeight * 70}
+        stroke={stroke}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={headPoint.x}
         x2={tailPoint.x}
@@ -33,10 +56,16 @@ export function AnchorTiebackRenderer({
         fill="#ffffff"
         r={160}
         stroke={stroke}
-        strokeWidth={60}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
-      <polygon fill={stroke} points={arrow} />
+      <polygon
+        fill="none"
+        points={arrow}
+        stroke={stroke}
+        strokeWidth={lineStyle.editorStrokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
       <text fill={stroke} fontSize={220} x={labelX} y={labelY}>
         {object.parameters.anchorId}
       </text>

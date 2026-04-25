@@ -20,82 +20,97 @@ export function DraftingCommonObjectProperties({
   onUpdate: (nextObject: DraftingObject) => void;
 }) {
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name">
-          <Input
-            value={object.name ?? ''}
-            onChange={(event) =>
-              onUpdate({
-                ...object,
-                name: event.target.value,
-                updatedAt: new Date().toISOString(),
-              })
-            }
-          />
-        </Field>
+    <div className="space-y-4">
+      <PropertySection title="Identification">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name">
+            <Input
+              value={object.name ?? ''}
+              onChange={(event) =>
+                onUpdate({
+                  ...object,
+                  name: event.target.value,
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            />
+          </Field>
 
-        <Field label="Layer">
-          <Select
-            value={object.layerId}
-            onValueChange={(value) =>
-              onUpdate({
-                ...object,
-                layerId: value as DraftingObject['layerId'],
-                updatedAt: new Date().toISOString(),
-              })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {layers.map((layer) => (
-                <SelectItem key={layer.id} value={layer.id}>
-                  {layer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
+          <Field label="Layer">
+            <Select
+              value={object.layerId}
+              onValueChange={(value) =>
+                onUpdate({
+                  ...object,
+                  layerId: value as DraftingObject['layerId'],
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {layers.map((layer) => (
+                  <SelectItem key={layer.id} value={layer.id}>
+                    {layer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </PropertySection>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Stroke">
-          <Input
-            type="color"
-            value={normalizeColorInput(object.style?.stroke, '#334155')}
-            onChange={(event) =>
-              onUpdate({
-                ...object,
-                style: {
-                  ...object.style,
-                  stroke: event.target.value,
-                },
-                updatedAt: new Date().toISOString(),
-              })
-            }
-          />
-        </Field>
+      <PropertySection title="Appearance / Layer">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Stroke">
+            <Input
+              type="color"
+              value={normalizeColorInput(object.style?.stroke, '#334155')}
+              onChange={(event) =>
+                onUpdate({
+                  ...object,
+                  style: {
+                    ...object.style,
+                    stroke: event.target.value,
+                  },
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            />
+          </Field>
 
-        <Field label="Fill">
-          <Input
-            type="color"
-            value={normalizeColorInput(object.style?.fill, '#ffffff')}
-            onChange={(event) =>
-              onUpdate({
-                ...object,
-                style: {
-                  ...object.style,
-                  fill: event.target.value,
-                },
-                updatedAt: new Date().toISOString(),
-              })
-            }
-          />
-        </Field>
-      </div>
-    </>
+          <Field label="Fill">
+            <Input
+              type="color"
+              value={normalizeColorInput(object.style?.fill, '#ffffff')}
+              onChange={(event) =>
+                onUpdate({
+                  ...object,
+                  style: {
+                    ...object.style,
+                    fill: event.target.value,
+                  },
+                  updatedAt: new Date().toISOString(),
+                })
+              }
+            />
+          </Field>
+        </div>
+      </PropertySection>
+    </div>
+  );
+}
+
+export function PropertySection({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <section className="space-y-3 rounded-md border bg-background p-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h4>
+      {children}
+    </section>
   );
 }
 

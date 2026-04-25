@@ -9,7 +9,10 @@ import { CalloutProperties } from '../properties/callout-properties';
 import { CappingBeamProperties } from '../properties/capping-beam-properties';
 import { DimensionChainProperties } from '../properties/dimension-chain-properties';
 import { formatDraftingTimestamp } from '../model-utils';
-import { DraftingCommonObjectProperties } from '../properties/common-object-properties';
+import {
+  DraftingCommonObjectProperties,
+  PropertySection,
+} from '../properties/common-object-properties';
 import { ExcavationLineProperties } from '../properties/excavation-line-properties';
 import { LeaderNoteProperties } from '../properties/leader-note-properties';
 import { MonitoringPointProperties } from '../properties/monitoring-point-properties';
@@ -57,47 +60,51 @@ export function DraftingPropertiesPanel({
         <CardContent className="space-y-4">
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
 
-          {object.type === 'pile' ? <PileProperties object={object} onUpdate={onUpdate} /> : null}
-          {object.type === 'secant_pile_wall' ? (
-            <SecantPileWallProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'soldier_pile_wall' ? (
-            <SoldierPileWallProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'anchor_tieback' ? (
-            <AnchorTiebackProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'capping_beam' ? (
-            <CappingBeamProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'waler' ? <WalerProperties object={object} onUpdate={onUpdate} /> : null}
-          {object.type === 'monitoring_point' ? (
-            <MonitoringPointProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'leader_note' ? (
-            <LeaderNoteProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'excavation_line' ? (
-            <ExcavationLineProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'dimension_chain' ? (
-            <DimensionChainProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'callout' ? (
-            <CalloutProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'section_marker' ? (
-            <SectionMarkerProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'borehole' ? (
-            <BoreholeProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'service_run' ? (
-            <ServiceRunProperties object={object} onUpdate={onUpdate} />
-          ) : null}
-          {object.type === 'service_crossing' ? (
-            <ServiceCrossingProperties object={object} onUpdate={onUpdate} />
-          ) : null}
+          <PropertySection title={propertySectionTitle(object)}>
+            {object.type === 'pile' ? <PileProperties object={object} onUpdate={onUpdate} /> : null}
+            {object.type === 'secant_pile_wall' ? (
+              <SecantPileWallProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'soldier_pile_wall' ? (
+              <SoldierPileWallProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'anchor_tieback' ? (
+              <AnchorTiebackProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'capping_beam' ? (
+              <CappingBeamProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'waler' ? (
+              <WalerProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'monitoring_point' ? (
+              <MonitoringPointProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'leader_note' ? (
+              <LeaderNoteProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'excavation_line' ? (
+              <ExcavationLineProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'dimension_chain' ? (
+              <DimensionChainProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'callout' ? (
+              <CalloutProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'section_marker' ? (
+              <SectionMarkerProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'borehole' ? (
+              <BoreholeProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'service_run' ? (
+              <ServiceRunProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'service_crossing' ? (
+              <ServiceCrossingProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+          </PropertySection>
 
           <Separator />
 
@@ -110,4 +117,24 @@ export function DraftingPropertiesPanel({
       </Card>
     </div>
   );
+}
+
+function propertySectionTitle(object: DraftingObject) {
+  switch (object.type) {
+    case 'pile':
+    case 'secant_pile_wall':
+    case 'soldier_pile_wall':
+    case 'anchor_tieback':
+    case 'capping_beam':
+    case 'waler':
+    case 'service_run':
+    case 'service_crossing':
+    case 'dimension_chain':
+    case 'callout':
+    case 'section_marker':
+    case 'excavation_line':
+      return 'Geometry / Engineering';
+    default:
+      return 'Geometry';
+  }
 }

@@ -34,6 +34,7 @@ import {
   type DraftingCanvasSize,
 } from '../geometry-utils';
 import { getDraftingModelBounds, getLayerById } from '../model-utils';
+import { DraftingObjectHandles } from '../handles/drafting-object-handles';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
@@ -51,6 +52,7 @@ export function DraftingStage({
   onCenterReference,
   onFitModel,
   onFitSelected,
+  onObjectHandlePointerDown,
   onObjectPointerDown,
   onResetZoom,
   onSetZoomScale,
@@ -81,6 +83,11 @@ export function DraftingStage({
   onCenterReference: () => void;
   onFitModel: () => void;
   onFitSelected: () => void;
+  onObjectHandlePointerDown: (
+    event: React.PointerEvent,
+    object: DraftingObject,
+    handleId: string,
+  ) => void;
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
@@ -121,6 +128,9 @@ export function DraftingStage({
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
   const zoomPercent = Math.round(view.scale * 100);
   const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
+  const selectedObject = selectedObjectId
+    ? (visibleObjects.find((object) => object.id === selectedObjectId) ?? null)
+    : null;
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -235,6 +245,13 @@ export function DraftingStage({
                   })}
                 </React.Fragment>
               ))}
+
+              <DraftingObjectHandles
+                model={model}
+                object={selectedObject}
+                onHandlePointerDown={onObjectHandlePointerDown}
+                scale={view.scale}
+              />
 
               <ReferencePointMarker
                 label={setup.referencePoint.label}
