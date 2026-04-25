@@ -22,6 +22,15 @@ import { createExcavationLineObject } from './tools/excavation-line-tool';
 import { createLeaderNoteObject } from './tools/leader-note-tool';
 import { createMonitoringPointObject } from './tools/monitoring-point-tool';
 import { createPileObject } from './tools/pile-tool';
+import {
+  createDraftCircleObject,
+  createDraftLineObject,
+  createDraftPolygonObject,
+  createDraftPolylineObject,
+  createDraftRectangleObject,
+  createGeotechSurfaceObject,
+  createStructuralJointObject,
+} from './tools/primitive-geometry-tool';
 import { createSecantPileWallObject } from './tools/secant-pile-wall-tool';
 import { createSectionMarkerObject } from './tools/section-marker-tool';
 import { createServiceCrossingObject } from './tools/service-crossing-tool';
@@ -30,7 +39,11 @@ import { createSoldierPileWallObject } from './tools/soldier-pile-wall-tool';
 import { createWalerObject } from './tools/waler-tool';
 import {
   buildDimensionChainOffsetPoints,
+  calculateAnchorAngleDeg,
+  calculateAnchorPlanLengthMm,
   defaultSoldierPileSymbolDiameterMm,
+  rebuildSecantPileWallObject,
+  rebuildSoldierPileWallObject,
 } from './semantic-object-utils';
 
 const MAX_DRAFTING_OBJECT_CHANGE_EVENTS = 200;
@@ -131,18 +144,54 @@ export function createDraftingObject(
       break;
     case 'secant_pile_wall':
       object = createSecantPileWallObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'secant_pile_wall') {
+        object = rebuildSecantPileWallObject({
+          ...object,
+          geometry: {
+            ...object.geometry,
+            baselinePoints: pendingLinePoints.slice(0, 2),
+          },
+        });
+      }
       break;
     case 'soldier_pile_wall':
       object = createSoldierPileWallObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'soldier_pile_wall') {
+        object = rebuildSoldierPileWallObject({
+          ...object,
+          geometry: {
+            ...object.geometry,
+            baselinePoints: pendingLinePoints.slice(0, 2),
+          },
+        });
+      }
       break;
     case 'anchor_tieback':
       object = createAnchorTiebackObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'anchor_tieback') {
+        const [headPoint, tailPoint] = pendingLinePoints;
+        object = {
+          ...object,
+          geometry: { headPoint: headPoint!, tailPoint: tailPoint! },
+          parameters: {
+            ...object.parameters,
+            angleDeg: calculateAnchorAngleDeg(headPoint!, tailPoint!),
+            planLengthMm: calculateAnchorPlanLengthMm(headPoint!, tailPoint!),
+          },
+        };
+      }
       break;
     case 'capping_beam':
       object = createCappingBeamObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'capping_beam') {
+        object = { ...object, geometry: { ...object.geometry, points: pendingLinePoints } };
+      }
       break;
     case 'waler':
       object = createWalerObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'waler') {
+        object = { ...object, geometry: { ...object.geometry, points: pendingLinePoints } };
+      }
       break;
     case 'monitoring_point':
       object = createMonitoringPointObject(point, model);
@@ -152,24 +201,92 @@ export function createDraftingObject(
       break;
     case 'dimension_chain':
       object = createDimensionChainObject(point, model);
+      if (pendingLinePoints.length >= 3 && object.type === 'dimension_chain') {
+        const witnessPoints = pendingLinePoints.slice(0, -1);
+        const offsetPoint = pendingLinePoints[pendingLinePoints.length - 1]!;
+        const basePoint = witnessPoints[0]!;
+        object = {
+          ...object,
+          geometry: {
+            points: witnessPoints,
+            offsetVector: {
+              x: offsetPoint.x - basePoint.x,
+              y: offsetPoint.y - basePoint.y,
+            },
+          },
+          metadata: {
+            ...object.metadata,
+            associatedObjectIds: witnessPoints
+              .map((entry) => entry.snapRef?.sourceObjectId)
+              .filter((entry): entry is string => Boolean(entry)),
+            witnessAnchorRefs: witnessPoints
+              .map((entry) => entry.snapRef)
+              .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+          },
+        };
+      }
       break;
     case 'callout':
       object = createCalloutObject(point, model);
       break;
     case 'section_marker':
       object = createSectionMarkerObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'section_marker') {
+        object = {
+          ...object,
+          geometry: {
+            ...object.geometry,
+            startPoint: pendingLinePoints[0]!,
+            endPoint: pendingLinePoints[1]!,
+          },
+        };
+      }
       break;
     case 'borehole':
       object = createBoreholeObject(point, model);
       break;
     case 'service_run':
       object = createServiceRunObject(point, model);
+      if (pendingLinePoints.length >= 2 && object.type === 'service_run') {
+        object = { ...object, geometry: { ...object.geometry, path: pendingLinePoints } };
+      }
       break;
     case 'service_crossing':
       object = createServiceCrossingObject(point, model);
       break;
     case 'excavation_line':
       object = createExcavationLineObject(point, model, pendingLinePoints);
+      break;
+    case 'draft_line':
+      object = createDraftLineObject(point, model, pendingLinePoints[1]);
+      break;
+    case 'draft_polyline':
+      object = createDraftPolylineObject(
+        pendingLinePoints.length >= 2
+          ? pendingLinePoints
+          : [point, { x: point.x + 2400, y: point.y }],
+        model,
+      );
+      break;
+    case 'draft_rectangle':
+      object = createDraftRectangleObject(point, model, pendingLinePoints[1]);
+      break;
+    case 'draft_circle':
+      object = createDraftCircleObject(point, model, pendingLinePoints[1]);
+      break;
+    case 'draft_polygon':
+      object = createDraftPolygonObject(
+        pendingLinePoints.length >= 3
+          ? pendingLinePoints
+          : [point, { x: point.x + 1800, y: point.y }, { x: point.x + 900, y: point.y + 1400 }],
+        model,
+      );
+      break;
+    case 'structural_joint':
+      object = createStructuralJointObject(point, model);
+      break;
+    case 'geotech_surface':
+      object = createGeotechSurfaceObject(point, model);
       break;
     default:
       object = createPileObject(point, model);
@@ -681,6 +798,112 @@ export function translateDraftingObject(
         },
         updatedAt,
       });
+    case 'draft_line':
+      return stampMoved({
+        ...object,
+        geometry: {
+          startPoint: {
+            x: object.geometry.startPoint.x + deltaX,
+            y: object.geometry.startPoint.y + deltaY,
+            ...(object.geometry.startPoint.z !== undefined
+              ? { z: object.geometry.startPoint.z }
+              : {}),
+            ...(object.geometry.startPoint.rl !== undefined
+              ? { rl: object.geometry.startPoint.rl }
+              : {}),
+          },
+          endPoint: {
+            x: object.geometry.endPoint.x + deltaX,
+            y: object.geometry.endPoint.y + deltaY,
+            ...(object.geometry.endPoint.z !== undefined ? { z: object.geometry.endPoint.z } : {}),
+            ...(object.geometry.endPoint.rl !== undefined
+              ? { rl: object.geometry.endPoint.rl }
+              : {}),
+          },
+        },
+        updatedAt,
+      });
+    case 'draft_polyline':
+    case 'draft_polygon':
+      return stampMoved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existingPoint) => ({
+            ...existingPoint,
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      });
+    case 'draft_rectangle':
+      return stampMoved({
+        ...object,
+        geometry: {
+          cornerA: {
+            ...object.geometry.cornerA,
+            x: object.geometry.cornerA.x + deltaX,
+            y: object.geometry.cornerA.y + deltaY,
+          },
+          cornerB: {
+            ...object.geometry.cornerB,
+            x: object.geometry.cornerB.x + deltaX,
+            y: object.geometry.cornerB.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
+    case 'draft_circle':
+      return stampMoved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          centre: {
+            ...object.geometry.centre,
+            x: object.geometry.centre.x + deltaX,
+            y: object.geometry.centre.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
+    case 'structural_joint':
+      return stampMoved({
+        ...object,
+        geometry: {
+          point: {
+            ...object.geometry.point,
+            x: object.geometry.point.x + deltaX,
+            y: object.geometry.point.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
+    case 'geotech_surface':
+      return stampMoved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existingPoint) => ({
+            ...existingPoint,
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+          breaklines: object.geometry.breaklines?.map((line) =>
+            line.map((existingPoint) => ({
+              ...existingPoint,
+              x: existingPoint.x + deltaX,
+              y: existingPoint.y + deltaY,
+            })),
+          ),
+          boundary: object.geometry.boundary?.map((existingPoint) => ({
+            ...existingPoint,
+            x: existingPoint.x + deltaX,
+            y: existingPoint.y + deltaY,
+          })),
+        },
+        updatedAt,
+      });
     default:
       return stampMoved({
         ...object,
@@ -754,6 +977,20 @@ function getDraftingObjectSemanticLabel(object: DraftingObject) {
       return object.metadata.text;
     case 'excavation_line':
       return object.metadata.excavationId;
+    case 'draft_line':
+      return object.metadata.lineId;
+    case 'draft_polyline':
+      return object.metadata.polylineId;
+    case 'draft_rectangle':
+      return object.metadata.rectangleId;
+    case 'draft_circle':
+      return object.metadata.circleId;
+    case 'draft_polygon':
+      return object.metadata.polygonId;
+    case 'structural_joint':
+      return object.parameters.jointId;
+    case 'geotech_surface':
+      return object.parameters.surfaceId;
     default:
       return object.id;
   }
@@ -921,6 +1158,31 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
         maxY: Math.max(...ys),
       };
     }
+    case 'draft_line':
+      return getPointCollectionBounds([object.geometry.startPoint, object.geometry.endPoint], 120);
+    case 'draft_polyline':
+    case 'draft_polygon':
+      return getPointCollectionBounds(object.geometry.points, 120);
+    case 'draft_rectangle':
+      return getPointCollectionBounds([object.geometry.cornerA, object.geometry.cornerB], 120);
+    case 'draft_circle':
+      return {
+        minX: object.geometry.centre.x - object.geometry.radiusMm,
+        minY: object.geometry.centre.y - object.geometry.radiusMm,
+        maxX: object.geometry.centre.x + object.geometry.radiusMm,
+        maxY: object.geometry.centre.y + object.geometry.radiusMm,
+      };
+    case 'structural_joint':
+      return getPointCollectionBounds([object.geometry.point], 360);
+    case 'geotech_surface':
+      return getPointCollectionBounds(
+        [
+          ...object.geometry.points,
+          ...(object.geometry.breaklines ?? []).flat(),
+          ...(object.geometry.boundary ?? []),
+        ],
+        360,
+      );
     default:
       return null;
   }

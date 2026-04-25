@@ -150,6 +150,57 @@ export function getDraftingObjectHandles(object: DraftingObject): DraftingObject
         point,
         cursor: 'move',
       }));
+    case 'draft_line':
+      return [
+        { id: 'start', label: 'Line start', point: object.geometry.startPoint, cursor: 'move' },
+        { id: 'end', label: 'Line end', point: object.geometry.endPoint, cursor: 'move' },
+      ];
+    case 'draft_polyline':
+    case 'draft_polygon':
+      return object.geometry.points.map((point, index) => ({
+        id: `point-${index}`,
+        label: `Vertex ${index + 1}`,
+        point,
+        cursor: 'move',
+      }));
+    case 'draft_rectangle':
+      return [
+        {
+          id: 'corner-a',
+          label: 'Rectangle first corner',
+          point: object.geometry.cornerA,
+          cursor: 'move',
+        },
+        {
+          id: 'corner-b',
+          label: 'Rectangle opposite corner',
+          point: object.geometry.cornerB,
+          cursor: 'move',
+        },
+      ];
+    case 'draft_circle':
+      return [
+        { id: 'centre', label: 'Circle centre', point: object.geometry.centre, cursor: 'move' },
+        {
+          id: 'radius',
+          label: 'Circle radius',
+          point: {
+            x: object.geometry.centre.x + object.geometry.radiusMm,
+            y: object.geometry.centre.y,
+          },
+          cursor: 'ew-resize',
+          tone: 'secondary',
+        },
+      ];
+    case 'structural_joint':
+      return [{ id: 'point', label: 'Joint point', point: object.geometry.point, cursor: 'move' }];
+    case 'geotech_surface':
+      return object.geometry.points.map((point, index) => ({
+        id: `surface-point-${index}`,
+        label: `Surface RL point ${index + 1}`,
+        point,
+        cursor: 'move',
+      }));
     default:
       return [];
   }
@@ -316,6 +367,63 @@ export function updateDraftingObjectHandle(
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
             existingIndex === index ? point : existing,
+          ),
+        },
+      });
+    }
+    case 'draft_line':
+      return moved({
+        ...object,
+        geometry:
+          handleId === 'start'
+            ? { ...object.geometry, startPoint: point }
+            : { ...object.geometry, endPoint: point },
+      });
+    case 'draft_polyline':
+    case 'draft_polygon': {
+      const index = Number(handleId.replace('point-', ''));
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existing, existingIndex) =>
+            existingIndex === index ? point : existing,
+          ),
+        },
+      });
+    }
+    case 'draft_rectangle':
+      return moved({
+        ...object,
+        geometry:
+          handleId === 'corner-a'
+            ? { ...object.geometry, cornerA: point }
+            : { ...object.geometry, cornerB: point },
+      });
+    case 'draft_circle':
+      if (handleId === 'radius') {
+        return moved({
+          ...object,
+          geometry: {
+            ...object.geometry,
+            radiusMm: Math.max(
+              50,
+              Math.hypot(point.x - object.geometry.centre.x, point.y - object.geometry.centre.y),
+            ),
+          },
+        });
+      }
+      return moved({ ...object, geometry: { ...object.geometry, centre: point } });
+    case 'structural_joint':
+      return moved({ ...object, geometry: { ...object.geometry, point } });
+    case 'geotech_surface': {
+      const index = Number(handleId.replace('surface-point-', ''));
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          points: object.geometry.points.map((existing, existingIndex) =>
+            existingIndex === index ? { ...existing, x: point.x, y: point.y } : existing,
           ),
         },
       });

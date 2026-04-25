@@ -36,6 +36,12 @@ import {
 import { getDraftingModelBounds, getLayerById } from '../model-utils';
 import { DraftingObjectHandles } from '../handles/drafting-object-handles';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
+import {
+  resolveDraftingSnapPoint,
+  type DraftingSnapMode,
+  type DraftingSnapResult,
+  type DraftingSnapSettings,
+} from '../snapping/drafting-snap-utils';
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
 import { resolveDraftingLineStyle } from '../standards/drafting-style-resolver';
@@ -56,11 +62,14 @@ export function DraftingStage({
   onObjectPointerDown,
   onResetZoom,
   onSetZoomScale,
+  onToggleSnapEnabled = () => {},
+  onToggleSnapMode = () => {},
   onViewLockedChange,
   onUnderlayPointerDown,
   onZoomIn,
   onZoomOut,
   pendingLinePoints,
+  snapSettings,
   selectedDrawingSheet,
   selectedUnderlayId,
   showDrawingSheetViewportOverlay,
@@ -91,6 +100,8 @@ export function DraftingStage({
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
+  onToggleSnapEnabled?: () => void;
+  onToggleSnapMode?: (mode: DraftingSnapMode) => void;
   onViewLockedChange: (locked: boolean) => void;
   onUnderlayPointerDown: (
     event: React.PointerEvent<SVGElement>,
@@ -100,6 +111,7 @@ export function DraftingStage({
   onZoomIn: () => void;
   onZoomOut: () => void;
   pendingLinePoints: DraftingPoint[];
+  snapSettings?: DraftingSnapSettings;
   selectedDrawingSheet: DraftingDrawingSheetDefinition | null;
   selectedUnderlayId: string | null;
   showDrawingSheetViewportOverlay: boolean;
@@ -123,6 +135,20 @@ export function DraftingStage({
   const visibleWorldBounds = getVisibleWorldBounds(view, canvasSize);
   const gridStep = getGridStep(view.scale);
   const [cursorPoint, setCursorPoint] = React.useState<DraftingPoint | null>(null);
+  const [snapPreview, setSnapPreview] = React.useState<DraftingSnapResult | null>(null);
+  const activeSnapSettings = snapSettings ?? {
+    enabled: false,
+    modes: {
+      centre: false,
+      endpoint: false,
+      grid: false,
+      intersection: false,
+      midpoint: false,
+      nearest_path: false,
+      orthogonal: false,
+    },
+    tolerancePx: 14,
+  };
   const setup = model.drawingSetup!;
   const referencePoint = setup.referencePoint.modelPoint;
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
@@ -138,14 +164,24 @@ export function DraftingStage({
       return;
     }
 
-    setCursorPoint(
-      screenToWorldPoint(
-        {
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top,
-        },
-        view,
-      ),
+    const worldPoint = screenToWorldPoint(
+      {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      },
+      view,
+    );
+    setCursorPoint(worldPoint);
+    setSnapPreview(
+      resolveDraftingSnapPoint({
+        gridStepMm: gridStep,
+        model,
+        objects: visibleObjects,
+        orthogonalOrigin: pendingLinePoints.at(-1) ?? null,
+        point: worldPoint,
+        scale: view.scale,
+        settings: activeSnapSettings,
+      }),
     );
   }
 
@@ -181,6 +217,8 @@ export function DraftingStage({
             onFitSelected={onFitSelected}
             onResetZoom={onResetZoom}
             onSetZoomScale={onSetZoomScale}
+            onToggleSnapEnabled={onToggleSnapEnabled}
+            onToggleSnapMode={onToggleSnapMode}
             onViewLockedChange={onViewLockedChange}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
@@ -189,6 +227,7 @@ export function DraftingStage({
             viewMode={viewMode}
             viewLocked={viewLocked}
             zoomPercent={zoomPercent}
+            snapSettings={activeSnapSettings}
           />
           <svg
             className="h-full w-full touch-none"
@@ -272,6 +311,10 @@ export function DraftingStage({
                 />
               ) : null}
 
+              {snapPreview?.candidate ? (
+                <SnapPreviewMarker scale={view.scale} snapPreview={snapPreview} />
+              ) : null}
+
               {showDrawingSheetViewportOverlay && selectedDrawingSheet ? (
                 <DrawingSheetViewportOverlay sheet={selectedDrawingSheet} />
               ) : null}
@@ -283,6 +326,13 @@ export function DraftingStage({
             cursorPoint={cursorPoint}
             displayUnits={setup.displayUnits}
             hasModelExtents={Boolean(getDraftingModelBounds(visibleObjects))}
+            snapLabel={
+              snapPreview?.candidate
+                ? `${snapPreview.candidate.label}`
+                : activeSnapSettings.enabled
+                  ? 'Snap on'
+                  : 'Snap off'
+            }
             visibleObjectCount={visibleObjects.length}
           />
         </div>
@@ -297,6 +347,8 @@ function DraftingCanvasZoomControls({
   onFitSelected,
   onResetZoom,
   onSetZoomScale,
+  onToggleSnapEnabled,
+  onToggleSnapMode,
   onViewLockedChange,
   onZoomIn,
   onZoomOut,
@@ -305,12 +357,15 @@ function DraftingCanvasZoomControls({
   viewMode,
   viewLocked,
   zoomPercent,
+  snapSettings,
 }: {
   onCenterReference: () => void;
   onFitModel: () => void;
   onFitSelected: () => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
+  onToggleSnapEnabled: () => void;
+  onToggleSnapMode: (mode: DraftingSnapMode) => void;
   onViewLockedChange: (locked: boolean) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -319,6 +374,7 @@ function DraftingCanvasZoomControls({
   viewMode: DraftingCanvasViewMode;
   viewLocked: boolean;
   zoomPercent: number;
+  snapSettings: DraftingSnapSettings;
 }) {
   const lockedTitle = viewLocked ? 'Unlock view to pan, zoom, fit, or recenter.' : undefined;
   const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
@@ -430,9 +486,41 @@ function DraftingCanvasZoomControls({
         {viewLocked ? <Lock className="mr-2 h-4 w-4" /> : <Unlock className="mr-2 h-4 w-4" />}
         {viewLocked ? 'View Locked' : 'Lock View'}
       </Button>
+      <div className="flex items-center gap-1 border-l pl-2">
+        <Button
+          aria-label="Toggle snap"
+          className="h-8 px-2 text-xs"
+          type="button"
+          variant={snapSettings.enabled ? 'secondary' : 'outline'}
+          onClick={onToggleSnapEnabled}
+          title="S toggles snap"
+        >
+          Snap {snapSettings.enabled ? 'On' : 'Off'}
+        </Button>
+        <Button
+          aria-label="Toggle grid snap"
+          className="h-8 px-2 text-xs"
+          type="button"
+          variant={snapSettings.modes.grid ? 'secondary' : 'outline'}
+          onClick={() => onToggleSnapMode('grid')}
+          title="G toggles grid snap"
+        >
+          Grid
+        </Button>
+        <Button
+          aria-label="Toggle orthogonal mode"
+          className="h-8 px-2 text-xs"
+          type="button"
+          variant={snapSettings.modes.orthogonal ? 'secondary' : 'outline'}
+          onClick={() => onToggleSnapMode('orthogonal')}
+          title="O toggles ortho mode"
+        >
+          Ortho
+        </Button>
+      </div>
       <div className="basis-full text-right text-[11px] text-muted-foreground">
         {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}
-        Canvas view separate · Sheet scale {sheetScale}
+        Canvas view separate · Sheet scale {sheetScale} · Snap {snapSettings.enabled ? 'on' : 'off'}
       </div>
     </div>
   );
@@ -502,6 +590,66 @@ function SelectedObjectSourceBadge({
   );
 }
 
+function SnapPreviewMarker({
+  scale,
+  snapPreview,
+}: {
+  scale: number;
+  snapPreview: DraftingSnapResult;
+}) {
+  const candidate = snapPreview.candidate;
+  if (!candidate) {
+    return null;
+  }
+  const safeScale = Math.max(0.0001, scale);
+  const label = candidate.label;
+  return (
+    <g
+      data-testid="drafting-snap-preview"
+      pointerEvents="none"
+      transform={`translate(${snapPreview.point.x} ${snapPreview.point.y}) scale(${1 / safeScale})`}
+    >
+      <rect
+        fill="#ffffff"
+        height={20}
+        rx={4}
+        stroke="#0f766e"
+        width={Math.max(64, label.length * 7 + 18)}
+        x={12}
+        y={-32}
+      />
+      <text fill="#0f766e" fontSize={11} fontWeight={700} x={21} y={-18}>
+        {label}
+      </text>
+      <circle
+        fill="#ffffff"
+        r={6}
+        stroke="#0f766e"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        stroke="#0f766e"
+        strokeWidth={1.2}
+        vectorEffect="non-scaling-stroke"
+        x1={-12}
+        x2={12}
+        y1={0}
+        y2={0}
+      />
+      <line
+        stroke="#0f766e"
+        strokeWidth={1.2}
+        vectorEffect="non-scaling-stroke"
+        x1={0}
+        x2={0}
+        y1={-12}
+        y2={12}
+      />
+    </g>
+  );
+}
+
 function getSourceBadgeAnchor(object: DraftingObject): DraftingPoint | null {
   switch (object.type) {
     case 'pile':
@@ -528,6 +676,9 @@ function getSelectedSourceBadgeLabel(object: DraftingObject) {
   }
   if (sourceRef.sourceType === 'foundation_pile') {
     return `${sourceRef.sourceLabel ?? 'Pile'} linked`;
+  }
+  if (sourceRef.sourceType === 'foundation_joint') {
+    return `${sourceRef.sourceLabel ?? 'Joint'} linked`;
   }
   if (sourceRef.sourceType === 'geotech_borehole') {
     return `${sourceRef.sourceLabel ?? 'Borehole'} linked`;

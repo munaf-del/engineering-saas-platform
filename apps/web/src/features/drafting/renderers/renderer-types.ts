@@ -4,19 +4,26 @@ import type {
   DraftingBoreholeObject,
   DraftingCalloutObject,
   DraftingCappingBeamObject,
+  DraftingCircleObject,
   DraftingDimensionChainObject,
   DraftingDrawingSetup,
   DraftingExcavationLineObject,
+  DraftingGeotechSurfaceObject,
   DraftingLayer,
   DraftingLeaderNoteObject,
+  DraftingLineObject,
   DraftingMonitoringPointObject,
   DraftingObject,
   DraftingPileObject,
+  DraftingPolygonObject,
+  DraftingPolylineObject,
+  DraftingRectangleObject,
   DraftingSecantPileWallObject,
   DraftingSectionMarkerObject,
   DraftingServiceCrossingObject,
   DraftingServiceRunObject,
   DraftingSoldierPileWallObject,
+  DraftingStructuralJointObject,
   DraftingWalerObject,
 } from '@eng/shared';
 import {
@@ -117,3 +124,12 @@ export type DraftingBoreholeRendererProps = DraftingRendererProps<DraftingBoreho
 export type DraftingServiceRunRendererProps = DraftingRendererProps<DraftingServiceRunObject>;
 export type DraftingServiceCrossingRendererProps =
   DraftingRendererProps<DraftingServiceCrossingObject>;
+export type DraftingLineRendererProps = DraftingRendererProps<DraftingLineObject>;
+export type DraftingPolylineRendererProps = DraftingRendererProps<DraftingPolylineObject>;
+export type DraftingRectangleRendererProps = DraftingRendererProps<DraftingRectangleObject>;
+export type DraftingCircleRendererProps = DraftingRendererProps<DraftingCircleObject>;
+export type DraftingPolygonRendererProps = DraftingRendererProps<DraftingPolygonObject>;
+export type DraftingStructuralJointRendererProps =
+  DraftingRendererProps<DraftingStructuralJointObject>;
+export type DraftingGeotechSurfaceRendererProps =
+  DraftingRendererProps<DraftingGeotechSurfaceObject>;

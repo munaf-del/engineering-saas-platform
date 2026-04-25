@@ -4,11 +4,13 @@ export function DraftingStatusBar({
   cursorPoint,
   displayUnits,
   hasModelExtents,
+  snapLabel,
   visibleObjectCount,
 }: {
   cursorPoint?: DraftingPoint | null;
   displayUnits?: DraftingDisplayUnits;
   hasModelExtents: boolean;
+  snapLabel?: string;
   visibleObjectCount: number;
 }) {
   return (
@@ -22,6 +24,7 @@ export function DraftingStatusBar({
           {formatCoordinate(cursorPoint.y, displayUnits)}
         </>
       ) : null}
+      {snapLabel ? <> · {snapLabel}</> : null}
     </div>
   );
 }

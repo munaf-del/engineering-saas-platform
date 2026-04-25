@@ -381,7 +381,7 @@ export class DraftingService {
         const sourceId = `${group.id}:joint:${joint.id}`;
         const pileType = pileTypesById.get(joint.pileTypeId);
         foundationPlacedPiles.push({
-          sourceType: 'foundation_pile',
+          sourceType: 'foundation_joint',
           sourceId,
           sourceLabel: joint.displayName || joint.jointDisplayName || joint.id,
           sourceCode: joint.id,

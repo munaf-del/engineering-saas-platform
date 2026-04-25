@@ -461,6 +461,13 @@ describe('drafting defaults', () => {
     expect(defaultLayerIdForDraftingObjectType('borehole')).toBe('boreholes');
     expect(defaultLayerIdForDraftingObjectType('service_run')).toBe('services');
     expect(defaultLayerIdForDraftingObjectType('service_crossing')).toBe('services_conflicts');
+    expect(defaultLayerIdForDraftingObjectType('draft_line')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('draft_polyline')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('draft_rectangle')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('draft_circle')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('draft_polygon')).toBe('notes');
+    expect(defaultLayerIdForDraftingObjectType('structural_joint')).toBe('shoring');
+    expect(defaultLayerIdForDraftingObjectType('geotech_surface')).toBe('boreholes');
   });
 
   it('hydrates missing default layers without disturbing existing layer settings', () => {

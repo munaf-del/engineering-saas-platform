@@ -19,6 +19,13 @@ export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
   'borehole',
   'service_run',
   'service_crossing',
+  'draft_line',
+  'draft_polyline',
+  'draft_rectangle',
+  'draft_circle',
+  'draft_polygon',
+  'structural_joint',
+  'geotech_surface',
 ];
 
 export function nextDraftingObjectSequence(

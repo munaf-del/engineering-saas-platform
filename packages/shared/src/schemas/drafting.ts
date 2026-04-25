@@ -35,9 +35,36 @@ import {
   DRAFTING_TITLE_BLOCK_STATUSES,
 } from '../types/drafting.js';
 
+const DraftingPointAnchorRefSchema = z.object({
+  sourceObjectId: z.string().optional(),
+  anchorKind: z.enum([
+    'grid',
+    'origin',
+    'endpoint',
+    'midpoint',
+    'centre',
+    'intersection',
+    'nearest_path',
+    'vertex',
+    'joint',
+    'reference',
+  ]),
+  anchorIndex: z.number().int().nonnegative().optional(),
+  anchorName: z.string().optional(),
+  capturedCoordinate: z.object({
+    x: z.number().finite(),
+    y: z.number().finite(),
+    z: z.number().finite().optional(),
+    rl: z.number().finite().optional(),
+  }),
+});
+
 const DraftingPointSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
+  z: z.number().finite().optional(),
+  rl: z.number().finite().optional(),
+  snapRef: DraftingPointAnchorRefSchema.optional(),
 });
 
 const DraftingStyleSchema = z.object({
@@ -281,6 +308,7 @@ export const DraftingObjectProvenanceSchema = z.object({
 export const DraftingObjectSourceRefSchema = z.object({
   sourceType: z.enum([
     'foundation_pile',
+    'foundation_joint',
     'foundation_pile_type',
     'foundation_pile_group',
     'geotech_borehole',
@@ -618,6 +646,7 @@ export const DraftingDimensionChainObjectSchema = DraftingObjectBaseSchema.exten
   }),
   metadata: z.object({
     associatedObjectIds: z.array(z.string().min(1)).optional(),
+    witnessAnchorRefs: z.array(DraftingPointAnchorRefSchema).optional(),
     notes: z.string().optional(),
   }),
 });
@@ -719,6 +748,115 @@ export const DraftingServiceCrossingObjectSchema = DraftingObjectBaseSchema.exte
   }),
 });
 
+export const DraftingLineObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('draft_line'),
+  geometry: z.object({
+    startPoint: DraftingPointSchema,
+    endPoint: DraftingPointSchema,
+  }),
+  metadata: z.object({
+    lineId: z.string().min(1),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingPolylineObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('draft_polyline'),
+  geometry: z.object({
+    points: z.array(DraftingPointSchema).min(2),
+    closed: z.boolean().optional(),
+  }),
+  metadata: z.object({
+    polylineId: z.string().min(1),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingRectangleObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('draft_rectangle'),
+  geometry: z.object({
+    cornerA: DraftingPointSchema,
+    cornerB: DraftingPointSchema,
+  }),
+  metadata: z.object({
+    rectangleId: z.string().min(1),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingCircleObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('draft_circle'),
+  geometry: z.object({
+    centre: DraftingPointSchema,
+    radiusMm: z.number().positive(),
+  }),
+  metadata: z.object({
+    circleId: z.string().min(1),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingPolygonObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('draft_polygon'),
+  geometry: z.object({
+    points: z.array(DraftingPointSchema).min(3),
+  }),
+  metadata: z.object({
+    polygonId: z.string().min(1),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingStructuralJointObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('structural_joint'),
+  geometry: z.object({
+    point: DraftingPointSchema,
+  }),
+  parameters: z.object({
+    jointId: z.string().min(1),
+    label: z.string().min(1),
+    loadEnabled: z.boolean().optional(),
+    loadCase: z.string().optional(),
+    loadCombination: z.string().optional(),
+    fxKn: z.number().finite().optional(),
+    fyKn: z.number().finite().optional(),
+    fzKn: z.number().finite().optional(),
+    verticalLoadKn: z.number().finite().optional(),
+    units: z.literal('kN').optional(),
+  }),
+  metadata: z.object({
+    connectedObjectIds: z.array(z.string().min(1)).optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingGeotechSurfaceObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('geotech_surface'),
+  geometry: z.object({
+    points: z.array(DraftingPointSchema.extend({ z: z.number().finite() })),
+    breaklines: z.array(z.array(DraftingPointSchema).min(2)).optional(),
+    boundary: z.array(DraftingPointSchema).min(3).optional(),
+  }),
+  parameters: z.object({
+    surfaceId: z.string().min(1),
+    name: z.string().min(1),
+    surfaceType: z.enum([
+      'existing_ground',
+      'proposed_surface',
+      'strata_contact',
+      'water_table',
+      'other',
+    ]),
+    datum: z.string().optional(),
+    sourceBoreholeIds: z.array(z.string().min(1)).optional(),
+    showTriangulation: z.boolean().optional(),
+    showPointLabels: z.boolean().optional(),
+  }),
+  metadata: z.object({
+    notes: z.string().optional(),
+  }),
+});
+
 export const DraftingPlaceholderObjectSchema = DraftingObjectBaseSchema.extend({
   type: z.enum(DRAFTING_FUTURE_OBJECT_TYPES),
   geometry: z.record(z.unknown()),
@@ -742,6 +880,13 @@ export const DraftingObjectSchema = z
     DraftingBoreholeObjectSchema,
     DraftingServiceRunObjectSchema,
     DraftingServiceCrossingObjectSchema,
+    DraftingLineObjectSchema,
+    DraftingPolylineObjectSchema,
+    DraftingRectangleObjectSchema,
+    DraftingCircleObjectSchema,
+    DraftingPolygonObjectSchema,
+    DraftingStructuralJointObjectSchema,
+    DraftingGeotechSurfaceObjectSchema,
     DraftingPlaceholderObjectSchema,
   ])
   .superRefine((value, context) => {
@@ -977,7 +1122,7 @@ export const DraftingRevisionSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
-export const DraftingDrawingSchema = DraftingDrawingSummarySchema.extend({
+export const DraftingDrawingSchema: z.ZodTypeAny = DraftingDrawingSummarySchema.extend({
   model: DraftingModelSchema,
   revisions: z.array(DraftingRevisionSchema),
 });

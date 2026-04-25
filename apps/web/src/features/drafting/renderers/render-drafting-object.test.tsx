@@ -22,6 +22,24 @@ describe('renderDraftingObject', () => {
     const borehole = createDraftingObject('borehole', { x: 3800, y: 5000 }, model);
     const serviceRun = createDraftingObject('service_run', { x: 4000, y: 5200 }, model);
     const serviceCrossing = createDraftingObject('service_crossing', { x: 4200, y: 5400 }, model);
+    const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 1200, y: 0 },
+    ]);
+    const rectangle = createDraftingObject('draft_rectangle', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 1200, y: 600 },
+    ]);
+    const circle = createDraftingObject('draft_circle', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 450, y: 0 },
+    ]);
+    const polygon = createDraftingObject('draft_polygon', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 800, y: 0 },
+      { x: 400, y: 700 },
+    ]);
+    const joint = createDraftingObject('structural_joint', { x: 500, y: 500, rl: 12.3 }, model);
     const excavationLine = createDraftingObject('excavation_line', { x: 0, y: 0 }, model, [
       { x: 0, y: 0 },
       { x: 2500, y: 500 },
@@ -46,6 +64,11 @@ describe('renderDraftingObject', () => {
           borehole,
           serviceRun,
           serviceCrossing,
+          line,
+          rectangle,
+          circle,
+          polygon,
+          joint,
           excavationLine,
         ].map((object) => (
           <React.Fragment key={object.id}>
@@ -76,8 +99,34 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('BH-01');
     expect(markup).toContain('SR1');
     expect(markup).toContain('SC1');
+    expect(markup).toContain('J-NEW-001');
     expect(markup).toContain('EX1');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('renders dimensions as AS-style linework with witnesses and terminators', () => {
+    const model = createEmptyDraftingModel('dimension-render');
+    const dimension = createDraftingObject('dimension_chain', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 3000, y: 0 },
+      { x: 0, y: -900 },
+    ]);
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === dimension.layerId) ?? null,
+          object: dimension,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('data-dimension-id="DIM1"');
+    expect(markup).toContain('3000 mm');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
+    expect(markup).not.toContain(`${dimension.id}-node`);
   });
 
   it('uses profile-resolved line weights without removing non-scaling strokes', () => {

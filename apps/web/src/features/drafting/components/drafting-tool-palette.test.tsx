@@ -21,12 +21,13 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-compact-tool-toolbar"');
     expect(markup).toContain('data-testid="drafting-toolbar-view-row"');
     expect(markup).toContain('data-testid="drafting-toolbar-authoring-row"');
-    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
-    expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(4);
+    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(5);
+    expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(5);
     expect(markup).toContain('Navigate');
     expect(markup).toContain('Shoring');
     expect(markup).toContain('Survey / Monitoring');
     expect(markup).toContain('Services');
+    expect(markup).toContain('Geometry');
     expect(markup).toContain('Annotation');
     expect(markup).toContain('grid-cols-4');
     expect(markup).toContain('grid-cols-2');
@@ -94,7 +95,7 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-source-pile-option"');
     expect(markup).toContain('Select placed drafting object · P1');
     expect(markup).toContain('Place linked pile');
-    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
+    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(5);
     expect(markup).not.toContain('Linked boreholes');
   });
 

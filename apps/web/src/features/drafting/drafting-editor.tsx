@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { DraftingObject, Project } from '@eng/shared';
+import type { DraftingImplementedObjectType, DraftingObject, Project } from '@eng/shared';
 import { toast } from 'sonner';
 import { PageLoading } from '@/components/loading';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,7 +27,7 @@ import {
   downloadDraftingScheduleCsv,
   downloadDraftingSchedulesJson,
 } from './export-utils';
-import { clientToWorldPoint, screenToWorldPoint } from './geometry-utils';
+import { clientToWorldPoint, getGridStep, screenToWorldPoint } from './geometry-utils';
 import { useDrafting } from './hooks/use-drafting';
 import { useDraftingHistory } from './hooks/use-drafting-history';
 import { useDraftingSelection } from './hooks/use-drafting-selection';
@@ -55,14 +55,35 @@ import {
   createPileObjectFromTypeSource,
   findExistingSourceObject,
   refreshPileObjectFromSource,
+  refreshStructuralJointObjectFromSource,
   refreshSpatialObjectFromSource,
   type DraftingPileSourceRecord,
   type DraftingPileTypeSourceRecord,
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
+import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
 
 const PDF_POINT_TO_MM = 25.4 / 72;
+
+const TWO_POINT_AUTHORING_TOOLS = new Set([
+  'secant_pile_wall',
+  'soldier_pile_wall',
+  'anchor_tieback',
+  'section_marker',
+  'draft_line',
+  'draft_rectangle',
+  'draft_circle',
+]);
+
+const PATH_AUTHORING_TOOLS = new Set([
+  'excavation_line',
+  'capping_beam',
+  'waler',
+  'service_run',
+  'draft_polyline',
+  'draft_polygon',
+]);
 
 export function DraftingEditor({
   projectId,
@@ -212,6 +233,32 @@ export function DraftingEditor({
     );
   }, [drawingId, inspectorExpanded]);
 
+  React.useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+      if (event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        drafting.toggleSnapEnabled();
+      }
+      if (event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        drafting.toggleSnapMode('grid');
+      }
+      if (event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        drafting.toggleSnapMode('orthogonal');
+      }
+      if (event.key === 'Escape') {
+        drafting.clearPendingLine();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drafting]);
+
   if (history.isLoading || !history.drawing || !history.model) {
     return <PageLoading />;
   }
@@ -271,15 +318,16 @@ export function DraftingEditor({
       }
     }
 
-    const point = clientToWorldPoint(
+    const rawPoint = clientToWorldPoint(
       event.clientX,
       event.clientY,
       view.containerRef.current,
       view.currentView,
     );
-    if (!point) {
+    if (!rawPoint) {
       return;
     }
+    const point = resolveAuthoringPoint(rawPoint);
 
     if (drafting.activeTool === 'select' || drafting.activeTool === 'pan') {
       selection.clearSelection();
@@ -287,8 +335,49 @@ export function DraftingEditor({
       return;
     }
 
-    if (drafting.activeTool === 'excavation_line') {
+    if (PATH_AUTHORING_TOOLS.has(drafting.activeTool)) {
       drafting.addPendingLinePoint(point);
+      return;
+    }
+
+    if (TWO_POINT_AUTHORING_TOOLS.has(drafting.activeTool)) {
+      const points = [...drafting.pendingLinePoints, point];
+      if (points.length < 2) {
+        drafting.setPendingLinePoints(points);
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        drafting.activeTool,
+        points[0]!,
+        currentModel,
+        points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      drafting.clearPendingLine();
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (drafting.activeTool === 'dimension_chain') {
+      const points = [...drafting.pendingLinePoints, point];
+      if (points.length < 3) {
+        drafting.setPendingLinePoints(points);
+        return;
+      }
+      const nextObject = createDraftingObject(
+        'dimension_chain',
+        points[0]!,
+        currentModel,
+        points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      drafting.clearPendingLine();
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
       return;
     }
 
@@ -314,7 +403,7 @@ export function DraftingEditor({
     }
 
     const nextObject = createDraftingObject(
-      drafting.activeTool,
+      drafting.activeTool as DraftingImplementedObjectType,
       point,
       currentModel,
       [],
@@ -323,6 +412,18 @@ export function DraftingEditor({
     history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');
+  }
+
+  function resolveAuthoringPoint(point: { x: number; y: number }) {
+    return resolveDraftingSnapPoint({
+      gridStepMm: getGridStep(view.currentView.scale),
+      model: currentModel,
+      objects: visibleObjects,
+      orthogonalOrigin: drafting.pendingLinePoints.at(-1) ?? null,
+      point,
+      scale: view.currentView.scale,
+      settings: drafting.snapSettings,
+    }).point;
   }
 
   function handleAddUnderlay(args: {
@@ -381,13 +482,17 @@ export function DraftingEditor({
     return drafting.activeTool === 'select';
   }
 
-  function handleFinishExcavationLine() {
+  function handleFinishPendingPath() {
     if (drafting.pendingLinePoints.length < 2) {
       return;
     }
 
+    const tool =
+      drafting.activeTool === 'draft_polygon' && drafting.pendingLinePoints.length < 3
+        ? 'draft_polyline'
+        : drafting.activeTool;
     const nextObject = createDraftingObject(
-      'excavation_line',
+      tool as DraftingImplementedObjectType,
       drafting.pendingLinePoints[0]!,
       currentModel,
       drafting.pendingLinePoints,
@@ -441,7 +546,10 @@ export function DraftingEditor({
   }
 
   function handlePlacePileSource(source: DraftingPileSourceRecord) {
-    const existing = findExistingSourceObject(currentModel, 'foundation_pile', source.sourceId);
+    const existing =
+      findExistingSourceObject(currentModel, source.sourceType, source.sourceId) ??
+      findExistingSourceObject(currentModel, 'foundation_pile', source.sourceId) ??
+      findExistingSourceObject(currentModel, 'foundation_joint', source.sourceId);
     if (existing) {
       selection.selectObject(existing.id);
       drafting.setActiveTab('properties');
@@ -534,16 +642,22 @@ export function DraftingEditor({
           pileTypeSources: pileTypeSourceRecords,
           updateCoordinates: options?.updateCoordinates,
         })
-      : object.type === 'borehole' ||
-          object.type === 'monitoring_point' ||
-          object.type === 'service_run' ||
-          object.type === 'service_crossing'
-        ? refreshSpatialObjectFromSource({
+      : object.type === 'structural_joint'
+        ? refreshStructuralJointObjectFromSource({
             object,
-            spatialSources: spatialSourceRecords,
+            pileSources: pileSourceRecords,
             updateCoordinates: options?.updateCoordinates,
           })
-        : object;
+        : object.type === 'borehole' ||
+            object.type === 'monitoring_point' ||
+            object.type === 'service_run' ||
+            object.type === 'service_crossing'
+          ? refreshSpatialObjectFromSource({
+              object,
+              spatialSources: spatialSourceRecords,
+              updateCoordinates: options?.updateCoordinates,
+            })
+          : object;
   }
 
   function handlePlaceSpatialSource(source: DraftingSpatialSourceRecord) {
@@ -579,7 +693,10 @@ export function DraftingEditor({
     let lastObjectId: string | null = null;
 
     for (const source of sources) {
-      const existing = findExistingSourceObject(nextModel, 'foundation_pile', source.sourceId);
+      const existing =
+        findExistingSourceObject(nextModel, source.sourceType, source.sourceId) ??
+        findExistingSourceObject(nextModel, 'foundation_pile', source.sourceId) ??
+        findExistingSourceObject(nextModel, 'foundation_joint', source.sourceId);
       if (existing) {
         lastObjectId = existing.id;
         continue;
@@ -699,7 +816,7 @@ export function DraftingEditor({
           drawingUpdatedAt={currentDrawing.updatedAt}
           model={currentModel}
           onCancelLine={drafting.clearPendingLine}
-          onFinishLine={handleFinishExcavationLine}
+          onFinishLine={handleFinishPendingPath}
           onPlacePileSource={handlePlacePileSource}
           onPlaceSpatialSource={handlePlaceSpatialSource}
           onPileSourceModeChange={handlePileSourceModeChange}
@@ -734,11 +851,14 @@ export function DraftingEditor({
           onObjectPointerDown={selection.handleObjectPointerDown}
           onResetZoom={view.handleResetZoom}
           onSetZoomScale={view.handleSetZoomScale}
+          onToggleSnapEnabled={drafting.toggleSnapEnabled}
+          onToggleSnapMode={drafting.toggleSnapMode}
           onViewLockedChange={view.setViewLocked}
           onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
           onZoomIn={view.handleZoomIn}
           onZoomOut={view.handleZoomOut}
           pendingLinePoints={drafting.pendingLinePoints}
+          snapSettings={drafting.snapSettings}
           selectedDrawingSheet={selectedDrawingSheet}
           selectedObjectId={selection.selectedObjectId}
           selectedUnderlayId={underlays.selectedUnderlayId}
@@ -1000,4 +1120,14 @@ function getCurrentSourceVersion(
     );
   }
   return null;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'),
+  );
 }

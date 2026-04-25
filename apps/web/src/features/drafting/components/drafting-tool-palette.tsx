@@ -7,10 +7,14 @@ import {
   Dot,
   Grip,
   Landmark,
+  LineChart,
   LocateFixed,
   MousePointer2,
   Move,
   PencilLine,
+  Pentagon,
+  Radius,
+  RectangleHorizontal,
   Ruler,
   ScanLine,
   SplitSquareHorizontal,
@@ -87,6 +91,22 @@ const TOOL_GROUPS: Array<{
     tools: [
       { tool: 'service_run', label: 'Service run', shortLabel: 'Run', icon: Waypoints },
       { tool: 'service_crossing', label: 'Service crossing', shortLabel: 'Xing', icon: Dot },
+    ],
+  },
+  {
+    title: 'Geometry',
+    tools: [
+      { tool: 'draft_line', label: 'Line', shortLabel: 'Line', icon: LineChart },
+      { tool: 'draft_polyline', label: 'Polyline', shortLabel: 'Pline', icon: Waypoints },
+      {
+        tool: 'draft_rectangle',
+        label: 'Rectangle',
+        shortLabel: 'Rect',
+        icon: RectangleHorizontal,
+      },
+      { tool: 'draft_circle', label: 'Circle', shortLabel: 'Circle', icon: Radius },
+      { tool: 'draft_polygon', label: 'Polygon', shortLabel: 'Poly', icon: Pentagon },
+      { tool: 'structural_joint', label: 'Joint / node', shortLabel: 'Joint', icon: Crosshair },
     ],
   },
   {
@@ -180,7 +200,7 @@ export function DraftingToolPalette({
       </div>
 
       <div
-        className="grid gap-1.5 pt-1.5 lg:grid-cols-[minmax(21rem,2fr)_minmax(7.5rem,0.7fr)_minmax(7.5rem,0.7fr)_minmax(11rem,1fr)]"
+        className="grid gap-1.5 pt-1.5 lg:grid-cols-[minmax(21rem,2fr)_minmax(7.5rem,0.7fr)_minmax(7.5rem,0.7fr)_minmax(13rem,1fr)_minmax(11rem,1fr)]"
         data-testid="drafting-toolbar-authoring-row"
       >
         {AUTHORING_GROUPS.map((group) => (
@@ -241,12 +261,12 @@ export function DraftingToolPalette({
         />
       ) : null}
 
-      {activeTool === 'excavation_line' ? (
+      {isPathAuthoringTool(activeTool) ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 text-xs text-muted-foreground">
           <span>
             {pendingLinePointsCount === 0
-              ? 'Click in the canvas to start the excavation polyline.'
-              : `${pendingLinePointsCount} point(s) captured for the current line.`}
+              ? getAuthoringHint(activeTool)
+              : `${pendingLinePointsCount} point(s) captured for the current path.`}
           </span>
           <div className="ml-auto flex gap-2">
             <Button
@@ -1212,6 +1232,30 @@ function getToolShortLabel(tool: DraftingTool) {
     TOOL_GROUPS.flatMap((group) => group.tools).find((entry) => entry.tool === tool)?.shortLabel ??
     tool
   );
+}
+
+function isPathAuthoringTool(tool: DraftingTool) {
+  return (
+    tool === 'excavation_line' ||
+    tool === 'capping_beam' ||
+    tool === 'waler' ||
+    tool === 'service_run' ||
+    tool === 'draft_polyline' ||
+    tool === 'draft_polygon'
+  );
+}
+
+function getAuthoringHint(tool: DraftingTool) {
+  if (tool === 'service_run') {
+    return 'Click service vertices, then Finish to create the service run path.';
+  }
+  if (tool === 'capping_beam' || tool === 'waler') {
+    return 'Click path points, then Finish to create the beam or waler baseline.';
+  }
+  if (tool === 'draft_polyline' || tool === 'draft_polygon') {
+    return 'Click vertices, then Finish to create the drafting geometry.';
+  }
+  return 'Click in the canvas to start the excavation polyline.';
 }
 
 function getLinkedSourceModeLabel(tool: DraftingTool) {

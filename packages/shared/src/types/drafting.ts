@@ -37,6 +37,13 @@ export const DRAFTING_OBJECT_TYPES = [
   'borehole',
   'service_run',
   'service_crossing',
+  'draft_line',
+  'draft_polyline',
+  'draft_rectangle',
+  'draft_circle',
+  'draft_polygon',
+  'structural_joint',
+  'geotech_surface',
   'survey_point',
   'service_line',
   'dimension',
@@ -60,6 +67,13 @@ export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
   'borehole',
   'service_run',
   'service_crossing',
+  'draft_line',
+  'draft_polyline',
+  'draft_rectangle',
+  'draft_circle',
+  'draft_polygon',
+  'structural_joint',
+  'geotech_surface',
 ] as const;
 
 export const DRAFTING_FUTURE_OBJECT_TYPES = [
@@ -167,6 +181,7 @@ export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[
 export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
 export type DraftingObjectSourceType =
   | 'foundation_pile'
+  | 'foundation_joint'
   | 'foundation_pile_type'
   | 'foundation_pile_group'
   | 'geotech_borehole'
@@ -179,9 +194,35 @@ export type DraftingObjectSourceStatus =
   | 'missing_source'
   | 'manual';
 
+export type DraftingPointAnchorRef = {
+  sourceObjectId?: string;
+  anchorKind:
+    | 'grid'
+    | 'origin'
+    | 'endpoint'
+    | 'midpoint'
+    | 'centre'
+    | 'intersection'
+    | 'nearest_path'
+    | 'vertex'
+    | 'joint'
+    | 'reference';
+  anchorIndex?: number;
+  anchorName?: string;
+  capturedCoordinate: {
+    x: number;
+    y: number;
+    z?: number;
+    rl?: number;
+  };
+};
+
 export type DraftingPoint = {
   x: number;
   y: number;
+  z?: number;
+  rl?: number;
+  snapRef?: DraftingPointAnchorRef;
 };
 
 export type DraftingModelPoint3d = DraftingPoint & {
@@ -897,6 +938,7 @@ export type DraftingDimensionChainObject = DraftingObjectBase & {
   };
   metadata: {
     associatedObjectIds?: string[];
+    witnessAnchorRefs?: DraftingPointAnchorRef[];
     notes?: string;
   };
 };
@@ -998,6 +1040,114 @@ export type DraftingServiceCrossingObject = DraftingObjectBase & {
   };
 };
 
+export type DraftingLineObject = DraftingObjectBase & {
+  type: 'draft_line';
+  geometry: {
+    startPoint: DraftingPoint;
+    endPoint: DraftingPoint;
+  };
+  metadata: {
+    lineId: string;
+    notes?: string;
+  };
+};
+
+export type DraftingPolylineObject = DraftingObjectBase & {
+  type: 'draft_polyline';
+  geometry: {
+    points: DraftingPoint[];
+    closed?: boolean;
+  };
+  metadata: {
+    polylineId: string;
+    notes?: string;
+  };
+};
+
+export type DraftingRectangleObject = DraftingObjectBase & {
+  type: 'draft_rectangle';
+  geometry: {
+    cornerA: DraftingPoint;
+    cornerB: DraftingPoint;
+  };
+  metadata: {
+    rectangleId: string;
+    notes?: string;
+  };
+};
+
+export type DraftingCircleObject = DraftingObjectBase & {
+  type: 'draft_circle';
+  geometry: {
+    centre: DraftingPoint;
+    radiusMm: number;
+  };
+  metadata: {
+    circleId: string;
+    notes?: string;
+  };
+};
+
+export type DraftingPolygonObject = DraftingObjectBase & {
+  type: 'draft_polygon';
+  geometry: {
+    points: DraftingPoint[];
+  };
+  metadata: {
+    polygonId: string;
+    notes?: string;
+  };
+};
+
+export type DraftingStructuralJointObject = DraftingObjectBase & {
+  type: 'structural_joint';
+  geometry: {
+    point: DraftingPoint;
+  };
+  parameters: {
+    jointId: string;
+    label: string;
+    loadEnabled?: boolean;
+    loadCase?: string;
+    loadCombination?: string;
+    fxKn?: number;
+    fyKn?: number;
+    fzKn?: number;
+    verticalLoadKn?: number;
+    units?: 'kN';
+  };
+  metadata: {
+    connectedObjectIds?: string[];
+    notes?: string;
+  };
+};
+
+export type DraftingGeotechSurfaceObject = DraftingObjectBase & {
+  type: 'geotech_surface';
+  geometry: {
+    points: Array<DraftingPoint & { z: number }>;
+    breaklines?: DraftingPoint[][];
+    boundary?: DraftingPoint[];
+  };
+  parameters: {
+    surfaceId: string;
+    name: string;
+    surfaceType:
+      | 'existing_ground'
+      | 'proposed_surface'
+      | 'strata_contact'
+      | 'water_table'
+      | 'other';
+    datum?: string;
+    sourceBoreholeIds?: string[];
+    showTriangulation?: boolean;
+    showPointLabels?: boolean;
+  };
+  metadata: {
+    notes?: string;
+  };
+};
+
 export type DraftingPlaceholderObject = DraftingObjectBase & {
   type: DraftingFutureObjectType;
   geometry: Record<string, unknown>;
@@ -1020,6 +1170,13 @@ export type DraftingObject =
   | DraftingBoreholeObject
   | DraftingServiceRunObject
   | DraftingServiceCrossingObject
+  | DraftingLineObject
+  | DraftingPolylineObject
+  | DraftingRectangleObject
+  | DraftingCircleObject
+  | DraftingPolygonObject
+  | DraftingStructuralJointObject
+  | DraftingGeotechSurfaceObject
   | DraftingPlaceholderObject;
 
 export type DraftingModel = {
@@ -1427,6 +1584,16 @@ export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): D
       return 'services';
     case 'service_crossing':
       return 'services_conflicts';
+    case 'draft_line':
+    case 'draft_polyline':
+    case 'draft_rectangle':
+    case 'draft_circle':
+    case 'draft_polygon':
+      return 'notes';
+    case 'structural_joint':
+      return 'shoring';
+    case 'geotech_surface':
+      return 'boreholes';
     case 'section_marker':
       return 'sections';
     case 'dimension_chain':

@@ -186,7 +186,8 @@ function DraftingSourceRefProperties({
         <SourceField label="Source module" value={formatSourceModule(sourceRef.snapshot)} />
         <SourceField label="Source path" value={formatSourcePath(sourceRef.snapshot)} />
       </div>
-      {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
+      {(object.type === 'pile' && sourceRef.sourceType === 'foundation_pile') ||
+      (object.type === 'structural_joint' && sourceRef.sourceType === 'foundation_joint') ? (
         <p className="mt-2 text-xs text-muted-foreground">
           Coordinates come from the Foundations source. Use Refresh + coordinates to move this
           drafting object to the current source coordinates.
@@ -215,7 +216,9 @@ function DraftingSourceRefProperties({
         >
           {getRefreshButtonLabel(object, sourceRef.sourceType)}
         </Button>
-        {(object.type === 'pile' && sourceRef.sourceType === 'foundation_pile') ||
+        {(object.type === 'pile' &&
+          (sourceRef.sourceType === 'foundation_pile' ||
+            sourceRef.sourceType === 'foundation_joint')) ||
         (object.type !== 'pile' && sourceRef.sourceType !== 'manual') ? (
           <Button
             className="h-8"
@@ -298,12 +301,15 @@ function formatSourcePath(snapshot: Record<string, unknown> | undefined) {
 }
 
 function formatSourceKind(object: DraftingObject, sourceType: string | undefined) {
-  if (object.type === 'pile') {
+  if (object.type === 'pile' || object.type === 'structural_joint') {
     if (sourceType === 'foundation_pile_type') {
       return 'Pile type library';
     }
     if (sourceType === 'foundation_pile') {
       return 'Existing placed pile/joint';
+    }
+    if (sourceType === 'foundation_joint') {
+      return 'Existing foundation joint';
     }
     if (sourceType === 'manual') {
       return 'Sketch / unlinked';
@@ -338,6 +344,9 @@ function getRefreshButtonLabel(object: DraftingObject, sourceType: string | unde
   if (object.type === 'pile' && sourceType !== 'manual') {
     return 'Refresh engineering fields';
   }
+  if (object.type === 'structural_joint' && sourceType !== 'manual') {
+    return 'Refresh joint source';
+  }
   if (
     (object.type === 'service_run' || object.type === 'service_crossing') &&
     sourceType !== 'manual'
@@ -367,6 +376,13 @@ function propertySectionTitle(object: DraftingObject) {
     case 'waler':
     case 'service_run':
     case 'service_crossing':
+    case 'draft_line':
+    case 'draft_polyline':
+    case 'draft_rectangle':
+    case 'draft_circle':
+    case 'draft_polygon':
+    case 'structural_joint':
+    case 'geotech_surface':
     case 'dimension_chain':
     case 'callout':
     case 'section_marker':

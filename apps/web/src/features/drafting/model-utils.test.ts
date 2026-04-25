@@ -415,6 +415,34 @@ describe('drafting model utils', () => {
       }),
     ).toThrow('Calibration warning acknowledgement is required');
   });
+
+  it('creates primitive geometry and joint objects from authored points', () => {
+    const model = createEmptyDraftingModel('drawing-1');
+    const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 2500, y: 0 },
+    ]);
+    const rectangle = createDraftingObject('draft_rectangle', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 2000, y: 1200 },
+    ]);
+    const joint = createDraftingObject('structural_joint', { x: 500, y: 600, rl: 12.3 }, model);
+
+    expect(line).toMatchObject({
+      type: 'draft_line',
+      geometry: { endPoint: { x: 2500, y: 0 } },
+      sourceRef: { sourceType: 'manual' },
+    });
+    expect(rectangle).toMatchObject({
+      type: 'draft_rectangle',
+      geometry: { cornerB: { x: 2000, y: 1200 } },
+    });
+    expect(joint).toMatchObject({
+      type: 'structural_joint',
+      geometry: { point: { x: 500, y: 600, rl: 12.3 } },
+      parameters: { loadEnabled: false, units: 'kN' },
+    });
+  });
 });
 
 function createTestUnderlay() {

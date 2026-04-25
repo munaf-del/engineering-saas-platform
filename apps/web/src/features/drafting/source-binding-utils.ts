@@ -14,6 +14,7 @@ import type {
   DraftingServiceRiskStatus,
   DraftingServiceStatus,
   DraftingServiceType,
+  DraftingStructuralJointObject,
   GeotechBoreholeSource,
   MonitoringPointSource,
   MultiPileJoint,
@@ -37,6 +38,7 @@ import {
 import { createBoreholeObject } from './tools/borehole-tool';
 import { createMonitoringPointObject } from './tools/monitoring-point-tool';
 import { createPileObject } from './tools/pile-tool';
+import { createStructuralJointObject } from './tools/primitive-geometry-tool';
 import { createServiceCrossingObject } from './tools/service-crossing-tool';
 import { createServiceRunObject } from './tools/service-run-tool';
 
@@ -59,7 +61,7 @@ export type DraftingPileTypeSourceRecord = {
 };
 
 export type DraftingPileSourceRecord = {
-  sourceType: 'foundation_pile';
+  sourceType: 'foundation_pile' | 'foundation_joint';
   sourceId: string;
   sourceLabel: string;
   groupId: string;
@@ -124,7 +126,7 @@ export function buildDraftingPileSourceRecordsFromRegistry(
     const pile = pileFromRegistrySource(source);
     const layoutPoint = layoutPointFromRegistrySource(source);
     return {
-      sourceType: 'foundation_pile' as const,
+      sourceType: source.sourceType,
       sourceId: source.sourceId,
       sourceLabel: source.sourceLabel,
       groupId: String(source.snapshot.pileGroupId ?? ''),
@@ -241,12 +243,50 @@ export function createPileObjectFromSource(args: {
   fallbackPoint: DraftingPoint;
   linkedBy?: string | null;
   model: DraftingModel;
-}): DraftingPileObject {
+}): DraftingObject {
   const now = new Date().toISOString();
   const point =
     pointFromPileLayout(args.source.layoutPoint) ??
     pointFromMultiPileJoint(args.source.joint) ??
     args.fallbackPoint;
+  if (args.source.sourceType === 'foundation_joint' || args.source.joint) {
+    const joint = createStructuralJointObject(point, args.model);
+    return {
+      ...joint,
+      name: args.source.sourceLabel,
+      parameters: {
+        ...joint.parameters,
+        jointId: args.source.joint?.id ?? args.source.sourceLabel,
+        label: args.source.sourceLabel,
+      },
+      metadata: {
+        ...joint.metadata,
+        notes: sourceNotes([
+          args.source.groupName,
+          args.source.pileType ? `Pile type ${args.source.pileType.id}` : undefined,
+        ]),
+      },
+      sourceRef: {
+        sourceType: 'foundation_joint',
+        sourceId: args.source.sourceId,
+        sourceLabel: args.source.sourceLabel,
+        sourceVersion: args.source.sourceVersion,
+        linkedAt: now,
+        ...(args.linkedBy ? { linkedBy: args.linkedBy } : {}),
+        status: 'linked',
+        snapshot: {
+          pileGroupId: args.source.groupId,
+          pileGroupName: args.source.groupName,
+          joint: args.source.joint,
+          pileTypeDefinition: args.source.pileType,
+          sourceCoordinates: point,
+          originModule: args.source.originModule,
+          sourcePath: args.source.sourcePath,
+        },
+      },
+      updatedAt: now,
+    };
+  }
   const base = createPileObject(point, args.model);
   const diameterMm =
     normalizePileDiameterMm(args.source.pile?.diameter) ??
@@ -284,7 +324,7 @@ export function createPileObjectFromSource(args: {
       ...(args.linkedBy ? { linkedBy: args.linkedBy } : {}),
       status: 'linked',
       snapshot: {
-        pileId: args.source.pile?.id ?? args.source.joint?.id,
+        pileId: args.source.pile?.id,
         pileName: args.source.pile?.name ?? args.source.sourceLabel,
         pileGroupId: args.source.groupId,
         pileGroupName: args.source.groupName,
@@ -398,6 +438,9 @@ export function refreshPileObjectFromSource(args: {
       fallbackPoint: args.object.geometry.centre,
       model: { objects: [] } as unknown as DraftingModel,
     });
+    if (refreshed.type !== 'pile') {
+      return args.object;
+    }
     const sourcePoint =
       pointFromPileLayout(source.layoutPoint) ?? pointFromMultiPileJoint(source.joint);
     return preservePileObjectIdentity(args.object, {
@@ -410,6 +453,51 @@ export function refreshPileObjectFromSource(args: {
   }
 
   return args.object;
+}
+
+export function refreshStructuralJointObjectFromSource(args: {
+  object: DraftingStructuralJointObject;
+  pileSources: DraftingPileSourceRecord[];
+  updateCoordinates?: boolean;
+}): DraftingStructuralJointObject {
+  const sourceRef = args.object.sourceRef;
+  if (!sourceRef?.sourceId || sourceRef.sourceType === 'manual') {
+    return args.object;
+  }
+  const source = args.pileSources.find((candidate) => candidate.sourceId === sourceRef.sourceId);
+  if (!source) {
+    return markMissingStructuralJointSource(args.object);
+  }
+  const refreshed = createPileObjectFromSource({
+    source,
+    fallbackPoint: args.object.geometry.point,
+    model: { objects: [] } as unknown as DraftingModel,
+  });
+  if (refreshed.type !== 'structural_joint') {
+    return markMissingStructuralJointSource(args.object);
+  }
+  return {
+    ...args.object,
+    name: refreshed.name,
+    geometry: args.updateCoordinates ? refreshed.geometry : args.object.geometry,
+    parameters: {
+      ...refreshed.parameters,
+      loadEnabled: args.object.parameters.loadEnabled,
+      loadCase: args.object.parameters.loadCase,
+      loadCombination: args.object.parameters.loadCombination,
+      fxKn: args.object.parameters.fxKn,
+      fyKn: args.object.parameters.fyKn,
+      fzKn: args.object.parameters.fzKn,
+      verticalLoadKn: args.object.parameters.verticalLoadKn,
+      units: args.object.parameters.units,
+    },
+    metadata: {
+      ...args.object.metadata,
+      ...refreshed.metadata,
+    },
+    sourceRef: refreshed.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function refreshSpatialObjectFromSource(args: {
@@ -1115,6 +1203,21 @@ function recordObject(value: unknown): Record<string, unknown> | null {
 }
 
 function markMissingSource(object: DraftingPileObject): DraftingPileObject {
+  return {
+    ...object,
+    sourceRef: object.sourceRef
+      ? {
+          ...object.sourceRef,
+          status: 'missing_source',
+        }
+      : object.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function markMissingStructuralJointSource(
+  object: DraftingStructuralJointObject,
+): DraftingStructuralJointObject {
   return {
     ...object,
     sourceRef: object.sourceRef

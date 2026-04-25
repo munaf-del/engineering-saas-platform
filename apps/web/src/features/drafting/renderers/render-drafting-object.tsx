@@ -9,6 +9,15 @@ import { ExcavationLineRenderer } from './excavation-line-renderer';
 import { LeaderNoteRenderer } from './leader-note-renderer';
 import { MonitoringPointRenderer } from './monitoring-point-renderer';
 import { PileRenderer } from './pile-renderer';
+import {
+  DraftCircleRenderer,
+  DraftLineRenderer,
+  DraftPolygonRenderer,
+  DraftPolylineRenderer,
+  DraftRectangleRenderer,
+  GeotechSurfaceRenderer,
+  StructuralJointRenderer,
+} from './primitive-geometry-renderer';
 import { SecantPileWallRenderer } from './secant-pile-wall-renderer';
 import { SectionMarkerRenderer } from './section-marker-renderer';
 import { ServiceCrossingRenderer } from './service-crossing-renderer';
@@ -49,6 +58,20 @@ export function renderDraftingObject(props: DraftingRendererProps<DraftingObject
       return <ServiceCrossingRenderer {...props} object={props.object} />;
     case 'excavation_line':
       return <ExcavationLineRenderer {...props} object={props.object} />;
+    case 'draft_line':
+      return <DraftLineRenderer {...props} object={props.object} />;
+    case 'draft_polyline':
+      return <DraftPolylineRenderer {...props} object={props.object} />;
+    case 'draft_rectangle':
+      return <DraftRectangleRenderer {...props} object={props.object} />;
+    case 'draft_circle':
+      return <DraftCircleRenderer {...props} object={props.object} />;
+    case 'draft_polygon':
+      return <DraftPolygonRenderer {...props} object={props.object} />;
+    case 'structural_joint':
+      return <StructuralJointRenderer {...props} object={props.object} />;
+    case 'geotech_surface':
+      return <GeotechSurfaceRenderer {...props} object={props.object} />;
     default:
       return null;
   }

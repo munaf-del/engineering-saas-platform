@@ -169,7 +169,8 @@ describe('drafting source binding utils', () => {
     });
   });
 
-  it('maps multi-pile joints as placed pile instance sources', () => {
+  it('maps multi-pile joints as structural joint sources', () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('drafting-joint-1');
     const [source] = buildDraftingPileSourceRecords([
       {
         id: 'group-1',
@@ -221,6 +222,29 @@ describe('drafting source binding utils', () => {
       sourceLabel: 'J1',
       pileType: { id: 'BP1' },
       joint: { x: 0, y: 0, pileTypeId: 'BP1' },
+    });
+
+    const object = createPileObjectFromSource({
+      fallbackPoint: { x: 100, y: 100 },
+      model: createEmptyDraftingModel('drawing-source-joints'),
+      source: source!,
+    });
+
+    expect(object).toMatchObject({
+      id: 'drafting-joint-1',
+      type: 'structural_joint',
+      name: 'J1',
+      geometry: { point: { x: 0, y: 0, z: 0 } },
+      parameters: {
+        jointId: 'J1',
+        label: 'J1',
+      },
+      sourceRef: {
+        sourceType: 'foundation_joint',
+        sourceId: 'group-1:joint:J1',
+        sourceLabel: 'J1',
+        status: 'linked',
+      },
     });
   });
 

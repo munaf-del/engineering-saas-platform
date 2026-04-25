@@ -65,7 +65,7 @@ export type FoundationPileTypeSource = DraftingRegistrySourceBase & {
 };
 
 export type FoundationPlacedPileSource = DraftingRegistrySourceBase & {
-  sourceType: 'foundation_pile';
+  sourceType: 'foundation_pile' | 'foundation_joint';
   originModule: 'foundations';
   engineering: {
     pileTypeCode?: string;
