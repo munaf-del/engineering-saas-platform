@@ -200,7 +200,7 @@ function DraftingSourceRefProperties({
       ) : null}
       {sourceRef.sourceType === 'manual' ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          This pile is not linked to project engineering data.
+          This object is not linked to project engineering data.
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -215,7 +215,8 @@ function DraftingSourceRefProperties({
         >
           {getRefreshButtonLabel(object, sourceRef.sourceType)}
         </Button>
-        {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
+        {(object.type === 'pile' && sourceRef.sourceType === 'foundation_pile') ||
+        (object.type !== 'pile' && sourceRef.sourceType !== 'manual') ? (
           <Button
             className="h-8"
             disabled={!onRefreshSource}
@@ -321,7 +322,9 @@ function formatSourceKind(object: DraftingObject, sourceType: string | undefined
     (object.type === 'service_run' || object.type === 'service_crossing') &&
     sourceType !== 'manual'
   ) {
-    return 'Linked spatial/service feature';
+    return object.type === 'service_run'
+      ? 'Existing project service run'
+      : 'Existing project crossing';
   }
 
   if (sourceType === 'manual') {
@@ -335,6 +338,12 @@ function getRefreshButtonLabel(object: DraftingObject, sourceType: string | unde
   if (object.type === 'pile' && sourceType !== 'manual') {
     return 'Refresh engineering fields';
   }
+  if (
+    (object.type === 'service_run' || object.type === 'service_crossing') &&
+    sourceType !== 'manual'
+  ) {
+    return 'Refresh service fields';
+  }
   return 'Refresh from source';
 }
 
@@ -344,7 +353,8 @@ function formatSourceCompleteness(object: DraftingObject) {
       ? object.metadata.sourceCompleteness.replaceAll('_', ' ')
       : 'Not recorded';
   }
-  return 'Not recorded';
+  const completeness = object.sourceRef?.snapshot?.completeness;
+  return typeof completeness === 'string' ? completeness.replaceAll('_', ' ') : 'Not recorded';
 }
 
 function propertySectionTitle(object: DraftingObject) {

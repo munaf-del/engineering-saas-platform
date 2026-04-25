@@ -13,6 +13,7 @@ import {
   createPileObjectFromTypeSource,
   getPileTypeCompleteness,
   refreshPileObjectFromSource,
+  refreshSpatialObjectFromSource,
 } from './source-binding-utils';
 
 describe('drafting source binding utils', () => {
@@ -358,12 +359,12 @@ describe('drafting source binding utils', () => {
     });
   });
 
-  it('maps service-like spatial features where existing spatial data carries utility labels', () => {
+  it('maps explicit service run spatial features to linked drafting service runs', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('drafting-service-1');
     const model = createEmptyDraftingModel('drawing-source-services');
     const [source] = buildDraftingSpatialSourceRecords([
       spatialFeature({
-        featureType: 'other',
+        featureType: 'service_run',
         geometryType: 'line_string',
         geometryJson: {
           type: 'LineString',
@@ -373,7 +374,13 @@ describe('drafting source binding utils', () => {
           ],
         },
         label: 'Existing water service',
-        propertiesJson: { serviceType: 'water', status: 'existing', authority: 'Sydney Water' },
+        propertiesJson: {
+          serviceType: 'water',
+          status: 'existing',
+          authority: 'Sydney Water',
+          diameterMm: '150',
+          sourceReference: 'DBYD 240423',
+        },
       }),
     ]);
 
@@ -396,11 +403,115 @@ describe('drafting source binding utils', () => {
         serviceId: 'Existing water service',
         serviceType: 'water',
         status: 'existing',
+        diameterMm: 150,
         authority: 'Sydney Water',
       },
+      metadata: { sourceReference: 'DBYD 240423' },
       sourceRef: {
         sourceType: 'spatial_feature',
         sourceId: 'spatial-1',
+      },
+    });
+  });
+
+  it('does not infer service sources from generic spatial labels', () => {
+    const [source] = buildDraftingSpatialSourceRecords([
+      spatialFeature({
+        featureType: 'other',
+        geometryType: 'line_string',
+        geometryJson: {
+          type: 'LineString',
+          coordinates: [
+            [0, 0],
+            [1000, 0],
+          ],
+        },
+        label: 'Existing water service',
+        propertiesJson: { serviceType: 'water' },
+      }),
+    ]);
+
+    expect(source).toBeUndefined();
+  });
+
+  it('refreshes linked service run objects from explicit project service sources', () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('drafting-service-refresh');
+    const model = createEmptyDraftingModel('drawing-source-service-refresh');
+    const [source] = buildDraftingSpatialSourceRecords([
+      spatialFeature({
+        id: 'spatial-service-refresh',
+        featureType: 'service_run',
+        geometryType: 'line_string',
+        geometryJson: {
+          type: 'LineString',
+          coordinates: [
+            [0, 0],
+            [1000, 0],
+          ],
+        },
+        label: 'W-EX-01',
+        propertiesJson: { serviceType: 'water', status: 'existing', diameterMm: '150' },
+      }),
+    ]);
+    const object = createDraftingObjectFromSpatialSource({
+      fallbackPoint: { x: 500, y: 500 },
+      model,
+      source: source!,
+    });
+    expect(object.type).toBe('service_run');
+    if (object.type !== 'service_run') {
+      throw new Error('Expected service run object');
+    }
+    const refreshed = refreshSpatialObjectFromSource({
+      object: {
+        ...object,
+        parameters: { ...object.parameters, diameterMm: 100 },
+        geometry: {
+          path: [
+            { x: 99, y: 99 },
+            { x: 199, y: 99 },
+          ],
+        },
+      },
+      spatialSources: [
+        {
+          ...source!,
+          feature: {
+            ...source!.feature,
+            geometryJson: {
+              type: 'LineString',
+              coordinates: [
+                [10, 20],
+                [30, 20],
+              ],
+            },
+            propertiesJson: {
+              serviceType: 'water',
+              status: 'existing',
+              diameterMm: '225',
+              authority: 'Sydney Water',
+            },
+          },
+        },
+      ],
+    });
+
+    expect(refreshed).toMatchObject({
+      id: object.id,
+      type: 'service_run',
+      geometry: {
+        path: [
+          { x: 99, y: 99 },
+          { x: 199, y: 99 },
+        ],
+      },
+      parameters: {
+        diameterMm: 225,
+        authority: 'Sydney Water',
+      },
+      sourceRef: {
+        sourceId: 'spatial-service-refresh',
+        status: 'linked',
       },
     });
   });
@@ -499,10 +610,42 @@ describe('drafting source binding utils', () => {
           referencePoints: [],
           boundaries: [],
           features: [],
-          services: [],
+          services: [
+            {
+              sourceType: 'spatial_feature',
+              sourceId: 'spatial-service-1',
+              sourceLabel: 'W-EX-01',
+              originModule: 'spatial',
+              status: 'current',
+              completeness: 'partial',
+              sourcePath: 'project_spatial_features',
+              engineering: {
+                featureType: 'service_run',
+                geometryType: 'line_string',
+                serviceType: 'water',
+                serviceStatus: 'existing',
+              },
+              category: 'service_run',
+              snapshot: {
+                objectType: 'service_run',
+                feature: spatialFeature({
+                  featureType: 'service_run',
+                  geometryType: 'line_string',
+                  geometryJson: {
+                    type: 'LineString',
+                    coordinates: [
+                      [0, 0],
+                      [1000, 0],
+                    ],
+                  },
+                  label: 'W-EX-01',
+                }),
+              },
+            },
+          ],
         },
       },
-      warnings: ['No explicit service/utility source types found.'],
+      warnings: [],
     };
 
     expect(buildDraftingPileTypeSourceRecordsFromRegistry(registry)[0]).toMatchObject({
@@ -518,6 +661,11 @@ describe('drafting source binding utils', () => {
     expect(buildDraftingSpatialSourceRecordsFromRegistry(registry)[0]).toMatchObject({
       sourceLabel: 'nh',
       objectType: 'borehole',
+      originModule: 'spatial',
+    });
+    expect(buildDraftingSpatialSourceRecordsFromRegistry(registry)[1]).toMatchObject({
+      sourceLabel: 'W-EX-01',
+      objectType: 'service_run',
       originModule: 'spatial',
     });
   });

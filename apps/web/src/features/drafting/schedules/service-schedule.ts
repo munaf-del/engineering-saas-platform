@@ -10,13 +10,20 @@ import {
 
 export const SERVICE_SCHEDULE_COLUMNS = [
   { key: 'objectType', label: 'Object Type' },
+  { key: 'sourceKind', label: 'Source Kind' },
   { key: 'sourceType', label: 'Source Type' },
   { key: 'sourceId', label: 'Source ID' },
+  { key: 'sourceLabel', label: 'Source Label' },
+  { key: 'originModule', label: 'Origin Module' },
+  { key: 'sourceStatus', label: 'Source Status' },
+  { key: 'sourceCompleteness', label: 'Source Completeness' },
   { key: 'serviceOrCrossingId', label: 'Service / Crossing ID' },
   { key: 'serviceType', label: 'Service Type' },
   { key: 'status', label: 'Status' },
   { key: 'authority', label: 'Authority' },
+  { key: 'material', label: 'Material' },
   { key: 'depth', label: 'Depth' },
+  { key: 'level', label: 'Level RL' },
   { key: 'diameter', label: 'Diameter' },
   { key: 'conflictType', label: 'Conflict Type' },
   { key: 'clearance', label: 'Clearance' },
@@ -47,13 +54,19 @@ function buildServiceRunRow(
     objectType: object.type,
     cells: {
       objectType: 'service run',
+      ...buildServiceSourceCells(object),
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       serviceOrCrossingId: object.parameters.serviceId || object.id,
       serviceType: formatOptionalText(object.parameters.serviceType),
       status: formatOptionalText(object.parameters.status),
-      authority: formatOptionalText(object.parameters.authority),
+      authority: formatOptionalText(
+        object.parameters.authority ?? serviceSnapshotText(object, 'authority'),
+      ),
+      material: formatOptionalText(serviceSnapshotText(object, 'material')),
       depth: formatMetres(object.parameters.depthM),
+      level: formatMetres(object.parameters.levelRl),
       diameter: formatMm(object.parameters.diameterMm),
       conflictType: '',
       clearance: '',
@@ -73,14 +86,18 @@ function buildServiceCrossingRow(
     objectType: object.type,
     cells: {
       objectType: 'service crossing',
+      ...buildServiceSourceCells(object),
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       serviceOrCrossingId: object.parameters.crossingId || object.id,
       serviceType: formatOptionalText(object.parameters.serviceType),
-      status: '',
-      authority: '',
-      depth: '',
-      diameter: '',
+      status: formatOptionalText(serviceSnapshotText(object, 'status')),
+      authority: formatOptionalText(serviceSnapshotText(object, 'authority')),
+      material: formatOptionalText(serviceSnapshotText(object, 'material')),
+      depth: formatMetres(serviceSnapshotNumber(object, 'depthM')),
+      level: formatMetres(serviceSnapshotNumber(object, 'levelRL')),
+      diameter: formatMm(serviceSnapshotNumber(object, 'diameterMm')),
       conflictType: formatOptionalText(object.parameters.conflictType),
       clearance: formatMm(object.parameters.clearanceMm),
       riskStatus: formatOptionalText(object.parameters.riskStatus),
@@ -91,4 +108,39 @@ function buildServiceCrossingRow(
       notes: formatOptionalText(object.metadata.notes),
     },
   };
+}
+
+function buildServiceSourceCells(
+  object: Extract<DraftingObject, { type: 'service_run' | 'service_crossing' }>,
+) {
+  const sourceType = object.sourceRef?.sourceType ?? 'manual';
+  const sourceStatus = object.sourceRef?.status ?? (sourceType === 'manual' ? 'manual' : '');
+  return {
+    sourceKind: sourceType === 'manual' ? 'sketch / unlinked' : 'project service source',
+    originModule: sourceSnapshotText(object, 'originModule'),
+    sourceStatus,
+    sourceCompleteness: sourceSnapshotText(object, 'completeness'),
+  };
+}
+
+function sourceSnapshotText(object: DraftingObject, key: string) {
+  const value = object.sourceRef?.snapshot?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function serviceSnapshotRecord(object: DraftingObject) {
+  const service = object.sourceRef?.snapshot?.service;
+  return service && typeof service === 'object' && !Array.isArray(service)
+    ? (service as Record<string, unknown>)
+    : {};
+}
+
+function serviceSnapshotText(object: DraftingObject, key: string) {
+  const value = serviceSnapshotRecord(object)[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function serviceSnapshotNumber(object: DraftingObject, key: string) {
+  const value = serviceSnapshotRecord(object)[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

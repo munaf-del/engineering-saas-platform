@@ -533,6 +533,12 @@ function getSelectedSourceBadgeLabel(object: DraftingObject) {
     return `${sourceRef.sourceLabel ?? 'Borehole'} linked`;
   }
   if (sourceRef.sourceType === 'spatial_feature') {
+    if (object.type === 'service_run') {
+      return `${sourceRef.sourceLabel ?? 'Service'} source`;
+    }
+    if (object.type === 'service_crossing') {
+      return `${sourceRef.sourceLabel ?? 'Crossing'} source`;
+    }
     return `${sourceRef.sourceLabel ?? 'Spatial'} linked`;
   }
   return 'Source linked';

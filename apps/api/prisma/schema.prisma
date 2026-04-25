@@ -1520,6 +1520,8 @@ enum ProjectSpatialFeatureType {
   structure
   excavation_area
   work_zone
+  service_run
+  service_crossing
   reference_point
   other
 }

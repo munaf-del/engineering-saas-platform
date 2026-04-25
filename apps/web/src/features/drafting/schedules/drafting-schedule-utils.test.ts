@@ -143,6 +143,66 @@ describe('drafting schedule utils', () => {
     });
   });
 
+  it('includes project service source provenance in service schedules and exports', () => {
+    const serviceRun = serviceRunObject();
+    serviceRun.sourceRef = {
+      sourceType: 'spatial_feature',
+      sourceId: 'spatial-service-run-1',
+      sourceLabel: 'W-EX-01',
+      status: 'current',
+      snapshot: {
+        originModule: 'spatial',
+        sourcePath: 'project_spatial_features',
+        completeness: 'partial',
+        service: {
+          material: 'PVC',
+          sourceReference: 'DBYD 240423',
+        },
+      },
+    };
+    const serviceCrossing = serviceCrossingObject();
+    serviceCrossing.sourceRef = {
+      sourceType: 'spatial_feature',
+      sourceId: 'spatial-service-crossing-1',
+      sourceLabel: 'SC-01',
+      status: 'current',
+      snapshot: {
+        originModule: 'spatial',
+        completeness: 'partial',
+        service: {
+          depthM: 1.2,
+          levelRL: 9.8,
+          diameterMm: 150,
+          authority: 'Sydney Water',
+          material: 'PVC',
+        },
+      },
+    };
+
+    const summary = buildDraftingScheduleSummary(modelWith([serviceRun, serviceCrossing]));
+    const group = getDraftingScheduleGroup(summary, 'services_conflicts');
+
+    expect(group.rows[0]?.cells).toMatchObject({
+      sourceKind: 'project service source',
+      sourceType: 'spatial_feature',
+      sourceId: 'spatial-service-run-1',
+      sourceLabel: 'W-EX-01',
+      originModule: 'spatial',
+      sourceStatus: 'current',
+      sourceCompleteness: 'partial',
+      material: 'PVC',
+    });
+    expect(group.rows[1]?.cells).toMatchObject({
+      sourceKind: 'project service source',
+      sourceId: 'spatial-service-crossing-1',
+      depth: '1.2 m',
+      level: '9.8 m',
+      diameter: '150 mm',
+      authority: 'Sydney Water',
+    });
+    expect(serializeDraftingSchedulesJson(summary)).toContain('spatial-service-crossing-1');
+  });
+
   it('derives annotation and reference rows', () => {
     const group = getDraftingScheduleGroup(
       buildDraftingScheduleSummary(

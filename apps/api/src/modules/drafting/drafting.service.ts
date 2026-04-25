@@ -427,6 +427,7 @@ export class DraftingService {
     const referencePoints: SpatialFeatureSource[] = [];
     const boundaries: SpatialFeatureSource[] = [];
     const genericFeatures: SpatialFeatureSource[] = [];
+    const services: SpatialServiceSource[] = [];
 
     for (const feature of spatialFeatures) {
       const base = buildSpatialRegistrySource(feature, usageCounts);
@@ -464,6 +465,11 @@ export class DraftingService {
               feature.label,
           },
         });
+        continue;
+      }
+
+      if (feature.featureType === 'service_run' || feature.featureType === 'service_crossing') {
+        services.push(buildSpatialServiceRegistrySource(feature, usageCounts));
         continue;
       }
 
@@ -566,8 +572,11 @@ export class DraftingService {
       ];
     });
 
-    const services: SpatialServiceSource[] = [];
-    warnings.push('No explicit service/utility source types found.');
+    if (services.length === 0) {
+      warnings.push(
+        'No explicit project service/utility sources found. Sketch services remain unlinked until project service sources are added.',
+      );
+    }
 
     return {
       projectId: access.projectId,
@@ -1247,6 +1256,104 @@ function buildSpatialRegistrySource(
   };
 }
 
+function buildSpatialServiceRegistrySource(
+  feature: Parameters<typeof buildSpatialRegistrySource>[0],
+  usageCounts: Map<string, RegistryUsage>,
+): SpatialServiceSource {
+  const base = buildSpatialRegistrySource(feature, usageCounts);
+  const properties = objectValue(feature.propertiesJson);
+  const isCrossing = feature.featureType === 'service_crossing';
+  const serviceType = stringOrUndefined(properties.serviceType);
+  const serviceStatus = stringOrUndefined(properties.status) ?? stringOrUndefined(feature.status);
+  const sourceReference =
+    stringOrUndefined(properties.sourceReference) ?? stringOrUndefined(feature.sourceReference);
+  const engineering = {
+    ...base.engineering,
+    serviceType,
+    serviceStatus,
+    diameterMm: numberOrUndefined(properties.diameterMm),
+    depthM: numberOrUndefined(properties.depthM),
+    levelRL: numberOrUndefined(properties.levelRL),
+    authority: stringOrUndefined(properties.authority),
+    material: stringOrUndefined(properties.material),
+    sourceReference,
+    surveyConfidence: stringOrUndefined(properties.surveyConfidence),
+    linkedServiceSourceId: stringOrUndefined(properties.linkedServiceSourceId),
+    conflictType: stringOrUndefined(properties.conflictType),
+    clearanceMm: numberOrUndefined(properties.clearanceMm),
+    riskStatus: stringOrUndefined(properties.riskStatus),
+  };
+
+  const completeness = getServiceSourceCompleteness(feature, properties);
+  return {
+    ...base,
+    category: isCrossing ? 'service_crossing' : 'service_run',
+    status: 'current' as const,
+    completeness,
+    engineering,
+    snapshot: {
+      ...base.snapshot,
+      objectType: isCrossing ? 'service_crossing' : 'service_run',
+      completeness,
+      service: {
+        serviceType,
+        status: serviceStatus,
+        diameterMm: engineering.diameterMm,
+        depthM: engineering.depthM,
+        levelRL: engineering.levelRL,
+        authority: engineering.authority,
+        material: engineering.material,
+        sourceReference,
+        surveyConfidence: engineering.surveyConfidence,
+        linkedServiceSourceId: engineering.linkedServiceSourceId,
+        conflictType: engineering.conflictType,
+        clearanceMm: engineering.clearanceMm,
+        riskStatus: engineering.riskStatus,
+        notes: stringOrUndefined(properties.notes),
+      },
+    },
+    warnings: getServiceSourceWarnings(feature),
+  };
+}
+
+function getServiceSourceCompleteness(
+  feature: Parameters<typeof buildSpatialRegistrySource>[0],
+  properties: Record<string, unknown>,
+): SpatialServiceSource['completeness'] {
+  const hasGeometry =
+    feature.featureType === 'service_run'
+      ? lineFromSpatialGeometry(feature.geometryJson).length >= 2
+      : Boolean(pointFromSpatialGeometry(feature.geometryJson));
+  const hasServiceMetadata = Boolean(
+    stringOrUndefined(properties.serviceType) ||
+    stringOrUndefined(properties.status) ||
+    stringOrUndefined(feature.status) ||
+    stringOrUndefined(properties.authority) ||
+    stringOrUndefined(properties.sourceReference) ||
+    stringOrUndefined(feature.sourceReference),
+  );
+  if (hasGeometry && hasServiceMetadata) {
+    return 'partial';
+  }
+  return hasGeometry ? 'unknown' : 'missing_key_fields';
+}
+
+function getServiceSourceWarnings(feature: Parameters<typeof buildSpatialRegistrySource>[0]) {
+  if (
+    feature.featureType === 'service_run' &&
+    lineFromSpatialGeometry(feature.geometryJson).length < 2
+  ) {
+    return ['Service run source has no valid path geometry.'];
+  }
+  if (
+    feature.featureType === 'service_crossing' &&
+    !pointFromSpatialGeometry(feature.geometryJson)
+  ) {
+    return ['Service crossing source has no valid point geometry.'];
+  }
+  return [];
+}
+
 function isMonitoringSpatialFeature(featureType: string) {
   return (
     featureType === 'monitoring_well' ||
@@ -1268,6 +1375,22 @@ function pointFromSpatialGeometry(geometry: unknown) {
     return undefined;
   }
   return z === undefined ? { x, y } : { x, y, z };
+}
+
+function lineFromSpatialGeometry(geometry: unknown) {
+  const value = objectValue(geometry);
+  if (value.type !== 'LineString' || !Array.isArray(value.coordinates)) {
+    return [];
+  }
+  return value.coordinates
+    .map((coordinate) => (Array.isArray(coordinate) ? coordinate : []))
+    .map((coordinate) => {
+      const x = numberOrUndefined(coordinate[0]);
+      const y = numberOrUndefined(coordinate[1]);
+      const z = numberOrUndefined(coordinate[2]);
+      return x === undefined || y === undefined ? null : z === undefined ? { x, y } : { x, y, z };
+    })
+    .filter(Boolean);
 }
 
 function pileTypeDiameterMm(pileType: MultiPilePileTypeDefinition | undefined) {
@@ -1297,7 +1420,14 @@ function stringOrUndefined(value: unknown) {
 }
 
 function numberOrUndefined(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function dedupeBySourceId<T extends { sourceId: string }>(sources: T[]) {

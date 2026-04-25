@@ -120,7 +120,13 @@ export type OmnidotsMeasuringPointSource = DraftingRegistrySourceBase & {
 export type SpatialFeatureSource = DraftingRegistrySourceBase & {
   sourceType: 'spatial_feature';
   originModule: 'spatial';
-  category: 'boundary' | 'reference_point' | 'generic' | 'unknown_or_heuristic';
+  category:
+    | 'boundary'
+    | 'reference_point'
+    | 'generic'
+    | 'service_run'
+    | 'service_crossing'
+    | 'unknown_or_heuristic';
   engineering: {
     featureType?: string;
     geometryType?: string;
@@ -130,7 +136,22 @@ export type SpatialFeatureSource = DraftingRegistrySourceBase & {
 };
 
 export type SpatialServiceSource = SpatialFeatureSource & {
-  category: 'unknown_or_heuristic';
+  category: 'service_run' | 'service_crossing';
+  engineering: SpatialFeatureSource['engineering'] & {
+    serviceType?: string;
+    serviceStatus?: string;
+    diameterMm?: number;
+    depthM?: number;
+    levelRL?: number;
+    authority?: string;
+    material?: string;
+    sourceReference?: string;
+    surveyConfidence?: string;
+    linkedServiceSourceId?: string;
+    conflictType?: string;
+    clearanceMm?: number;
+    riskStatus?: string;
+  };
 };
 
 export type SketchManualSource = DraftingRegistrySourceBase & {

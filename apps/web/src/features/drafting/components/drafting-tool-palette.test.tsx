@@ -281,9 +281,12 @@ describe('DraftingToolPalette', () => {
       if (activeTool === 'monitoring_point') {
         expect(markup).toContain('Linked monitoring points');
         expect(markup).toContain('Sketch monitoring point (unlinked)');
+      } else if (activeTool === 'service_run') {
+        expect(markup).toContain('Existing project service runs');
+        expect(markup).toContain('Sketch service run (unlinked)');
       } else {
-        expect(markup).toContain('Linked spatial/service features');
-        expect(markup).toContain('Sketch service (unlinked)');
+        expect(markup).toContain('Existing project crossings');
+        expect(markup).toContain('Sketch crossing (unlinked)');
       }
     }
   });
@@ -321,7 +324,7 @@ function spatialFeature(
         ? ('borehole' as const)
         : objectType === 'monitoring_point'
           ? ('vibration_monitor' as const)
-          : ('other' as const),
+          : objectType,
     geometryType: objectType === 'service_run' ? ('line_string' as const) : ('point' as const),
     label,
     description: null,

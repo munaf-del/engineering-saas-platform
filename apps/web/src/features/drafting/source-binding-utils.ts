@@ -6,10 +6,12 @@ import type {
   DraftingObjectSourceType,
   DraftingPileObject,
   DraftingPoint,
+  DraftingServiceConflictType,
   FoundationPileTypeSource,
   FoundationPlacedPileSource,
   DraftingServiceCrossingObject,
   DraftingServiceRunObject,
+  DraftingServiceRiskStatus,
   DraftingServiceStatus,
   DraftingServiceType,
   GeotechBoreholeSource,
@@ -26,7 +28,12 @@ import type {
   ProjectSpatialGeometryJson,
   SpatialServiceSource,
 } from '@eng/shared';
-import { DRAFTING_SERVICE_STATUSES, DRAFTING_SERVICE_TYPES } from '@eng/shared';
+import {
+  DRAFTING_SERVICE_CONFLICT_TYPES,
+  DRAFTING_SERVICE_RISK_STATUSES,
+  DRAFTING_SERVICE_STATUSES,
+  DRAFTING_SERVICE_TYPES,
+} from '@eng/shared';
 import { createBoreholeObject } from './tools/borehole-tool';
 import { createMonitoringPointObject } from './tools/monitoring-point-tool';
 import { createPileObject } from './tools/pile-tool';
@@ -402,6 +409,33 @@ export function refreshPileObjectFromSource(args: {
   return args.object;
 }
 
+export function refreshSpatialObjectFromSource(args: {
+  object: Extract<
+    DraftingObject,
+    { type: 'borehole' | 'monitoring_point' | 'service_run' | 'service_crossing' }
+  >;
+  spatialSources: DraftingSpatialSourceRecord[];
+  updateCoordinates?: boolean;
+}): DraftingObject {
+  const sourceRef = args.object.sourceRef;
+  if (!sourceRef?.sourceId || sourceRef.sourceType === 'manual') {
+    return args.object;
+  }
+  const source = args.spatialSources.find((candidate) => candidate.sourceId === sourceRef.sourceId);
+  if (!source) {
+    return markMissingSpatialSource(args.object);
+  }
+  const fallbackPoint = getObjectReferencePoint(args.object);
+  const refreshed = createDraftingObjectFromSpatialSource({
+    source,
+    fallbackPoint,
+    model: { objects: [] } as unknown as DraftingModel,
+  });
+  return preserveSpatialObjectIdentity(args.object, refreshed, {
+    updateCoordinates: args.updateCoordinates,
+  });
+}
+
 export function createDraftingObjectFromSpatialSource(args: {
   source: DraftingSpatialSourceRecord;
   fallbackPoint: DraftingPoint;
@@ -606,12 +640,20 @@ function createServiceRunFromSpatialSource(args: {
       serviceId: feature.label,
       serviceType: normalizeServiceType(properties.serviceType),
       status: normalizeServiceStatus(properties.status ?? feature.status),
+      diameterMm: optionalNumber(properties.diameterMm) ?? base.parameters.diameterMm,
+      depthM: optionalNumber(properties.depthM) ?? base.parameters.depthM,
+      levelRl: optionalNumber(properties.levelRL) ?? base.parameters.levelRl,
       authority: stringValue(properties.authority),
     },
     metadata: {
       ...base.metadata,
-      sourceReference: feature.sourceReference ?? '',
-      notes: feature.description ?? '',
+      sourceReference: stringValue(properties.sourceReference) || feature.sourceReference || '',
+      surveyConfidence: stringValue(properties.surveyConfidence) || base.metadata.surveyConfidence,
+      notes: sourceNotes([
+        feature.description ?? undefined,
+        stringValue(properties.notes),
+        stringValue(properties.material) ? `Material ${stringValue(properties.material)}` : '',
+      ]),
     },
     sourceRef: buildSpatialSourceRef(feature, now, args.linkedBy),
     updatedAt: now,
@@ -639,10 +681,13 @@ function createServiceCrossingFromSpatialSource(args: {
       crossingId: feature.label,
       serviceType: normalizeServiceType(properties.serviceType),
       clearanceMm: optionalNumber(properties.clearanceMm) ?? base.parameters.clearanceMm,
+      conflictType: normalizeConflictType(properties.conflictType),
+      riskStatus: normalizeRiskStatus(properties.riskStatus),
     },
     metadata: {
       ...base.metadata,
-      notes: feature.description ?? feature.sourceReference ?? '',
+      linkedServiceRunId: stringValue(properties.linkedServiceSourceId),
+      notes: sourceNotes([feature.description ?? undefined, stringValue(properties.notes)]),
     },
     sourceRef: buildSpatialSourceRef(feature, now, args.linkedBy),
     updatedAt: now,
@@ -679,6 +724,12 @@ function buildSpatialSourceRef(
       linkedDeliverableType: feature.linkedDeliverableType,
       linkedDeliverableId: feature.linkedDeliverableId,
       propertiesJson: feature.propertiesJson,
+      objectType:
+        feature.featureType === 'service_run'
+          ? 'service_run'
+          : feature.featureType === 'service_crossing'
+            ? 'service_crossing'
+            : undefined,
       originModule: 'spatial',
       sourcePath: 'project_spatial_features',
       updatedAt: feature.updatedAt,
@@ -702,31 +753,15 @@ function mapSpatialFeatureToDraftingObjectType(
     return feature.geometryType === 'point' ? 'monitoring_point' : null;
   }
 
-  if (isServiceLikeFeature(feature)) {
-    return feature.geometryType === 'line_string'
-      ? 'service_run'
-      : feature.geometryType === 'point'
-        ? 'service_crossing'
-        : null;
+  if (feature.featureType === 'service_run') {
+    return feature.geometryType === 'line_string' ? 'service_run' : null;
+  }
+
+  if (feature.featureType === 'service_crossing') {
+    return feature.geometryType === 'point' ? 'service_crossing' : null;
   }
 
   return null;
-}
-
-function isServiceLikeFeature(
-  feature: Pick<ProjectSpatialFeature, 'featureType' | 'label' | 'description' | 'sourceReference'>,
-) {
-  if (
-    !(['other', 'structure', 'work_zone'] as ProjectSpatialFeatureType[]).includes(
-      feature.featureType,
-    )
-  ) {
-    return false;
-  }
-
-  return /service|utility|water|sewer|stormwater|gas|electrical|telecom|crossing|xing/i.test(
-    [feature.label, feature.description, feature.sourceReference].filter(Boolean).join(' '),
-  );
 }
 
 function pointFromPileLayout(layoutPoint: PileLayoutPoint | undefined): DraftingPoint | null {
@@ -886,6 +921,67 @@ function preservePileObjectIdentity(
     sourceRef: refreshed.sourceRef,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function markMissingSpatialSource(
+  object: Extract<
+    DraftingObject,
+    { type: 'borehole' | 'monitoring_point' | 'service_run' | 'service_crossing' }
+  >,
+): DraftingObject {
+  return {
+    ...object,
+    sourceRef: object.sourceRef
+      ? {
+          ...object.sourceRef,
+          status: 'missing_source',
+        }
+      : object.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function preserveSpatialObjectIdentity(
+  original: Extract<
+    DraftingObject,
+    { type: 'borehole' | 'monitoring_point' | 'service_run' | 'service_crossing' }
+  >,
+  refreshed: DraftingObject,
+  options: { updateCoordinates?: boolean },
+): DraftingObject {
+  if (original.type !== refreshed.type) {
+    return markMissingSpatialSource(original);
+  }
+  return {
+    ...original,
+    name: refreshed.name,
+    ...('parameters' in refreshed ? { parameters: refreshed.parameters } : {}),
+    metadata: {
+      ...original.metadata,
+      ...refreshed.metadata,
+    },
+    geometry: options.updateCoordinates ? refreshed.geometry : original.geometry,
+    sourceRef: refreshed.sourceRef,
+    updatedAt: new Date().toISOString(),
+  } as DraftingObject;
+}
+
+function getObjectReferencePoint(
+  object: Extract<
+    DraftingObject,
+    { type: 'borehole' | 'monitoring_point' | 'service_run' | 'service_crossing' }
+  >,
+): DraftingPoint {
+  switch (object.type) {
+    case 'borehole':
+      return object.geometry.point;
+    case 'monitoring_point':
+      return object.geometry.point;
+    case 'service_crossing':
+      return object.geometry.crossingPoint;
+    case 'service_run':
+      return object.geometry.path[0] ?? { x: 0, y: 0 };
+  }
 }
 
 function pileTypeFromRegistrySource(
@@ -1086,7 +1182,19 @@ function normalizeServiceType(value: unknown): DraftingServiceType {
 function normalizeServiceStatus(value: unknown): DraftingServiceStatus {
   return DRAFTING_SERVICE_STATUSES.includes(value as DraftingServiceStatus)
     ? (value as DraftingServiceStatus)
-    : 'existing';
+    : 'unknown';
+}
+
+function normalizeConflictType(value: unknown): DraftingServiceConflictType {
+  return DRAFTING_SERVICE_CONFLICT_TYPES.includes(value as DraftingServiceConflictType)
+    ? (value as DraftingServiceConflictType)
+    : 'unknown';
+}
+
+function normalizeRiskStatus(value: unknown): DraftingServiceRiskStatus {
+  return DRAFTING_SERVICE_RISK_STATUSES.includes(value as DraftingServiceRiskStatus)
+    ? (value as DraftingServiceRiskStatus)
+    : 'open';
 }
 
 function optionalNumber(value: unknown) {

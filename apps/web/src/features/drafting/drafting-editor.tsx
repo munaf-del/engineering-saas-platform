@@ -54,6 +54,7 @@ import {
   createPileObjectFromTypeSource,
   findExistingSourceObject,
   refreshPileObjectFromSource,
+  refreshSpatialObjectFromSource,
   type DraftingPileSourceRecord,
   type DraftingPileTypeSourceRecord,
   type DraftingSpatialSourceRecord,
@@ -477,16 +478,28 @@ export function DraftingEditor({
     object: DraftingObject,
     options?: { updateCoordinates?: boolean },
   ) {
-    if (object.type !== 'pile') {
+    const refreshed =
+      object.type === 'pile'
+        ? refreshPileObjectFromSource({
+            object,
+            pileSources: pileSourceRecords,
+            pileTypeSources: pileTypeSourceRecords,
+            updateCoordinates: options?.updateCoordinates,
+          })
+        : object.type === 'borehole' ||
+            object.type === 'monitoring_point' ||
+            object.type === 'service_run' ||
+            object.type === 'service_crossing'
+          ? refreshSpatialObjectFromSource({
+              object,
+              spatialSources: spatialSourceRecords,
+              updateCoordinates: options?.updateCoordinates,
+            })
+          : object;
+
+    if (refreshed === object) {
       return;
     }
-
-    const refreshed = refreshPileObjectFromSource({
-      object,
-      pileSources: pileSourceRecords,
-      pileTypeSources: pileTypeSourceRecords,
-      updateCoordinates: options?.updateCoordinates,
-    });
     history.replaceModel({
       ...currentModel,
       objects: currentModel.objects.map((candidate) =>

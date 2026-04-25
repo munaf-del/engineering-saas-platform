@@ -9,6 +9,8 @@ export const PROJECT_SPATIAL_FEATURE_TYPES = [
   'structure',
   'excavation_area',
   'work_zone',
+  'service_run',
+  'service_crossing',
   'reference_point',
   'other',
 ] as const;
@@ -94,6 +96,26 @@ export type ProjectSpatialReceiverProperties = {
   criticalFlag?: boolean;
 };
 
+export type ProjectSpatialServiceRunProperties = {
+  serviceType?: string;
+  status?: string;
+  diameterMm?: string;
+  depthM?: string;
+  levelRL?: string;
+  authority?: string;
+  material?: string;
+  sourceReference?: string;
+  surveyConfidence?: string;
+  notes?: string;
+};
+
+export type ProjectSpatialServiceCrossingProperties = ProjectSpatialServiceRunProperties & {
+  linkedServiceSourceId?: string;
+  conflictType?: string;
+  clearanceMm?: string;
+  riskStatus?: string;
+};
+
 export type ProjectSpatialFallbackProperties = {
   additionalProperties?: string;
 };
@@ -104,6 +126,8 @@ export type ProjectSpatialFeatureProperties =
   | ProjectSpatialMonitoringWellProperties
   | ProjectSpatialMonitorProperties
   | ProjectSpatialReceiverProperties
+  | ProjectSpatialServiceRunProperties
+  | ProjectSpatialServiceCrossingProperties
   | ProjectSpatialFallbackProperties
   | Record<string, unknown>;
 

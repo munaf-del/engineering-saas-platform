@@ -249,6 +249,30 @@ describe('DraftingService', () => {
             label: 'VM1',
             propertiesJson: { monitorId: 'VM1' },
           }),
+          buildSpatialFeatureRecord({
+            id: 'spatial-service-run-1',
+            featureType: 'service_run',
+            geometryType: 'line_string',
+            label: 'W-EX-01',
+            propertiesJson: {
+              serviceType: 'water',
+              status: 'existing',
+              authority: 'Sydney Water',
+              diameterMm: '150',
+              sourceReference: 'DBYD 240423',
+            },
+          }),
+          buildSpatialFeatureRecord({
+            id: 'spatial-service-crossing-1',
+            featureType: 'service_crossing',
+            label: 'SC-01',
+            propertiesJson: {
+              serviceType: 'water',
+              conflictType: 'crosses_anchor',
+              linkedServiceSourceId: 'spatial-service-run-1',
+              clearanceMm: '450',
+            },
+          }),
         ]),
       },
       projectEnvironmentalMonitoringLocation: { findMany: jest.fn().mockResolvedValue([]) },
@@ -549,8 +573,39 @@ describe('DraftingService', () => {
         }),
       ]),
     );
-    expect(registry.sources.spatial.services).toEqual([]);
-    expect(registry.warnings).toContain('No explicit service/utility source types found.');
+    expect(registry.sources.spatial.services).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceLabel: 'W-EX-01',
+          category: 'service_run',
+          completeness: 'partial',
+          engineering: expect.objectContaining({
+            serviceType: 'water',
+            serviceStatus: 'existing',
+            authority: 'Sydney Water',
+            diameterMm: 150,
+          }),
+          snapshot: expect.objectContaining({
+            objectType: 'service_run',
+            sourcePath: 'project_spatial_features',
+            originModule: 'spatial',
+          }),
+        }),
+        expect.objectContaining({
+          sourceLabel: 'SC-01',
+          category: 'service_crossing',
+          engineering: expect.objectContaining({
+            conflictType: 'crosses_anchor',
+            linkedServiceSourceId: 'spatial-service-run-1',
+            clearanceMm: 450,
+          }),
+          snapshot: expect.objectContaining({ objectType: 'service_crossing' }),
+        }),
+      ]),
+    );
+    expect(registry.warnings).not.toContain(
+      'No explicit project service/utility sources found. Sketch services remain unlinked until project service sources are added.',
+    );
   });
 
   it('creates a project transmittal with issued sheet snapshots from multiple drawings', async () => {

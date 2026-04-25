@@ -592,7 +592,7 @@ function DraftingSourceManager({
           )}
         </SourceManagerGroup>
 
-        <SourceManagerGroup title="Spatial / services">
+        <SourceManagerGroup title="Services / Utilities">
           {services.length > 0 ? (
             services.map((source) => (
               <SpatialSourceCard
@@ -603,7 +603,7 @@ function DraftingSourceManager({
               />
             ))
           ) : (
-            <SourceManagerEmpty>No linked spatial/service features found.</SourceManagerEmpty>
+            <SourceManagerEmpty>No project service/utility sources yet.</SourceManagerEmpty>
           )}
         </SourceManagerGroup>
       </div>
@@ -1084,9 +1084,7 @@ function SpatialSourceEmpty({ activeTool }: { activeTool: DraftingTool }) {
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {getLinkedSourceSectionLabel(activeTool)}
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          No matching linked project sources found for this tool.
-        </p>
+        <p className="text-[11px] text-muted-foreground">{getNoLinkedSourceMessage(activeTool)}</p>
       </section>
       <SpatialSketchChoice activeTool={activeTool} />
     </div>
@@ -1159,8 +1157,9 @@ function getSpatialSourceLabel(source: DraftingSpatialSourceRecord) {
     case 'monitoring_point':
       return 'Linked monitoring point';
     case 'service_run':
+      return 'Project service source';
     case 'service_crossing':
-      return 'Linked spatial/service feature';
+      return 'Project crossing source';
   }
 }
 
@@ -1223,7 +1222,7 @@ function getLinkedSourceModeLabel(tool: DraftingTool) {
     return 'Linked monitoring points';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Linked spatial/service features';
+    return tool === 'service_run' ? 'Existing project service runs' : 'Existing project crossings';
   }
   return 'Linked project data';
 }
@@ -1236,7 +1235,7 @@ function getSketchSourceModeLabel(tool: DraftingTool) {
     return 'Sketch monitoring point (unlinked)';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Sketch service (unlinked)';
+    return tool === 'service_run' ? 'Sketch service run (unlinked)' : 'Sketch crossing (unlinked)';
   }
   return 'Sketch object';
 }
@@ -1249,7 +1248,7 @@ function getLinkedSourceSectionLabel(tool: DraftingTool) {
     return 'Linked monitoring points';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Linked spatial/service features';
+    return tool === 'service_run' ? 'Existing project service runs' : 'Existing project crossings';
   }
   return 'Linked project sources';
 }
@@ -1262,7 +1261,7 @@ function getPlaceLinkedActionLabel(tool: DraftingTool) {
     return 'Place linked monitoring point';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Place linked spatial/service feature';
+    return tool === 'service_run' ? 'Place linked service run' : 'Place linked crossing';
   }
   return 'Place linked object';
 }
@@ -1275,7 +1274,9 @@ function getLinkedSourceHelp(tool: DraftingTool) {
     return 'Use a project monitoring point from Monitoring or Spatial source data.';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Use project Spatial/service features where matching source records are available.';
+    return tool === 'service_run'
+      ? 'Use explicit project service run source records from Spatial.'
+      : 'Use explicit project service crossing source records from Spatial.';
   }
   return 'Use project source data where available.';
 }
@@ -1292,9 +1293,18 @@ function getSketchSourceHelp(tool: DraftingTool) {
     return 'Drafting-only monitoring point. Not linked to Monitoring, Spatial, or project source data.';
   }
   if (tool === 'service_run' || tool === 'service_crossing') {
-    return 'Drafting-only service object. Not linked to Spatial or project source data.';
+    return tool === 'service_run'
+      ? 'Drafting-only service run. Not linked to Spatial or project source data.'
+      : 'Drafting-only crossing. Not linked to Spatial or project source data.';
   }
   return 'Drafting-only object. Not linked to project engineering data.';
+}
+
+function getNoLinkedSourceMessage(tool: DraftingTool) {
+  if (tool === 'service_run' || tool === 'service_crossing') {
+    return 'No project service/utility sources yet.';
+  }
+  return 'No matching linked project sources found for this tool.';
 }
 
 function formatSpatialSourceSummary(source: DraftingSpatialSourceRecord) {

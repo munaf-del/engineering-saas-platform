@@ -435,6 +435,14 @@ export function ProjectSpatialWorkspace({
     () => features.filter((feature) => visibleFeatureTypes.has(feature.featureType)),
     [features, visibleFeatureTypes],
   );
+  const projectServiceSources = useMemo(
+    () =>
+      features.filter(
+        (feature) =>
+          feature.featureType === 'service_run' || feature.featureType === 'service_crossing',
+      ),
+    [features],
+  );
 
   const filterCounts = useMemo(() => {
     const counts = new Map<ProjectSpatialFeatureType, number>();
@@ -6468,65 +6476,105 @@ export function ProjectSpatialWorkspace({
             </Card>
 
             {!isMapFocusMode ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Feature List</CardTitle>
-                  <CardDescription>
-                    Click a row to zoom to the feature and open its details.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Label</TableHead>
-                        <TableHead>Feature Type</TableHead>
-                        <TableHead>Geometry</TableHead>
-                        <TableHead>Updated</TableHead>
-                        <TableHead className="w-[56px]" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {visibleFeatures.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-sm text-muted-foreground">
-                            No visible features yet. Use the toolbar to draw a point, line, or
-                            polygon.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        visibleFeatures.map((feature) => (
-                          <TableRow
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Services / Utilities Source Data</CardTitle>
+                    <CardDescription>
+                      Project service source records are explicit Spatial features, separate from
+                      Drafting sketch objects.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {projectServiceSources.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        No project service/utility sources yet. Draw a line for a service run or a
+                        point for a crossing, then set the feature type to Service Run or Service
+                        Crossing.
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {projectServiceSources.map((feature) => (
+                          <button
+                            className="rounded-md border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
                             key={feature.id}
-                            data-state={draft?.persistedId === feature.id ? 'selected' : undefined}
-                            className="cursor-pointer"
                             onClick={() => handleFeatureListSelection(feature.id)}
+                            type="button"
                           >
-                            <TableCell className="font-medium">{feature.label}</TableCell>
-                            <TableCell>{formatSpatialLabel(feature.featureType)}</TableCell>
-                            <TableCell>{formatSpatialLabel(feature.geometryType)}</TableCell>
-                            <TableCell>{formatDateTime(feature.updatedAt)}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                aria-label={`Delete ${feature.label}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleDelete(feature.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
+                            <span className="block font-medium">{feature.label}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {formatSpatialLabel(feature.featureType)} ·{' '}
+                              {formatSpatialLabel(feature.geometryType)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Feature List</CardTitle>
+                    <CardDescription>
+                      Click a row to zoom to the feature and open its details.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Label</TableHead>
+                          <TableHead>Feature Type</TableHead>
+                          <TableHead>Geometry</TableHead>
+                          <TableHead>Updated</TableHead>
+                          <TableHead className="w-[56px]" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visibleFeatures.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-sm text-muted-foreground">
+                              No visible features yet. Use the toolbar to draw a point, line, or
+                              polygon.
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                        ) : (
+                          visibleFeatures.map((feature) => (
+                            <TableRow
+                              key={feature.id}
+                              data-state={
+                                draft?.persistedId === feature.id ? 'selected' : undefined
+                              }
+                              className="cursor-pointer"
+                              onClick={() => handleFeatureListSelection(feature.id)}
+                            >
+                              <TableCell className="font-medium">{feature.label}</TableCell>
+                              <TableCell>{formatSpatialLabel(feature.featureType)}</TableCell>
+                              <TableCell>{formatSpatialLabel(feature.geometryType)}</TableCell>
+                              <TableCell>{formatDateTime(feature.updatedAt)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label={`Delete ${feature.label}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleDelete(feature.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
             ) : null}
           </div>
 
