@@ -66,6 +66,7 @@ export function DraftingStage({
   underlayCropPreview,
   underlayInteractionEnabled,
   view,
+  viewMode = 'custom',
   viewLocked,
   selectedObjectId,
   visibleUnderlays,
@@ -106,6 +107,7 @@ export function DraftingStage({
   } | null;
   underlayInteractionEnabled: (underlay: DraftingUnderlay) => boolean;
   view: DraftingModel['view'];
+  viewMode?: DraftingCanvasViewMode;
   viewLocked: boolean;
   selectedObjectId: string | null;
   visibleUnderlays: DraftingUnderlay[];
@@ -118,6 +120,7 @@ export function DraftingStage({
   const referencePoint = setup.referencePoint.modelPoint;
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
   const zoomPercent = Math.round(view.scale * 100);
+  const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -150,7 +153,7 @@ export function DraftingStage({
           <div className="flex flex-wrap justify-end gap-2">
             <Badge variant="outline">Model units {setup.modelUnits}</Badge>
             <Badge variant="outline">Display {setup.displayUnits}</Badge>
-            <Badge variant="outline">Canvas zoom {zoomPercent}%</Badge>
+            <Badge variant="outline">{viewStatus}</Badge>
             {viewLocked ? <Badge variant="secondary">View locked</Badge> : null}
             <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
           </div>
@@ -173,6 +176,7 @@ export function DraftingStage({
             onZoomOut={onZoomOut}
             selectedObjectId={selectedObjectId}
             sheetScale={selectedSheetScale}
+            viewMode={viewMode}
             viewLocked={viewLocked}
             zoomPercent={zoomPercent}
           />
@@ -280,6 +284,7 @@ function DraftingCanvasZoomControls({
   onZoomOut,
   selectedObjectId,
   sheetScale,
+  viewMode,
   viewLocked,
   zoomPercent,
 }: {
@@ -293,10 +298,12 @@ function DraftingCanvasZoomControls({
   onZoomOut: () => void;
   selectedObjectId: string | null;
   sheetScale: string;
+  viewMode: DraftingCanvasViewMode;
   viewLocked: boolean;
   zoomPercent: number;
 }) {
   const lockedTitle = viewLocked ? 'Unlock view to pan, zoom, fit, or recenter.' : undefined;
+  const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
 
   return (
     <div className="absolute right-3 top-3 z-10 flex flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm">
@@ -311,8 +318,8 @@ function DraftingCanvasZoomControls({
         >
           <Minus className="h-4 w-4" />
         </Button>
-        <div className="min-w-16 text-center text-sm font-medium" aria-label="Current canvas zoom">
-          {zoomPercent}%
+        <div className="min-w-24 text-center text-sm font-medium" aria-label="Current canvas zoom">
+          {viewStatus}
         </div>
         <Button
           aria-label="Zoom in"
@@ -406,10 +413,33 @@ function DraftingCanvasZoomControls({
         {viewLocked ? 'View Locked' : 'Lock View'}
       </Button>
       <div className="basis-full text-right text-[11px] text-muted-foreground">
-        {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}Sheet scale {sheetScale}
+        {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}
+        Canvas view separate · Sheet scale {sheetScale}
       </div>
     </div>
   );
+}
+
+type DraftingCanvasViewMode =
+  | 'custom'
+  | 'model-fit'
+  | 'selection-fit'
+  | 'reference-centred'
+  | 'reset-100';
+
+function formatDraftingCanvasViewStatus(mode: DraftingCanvasViewMode, zoomPercent: number) {
+  switch (mode) {
+    case 'model-fit':
+      return `Model fit (${zoomPercent}%)`;
+    case 'selection-fit':
+      return `Selection fit (${zoomPercent}%)`;
+    case 'reference-centred':
+      return `Reference centred (${zoomPercent}%)`;
+    case 'reset-100':
+      return `Canvas zoom 100%`;
+    default:
+      return `Canvas zoom ${zoomPercent}%`;
+  }
 }
 
 function ReferencePointMarker({
@@ -432,9 +462,31 @@ function ReferencePointMarker({
       pointerEvents="none"
       transform={`translate(${point.x} ${point.y}) scale(${1 / safeScale})`}
     >
-      <circle fill="#ffffff" r={9} stroke={surveyStyle.color} strokeWidth={2} />
-      <line stroke={surveyStyle.color} strokeWidth={2} x1={-16} x2={16} y1={0} y2={0} />
-      <line stroke={surveyStyle.color} strokeWidth={2} x1={0} x2={0} y1={-16} y2={16} />
+      <circle
+        fill="#ffffff"
+        r={8}
+        stroke={surveyStyle.color}
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        stroke={surveyStyle.color}
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+        x1={-14}
+        x2={14}
+        y1={0}
+        y2={0}
+      />
+      <line
+        stroke={surveyStyle.color}
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+        x1={0}
+        x2={0}
+        y1={-14}
+        y2={14}
+      />
       <text fill={surveyStyle.color} fontSize={12} fontWeight={700} x={20} y={-12}>
         {label}
       </text>
@@ -473,7 +525,15 @@ function CanvasNorthOverlay({
             key={arrow.label}
             transform={`translate(${originX - index * 46} 76) rotate(${arrow.angle})`}
           >
-            <line stroke={arrowStyle.color} strokeWidth={2.5} x1={0} x2={0} y1={28} y2={-28} />
+            <line
+              stroke={arrowStyle.color}
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              x1={0}
+              x2={0}
+              y1={24}
+              y2={-24}
+            />
             <polygon fill={arrowStyle.color} points="0,-38 -8,-22 8,-22" />
             <text
               fill={arrowStyle.color}
@@ -505,11 +565,11 @@ function DrawingSheetViewportOverlay({ sheet }: { sheet: DraftingDrawingSheetDef
       transform={`translate(${sheet.viewport.center.x} ${sheet.viewport.center.y}) rotate(${sheet.viewport.rotationDeg ?? 0})`}
     >
       <rect
-        fill="rgba(14, 165, 233, 0.08)"
+        fill="rgba(14, 165, 233, 0.035)"
         height={height}
         stroke="#0284c7"
         strokeDasharray="220 140"
-        strokeWidth={24}
+        strokeWidth={1.5}
         vectorEffect="non-scaling-stroke"
         width={width}
         x={-width / 2}
@@ -520,7 +580,7 @@ function DrawingSheetViewportOverlay({ sheet }: { sheet: DraftingDrawingSheetDef
         fontSize={260}
         fontWeight={700}
         stroke="#ffffff"
-        strokeWidth={18}
+        strokeWidth={3}
         vectorEffect="non-scaling-stroke"
         x={-width / 2}
         y={-height / 2 - 180}

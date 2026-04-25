@@ -148,9 +148,38 @@ describe('renderDraftingObject', () => {
       </svg>,
     );
 
-    expect(markup).toContain('rgba(253, 186, 116, 0.18)');
-    expect(markup).toContain('rgba(255, 251, 235, 0.28)');
+    expect(markup).toContain('rgba(253, 186, 116, 0.06)');
+    expect(markup).toContain('rgba(255, 251, 235, 0.06)');
     expect(markup).not.toContain('stroke-width="55"');
     expect(markup).not.toContain('stroke-width="65"');
+  });
+
+  it('uses profile roles for pile, secant wall, and soldier wall rendering', () => {
+    const model = createEmptyDraftingModel('drawing-profile-role-render');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);
+    const secantWall = createDraftingObject('secant_pile_wall', { x: 1200, y: 2200 }, model);
+    const soldierWall = createDraftingObject('soldier_pile_wall', { x: 1400, y: 2400 }, model);
+    const layerById = new Map(model.layers.map((layer) => [layer.id, layer]));
+    const markup = renderToStaticMarkup(
+      <svg>
+        {[pile, secantWall, soldierWall].map((object) => (
+          <React.Fragment key={object.id}>
+            {renderDraftingObject({
+              drawingSetup: model.drawingSetup,
+              isSelected: false,
+              layer: layerById.get(object.layerId) ?? null,
+              object,
+              onPointerDown: () => undefined,
+            })}
+          </React.Fragment>
+        ))}
+      </svg>,
+    );
+
+    expect(pile.style?.stroke).toBeUndefined();
+    expect(secantWall.style?.stroke).toBeUndefined();
+    expect(soldierWall.style?.stroke).toBeUndefined();
+    expect(markup).toContain('stroke-width="1.4"');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
 });

@@ -430,6 +430,7 @@ export function DraftingEditor({
           }
           underlayInteractionEnabled={(underlay) => underlayInteractionEnabled(underlay.id)}
           view={view.currentView}
+          viewMode={view.currentView.mode}
           viewLocked={view.isViewLocked}
           visibleUnderlays={visibleUnderlays}
           visibleObjects={visibleObjects}

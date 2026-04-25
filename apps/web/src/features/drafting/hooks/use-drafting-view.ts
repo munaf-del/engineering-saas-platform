@@ -24,9 +24,17 @@ type PanState = {
 
 export type DraftingEditorViewState = DraftingModel['view'] & {
   locked: boolean;
+  mode: DraftingEditorViewMode;
   updatedAt?: string;
   version: number;
 };
+
+export type DraftingEditorViewMode =
+  | 'custom'
+  | 'model-fit'
+  | 'selection-fit'
+  | 'reference-centred'
+  | 'reset-100';
 
 type UseDraftingViewOptions = {
   activeTool: DraftingTool;
@@ -94,11 +102,14 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
     const deltaX = event.clientX - panState.startClientX;
     const deltaY = event.clientY - panState.startClientY;
 
-    updateView({
-      ...editorView,
-      offsetX: panState.originOffsetX + deltaX,
-      offsetY: panState.originOffsetY + deltaY,
-    });
+    updateView(
+      {
+        ...editorView,
+        offsetX: panState.originOffsetX + deltaX,
+        offsetY: panState.originOffsetY + deltaY,
+      },
+      'custom',
+    );
   });
 
   useEffect(() => {
@@ -157,6 +168,7 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
         { x: localX, y: localY },
         editorView.scale * scaleFactor,
       ),
+      'custom',
     );
   }
 
@@ -178,12 +190,12 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
       return;
     }
 
-    updateView(fitDraftingModelView(model, canvasSize.width, canvasSize.height));
+    updateView(fitDraftingModelView(model, canvasSize.width, canvasSize.height), 'model-fit');
   }
 
-  function updateView(nextView: DraftingModel['view']) {
+  function updateView(nextView: DraftingModel['view'], mode: DraftingEditorViewMode = 'custom') {
     setEditorView((current) =>
-      createDraftingEditorViewState(nextView, current.locked, new Date().toISOString()),
+      createDraftingEditorViewState(nextView, current.locked, new Date().toISOString(), mode),
     );
   }
 
@@ -205,6 +217,7 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
         centerScreenPoint,
         editorView.scale * factor,
       ),
+      'custom',
     );
   }
 
@@ -221,7 +234,7 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
       return;
     }
 
-    updateView(resetDraftingViewZoom({ ...model, view: editorView }, canvasSize));
+    updateView(resetDraftingViewZoom({ ...model, view: editorView }, canvasSize), 'reset-100');
   }
 
   function handleSetZoomScale(scale: number) {
@@ -236,7 +249,10 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
       y: (centerScreenPoint.y - editorView.offsetY) / editorView.scale,
     };
 
-    updateView(zoomDraftingViewAtPoint(editorView, centerWorldPoint, centerScreenPoint, nextScale));
+    updateView(
+      zoomDraftingViewAtPoint(editorView, centerWorldPoint, centerScreenPoint, nextScale),
+      'custom',
+    );
   }
 
   function handleFitSelected(objects: DraftingObject[]) {
@@ -244,7 +260,10 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
       return;
     }
 
-    updateView(fitDraftingObjectsView(objects, canvasSize.width, canvasSize.height, editorView));
+    updateView(
+      fitDraftingObjectsView(objects, canvasSize.width, canvasSize.height, editorView),
+      'selection-fit',
+    );
   }
 
   function handleCenterViewOnPoint(point: { x: number; y: number }) {
@@ -252,11 +271,14 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
       return;
     }
 
-    updateView({
-      ...editorView,
-      offsetX: canvasSize.width / 2 - point.x * editorView.scale,
-      offsetY: canvasSize.height / 2 - point.y * editorView.scale,
-    });
+    updateView(
+      {
+        ...editorView,
+        offsetX: canvasSize.width / 2 - point.x * editorView.scale,
+        offsetY: canvasSize.height / 2 - point.y * editorView.scale,
+      },
+      'reference-centred',
+    );
   }
 
   function setViewLocked(locked: boolean) {
@@ -295,12 +317,14 @@ export function createDraftingEditorViewState(
   view?: DraftingModel['view'] | null,
   locked = false,
   updatedAt?: string,
+  mode: DraftingEditorViewMode = 'custom',
 ): DraftingEditorViewState {
   return {
     scale: clampViewScale(view?.scale ?? 0.05),
     offsetX: Number.isFinite(view?.offsetX) ? view!.offsetX : 160,
     offsetY: Number.isFinite(view?.offsetY) ? view!.offsetY : 160,
     locked,
+    mode,
     updatedAt,
     version: DRAFTING_EDITOR_VIEW_STORAGE_VERSION,
   };
@@ -330,6 +354,7 @@ export function parseStoredDraftingEditorView(value: string | null) {
       },
       parsed.locked === true,
       typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
+      isDraftingEditorViewMode(parsed.mode) ? parsed.mode : 'custom',
     );
   } catch {
     return null;
@@ -351,9 +376,20 @@ export function serializeDraftingEditorView(view: DraftingEditorViewState) {
     offsetX: view.offsetX,
     offsetY: view.offsetY,
     locked: view.locked,
+    mode: view.mode,
     updatedAt: view.updatedAt,
     version: DRAFTING_EDITOR_VIEW_STORAGE_VERSION,
   });
+}
+
+function isDraftingEditorViewMode(value: unknown): value is DraftingEditorViewMode {
+  return (
+    value === 'custom' ||
+    value === 'model-fit' ||
+    value === 'selection-fit' ||
+    value === 'reference-centred' ||
+    value === 'reset-100'
+  );
 }
 
 function persistDraftingEditorView(drawingId: string, view: DraftingEditorViewState) {

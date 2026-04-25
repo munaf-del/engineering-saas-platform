@@ -32,6 +32,11 @@ export function DraftingToolbar({
   projectCode: string;
   projectId: string;
 }) {
+  const title = drawing.isProjectModel ? 'Project Model Workspace' : drawing.title;
+  const description = drawing.isProjectModel
+    ? `${projectCode} · Drafting project model`
+    : `${projectCode} · Drafting editor`;
+
   return (
     <>
       <div className="mb-4">
@@ -45,8 +50,8 @@ export function DraftingToolbar({
       </div>
 
       <PageHeader
-        title={drawing.title}
-        description={`${projectCode} · Drafting editor`}
+        title={title}
+        description={description}
         badges={
           <>
             <Badge variant={drawing.status === 'draft' ? 'warning' : 'secondary'}>

@@ -28,6 +28,8 @@ describe('DraftingToolbar', () => {
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('Schedule Preview');
     expect(markup).toContain('Title / Revision');
+    expect(markup).toContain('Project Model Workspace');
+    expect(markup).not.toContain('Drafting Schedule Sheet QA</');
   });
 
   it('shows the current drawing revision metadata badge when available', () => {

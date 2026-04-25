@@ -43,8 +43,13 @@ describe('drafting object creation helpers', () => {
     expect(pile.layerId).toBe('piles');
     expect(secantWall.metadata.wallId).toBe('SEC1');
     expect(secantWall.layerId).toBe('shoring');
+    expect(secantWall.parameters.pileDiameterMm).toBe(900);
+    expect(secantWall.parameters.spacingMm).toBe(750);
+    expect(secantWall.parameters.overlapMm).toBe(150);
     expect(secantWall.metadata.pileCount).toBe(secantWall.geometry.pileCentres.length);
     expect(soldierWall.metadata.wallId).toBe('SOL1');
+    expect(soldierWall.parameters.pileDiameterMm).toBe(600);
+    expect(soldierWall.parameters.spacingMm).toBe(1500);
     expect(soldierWall.metadata.pileCount).toBe(soldierWall.geometry.pilePositions.length);
     expect(anchor.parameters.anchorId).toBe('A1');
     expect(anchor.layerId).toBe('anchors');

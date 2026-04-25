@@ -70,6 +70,7 @@ describe('useDraftingView', () => {
 
     expect(restored).toMatchObject({
       locked: true,
+      mode: 'custom',
       offsetX: 300,
       offsetY: 400,
       scale: 0.75,
@@ -84,6 +85,7 @@ describe('useDraftingView', () => {
 
     expect(resolveInitialDraftingEditorView(model.drawingId, model, null)).toMatchObject({
       locked: false,
+      mode: 'custom',
       offsetX: 80,
       offsetY: 90,
       scale: 0.2,
@@ -102,6 +104,7 @@ describe('useDraftingView', () => {
     });
 
     expect(hook.current.currentView.scale).toBeGreaterThan(model.view.scale);
+    expect(hook.current.currentView.mode).toBe('custom');
     expect(model.view).toEqual({ scale: 0.05, offsetX: 160, offsetY: 160 });
     expect(JSON.parse(serializeDraftingModelJson(model)).view).toEqual({
       scale: 0.05,
@@ -133,6 +136,7 @@ describe('useDraftingView', () => {
     const hook = await renderDraftingViewHook(model);
 
     expect(hook.current.currentView).toMatchObject({
+      mode: 'custom',
       offsetX: 600,
       offsetY: 700,
       scale: 1.25,
@@ -175,6 +179,7 @@ describe('useDraftingView', () => {
 
     expect(hook.current.currentView).toMatchObject({
       locked: true,
+      mode: 'custom',
       offsetX: lockedView.offsetX,
       offsetY: lockedView.offsetY,
       scale: lockedView.scale,
@@ -186,6 +191,28 @@ describe('useDraftingView', () => {
     ).toMatchObject({
       locked: true,
     });
+
+    await hook.unmount();
+  });
+
+  it('marks fitted and centred viewport states for the canvas status readout', async () => {
+    const model = createEmptyDraftingModel('drawing-view-mode-hook');
+    const hook = await renderDraftingViewHook(model);
+
+    await act(async () => {
+      hook.current.handleFitView();
+    });
+    expect(hook.current.currentView.mode).toBe('model-fit');
+
+    await act(async () => {
+      hook.current.handleCenterViewOnPoint({ x: 0, y: 0 });
+    });
+    expect(hook.current.currentView.mode).toBe('reference-centred');
+
+    await act(async () => {
+      hook.current.handleResetZoom();
+    });
+    expect(hook.current.currentView.mode).toBe('reset-100');
 
     await hook.unmount();
   });

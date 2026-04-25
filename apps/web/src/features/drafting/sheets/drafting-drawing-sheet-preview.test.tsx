@@ -11,6 +11,7 @@ import {
   DraftingDrawingSheetPage,
   DraftingDrawingSheetPreview,
 } from './drafting-drawing-sheet-preview';
+import { createDraftingObject } from '../model-utils';
 import {
   addDrawingSheetIssue,
   createDraftingDrawingSheetIssueSnapshot,
@@ -139,6 +140,30 @@ describe('drafting drawing sheet preview', () => {
 
     expect(markup).not.toContain('vector-effect:none');
     expect(markup).toContain('stroke-width="0.35"');
+  });
+
+  it('uses plotted paper line weights and light fills for pile wall objects', () => {
+    const drawing = createDrawing();
+    const secantWall = createDraftingObject('secant_pile_wall', { x: 0, y: 0 }, drawing.model);
+    const soldierWall = createDraftingObject('soldier_pile_wall', { x: 0, y: 1200 }, drawing.model);
+    drawing.model.objects.push(secantWall, soldierWall);
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' })}
+      />,
+    );
+
+    expect(markup).toContain('stroke-width="0.35"');
+    expect(markup).toContain('rgba(253, 186, 116, 0.06)');
+    expect(markup).toContain('rgba(255, 251, 235, 0.06)');
+    expect(markup).not.toContain('stroke-width="24"');
   });
 
   it('hides renderer text labels when object labels are disabled', () => {

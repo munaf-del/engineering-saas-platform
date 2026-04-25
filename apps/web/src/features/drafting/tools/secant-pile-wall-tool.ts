@@ -17,11 +17,7 @@ export function createSecantPileWallObject(
     name: `Secant Wall ${sequence}`,
     visible: true,
     locked: false,
-    style: {
-      stroke: '#9a3412',
-      fill: '#fdba74',
-      lineWeight: 2,
-    },
+    style: {},
     geometry: {
       baselinePoints: createDefaultBaselinePoints(point, 6000),
       pileCentres: [point],

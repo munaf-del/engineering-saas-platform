@@ -20,11 +20,7 @@ export function createSoldierPileWallObject(
     name: `Soldier Wall ${sequence}`,
     visible: true,
     locked: false,
-    style: {
-      stroke: '#92400e',
-      lineWeight: 2,
-      lineStyle: 'solid',
-    },
+    style: {},
     geometry: {
       baselinePoints: createDefaultBaselinePoints(point, 6000),
       pilePositions: [point],

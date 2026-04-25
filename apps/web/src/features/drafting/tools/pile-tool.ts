@@ -13,11 +13,7 @@ export function createPileObject(point: DraftingPoint, model: DraftingModel): Dr
     name: `Pile ${sequence}`,
     visible: true,
     locked: false,
-    style: {
-      stroke: '#1d4ed8',
-      fill: 'rgba(59, 130, 246, 0.2)',
-      lineWeight: 2,
-    },
+    style: {},
     geometry: {
       centre: point,
       diameterMm: 600,
