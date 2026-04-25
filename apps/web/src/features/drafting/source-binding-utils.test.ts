@@ -3,9 +3,12 @@ import type { ProjectSpatialFeature } from '@eng/shared';
 import { createEmptyDraftingModel } from '@eng/shared';
 import {
   buildDraftingPileSourceRecords,
+  buildDraftingPileTypeSourceRecords,
   buildDraftingSpatialSourceRecords,
   createDraftingObjectFromSpatialSource,
   createPileObjectFromSource,
+  createPileObjectFromTypeSource,
+  refreshPileObjectFromSource,
 } from './source-binding-utils';
 
 describe('drafting source binding utils', () => {
@@ -75,6 +78,186 @@ describe('drafting source binding utils', () => {
       length: 18,
       embedmentDepth: 4.5,
     });
+  });
+
+  it('maps persisted multi-pile type library entries to drafting pile type sources', () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('drafting-pile-type-1');
+    const model = createEmptyDraftingModel('drawing-source-pile-types');
+    const [source] = buildDraftingPileTypeSourceRecords([
+      {
+        id: 'group-1',
+        projectId: 'project-1',
+        name: 'foundation piles',
+        updatedAt: '2026-04-25T00:00:00.000Z',
+        metadata: {
+          multiPile: {
+            pileTypes: [
+              {
+                id: 'BP1',
+                displayName: 'BP1',
+                sizePreset: '600',
+                useCustom: false,
+                customMm: 600,
+                Dmm: 600,
+                nominalDiameterMm: 600,
+                eoop: 0.075,
+                eoopM: 0.075,
+                compressionUltimateMin: null,
+                compressionUltimateMax: 3200,
+                tensionUltimateMin: null,
+                tensionUltimateMax: 900,
+                active: true,
+                order: 0,
+              },
+            ],
+            joints: [],
+          },
+        },
+      },
+    ]);
+
+    expect(source).toMatchObject({
+      sourceType: 'foundation_pile_type',
+      sourceId: 'group-1:type:BP1',
+      sourceLabel: 'BP1',
+      groupName: 'foundation piles',
+    });
+
+    const object = createPileObjectFromTypeSource({
+      model,
+      point: { x: 100, y: 200 },
+      source: source!,
+    });
+
+    expect(object).toMatchObject({
+      id: 'drafting-pile-type-1',
+      type: 'pile',
+      geometry: { centre: { x: 100, y: 200 }, diameterMm: 600 },
+      metadata: {
+        pileId: 'P-NEW-001',
+        pileTypeCode: 'BP1',
+        pileSystem: 'pile type library',
+        designCompressionKn: 3200,
+        designTensionKn: 900,
+      },
+      sourceRef: {
+        sourceType: 'foundation_pile_type',
+        sourceId: 'group-1:type:BP1',
+        sourceLabel: 'BP1',
+        status: 'linked',
+      },
+    });
+  });
+
+  it('maps multi-pile joints as placed pile instance sources', () => {
+    const [source] = buildDraftingPileSourceRecords([
+      {
+        id: 'group-1',
+        projectId: 'project-1',
+        name: 'foundation piles',
+        metadata: {
+          multiPile: {
+            pileTypes: [
+              {
+                id: 'BP1',
+                displayName: 'BP1',
+                sizePreset: '600',
+                useCustom: false,
+                customMm: 600,
+                Dmm: 600,
+                nominalDiameterMm: 600,
+                eoop: 0.075,
+                eoopM: 0.075,
+                compressionUltimateMin: null,
+                compressionUltimateMax: null,
+                tensionUltimateMin: null,
+                tensionUltimateMax: null,
+                active: true,
+                order: 0,
+              },
+            ],
+            joints: [
+              {
+                id: 'J1',
+                x: 0,
+                y: 0,
+                z: 0,
+                supportCount: 1,
+                noOfSupports: 1,
+                pileTypeId: 'BP1',
+                assignmentMode: 'manual',
+                active: true,
+                order: 0,
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    expect(source).toMatchObject({
+      sourceType: 'foundation_pile',
+      sourceId: 'group-1:joint:J1',
+      sourceLabel: 'J1',
+      pileType: { id: 'BP1' },
+      joint: { x: 0, y: 0, pileTypeId: 'BP1' },
+    });
+  });
+
+  it('refreshes pile type sources and marks missing source records', () => {
+    const model = createEmptyDraftingModel('drawing-refresh-pile-type');
+    const [source] = buildDraftingPileTypeSourceRecords([
+      {
+        id: 'group-1',
+        projectId: 'project-1',
+        name: 'foundation piles',
+        metadata: {
+          multiPile: {
+            pileTypes: [
+              {
+                id: 'BP2',
+                displayName: 'BP2',
+                sizePreset: '750',
+                useCustom: false,
+                customMm: 600,
+                Dmm: 750,
+                nominalDiameterMm: 750,
+                eoop: 0.075,
+                eoopM: 0.075,
+                compressionUltimateMin: null,
+                compressionUltimateMax: null,
+                tensionUltimateMin: null,
+                tensionUltimateMax: null,
+                active: true,
+                order: 0,
+              },
+            ],
+            joints: [],
+          },
+        },
+      },
+    ]);
+    const object = createPileObjectFromTypeSource({
+      model,
+      point: { x: 10, y: 20 },
+      source: source!,
+    });
+
+    const refreshed = refreshPileObjectFromSource({
+      object,
+      pileSources: [],
+      pileTypeSources: [source!],
+    });
+    expect(refreshed.geometry.centre).toEqual({ x: 10, y: 20 });
+    expect(refreshed.geometry.diameterMm).toBe(750);
+    expect(refreshed.sourceRef?.status).toBe('linked');
+
+    const missing = refreshPileObjectFromSource({
+      object,
+      pileSources: [],
+      pileTypeSources: [],
+    });
+    expect(missing.sourceRef?.status).toBe('missing_source');
   });
 
   it('maps borehole spatial features to source-linked drafting boreholes', () => {

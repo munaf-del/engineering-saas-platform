@@ -10,6 +10,8 @@ import type {
   DraftingServiceRunObject,
   DraftingServiceStatus,
   DraftingServiceType,
+  MultiPileJoint,
+  MultiPilePileTypeDefinition,
   Pile,
   PileGroup,
   PileLayoutPoint,
@@ -31,14 +33,27 @@ export type PileGroupWithSources = PileGroup & {
   updatedAt?: string;
 };
 
+export type DraftingPileTypeSourceRecord = {
+  sourceType: 'foundation_pile_type';
+  sourceId: string;
+  sourceLabel: string;
+  groupId: string;
+  groupName: string;
+  sourceVersion?: string;
+  pileType: MultiPilePileTypeDefinition;
+};
+
 export type DraftingPileSourceRecord = {
   sourceType: 'foundation_pile';
   sourceId: string;
   sourceLabel: string;
   groupId: string;
   groupName: string;
-  pile: Pile;
+  sourceVersion?: string;
+  pile?: Pile;
   layoutPoint?: PileLayoutPoint;
+  joint?: MultiPileJoint;
+  pileType?: MultiPilePileTypeDefinition;
 };
 
 export type DraftingSpatialSourceRecord = {
@@ -55,8 +70,10 @@ export type DraftingSpatialSourceRecord = {
 export function buildDraftingPileSourceRecords(
   pileGroups: PileGroupWithSources[] | undefined,
 ): DraftingPileSourceRecord[] {
-  return (pileGroups ?? []).flatMap((group) =>
-    (group.piles ?? []).map((pile) => {
+  return (pileGroups ?? []).flatMap((group) => {
+    const multiPile = getMultiPileState(group);
+    const pileTypes = multiPile.pileTypes;
+    const normalizedPileSources = (group.piles ?? []).map((pile) => {
       const layoutPoint = (group.layoutPoints ?? []).find((point) => point.pileId === pile.id);
       return {
         sourceType: 'foundation_pile' as const,
@@ -64,10 +81,42 @@ export function buildDraftingPileSourceRecords(
         sourceLabel: layoutPoint?.label || pile.name,
         groupId: group.id,
         groupName: group.name,
+        sourceVersion: group.updatedAt,
         pile,
         ...(layoutPoint ? { layoutPoint } : {}),
       };
-    }),
+    });
+    const multiPileJointSources = multiPile.joints.map((joint) => {
+      const pileType = pileTypes.find((candidate) => candidate.id === joint.pileTypeId);
+      return {
+        sourceType: 'foundation_pile' as const,
+        sourceId: `${group.id}:joint:${joint.id}`,
+        sourceLabel: joint.displayName || joint.jointDisplayName || joint.id,
+        groupId: group.id,
+        groupName: group.name,
+        sourceVersion: group.updatedAt,
+        joint,
+        ...(pileType ? { pileType } : {}),
+      };
+    });
+
+    return [...normalizedPileSources, ...multiPileJointSources];
+  });
+}
+
+export function buildDraftingPileTypeSourceRecords(
+  pileGroups: PileGroupWithSources[] | undefined,
+): DraftingPileTypeSourceRecord[] {
+  return (pileGroups ?? []).flatMap((group) =>
+    getMultiPileState(group).pileTypes.map((pileType) => ({
+      sourceType: 'foundation_pile_type' as const,
+      sourceId: `${group.id}:type:${pileType.id}`,
+      sourceLabel: pileType.displayName || pileType.id,
+      groupId: group.id,
+      groupName: group.name,
+      sourceVersion: group.updatedAt,
+      pileType,
+    })),
   );
 }
 
@@ -97,10 +146,18 @@ export function createPileObjectFromSource(args: {
   model: DraftingModel;
 }): DraftingPileObject {
   const now = new Date().toISOString();
-  const point = pointFromPileLayout(args.source.layoutPoint) ?? args.fallbackPoint;
+  const point =
+    pointFromPileLayout(args.source.layoutPoint) ??
+    pointFromMultiPileJoint(args.source.joint) ??
+    args.fallbackPoint;
   const base = createPileObject(point, args.model);
-  const diameterMm = normalizePileDiameterMm(args.source.pile.diameter) ?? base.geometry.diameterMm;
-  const pileType = mapPileTypeToDraftingPileType(args.source.pile.pileType);
+  const diameterMm =
+    normalizePileDiameterMm(args.source.pile?.diameter) ??
+    pileTypeDiameterMm(args.source.pileType) ??
+    base.geometry.diameterMm;
+  const pileType = args.source.pile
+    ? mapPileTypeToDraftingPileType(args.source.pile.pileType)
+    : undefined;
 
   return {
     ...base,
@@ -113,39 +170,142 @@ export function createPileObjectFromSource(args: {
     metadata: {
       ...base.metadata,
       pileId: args.source.sourceLabel,
+      ...(args.source.pileType ? pileTypeMetadata(args.source.pileType) : {}),
       ...(pileType ? { pileType } : {}),
       notes: sourceNotes([
         args.source.groupName,
-        optionalNumberNote('length', args.source.pile.length, 'm'),
-        optionalNumberNote('embedment', args.source.pile.embedmentDepth, 'm'),
+        optionalNumberNote('length', args.source.pile?.length, 'm'),
+        optionalNumberNote('embedment', args.source.pile?.embedmentDepth, 'm'),
       ]),
     },
     sourceRef: {
       sourceType: 'foundation_pile',
       sourceId: args.source.sourceId,
       sourceLabel: args.source.sourceLabel,
-      sourceVersion: (args.source as { updatedAt?: string }).updatedAt,
+      sourceVersion: args.source.sourceVersion,
       linkedAt: now,
       ...(args.linkedBy ? { linkedBy: args.linkedBy } : {}),
       status: 'linked',
       snapshot: {
-        pileId: args.source.pile.id,
-        pileName: args.source.pile.name,
+        pileId: args.source.pile?.id ?? args.source.joint?.id,
+        pileName: args.source.pile?.name ?? args.source.sourceLabel,
         pileGroupId: args.source.groupId,
         pileGroupName: args.source.groupName,
-        pileType: args.source.pile.pileType,
-        diameter: args.source.pile.diameter,
+        pileType: args.source.pile?.pileType,
+        diameter: args.source.pile?.diameter,
         diameterMm,
-        length: args.source.pile.length,
-        embedmentDepth: args.source.pile.embedmentDepth,
-        rakeAngle: args.source.pile.rakeAngle,
-        materialId: args.source.pile.materialId,
-        properties: args.source.pile.properties,
+        length: args.source.pile?.length,
+        embedmentDepth: args.source.pile?.embedmentDepth,
+        rakeAngle: args.source.pile?.rakeAngle,
+        materialId: args.source.pile?.materialId,
+        properties: args.source.pile?.properties,
         layoutPoint: args.source.layoutPoint,
+        joint: args.source.joint,
+        pileTypeDefinition: args.source.pileType,
       },
     },
     updatedAt: now,
   };
+}
+
+export function createPileObjectFromTypeSource(args: {
+  source: DraftingPileTypeSourceRecord;
+  point: DraftingPoint;
+  linkedBy?: string | null;
+  model: DraftingModel;
+}): DraftingPileObject {
+  const now = new Date().toISOString();
+  const base = createPileObject(args.point, args.model);
+  const temporaryMark = nextTemporaryPileMark(args.model);
+  const diameterMm = pileTypeDiameterMm(args.source.pileType) ?? base.geometry.diameterMm;
+
+  return {
+    ...base,
+    name: temporaryMark,
+    geometry: {
+      ...base.geometry,
+      centre: args.point,
+      diameterMm,
+    },
+    metadata: {
+      ...base.metadata,
+      pileId: temporaryMark,
+      ...pileTypeMetadata(args.source.pileType),
+      notes: sourceNotes([
+        args.source.groupName,
+        'Placed from pile type; pile instance not assigned',
+      ]),
+    },
+    sourceRef: {
+      sourceType: 'foundation_pile_type',
+      sourceId: args.source.sourceId,
+      sourceLabel: args.source.sourceLabel,
+      sourceVersion: args.source.sourceVersion,
+      linkedAt: now,
+      ...(args.linkedBy ? { linkedBy: args.linkedBy } : {}),
+      status: 'linked',
+      snapshot: {
+        pileTypeId: args.source.pileType.id,
+        pileTypeCode: args.source.pileType.id,
+        pileTypeName: args.source.pileType.displayName,
+        pileGroupId: args.source.groupId,
+        pileGroupName: args.source.groupName,
+        diameterMm,
+        pileTypeDefinition: args.source.pileType,
+      },
+    },
+    updatedAt: now,
+  };
+}
+
+export function refreshPileObjectFromSource(args: {
+  object: DraftingPileObject;
+  pileSources: DraftingPileSourceRecord[];
+  pileTypeSources: DraftingPileTypeSourceRecord[];
+  updateCoordinates?: boolean;
+}): DraftingPileObject {
+  const sourceRef = args.object.sourceRef;
+  if (!sourceRef?.sourceId || sourceRef.sourceType === 'manual') {
+    return args.object;
+  }
+
+  if (sourceRef.sourceType === 'foundation_pile_type') {
+    const source = args.pileTypeSources.find(
+      (candidate) => candidate.sourceId === sourceRef.sourceId,
+    );
+    if (!source) {
+      return markMissingSource(args.object);
+    }
+    const refreshed = createPileObjectFromTypeSource({
+      source,
+      point: args.object.geometry.centre,
+      model: { objects: [] } as unknown as DraftingModel,
+    });
+    return preservePileObjectIdentity(args.object, refreshed);
+  }
+
+  if (sourceRef.sourceType === 'foundation_pile') {
+    const source = args.pileSources.find((candidate) => candidate.sourceId === sourceRef.sourceId);
+    if (!source) {
+      return markMissingSource(args.object);
+    }
+    const refreshed = createPileObjectFromSource({
+      source,
+      fallbackPoint: args.object.geometry.centre,
+      model: { objects: [] } as unknown as DraftingModel,
+    });
+    const sourcePoint =
+      pointFromPileLayout(source.layoutPoint) ?? pointFromMultiPileJoint(source.joint);
+    return preservePileObjectIdentity(args.object, {
+      ...refreshed,
+      geometry: {
+        ...refreshed.geometry,
+        centre: args.updateCoordinates && sourcePoint ? sourcePoint : args.object.geometry.centre,
+      },
+    });
+  }
+
+  return args.object;
 }
 
 export function createDraftingObjectFromSpatialSource(args: {
@@ -405,6 +565,18 @@ function pointFromPileLayout(layoutPoint: PileLayoutPoint | undefined): Drafting
   };
 }
 
+function pointFromMultiPileJoint(joint: MultiPileJoint | undefined): DraftingPoint | null {
+  if (!joint || !Number.isFinite(joint.x) || !Number.isFinite(joint.y)) {
+    return null;
+  }
+
+  return {
+    x: joint.x,
+    y: joint.y,
+    ...(Number.isFinite(joint.z) ? { z: joint.z } : {}),
+  };
+}
+
 function pointFromSpatialGeometry(geometry: ProjectSpatialGeometryJson): DraftingPoint | null {
   if (geometry.type !== 'Point') {
     return null;
@@ -451,6 +623,115 @@ function normalizePileDiameterMm(value: number | undefined) {
   }
 
   return value <= 20 ? Math.round(value * 1000) : Math.round(value);
+}
+
+function pileTypeDiameterMm(pileType: MultiPilePileTypeDefinition | undefined) {
+  return (
+    normalizePileDiameterMm(pileType?.nominalDiameterMm) ??
+    normalizePileDiameterMm(pileType?.Dmm) ??
+    normalizePileDiameterMm(pileType?.customMm)
+  );
+}
+
+function pileTypeMetadata(
+  pileType: MultiPilePileTypeDefinition,
+): Partial<DraftingPileObject['metadata']> {
+  return {
+    pileType: 'bored',
+    pileTypeCode: pileType.id,
+    pileSystem: 'pile type library',
+    ...(Number.isFinite(pileType.compressionUltimateMax)
+      ? { designCompressionKn: pileType.compressionUltimateMax as number }
+      : {}),
+    ...(Number.isFinite(pileType.tensionUltimateMax)
+      ? { designTensionKn: pileType.tensionUltimateMax as number }
+      : {}),
+  };
+}
+
+function nextTemporaryPileMark(model: DraftingModel) {
+  const used = new Set(
+    model.objects
+      .filter((object): object is DraftingPileObject => object.type === 'pile')
+      .map((object) => object.metadata.pileId),
+  );
+  let index = 1;
+  while (used.has(`P-NEW-${String(index).padStart(3, '0')}`)) {
+    index += 1;
+  }
+  return `P-NEW-${String(index).padStart(3, '0')}`;
+}
+
+function preservePileObjectIdentity(
+  original: DraftingPileObject,
+  refreshed: DraftingPileObject,
+): DraftingPileObject {
+  return {
+    ...original,
+    name: original.name,
+    geometry: refreshed.geometry,
+    metadata: {
+      ...original.metadata,
+      ...refreshed.metadata,
+      pileId: original.metadata.pileId,
+    },
+    sourceRef: refreshed.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function markMissingSource(object: DraftingPileObject): DraftingPileObject {
+  return {
+    ...object,
+    sourceRef: object.sourceRef
+      ? {
+          ...object.sourceRef,
+          status: 'missing_source',
+        }
+      : object.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function getMultiPileState(group: PileGroupWithSources): {
+  pileTypes: MultiPilePileTypeDefinition[];
+  joints: MultiPileJoint[];
+} {
+  const metadata = group.metadata;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return { pileTypes: [], joints: [] };
+  }
+
+  const multiPile = (metadata as Record<string, unknown>).multiPile;
+  if (!multiPile || typeof multiPile !== 'object' || Array.isArray(multiPile)) {
+    return { pileTypes: [], joints: [] };
+  }
+
+  const record = multiPile as Record<string, unknown>;
+  return {
+    pileTypes: Array.isArray(record.pileTypes) ? record.pileTypes.filter(isMultiPilePileType) : [],
+    joints: Array.isArray(record.joints) ? record.joints.filter(isMultiPileJoint) : [],
+  };
+}
+
+function isMultiPilePileType(value: unknown): value is MultiPilePileTypeDefinition {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { displayName?: unknown }).displayName === 'string'
+  );
+}
+
+function isMultiPileJoint(value: unknown): value is MultiPileJoint {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    Number.isFinite((value as { x?: unknown }).x) &&
+    Number.isFinite((value as { y?: unknown }).y) &&
+    typeof (value as { pileTypeId?: unknown }).pileTypeId === 'string'
+  );
 }
 
 function mapPileTypeToDraftingPileType(pileType: PileType) {

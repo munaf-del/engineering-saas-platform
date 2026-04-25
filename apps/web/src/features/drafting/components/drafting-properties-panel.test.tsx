@@ -11,14 +11,18 @@ describe('DraftingPropertiesPanel', () => {
         layers={createDefaultDraftingLayers()}
         object={linkedPile()}
         onDelete={() => undefined}
+        onRefreshSource={() => undefined}
         onUpdate={() => undefined}
+        sourceManageHref="/projects/project-1/pile-groups"
       />,
     );
 
     expect(markup).toContain('Source / Provenance');
-    expect(markup).toContain('foundation pile');
+    expect(markup).toContain('Pile instance');
     expect(markup).toContain('P1 from calculator');
     expect(markup).toContain('Refresh from source');
+    expect(markup).toContain('Refresh + coordinates');
+    expect(markup).toContain('Manage pile types');
     expect(markup).toContain('Unlink');
     expect(markup).toContain('Convert to manual');
   });

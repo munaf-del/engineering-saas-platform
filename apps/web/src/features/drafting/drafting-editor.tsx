@@ -48,13 +48,18 @@ import {
 } from './model-utils';
 import {
   buildDraftingPileSourceRecords,
+  buildDraftingPileTypeSourceRecords,
   buildDraftingSpatialSourceRecords,
   createDraftingObjectFromSpatialSource,
   createPileObjectFromSource,
+  createPileObjectFromTypeSource,
   findExistingSourceObject,
+  refreshPileObjectFromSource,
   type DraftingPileSourceRecord,
+  type DraftingPileTypeSourceRecord,
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
+import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
@@ -73,6 +78,11 @@ export function DraftingEditor({
   const [showDrawingSheetViewportOverlay, setShowDrawingSheetViewportOverlay] =
     React.useState(true);
   const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
+  const [pileSourceMode, setPileSourceMode] =
+    React.useState<DraftingPileSourceMode>('manual_sketch');
+  const [selectedPileTypeSourceId, setSelectedPileTypeSourceId] = React.useState<string | null>(
+    null,
+  );
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
   const pileGroupsQuery = usePileGroups(projectId);
@@ -106,6 +116,10 @@ export function DraftingEditor({
   });
   const pileSourceRecords = React.useMemo(
     () => buildDraftingPileSourceRecords(pileGroupsQuery.data),
+    [pileGroupsQuery.data],
+  );
+  const pileTypeSourceRecords = React.useMemo(
+    () => buildDraftingPileTypeSourceRecords(pileGroupsQuery.data),
     [pileGroupsQuery.data],
   );
   const spatialSourceRecords = React.useMemo(
@@ -271,6 +285,27 @@ export function DraftingEditor({
       return;
     }
 
+    if (drafting.activeTool === 'pile' && pileSourceMode === 'pile_type') {
+      const source = pileTypeSourceRecords.find(
+        (candidate) => candidate.sourceId === selectedPileTypeSourceId,
+      );
+      if (!source) {
+        toast.info('Select a pile type before placing a linked drafting pile.');
+        return;
+      }
+      const nextObject = createPileObjectFromTypeSource({
+        linkedBy: currentUserName,
+        model: currentModel,
+        point,
+        source,
+      });
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      toast.success(`Placed pile type ${source.sourceLabel}`);
+      return;
+    }
+
     const nextObject = createDraftingObject(
       drafting.activeTool,
       point,
@@ -419,6 +454,48 @@ export function DraftingEditor({
     toast.success(`Placed linked pile ${source.sourceLabel}`);
   }
 
+  function handleSelectPileTypeSource(source: DraftingPileTypeSourceRecord | null) {
+    setSelectedPileTypeSourceId(source?.sourceId ?? null);
+    setPileSourceMode(source ? 'pile_type' : 'manual_sketch');
+    drafting.setActiveTool('pile');
+  }
+
+  function handlePileSourceModeChange(mode: DraftingPileSourceMode) {
+    setPileSourceMode(mode);
+    if (mode !== 'pile_type') {
+      setSelectedPileTypeSourceId(null);
+    }
+    drafting.setActiveTool('pile');
+  }
+
+  function handleRefreshSourceObject(
+    object: DraftingObject,
+    options?: { updateCoordinates?: boolean },
+  ) {
+    if (object.type !== 'pile') {
+      return;
+    }
+
+    const refreshed = refreshPileObjectFromSource({
+      object,
+      pileSources: pileSourceRecords,
+      pileTypeSources: pileTypeSourceRecords,
+      updateCoordinates: options?.updateCoordinates,
+    });
+    history.replaceModel({
+      ...currentModel,
+      objects: currentModel.objects.map((candidate) =>
+        candidate.id === refreshed.id ? refreshed : candidate,
+      ),
+    });
+    selection.selectObject(refreshed.id);
+    if (refreshed.sourceRef?.status === 'missing_source') {
+      toast.warning('Source record was not found; object marked as missing source');
+    } else {
+      toast.success('Source snapshot refreshed');
+    }
+  }
+
   function handlePlaceSpatialSource(source: DraftingSpatialSourceRecord) {
     const existing =
       findExistingSourceObject(currentModel, 'spatial_feature', source.sourceId) ??
@@ -492,10 +569,15 @@ export function DraftingEditor({
           onFinishLine={handleFinishExcavationLine}
           onPlacePileSource={handlePlacePileSource}
           onPlaceSpatialSource={handlePlaceSpatialSource}
+          onPileSourceModeChange={handlePileSourceModeChange}
+          onSelectPileTypeSource={handleSelectPileTypeSource}
           onToolChange={drafting.setActiveTool}
           pendingLinePointsCount={drafting.pendingLinePoints.length}
+          pileSourceMode={pileSourceMode}
           pileSources={pileSourceRecords}
+          pileTypeSources={pileTypeSourceRecords}
           placedSourceIds={placedSourceIds}
+          selectedPileTypeSourceId={selectedPileTypeSourceId}
           spatialSources={spatialSourceRecords}
           sourceLoading={pileGroupsQuery.isLoading || spatialFeaturesQuery.isLoading}
         />
@@ -575,9 +657,11 @@ export function DraftingEditor({
                     layers={currentModel.layers}
                     object={selection.selectedObject}
                     onDelete={selection.deleteSelectedObject}
+                    onRefreshSource={handleRefreshSourceObject}
                     onUpdate={(nextObject: DraftingObject) =>
                       selection.updateSelectedObject(nextObject)
                     }
+                    sourceManageHref={`/projects/${projectId}/pile-groups`}
                   />
                 </ScrollArea>
               </TabsContent>

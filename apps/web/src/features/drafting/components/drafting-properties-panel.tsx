@@ -28,12 +28,16 @@ export function DraftingPropertiesPanel({
   layers,
   object,
   onDelete,
+  onRefreshSource,
   onUpdate,
+  sourceManageHref,
 }: {
   layers: DraftingLayer[];
   object: DraftingObject | null;
   onDelete: () => void;
+  onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  sourceManageHref?: string;
 }) {
   if (!object) {
     return (
@@ -58,7 +62,12 @@ export function DraftingPropertiesPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <DraftingSourceRefProperties object={object} onUpdate={onUpdate} />
+          <DraftingSourceRefProperties
+            object={object}
+            onRefreshSource={onRefreshSource}
+            onUpdate={onUpdate}
+            sourceManageHref={sourceManageHref}
+          />
 
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
 
@@ -123,10 +132,14 @@ export function DraftingPropertiesPanel({
 
 function DraftingSourceRefProperties({
   object,
+  onRefreshSource,
   onUpdate,
+  sourceManageHref,
 }: {
   object: DraftingObject;
+  onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  sourceManageHref?: string;
 }) {
   const sourceRef = object.sourceRef ?? {
     sourceType: 'manual' as const,
@@ -146,7 +159,7 @@ function DraftingSourceRefProperties({
     <PropertySection title="Source / Provenance">
       <div className="grid gap-2 text-xs sm:grid-cols-4">
         <SourceField label="Status" value={formatSourceValue(status)} />
-        <SourceField label="Source type" value={formatSourceValue(sourceRef.sourceType)} />
+        <SourceField label="Source kind" value={formatSourceKind(object, sourceRef.sourceType)} />
         <SourceField label="Source label" value={sourceRef.sourceLabel ?? 'Manual object'} />
         <SourceField
           label="Snapshot date"
@@ -156,14 +169,35 @@ function DraftingSourceRefProperties({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           className="h-8"
-          disabled={sourceRef.sourceType === 'manual'}
+          disabled={sourceRef.sourceType === 'manual' || !onRefreshSource}
           size="sm"
           title="Source refresh requires the originating source record to be available in the current workspace."
           type="button"
           variant="outline"
+          onClick={() => onRefreshSource?.(object)}
         >
           Refresh from source
         </Button>
+        {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
+          <Button
+            className="h-8"
+            disabled={!onRefreshSource}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => onRefreshSource?.(object, { updateCoordinates: true })}
+          >
+            Refresh + coordinates
+          </Button>
+        ) : null}
+        {object.type === 'pile' && sourceRef.sourceType !== 'manual' && sourceManageHref ? (
+          <a
+            className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            href={sourceManageHref}
+          >
+            Manage pile types
+          </a>
+        ) : null}
         <Button
           className="h-8"
           disabled={sourceRef.sourceType === 'manual'}
@@ -213,6 +247,30 @@ function SourceField({ label, value }: { label: string; value: string }) {
 
 function formatSourceValue(value: string | undefined) {
   return value ? value.replaceAll('_', ' ') : 'Not recorded';
+}
+
+function formatSourceKind(object: DraftingObject, sourceType: string | undefined) {
+  if (object.type === 'pile') {
+    if (sourceType === 'foundation_pile_type') {
+      return 'Pile type';
+    }
+    if (sourceType === 'foundation_pile') {
+      return 'Pile instance';
+    }
+    if (sourceType === 'manual') {
+      return 'Manual sketch';
+    }
+  }
+
+  if (object.type === 'borehole' && sourceType !== 'manual') {
+    return 'Linked borehole from Spatial/Geotech';
+  }
+
+  if (object.type === 'monitoring_point' && sourceType !== 'manual') {
+    return 'Linked monitoring point from Spatial/Omnidots';
+  }
+
+  return formatSourceValue(sourceType);
 }
 
 function propertySectionTitle(object: DraftingObject) {

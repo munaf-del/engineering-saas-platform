@@ -167,6 +167,7 @@ export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[
 export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
 export type DraftingObjectSourceType =
   | 'foundation_pile'
+  | 'foundation_pile_type'
   | 'foundation_pile_group'
   | 'geotech_borehole'
   | 'spatial_feature'
@@ -715,7 +716,16 @@ export type DraftingPileObject = DraftingObjectBase & {
   metadata: {
     pileId: string;
     pileType?: DraftingPileType;
+    pileTypeCode?: string;
+    pileSystem?: string;
     material?: DraftingPileMaterial;
+    concreteGrade?: string;
+    socketLengthM?: number;
+    foundingStratum?: string;
+    foundingNote?: string;
+    designCompressionKn?: number;
+    designTensionKn?: number;
+    designLateralKn?: number;
     cutOffLevel?: number;
     toeLevel?: number;
     notes?: string;

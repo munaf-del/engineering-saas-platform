@@ -51,6 +51,7 @@ describe('DraftingToolPalette', () => {
         onToolChange={() => undefined}
         pendingLinePointsCount={0}
         placedSourceIds={['pile-db-1']}
+        pileSourceMode="linked_pile"
         pileSources={[
           {
             sourceType: 'foundation_pile',
@@ -73,10 +74,60 @@ describe('DraftingToolPalette', () => {
 
     expect(markup).toContain('data-testid="drafting-source-choice-panel"');
     expect(markup).toContain('Pile source');
-    expect(markup).toContain('From project data');
-    expect(markup).toContain('Manual pile');
+    expect(markup).toContain('Linked pile');
+    expect(markup).toContain('From pile type');
+    expect(markup).toContain('Manual sketch pile');
     expect(markup).toContain('data-testid="drafting-source-pile-option"');
     expect(markup).toContain('P1 · placed');
     expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
+  });
+
+  it('explains when pile types exist but placed pile instances do not', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingToolPalette
+        activeTool="pile"
+        drawingUpdatedAt="2026-04-25T00:00:00.000Z"
+        model={createEmptyDraftingModel('drawing-source-pile-types')}
+        onCancelLine={() => undefined}
+        onFinishLine={() => undefined}
+        onPileSourceModeChange={() => undefined}
+        onSelectPileTypeSource={() => undefined}
+        onToolChange={() => undefined}
+        pendingLinePointsCount={0}
+        pileSourceMode="pile_type"
+        pileTypeSources={[
+          {
+            sourceType: 'foundation_pile_type',
+            sourceId: 'group-1:type:BP1',
+            sourceLabel: 'BP1',
+            groupId: 'group-1',
+            groupName: 'foundation piles',
+            pileType: {
+              id: 'BP1',
+              displayName: 'BP1',
+              sizePreset: '600',
+              useCustom: false,
+              customMm: 600,
+              Dmm: 600,
+              nominalDiameterMm: 600,
+              eoop: 0.075,
+              eoopM: 0.075,
+              compressionUltimateMin: null,
+              compressionUltimateMax: null,
+              tensionUltimateMin: null,
+              tensionUltimateMax: null,
+              active: true,
+              order: 0,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain(
+      'Pile types found, but no placed pile instances yet. Select a pile type and place it on the model, or create pile instances in Foundations.',
+    );
+    expect(markup).toContain('data-testid="drafting-source-pile-type-option"');
+    expect(markup).not.toContain('No project pile design records found');
   });
 });

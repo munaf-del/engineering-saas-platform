@@ -235,8 +235,10 @@ describe('drafting schedule utils', () => {
     );
 
     expect(group.rows[0]?.cells).toMatchObject({
+      sourceKind: 'pile instance',
       sourceType: 'foundation_pile',
       sourceId: 'pile-db-1',
+      sourceStatus: 'linked',
     });
   });
 

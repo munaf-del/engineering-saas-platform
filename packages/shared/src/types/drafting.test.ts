@@ -80,16 +80,19 @@ describe('drafting defaults', () => {
       },
       metadata: {
         pileId: 'P1',
+        pileTypeCode: 'BP1',
+        concreteGrade: 'N40',
+        designCompressionKn: 0,
       },
       sourceRef: {
-        sourceType: 'foundation_pile',
-        sourceId: 'pile-db-1',
-        sourceLabel: 'P1',
+        sourceType: 'foundation_pile_type',
+        sourceId: 'group-1:type:BP1',
+        sourceLabel: 'BP1',
         linkedAt: now,
         status: 'linked',
         snapshot: {
-          pileType: 'bored',
-          diameter: 0.6,
+          pileTypeCode: 'BP1',
+          diameterMm: 600,
         },
       },
       createdAt: now,
@@ -99,13 +102,16 @@ describe('drafting defaults', () => {
     const parsed = DraftingModelSchema.parse(model);
 
     expect(parsed.objects[0]?.sourceRef).toMatchObject({
-      sourceType: 'foundation_pile',
-      sourceId: 'pile-db-1',
+      sourceType: 'foundation_pile_type',
+      sourceId: 'group-1:type:BP1',
       status: 'linked',
       snapshot: {
-        diameter: 0.6,
+        diameterMm: 600,
       },
     });
+    expect(
+      parsed.objects[0]?.type === 'pile' ? parsed.objects[0].metadata.designCompressionKn : null,
+    ).toBe(0);
   });
 
   it('hydrates older drafting models with drawing setup defaults', () => {

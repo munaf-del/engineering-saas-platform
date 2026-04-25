@@ -62,6 +62,24 @@ export function PileProperties({
             }
           />
         </Field>
+        <Field label="Pile type / code">
+          <Input
+            value={object.metadata.pileTypeCode ?? object.metadata.pileType ?? ''}
+            onChange={(event) =>
+              onUpdate({
+                ...object,
+                metadata: {
+                  ...object.metadata,
+                  pileTypeCode: event.target.value,
+                },
+                updatedAt: now,
+              })
+            }
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
           label="Diameter (mm)"
           value={object.geometry.diameterMm}
@@ -76,6 +94,21 @@ export function PileProperties({
             })
           }
         />
+        <Field label="Concrete grade">
+          <Input
+            value={object.metadata.concreteGrade ?? ''}
+            onChange={(event) =>
+              onUpdate({
+                ...object,
+                metadata: {
+                  ...object.metadata,
+                  concreteGrade: event.target.value,
+                },
+                updatedAt: now,
+              })
+            }
+          />
+        </Field>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -107,7 +140,82 @@ export function PileProperties({
             })
           }
         />
+        <NumberField
+          label="Socket length (m)"
+          value={object.metadata.socketLengthM ?? ''}
+          onChange={(value) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                socketLengthM: value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <NumberField
+          label="Design compression (kN)"
+          value={object.metadata.designCompressionKn ?? ''}
+          onChange={(value) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                designCompressionKn: value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
+        <NumberField
+          label="Design tension (kN)"
+          value={object.metadata.designTensionKn ?? ''}
+          onChange={(value) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                designTensionKn: value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
+        <NumberField
+          label="Design lateral (kN)"
+          value={object.metadata.designLateralKn ?? ''}
+          onChange={(value) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                designLateralKn: value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
+      </div>
+
+      <Field label="Founding stratum / note">
+        <Input
+          value={object.metadata.foundingStratum ?? object.metadata.foundingNote ?? ''}
+          onChange={(event) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                foundingStratum: event.target.value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
+      </Field>
 
       <Field label="Notes">
         <Textarea

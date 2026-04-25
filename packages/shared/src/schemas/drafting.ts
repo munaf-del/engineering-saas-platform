@@ -281,6 +281,7 @@ export const DraftingObjectProvenanceSchema = z.object({
 export const DraftingObjectSourceRefSchema = z.object({
   sourceType: z.enum([
     'foundation_pile',
+    'foundation_pile_type',
     'foundation_pile_group',
     'geotech_borehole',
     'spatial_feature',
@@ -424,7 +425,16 @@ export const DraftingPileObjectSchema = DraftingObjectBaseSchema.extend({
   metadata: z.object({
     pileId: z.string().min(1),
     pileType: z.enum(DRAFTING_PILE_TYPES).optional(),
+    pileTypeCode: z.string().optional(),
+    pileSystem: z.string().optional(),
     material: z.enum(DRAFTING_PILE_MATERIALS).optional(),
+    concreteGrade: z.string().optional(),
+    socketLengthM: z.number().finite().optional(),
+    foundingStratum: z.string().optional(),
+    foundingNote: z.string().optional(),
+    designCompressionKn: z.number().finite().optional(),
+    designTensionKn: z.number().finite().optional(),
+    designLateralKn: z.number().finite().optional(),
     cutOffLevel: z.number().finite().optional(),
     toeLevel: z.number().finite().optional(),
     notes: z.string().optional(),
