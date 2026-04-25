@@ -527,7 +527,7 @@ function getSelectedSourceBadgeLabel(object: DraftingObject) {
     return `${sourceRef.sourceLabel ?? 'Pile type'} linked`;
   }
   if (sourceRef.sourceType === 'foundation_pile') {
-    return `${sourceRef.sourceLabel ?? 'Pile'} source`;
+    return `${sourceRef.sourceLabel ?? 'Pile'} linked`;
   }
   if (sourceRef.sourceType === 'geotech_borehole') {
     return `${sourceRef.sourceLabel ?? 'Borehole'} linked`;

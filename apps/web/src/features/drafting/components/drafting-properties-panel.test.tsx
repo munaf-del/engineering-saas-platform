@@ -18,12 +18,12 @@ describe('DraftingPropertiesPanel', () => {
     );
 
     expect(markup).toContain('Source / Provenance');
-    expect(markup).toContain('Existing placed pile');
+    expect(markup).toContain('Existing placed pile/joint');
     expect(markup).toContain('P1 from calculator');
     expect(markup).toContain('Coordinates come from the Foundations source');
-    expect(markup).toContain('Refresh from source');
+    expect(markup).toContain('Refresh engineering fields');
     expect(markup).toContain('Refresh + coordinates');
-    expect(markup).toContain('Manage pile types');
+    expect(markup).toContain('Manage source');
     expect(markup).toContain('Unlink');
     expect(markup).toContain('Convert to sketch/unlinked');
   });
@@ -59,6 +59,25 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).toContain('Source may have changed');
     expect(markup).toContain('keeps the current drafting position');
     expect(markup).toContain('partial');
+    expect(markup).toContain('Manage pile type');
+  });
+
+  it('labels linked borehole and sketch objects without pile terminology', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={createDefaultDraftingLayers()}
+        object={linkedBorehole()}
+        onDelete={() => undefined}
+        onRefreshSource={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Linked borehole');
+    expect(markup).toContain('nh');
+    expect(markup).toContain('Refresh from source');
+    expect(markup).not.toContain('Pile type library');
+    expect(markup).not.toContain('Manage pile type');
   });
 });
 
@@ -86,6 +105,37 @@ function linkedPile(): DraftingObject {
       snapshot: {
         diameter: 0.6,
       },
+    },
+    createdAt: '2026-04-25T00:00:00.000Z',
+    updatedAt: '2026-04-25T00:00:00.000Z',
+  };
+}
+
+function linkedBorehole(): DraftingObject {
+  return {
+    id: 'bh-1',
+    type: 'borehole',
+    layerId: 'boreholes',
+    name: 'nh',
+    visible: true,
+    locked: false,
+    geometry: {
+      point: { x: 0, y: 0 },
+    },
+    parameters: {
+      boreholeId: 'nh',
+      label: 'nh',
+      groundLevelRl: 12.3,
+      terminationDepthM: 20,
+    },
+    metadata: {},
+    sourceRef: {
+      sourceType: 'geotech_borehole',
+      sourceId: 'spatial-bh-1',
+      sourceLabel: 'nh',
+      linkedAt: '2026-04-25T00:00:00.000Z',
+      status: 'current',
+      snapshot: {},
     },
     createdAt: '2026-04-25T00:00:00.000Z',
     updatedAt: '2026-04-25T00:00:00.000Z',

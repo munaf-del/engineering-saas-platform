@@ -211,7 +211,7 @@ function DraftingSourceRefProperties({
           variant="outline"
           onClick={() => onRefreshSource?.(object)}
         >
-          Refresh from source
+          {getRefreshButtonLabel(object, sourceRef.sourceType)}
         </Button>
         {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
           <Button
@@ -230,7 +230,7 @@ function DraftingSourceRefProperties({
             className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             href={sourceManageHref}
           >
-            Manage pile types
+            {sourceRef.sourceType === 'foundation_pile_type' ? 'Manage pile type' : 'Manage source'}
           </a>
         ) : null}
         <Button
@@ -290,22 +290,40 @@ function formatSourceKind(object: DraftingObject, sourceType: string | undefined
       return 'Pile type library';
     }
     if (sourceType === 'foundation_pile') {
-      return 'Existing placed pile';
+      return 'Existing placed pile/joint';
     }
     if (sourceType === 'manual') {
-      return 'Sketch pile';
+      return 'Sketch / unlinked';
     }
   }
 
   if (object.type === 'borehole' && sourceType !== 'manual') {
-    return 'Linked borehole from Spatial/Geotech';
+    return 'Linked borehole';
   }
 
   if (object.type === 'monitoring_point' && sourceType !== 'manual') {
-    return 'Linked monitoring point from Spatial/Omnidots';
+    return 'Linked monitoring point';
+  }
+
+  if (
+    (object.type === 'service_run' || object.type === 'service_crossing') &&
+    sourceType !== 'manual'
+  ) {
+    return 'Linked spatial/service feature';
+  }
+
+  if (sourceType === 'manual') {
+    return 'Sketch / unlinked';
   }
 
   return formatSourceValue(sourceType);
+}
+
+function getRefreshButtonLabel(object: DraftingObject, sourceType: string | undefined) {
+  if (object.type === 'pile' && sourceType !== 'manual') {
+    return 'Refresh engineering fields';
+  }
+  return 'Refresh from source';
 }
 
 function formatSourceCompleteness(object: DraftingObject) {

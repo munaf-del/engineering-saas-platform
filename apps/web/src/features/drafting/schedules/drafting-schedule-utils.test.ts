@@ -240,7 +240,7 @@ describe('drafting schedule utils', () => {
     );
 
     expect(group.rows[0]?.cells).toMatchObject({
-      sourceKind: 'existing placed pile',
+      sourceKind: 'existing placed pile/joint',
       sourceType: 'foundation_pile',
       sourceId: 'pile-db-1',
       sourceLabel: 'P1',

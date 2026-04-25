@@ -267,7 +267,7 @@ function formatPileSourceKind(object: Extract<DraftingObject, { type: 'pile' }>)
     return 'pile type library';
   }
   if (object.sourceRef?.sourceType === 'foundation_pile') {
-    return 'existing placed pile';
+    return 'existing placed pile/joint';
   }
   return 'manual sketch';
 }
