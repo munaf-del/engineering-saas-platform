@@ -21,6 +21,12 @@ describe('drafting defaults', () => {
     expect(parsed.drawingSetup?.north.projectNorthAngleDeg).toBe(0);
     expect(parsed.drawingSetup?.north.trueNorthAngleDeg).toBe(0);
     expect(parsed.drawingSetup?.graphics.lineWeightMode).toBe('screen_constant');
+    expect(parsed.drawingSetup?.activeStandardProfileId).toBe('as1100-general');
+    expect(parsed.drawingSetup?.disciplineProfileId).toBe('general');
+    expect(parsed.drawingSetup?.defaultSheetSize).toBe('A1');
+    expect(parsed.drawingSetup?.titleTextHeightMm).toBe(5);
+    expect(parsed.drawingSetup?.dimensionTextHeightMm).toBe(2.5);
+    expect(parsed.drawingSetup?.lineWeightTableId).toBe('as1100-style-lineweights-v1');
     expect(parsed.layers).toHaveLength(13);
     expect(parsed.objects).toHaveLength(0);
     expect(parsed.titleBlock).toEqual({});
@@ -45,6 +51,45 @@ describe('drafting defaults', () => {
     expect(hydrated.drawingSetup?.referencePoint.sitePoint).toBeUndefined();
     expect(hydrated.drawingSetup?.north.showProjectNorth).toBe(true);
     expect(hydrated.drawingSetup?.graphics.defaultLineWeightMm).toBe(0.25);
+    expect(hydrated.drawingSetup?.activeStandardProfileId).toBe('as1100-general');
+    expect(hydrated.drawingSetup?.coordinateSurveyProfileId).toBe('as1100-survey-control');
+  });
+
+  it('persists selected drafting standards profile settings without copied source text', () => {
+    const model = createEmptyDraftingModel('drawing-standards-profile');
+    const configured = {
+      ...model,
+      drawingSetup: ensureDraftingDrawingSetup({
+        ...model,
+        drawingSetup: {
+          ...model.drawingSetup!,
+          activeStandardProfileId: 'as1100-structural',
+          disciplineProfileId: 'structural',
+          profileVersion: '2026-04-as1100-style-v1',
+          defaultSheetSize: 'A3',
+          defaultTextHeightMm: 2.5,
+          dimensionTextHeightMm: 2.5,
+          titleTextHeightMm: 5,
+          noteTextHeightMm: 2.5,
+          arrowheadStyle: 'closed-filled',
+          northArrowStyle: 'as1100-plain',
+          scaleBarStyle: 'plain-metric',
+          lineWeightTableId: 'as1100-style-lineweights-v1',
+          lineStyleTableId: 'as1100-style-lines-v1',
+          outputLineWeightScale: 1.2,
+          coordinateSurveyProfileId: 'as1100-survey-control',
+        },
+      }),
+    };
+
+    const parsed = DraftingModelSchema.parse(configured);
+    const serialized = JSON.stringify(parsed);
+
+    expect(parsed.drawingSetup?.activeStandardProfileId).toBe('as1100-structural');
+    expect(parsed.drawingSetup?.disciplineProfileId).toBe('structural');
+    expect(parsed.drawingSetup?.outputLineWeightScale).toBe(1.2);
+    expect(serialized).not.toContain('TABLE 4.1');
+    expect(serialized).not.toContain('AS1100101-1992.pdf');
   });
 
   it('preserves site coordinate and north setup without changing object geometry', () => {

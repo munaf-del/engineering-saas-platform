@@ -1,10 +1,12 @@
 import * as React from 'react';
 import type { DraftingCalloutArrowStyle, DraftingPoint } from '@eng/shared';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingCalloutRendererProps } from './renderer-types';
 
 const BOX_WIDTH = 2200;
 
 export function CalloutRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
@@ -12,7 +14,7 @@ export function CalloutRenderer({
 }: DraftingCalloutRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#111827';
   const fill = object.style?.fill ?? '#ffffff';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const bodyLines = object.parameters.body.split('\n').filter(Boolean);
   const boxHeight = 760 + Math.max(bodyLines.length, 1) * 240;
@@ -41,7 +43,13 @@ export function CalloutRenderer({
         strokeWidth={lineWeight * 25}
         vectorEffect="non-scaling-stroke"
       />
-      {renderCalloutArrow(object.parameters.arrowStyle, leaderPoints[1] ?? connectionPoint, object.geometry.anchorPoint, stroke, lineWeight)}
+      {renderCalloutArrow(
+        object.parameters.arrowStyle,
+        leaderPoints[1] ?? connectionPoint,
+        object.geometry.anchorPoint,
+        stroke,
+        lineWeight,
+      )}
 
       <rect
         fill={fill}
@@ -78,7 +86,12 @@ export function CalloutRenderer({
           {line}
         </text>
       ))}
-      <text fill={stroke} fontSize={textSize * 0.85} x={boxX + BOX_WIDTH - 360} y={boxY + boxHeight - 120}>
+      <text
+        fill={stroke}
+        fontSize={textSize * 0.85}
+        x={boxX + BOX_WIDTH - 360}
+        y={boxY + boxHeight - 120}
+      >
         {object.parameters.calloutId}
       </text>
     </g>

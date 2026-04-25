@@ -91,10 +91,35 @@ const DraftingGraphicsSetupSchema = z.object({
   textScaleMode: z.enum(DRAFTING_TEXT_SCALE_MODES),
 });
 
+const DraftingStandardProfileIdSchema = z.enum([
+  'as1100-general',
+  'as1100-structural',
+  'as1100-survey',
+]);
+
+const DraftingDisciplineProfileIdSchema = z.enum(['general', 'structural', 'survey-control']);
+
+const DraftingSheetSizePresetSchema = z.enum(['A0', 'A1', 'A2', 'A3', 'A4']);
+
 const DraftingDrawingSetupSchema = z.object({
   modelUnits: z.enum(DRAFTING_MODEL_UNITS),
   displayUnits: z.enum(DRAFTING_DISPLAY_UNITS),
   coordinatePrecision: z.number().int().min(0).max(6),
+  activeStandardProfileId: DraftingStandardProfileIdSchema.default('as1100-general'),
+  disciplineProfileId: DraftingDisciplineProfileIdSchema.default('general'),
+  profileVersion: z.string().min(1).default('2026-04-as1100-style-v1'),
+  defaultSheetSize: DraftingSheetSizePresetSchema.default('A1'),
+  defaultTextHeightMm: z.number().positive().default(2.5),
+  dimensionTextHeightMm: z.number().positive().default(2.5),
+  titleTextHeightMm: z.number().positive().default(5),
+  noteTextHeightMm: z.number().positive().default(2.5),
+  arrowheadStyle: z.string().min(1).default('closed-filled'),
+  northArrowStyle: z.string().min(1).default('as1100-plain'),
+  scaleBarStyle: z.string().min(1).default('plain-metric'),
+  lineWeightTableId: z.string().min(1).default('as1100-style-lineweights-v1'),
+  lineStyleTableId: z.string().min(1).default('as1100-style-lines-v1'),
+  outputLineWeightScale: z.number().positive().default(1),
+  coordinateSurveyProfileId: z.string().min(1).default('as1100-survey-control'),
   referencePoint: DraftingReferencePointSchema,
   north: DraftingNorthSetupSchema,
   scale: DraftingScaleSetupSchema,

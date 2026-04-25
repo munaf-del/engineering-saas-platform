@@ -1,14 +1,16 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingExcavationLineRendererProps } from './renderer-types';
 
 export function ExcavationLineRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
 }: DraftingExcavationLineRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const dashArray = object.style?.lineStyle === 'dashed' ? '300 180' : undefined;
   const firstPoint = object.geometry.points[0];
 

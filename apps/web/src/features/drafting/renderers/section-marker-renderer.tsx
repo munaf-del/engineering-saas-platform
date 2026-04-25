@@ -1,8 +1,10 @@
 import * as React from 'react';
 import type { DraftingPoint } from '@eng/shared';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingSectionMarkerRendererProps } from './renderer-types';
 
 export function SectionMarkerRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
@@ -10,7 +12,7 @@ export function SectionMarkerRenderer({
 }: DraftingSectionMarkerRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#1e293b';
   const fill = object.style?.fill ?? '#ffffff';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const midpoint = {
     x: (object.geometry.startPoint.x + object.geometry.endPoint.x) / 2,
@@ -31,10 +33,20 @@ export function SectionMarkerRenderer({
       />
 
       {object.parameters.arrowDirection === 'left' || object.parameters.arrowDirection === 'both'
-        ? renderSectionArrow(object.geometry.endPoint, object.geometry.startPoint, stroke, lineWeight)
+        ? renderSectionArrow(
+            object.geometry.endPoint,
+            object.geometry.startPoint,
+            stroke,
+            lineWeight,
+          )
         : null}
       {object.parameters.arrowDirection === 'right' || object.parameters.arrowDirection === 'both'
-        ? renderSectionArrow(object.geometry.startPoint, object.geometry.endPoint, stroke, lineWeight)
+        ? renderSectionArrow(
+            object.geometry.startPoint,
+            object.geometry.endPoint,
+            stroke,
+            lineWeight,
+          )
         : null}
 
       {[object.geometry.startPoint, object.geometry.endPoint].map((point, index) => (
@@ -61,7 +73,13 @@ export function SectionMarkerRenderer({
         </g>
       ))}
 
-      <text fill={stroke} fontSize={textSize} textAnchor="middle" x={midpoint.x} y={midpoint.y - 260}>
+      <text
+        fill={stroke}
+        fontSize={textSize}
+        textAnchor="middle"
+        x={midpoint.x}
+        y={midpoint.y - 260}
+      >
         {object.parameters.sectionId}
       </text>
       {object.parameters.sheetReference ? (

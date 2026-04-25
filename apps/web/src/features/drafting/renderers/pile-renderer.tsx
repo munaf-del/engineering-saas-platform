@@ -1,10 +1,17 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingPileRendererProps } from './renderer-types';
 
-export function PileRenderer({ isSelected, layer, object, onPointerDown }: DraftingPileRendererProps) {
+export function PileRenderer({
+  drawingSetup,
+  isSelected,
+  layer,
+  object,
+  onPointerDown,
+}: DraftingPileRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
   const fill = object.style?.fill ?? 'transparent';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const radius = object.geometry.diameterMm / 2;
 
   return (

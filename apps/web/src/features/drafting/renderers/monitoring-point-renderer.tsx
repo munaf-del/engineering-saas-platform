@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingMonitoringPointRendererProps } from './renderer-types';
 
 export function MonitoringPointRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
@@ -9,7 +11,7 @@ export function MonitoringPointRenderer({
 }: DraftingMonitoringPointRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
   const fill = object.style?.fill ?? 'transparent';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const { x, y } = object.geometry.point;
 
   return (

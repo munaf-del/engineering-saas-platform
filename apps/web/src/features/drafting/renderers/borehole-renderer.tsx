@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingBoreholeRendererProps } from './renderer-types';
 
 export function BoreholeRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
@@ -9,7 +11,7 @@ export function BoreholeRenderer({
 }: DraftingBoreholeRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#0f766e';
   const fill = object.style?.fill ?? '#dcfce7';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const detailParts = [
     object.parameters.groundLevelRl !== undefined ? `GL ${object.parameters.groundLevelRl}` : null,

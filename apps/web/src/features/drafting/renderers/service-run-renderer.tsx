@@ -1,15 +1,17 @@
 import * as React from 'react';
 import { getServiceRunMidpoint } from '../semantic-object-utils';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingServiceRunRendererProps } from './renderer-types';
 
 export function ServiceRunRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
 }: DraftingServiceRunRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#475569';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const midpoint = getServiceRunMidpoint(object);
   const label = [

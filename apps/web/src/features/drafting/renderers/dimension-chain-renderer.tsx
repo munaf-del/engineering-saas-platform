@@ -5,16 +5,18 @@ import {
   calculateDimensionChainTotal,
   formatDimensionDistance,
 } from '../semantic-object-utils';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingDimensionChainRendererProps } from './renderer-types';
 
 export function DimensionChainRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
 }: DraftingDimensionChainRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const offsetPoints = buildDimensionChainOffsetPoints(object);
   const segments = calculateDimensionChainSegments(object.geometry.points);
@@ -105,7 +107,12 @@ export function DimensionChainRenderer({
         : null}
 
       {offsetPoints[0] ? (
-        <text fill={stroke} fontSize={textSize * 0.9} x={offsetPoints[0].x + 100} y={offsetPoints[0].y - 260}>
+        <text
+          fill={stroke}
+          fontSize={textSize * 0.9}
+          x={offsetPoints[0].x + 100}
+          y={offsetPoints[0].y - 260}
+        >
           {object.parameters.dimensionId}
         </text>
       ) : null}

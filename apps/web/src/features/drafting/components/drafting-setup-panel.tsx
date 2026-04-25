@@ -1,5 +1,12 @@
 import * as React from 'react';
-import type { DraftingDisplayUnits, DraftingDrawingSetup, DraftingModel } from '@eng/shared';
+import type {
+  DraftingDisciplineProfileId,
+  DraftingDisplayUnits,
+  DraftingDrawingSetup,
+  DraftingModel,
+  DraftingSheetSizePreset,
+  DraftingStandardProfileId,
+} from '@eng/shared';
 import { Crosshair, LocateFixed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +20,12 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { updateDraftingDrawingSetup } from '../model-utils';
+import {
+  DRAFTING_SCALE_PRESETS,
+  DRAFTING_SHEET_PRESETS,
+  DRAFTING_STANDARD_PROFILES,
+  getDraftingStandardProfile,
+} from '../standards/drafting-standard-profiles';
 
 export function DraftingSetupPanel({
   model,
@@ -27,6 +40,7 @@ export function DraftingSetupPanel({
 }) {
   const setup = model.drawingSetup!;
   const reference = setup.referencePoint;
+  const activeProfile = getDraftingStandardProfile(setup.activeStandardProfileId);
 
   function patchSetup(updater: (setup: DraftingDrawingSetup) => DraftingDrawingSetup) {
     onModelChange(updateDraftingDrawingSetup(model, updater));
@@ -54,6 +68,180 @@ export function DraftingSetupPanel({
 
   return (
     <div className="space-y-4">
+      <section className="space-y-3 rounded-md border p-3">
+        <div>
+          <div className="text-sm font-medium">Profile-driven drafting defaults</div>
+          <div className="text-xs text-muted-foreground">
+            Canvas zoom is separate from plotted sheet scale. Line weights are rendered from profile
+            roles.
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="drafting-standard-profile">Drafting standard profile</Label>
+            <Select
+              value={setup.activeStandardProfileId}
+              onValueChange={(value) => {
+                const profile = getDraftingStandardProfile(value);
+                patchSetup((current) => ({
+                  ...current,
+                  activeStandardProfileId: profile.id as DraftingStandardProfileId,
+                  disciplineProfileId: profile.disciplineProfileId,
+                  profileVersion: profile.version,
+                  lineWeightTableId: profile.lineWeightTableId,
+                  lineStyleTableId: profile.lineStyleTableId,
+                  scale: {
+                    ...current.scale,
+                    allowedScales: profile.scalePresets,
+                  },
+                }));
+              }}
+            >
+              <SelectTrigger id="drafting-standard-profile">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DRAFTING_STANDARD_PROFILES.map((profile) => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="drafting-discipline-profile">Discipline profile</Label>
+            <Select
+              value={setup.disciplineProfileId}
+              onValueChange={(value) =>
+                patchSetup((current) => ({
+                  ...current,
+                  disciplineProfileId: value as DraftingDisciplineProfileId,
+                }))
+              }
+            >
+              <SelectTrigger id="drafting-discipline-profile">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="structural">Structural</SelectItem>
+                <SelectItem value="survey-control">Survey / Control</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="drafting-default-sheet-size">Default sheet size</Label>
+            <Select
+              value={setup.defaultSheetSize}
+              onValueChange={(value) =>
+                patchSetup((current) => ({
+                  ...current,
+                  defaultSheetSize: value as DraftingSheetSizePreset,
+                }))
+              }
+            >
+              <SelectTrigger id="drafting-default-sheet-size">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DRAFTING_SHEET_PRESETS.map((sheet) => (
+                  <SelectItem key={sheet.id} value={sheet.id}>
+                    {sheet.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="drafting-profile-scale">Default plotted scale</Label>
+            <Select
+              value={setup.scale.defaultSheetScale}
+              onValueChange={(value) =>
+                patchSetup((current) => ({
+                  ...current,
+                  scale: { ...current.scale, defaultSheetScale: value },
+                }))
+              }
+            >
+              <SelectTrigger id="drafting-profile-scale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DRAFTING_SCALE_PRESETS.map((scale) => (
+                  <SelectItem key={scale} value={scale}>
+                    {scale}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <NumberInput
+            id="drafting-title-text-height"
+            label="Title text mm"
+            step="0.1"
+            value={setup.titleTextHeightMm}
+            onChange={(value) =>
+              patchSetup((current) => ({ ...current, titleTextHeightMm: value ?? 5 }))
+            }
+          />
+          <NumberInput
+            id="drafting-dimension-text-height"
+            label="Dimension text mm"
+            step="0.1"
+            value={setup.dimensionTextHeightMm}
+            onChange={(value) =>
+              patchSetup((current) => ({ ...current, dimensionTextHeightMm: value ?? 2.5 }))
+            }
+          />
+          <NumberInput
+            id="drafting-note-text-height"
+            label="Note text mm"
+            step="0.1"
+            value={setup.noteTextHeightMm}
+            onChange={(value) =>
+              patchSetup((current) => ({ ...current, noteTextHeightMm: value ?? 2.5 }))
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <NumberInput
+            id="drafting-output-line-weight-scale"
+            label="Line-weight scale"
+            step="0.05"
+            value={setup.outputLineWeightScale}
+            onChange={(value) =>
+              patchSetup((current) => ({
+                ...current,
+                outputLineWeightScale: Math.max(0.1, value ?? 1),
+              }))
+            }
+          />
+          <LabeledInput
+            id="drafting-north-arrow-style"
+            label="North-arrow style"
+            value={setup.northArrowStyle}
+            onChange={(value) =>
+              patchSetup((current) => ({ ...current, northArrowStyle: value || 'as1100-plain' }))
+            }
+          />
+        </div>
+
+        <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+          {activeProfile.sourceBasis.join(' + ')}. Exact AS defaults should be verified against the
+          licensed standard before project certification.
+        </div>
+      </section>
+
       <section className="space-y-3 rounded-md border p-3">
         <div>
           <div className="text-sm font-medium">Reference Point / Survey Mark</div>

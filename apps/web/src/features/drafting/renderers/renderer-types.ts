@@ -5,6 +5,7 @@ import type {
   DraftingCalloutObject,
   DraftingCappingBeamObject,
   DraftingDimensionChainObject,
+  DraftingDrawingSetup,
   DraftingExcavationLineObject,
   DraftingLayer,
   DraftingLeaderNoteObject,
@@ -20,6 +21,7 @@ import type {
 } from '@eng/shared';
 
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
+  drawingSetup?: DraftingDrawingSetup;
   isSelected: boolean;
   layer: DraftingLayer | null;
   object: T;
@@ -42,8 +44,7 @@ export type DraftingLeaderNoteRendererProps = DraftingRendererProps<DraftingLead
 export type DraftingDimensionChainRendererProps =
   DraftingRendererProps<DraftingDimensionChainObject>;
 export type DraftingCalloutRendererProps = DraftingRendererProps<DraftingCalloutObject>;
-export type DraftingSectionMarkerRendererProps =
-  DraftingRendererProps<DraftingSectionMarkerObject>;
+export type DraftingSectionMarkerRendererProps = DraftingRendererProps<DraftingSectionMarkerObject>;
 export type DraftingBoreholeRendererProps = DraftingRendererProps<DraftingBoreholeObject>;
 export type DraftingServiceRunRendererProps = DraftingRendererProps<DraftingServiceRunObject>;
 export type DraftingServiceCrossingRendererProps =

@@ -37,6 +37,7 @@ import { getDraftingModelBounds, getLayerById } from '../model-utils';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
+import { resolveDraftingLineStyle } from '../standards/drafting-style-resolver';
 import { DraftingPdfUnderlay } from './drafting-pdf-underlay';
 import { DraftingStatusBar } from './drafting-status-bar';
 
@@ -222,6 +223,7 @@ export function DraftingStage({
               {visibleObjects.map((object) => (
                 <React.Fragment key={object.id}>
                   {renderDraftingObject({
+                    drawingSetup: setup,
                     isSelected: object.id === selectedObjectId,
                     layer: getLayerById(model, object.layerId),
                     object,
@@ -234,6 +236,7 @@ export function DraftingStage({
                 label={setup.referencePoint.label}
                 point={referencePoint}
                 scale={view.scale}
+                setup={setup}
               />
 
               {pendingLinePoints.length > 0 ? (
@@ -413,12 +416,15 @@ function ReferencePointMarker({
   label,
   point,
   scale,
+  setup,
 }: {
   label: string;
   point: DraftingPoint & { z: number };
   scale: number;
+  setup: NonNullable<DraftingModel['drawingSetup']>;
 }) {
   const safeScale = Math.max(0.0001, scale);
+  const surveyStyle = resolveDraftingLineStyle({ role: 'surveyControl', setup });
 
   return (
     <g
@@ -426,10 +432,10 @@ function ReferencePointMarker({
       pointerEvents="none"
       transform={`translate(${point.x} ${point.y}) scale(${1 / safeScale})`}
     >
-      <circle fill="#ffffff" r={9} stroke="#0f766e" strokeWidth={2} />
-      <line stroke="#0f766e" strokeWidth={2} x1={-16} x2={16} y1={0} y2={0} />
-      <line stroke="#0f766e" strokeWidth={2} x1={0} x2={0} y1={-16} y2={16} />
-      <text fill="#0f766e" fontSize={12} fontWeight={700} x={20} y={-12}>
+      <circle fill="#ffffff" r={9} stroke={surveyStyle.color} strokeWidth={2} />
+      <line stroke={surveyStyle.color} strokeWidth={2} x1={-16} x2={16} y1={0} y2={0} />
+      <line stroke={surveyStyle.color} strokeWidth={2} x1={0} x2={0} y1={-16} y2={16} />
+      <text fill={surveyStyle.color} fontSize={12} fontWeight={700} x={20} y={-12}>
         {label}
       </text>
       <text fill="#475569" fontSize={10} x={20} y={2}>
@@ -447,13 +453,9 @@ function CanvasNorthOverlay({
   width: number;
 }) {
   const arrows = [
-    setup.north.showProjectNorth
-      ? { angle: setup.north.projectNorthAngleDeg, color: '#1e293b', label: 'PN' }
-      : null,
-    setup.north.showTrueNorth
-      ? { angle: setup.north.trueNorthAngleDeg, color: '#b91c1c', label: 'TN' }
-      : null,
-  ].filter((arrow): arrow is { angle: number; color: string; label: string } => arrow !== null);
+    setup.north.showProjectNorth ? { angle: setup.north.projectNorthAngleDeg, label: 'PN' } : null,
+    setup.north.showTrueNorth ? { angle: setup.north.trueNorthAngleDeg, label: 'TN' } : null,
+  ].filter((arrow): arrow is { angle: number; label: string } => arrow !== null);
 
   if (arrows.length === 0) {
     return null;
@@ -463,25 +465,29 @@ function CanvasNorthOverlay({
 
   return (
     <g data-testid="drafting-north-overlay" pointerEvents="none">
-      {arrows.map((arrow, index) => (
-        <g
-          key={arrow.label}
-          transform={`translate(${originX - index * 46} 76) rotate(${arrow.angle})`}
-        >
-          <line stroke={arrow.color} strokeWidth={2.5} x1={0} x2={0} y1={28} y2={-28} />
-          <polygon fill={arrow.color} points="0,-38 -8,-22 8,-22" />
-          <text
-            fill={arrow.color}
-            fontSize={12}
-            fontWeight={700}
-            textAnchor="middle"
-            transform={`rotate(${-arrow.angle})`}
-            y={48}
+      {arrows.map((arrow, index) => {
+        const arrowStyle = resolveDraftingLineStyle({ role: 'surveyControl', setup });
+
+        return (
+          <g
+            key={arrow.label}
+            transform={`translate(${originX - index * 46} 76) rotate(${arrow.angle})`}
           >
-            {arrow.label}
-          </text>
-        </g>
-      ))}
+            <line stroke={arrowStyle.color} strokeWidth={2.5} x1={0} x2={0} y1={28} y2={-28} />
+            <polygon fill={arrowStyle.color} points="0,-38 -8,-22 8,-22" />
+            <text
+              fill={arrowStyle.color}
+              fontSize={12}
+              fontWeight={700}
+              textAnchor="middle"
+              transform={`rotate(${-arrow.angle})`}
+              y={48}
+            >
+              {arrow.label}
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }

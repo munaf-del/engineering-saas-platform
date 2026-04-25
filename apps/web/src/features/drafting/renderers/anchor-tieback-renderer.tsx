@@ -1,14 +1,16 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingAnchorTiebackRendererProps } from './renderer-types';
 
 export function AnchorTiebackRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
 }: DraftingAnchorTiebackRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#0f766e';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const { headPoint, tailPoint } = object.geometry;
   const arrow = buildArrowPolygon(headPoint, tailPoint, 260);
   const labelX = (headPoint.x + tailPoint.x) / 2 + 120;

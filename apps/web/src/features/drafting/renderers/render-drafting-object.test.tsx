@@ -50,6 +50,7 @@ describe('renderDraftingObject', () => {
         ].map((object) => (
           <React.Fragment key={object.id}>
             {renderDraftingObject({
+              drawingSetup: model.drawingSetup,
               isSelected: false,
               layer: layerById.get(object.layerId) ?? null,
               object,
@@ -76,6 +77,34 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('SR1');
     expect(markup).toContain('SC1');
     expect(markup).toContain('EX1');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('uses profile-resolved line weights without removing non-scaling strokes', () => {
+    const model = {
+      ...createEmptyDraftingModel('drawing-profile-render'),
+      drawingSetup: {
+        ...createEmptyDraftingModel('drawing-profile-render').drawingSetup!,
+        outputLineWeightScale: 2,
+      },
+    };
+    const pile = {
+      ...createDraftingObject('pile', { x: 1000, y: 2000 }, model),
+      style: { stroke: '#111827' },
+    };
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === pile.layerId) ?? null,
+          object: pile,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('stroke-width="116');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
 });

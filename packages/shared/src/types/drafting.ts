@@ -216,10 +216,31 @@ export type DraftingGraphicsSetup = {
   textScaleMode: DraftingTextScaleMode;
 };
 
+export type DraftingStandardProfileId = 'as1100-general' | 'as1100-structural' | 'as1100-survey';
+
+export type DraftingDisciplineProfileId = 'general' | 'structural' | 'survey-control';
+
+export type DraftingSheetSizePreset = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+
 export type DraftingDrawingSetup = {
   modelUnits: DraftingModelUnits;
   displayUnits: DraftingDisplayUnits;
   coordinatePrecision: number;
+  activeStandardProfileId: DraftingStandardProfileId;
+  disciplineProfileId: DraftingDisciplineProfileId;
+  profileVersion: string;
+  defaultSheetSize: DraftingSheetSizePreset;
+  defaultTextHeightMm: number;
+  dimensionTextHeightMm: number;
+  titleTextHeightMm: number;
+  noteTextHeightMm: number;
+  arrowheadStyle: string;
+  northArrowStyle: string;
+  scaleBarStyle: string;
+  lineWeightTableId: string;
+  lineStyleTableId: string;
+  outputLineWeightScale: number;
+  coordinateSurveyProfileId: string;
   referencePoint: DraftingReferencePoint;
   north: DraftingNorthSetup;
   scale: DraftingScaleSetup;
@@ -1225,6 +1246,21 @@ export function createDefaultDraftingDrawingSetup(
     modelUnits: patch.modelUnits ?? 'mm',
     displayUnits: patch.displayUnits ?? 'm',
     coordinatePrecision: patch.coordinatePrecision ?? 3,
+    activeStandardProfileId: patch.activeStandardProfileId ?? 'as1100-general',
+    disciplineProfileId: patch.disciplineProfileId ?? 'general',
+    profileVersion: patch.profileVersion ?? '2026-04-as1100-style-v1',
+    defaultSheetSize: patch.defaultSheetSize ?? 'A1',
+    defaultTextHeightMm: patch.defaultTextHeightMm ?? 2.5,
+    dimensionTextHeightMm: patch.dimensionTextHeightMm ?? 2.5,
+    titleTextHeightMm: patch.titleTextHeightMm ?? 5,
+    noteTextHeightMm: patch.noteTextHeightMm ?? 2.5,
+    arrowheadStyle: patch.arrowheadStyle ?? 'closed-filled',
+    northArrowStyle: patch.northArrowStyle ?? 'as1100-plain',
+    scaleBarStyle: patch.scaleBarStyle ?? 'plain-metric',
+    lineWeightTableId: patch.lineWeightTableId ?? 'as1100-style-lineweights-v1',
+    lineStyleTableId: patch.lineStyleTableId ?? 'as1100-style-lines-v1',
+    outputLineWeightScale: patch.outputLineWeightScale ?? 1,
+    coordinateSurveyProfileId: patch.coordinateSurveyProfileId ?? 'as1100-survey-control',
     referencePoint: {
       id: referencePatch.id ?? 'model-origin',
       label: referencePatch.label ?? 'Model origin / survey mark',
@@ -1260,7 +1296,7 @@ export function createDefaultDraftingDrawingSetup(
     },
     standardsNote:
       patch.standardsNote ??
-      'Configurable engineering drawing defaults. Exact AS 1100.101 coordinate, north, and line-weight defaults can be wired when the licensed reference is available.',
+      'AS 1100-style drafting defaults. Exact AS defaults should be verified against the licensed standard before project certification.',
   };
 }
 

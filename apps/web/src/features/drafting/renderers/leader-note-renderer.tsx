@@ -1,14 +1,16 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingLeaderNoteRendererProps } from './renderer-types';
 
 export function LeaderNoteRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
 }: DraftingLeaderNoteRendererProps) {
   const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const { anchor, textPoint } = object.geometry;
 
   return (

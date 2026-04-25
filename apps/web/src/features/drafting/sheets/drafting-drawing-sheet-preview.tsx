@@ -38,6 +38,7 @@ import {
 } from '../model-utils';
 import { DraftingPdfUnderlay } from '../components/drafting-pdf-underlay';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
+import { resolveDraftingPaperLineStyle } from '../standards/drafting-style-resolver';
 import {
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
@@ -468,6 +469,7 @@ export function DraftingDrawingSheetPage({
               {visibleObjects.map((object) => (
                 <React.Fragment key={object.id}>
                   {renderDraftingObject({
+                    drawingSetup: drawing.model.drawingSetup,
                     isSelected: false,
                     layer: getLayerById(drawing.model, object.layerId),
                     object,
@@ -509,6 +511,7 @@ function DrawingSheetNorthOverlay({
   if (!setup) {
     return null;
   }
+  const surveyStyle = resolveDraftingPaperLineStyle({ role: 'surveyControl', setup });
 
   const arrows = [
     setup.north.showProjectNorth
@@ -532,7 +535,14 @@ function DrawingSheetNorthOverlay({
           key={arrow.label}
           transform={`translate(${frameWidthMm - 14 + arrow.x} 18) rotate(${arrow.angle})`}
         >
-          <line stroke={arrow.color} strokeWidth={0.35} x1={0} x2={0} y1={8} y2={-8} />
+          <line
+            stroke={arrow.color}
+            strokeWidth={surveyStyle.lineWeightMm}
+            x1={0}
+            x2={0}
+            y1={8}
+            y2={-8}
+          />
           <polygon fill={arrow.color} points="0,-11 -2.2,-6 2.2,-6" />
           <text
             fill={arrow.color}

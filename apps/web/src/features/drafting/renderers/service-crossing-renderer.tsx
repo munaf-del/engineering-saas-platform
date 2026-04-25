@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
 import { type DraftingServiceCrossingRendererProps } from './renderer-types';
 
 export function ServiceCrossingRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
@@ -13,9 +15,9 @@ export function ServiceCrossingRenderer({
       ? '#15803d'
       : object.parameters.riskStatus === 'reviewed'
         ? '#c2410c'
-        : layer?.color ?? '#b91c1c');
+        : (layer?.color ?? '#b91c1c'));
   const fill = object.style?.fill ?? '#fee2e2';
-  const lineWeight = object.style?.lineWeight ?? layer?.lineWeight ?? 1;
+  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
   const textSize = object.style?.textSize ?? 220;
   const { crossingPoint } = object.geometry;
 
@@ -71,7 +73,11 @@ export function ServiceCrossingRenderer({
         x={crossingPoint.x + 280}
         y={crossingPoint.y + 180}
       >
-        {[object.parameters.serviceType, object.parameters.conflictType, object.parameters.riskStatus]
+        {[
+          object.parameters.serviceType,
+          object.parameters.conflictType,
+          object.parameters.riskStatus,
+        ]
           .filter(Boolean)
           .join(' · ')}
       </text>
