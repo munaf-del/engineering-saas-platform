@@ -26,6 +26,11 @@ import type {
   DraftingPileTypeSourceRecord,
   DraftingSpatialSourceRecord,
 } from '../source-binding-utils';
+import {
+  formatPileInstanceSourceSummary,
+  formatPileTypeSourceSummary,
+  getPileTypeCompleteness,
+} from '../source-binding-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
 export type DraftingPileSourceMode = 'linked_pile' | 'pile_type' | 'manual_sketch';
@@ -111,6 +116,7 @@ export function DraftingToolPalette({
   onToolChange,
   pendingLinePointsCount,
   placedSourceIds = [],
+  pileSourceManageHref,
   pileSourceMode = 'manual_sketch',
   pileSources = [],
   pileTypeSources = [],
@@ -130,6 +136,7 @@ export function DraftingToolPalette({
   onToolChange: (tool: DraftingTool) => void;
   pendingLinePointsCount: number;
   placedSourceIds?: string[];
+  pileSourceManageHref?: string;
   pileSourceMode?: DraftingPileSourceMode;
   pileSources?: DraftingPileSourceRecord[];
   pileTypeSources?: DraftingPileTypeSourceRecord[];
@@ -217,6 +224,7 @@ export function DraftingToolPalette({
           onSelectPileTypeSource={onSelectPileTypeSource}
           onToolChange={onToolChange}
           placedSourceIds={placedSourceIds}
+          pileSourceManageHref={pileSourceManageHref}
           pileSourceMode={pileSourceMode}
           pileSources={sourcePanel.pileSources}
           pileTypeSources={pileTypeSources}
@@ -267,6 +275,7 @@ function SourceChoicePanel({
   onSelectPileTypeSource,
   onToolChange,
   placedSourceIds,
+  pileSourceManageHref,
   pileSourceMode,
   pileSources,
   pileTypeSources,
@@ -282,6 +291,7 @@ function SourceChoicePanel({
   onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
   onToolChange: (tool: DraftingTool) => void;
   placedSourceIds: string[];
+  pileSourceManageHref?: string;
   pileSourceMode: DraftingPileSourceMode;
   pileSources: DraftingPileSourceRecord[];
   pileTypeSources: DraftingPileTypeSourceRecord[];
@@ -311,13 +321,13 @@ function SourceChoicePanel({
                 active={pileSourceMode === 'linked_pile'}
                 onClick={() => onPileSourceModeChange?.('linked_pile')}
               >
-                Linked pile
+                Place existing pile
               </SourceModeButton>
               <SourceModeButton
                 active={pileSourceMode === 'pile_type'}
                 onClick={() => onPileSourceModeChange?.('pile_type')}
               >
-                From pile type
+                Place from pile type
               </SourceModeButton>
               <SourceModeButton
                 active={pileSourceMode === 'manual_sketch'}
@@ -354,6 +364,7 @@ function SourceChoicePanel({
             onSelectPileTypeSource={onSelectPileTypeSource}
             pileSourceMode={pileSourceMode}
             pileSources={pileSources}
+            pileSourceManageHref={pileSourceManageHref}
             pileTypeSources={pileTypeSources}
             placedSourceIds={placedSourceIds}
             selectedPileTypeSourceId={selectedPileTypeSourceId}
@@ -420,6 +431,7 @@ function PileSourceChoices({
   onSelectPileTypeSource,
   pileSourceMode,
   pileSources,
+  pileSourceManageHref,
   pileTypeSources,
   placedSourceIds,
   selectedPileTypeSourceId,
@@ -430,6 +442,7 @@ function PileSourceChoices({
   onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
   pileSourceMode: DraftingPileSourceMode;
   pileSources: DraftingPileSourceRecord[];
+  pileSourceManageHref?: string;
   pileTypeSources: DraftingPileTypeSourceRecord[];
   placedSourceIds: string[];
   selectedPileTypeSourceId: string | null;
@@ -444,6 +457,7 @@ function PileSourceChoices({
         {pileSourceMode === 'pile_type' ? (
           <PileTypeSourceList
             onSelectPileTypeSource={onSelectPileTypeSource}
+            pileSourceManageHref={pileSourceManageHref}
             pileTypeSources={pileTypeSources}
             selectedPileTypeSourceId={selectedPileTypeSourceId}
           />
@@ -468,18 +482,23 @@ function PileSourceChoices({
           const alreadyPlaced = placedSourceIds.includes(source.sourceId);
           return (
             <Button
-              aria-label={`Place linked pile ${source.sourceLabel}`}
+              aria-label={
+                alreadyPlaced
+                  ? `Select placed object ${source.sourceLabel}`
+                  : `Place existing pile ${source.sourceLabel}`
+              }
               className="h-7 max-w-56 truncate px-2 text-[11px]"
               data-testid="drafting-source-pile-option"
               disabled={!onPlacePileSource}
               key={source.sourceId}
               onClick={() => onPlacePileSource?.(source)}
-              title={`${source.sourceLabel} · ${source.groupName}${alreadyPlaced ? ' · already in model' : ''}`}
+              title={`${formatPileInstanceSourceSummary(source)}${alreadyPlaced ? ' · already in model' : ''}`}
               type="button"
               variant={alreadyPlaced ? 'secondary' : 'outline'}
             >
-              {source.sourceLabel}
-              {alreadyPlaced ? ' · placed' : ''}
+              {alreadyPlaced
+                ? `Select placed object · ${source.sourceLabel}`
+                : formatPileInstanceSourceSummary(source)}
             </Button>
           );
         })}
@@ -491,6 +510,7 @@ function PileSourceChoices({
     return (
       <PileTypeSourceList
         onSelectPileTypeSource={onSelectPileTypeSource}
+        pileSourceManageHref={pileSourceManageHref}
         pileTypeSources={pileTypeSources}
         selectedPileTypeSourceId={selectedPileTypeSourceId}
       />
@@ -502,36 +522,56 @@ function PileSourceChoices({
 
 function PileTypeSourceList({
   onSelectPileTypeSource,
+  pileSourceManageHref,
   pileTypeSources,
   selectedPileTypeSourceId,
 }: {
   onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
+  pileSourceManageHref?: string;
   pileTypeSources: DraftingPileTypeSourceRecord[];
   selectedPileTypeSourceId: string | null;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {pileTypeSources.map((source) => {
-        const diameter = source.pileType.nominalDiameterMm || source.pileType.Dmm;
         const selected = selectedPileTypeSourceId === source.sourceId;
+        const completeness = getPileTypeCompleteness(source.pileType);
         return (
-          <Button
-            aria-label={`Use pile type ${source.sourceLabel}`}
-            aria-pressed={selected}
-            className="h-7 max-w-64 truncate px-2 text-[11px]"
-            data-testid="drafting-source-pile-type-option"
-            disabled={!onSelectPileTypeSource}
-            key={source.sourceId}
-            onClick={() => onSelectPileTypeSource?.(source)}
-            title={`${source.sourceLabel} · ${source.groupName}${diameter ? ` · ${diameter} mm` : ''}`}
-            type="button"
-            variant={selected ? 'secondary' : 'outline'}
-          >
-            {source.sourceLabel}
-            {diameter ? ` · ${diameter} mm` : ''}
-          </Button>
+          <div className="flex items-center gap-1" key={source.sourceId}>
+            <Button
+              aria-label={`Use pile type ${source.sourceLabel}`}
+              aria-pressed={selected}
+              className="h-7 max-w-80 truncate px-2 text-[11px]"
+              data-testid="drafting-source-pile-type-option"
+              disabled={!onSelectPileTypeSource}
+              onClick={() => onSelectPileTypeSource?.(source)}
+              title={formatPileTypeSourceSummary(source)}
+              type="button"
+              variant={selected ? 'secondary' : 'outline'}
+            >
+              {formatPileTypeSourceSummary(source)}
+            </Button>
+            <span
+              className={cn(
+                'rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+                completeness.status === 'complete'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-amber-300 bg-amber-50 text-amber-700',
+              )}
+            >
+              {completeness.status === 'complete' ? 'Complete' : 'Incomplete'}
+            </span>
+          </div>
         );
       })}
+      {pileSourceManageHref ? (
+        <a
+          className="h-7 rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-accent"
+          href={pileSourceManageHref}
+        >
+          Manage project pile types
+        </a>
+      ) : null}
       {selectedPileTypeSourceId ? (
         <span className="self-center text-[11px] text-muted-foreground">
           Click canvas to place selected pile type.

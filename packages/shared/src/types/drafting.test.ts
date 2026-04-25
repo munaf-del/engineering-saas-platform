@@ -89,7 +89,7 @@ describe('drafting defaults', () => {
         sourceId: 'group-1:type:BP1',
         sourceLabel: 'BP1',
         linkedAt: now,
-        status: 'linked',
+        status: 'current',
         snapshot: {
           pileTypeCode: 'BP1',
           diameterMm: 600,
@@ -104,7 +104,7 @@ describe('drafting defaults', () => {
     expect(parsed.objects[0]?.sourceRef).toMatchObject({
       sourceType: 'foundation_pile_type',
       sourceId: 'group-1:type:BP1',
-      status: 'linked',
+      status: 'current',
       snapshot: {
         diameterMm: 600,
       },

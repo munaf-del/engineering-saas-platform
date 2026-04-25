@@ -157,10 +157,11 @@ function DraftingSourceRefProperties({
 
   return (
     <PropertySection title="Source / Provenance">
-      <div className="grid gap-2 text-xs sm:grid-cols-4">
+      <div className="grid gap-2 text-xs sm:grid-cols-5">
         <SourceField label="Status" value={formatSourceValue(status)} />
         <SourceField label="Source kind" value={formatSourceKind(object, sourceRef.sourceType)} />
         <SourceField label="Source label" value={sourceRef.sourceLabel ?? 'Manual object'} />
+        <SourceField label="Completeness" value={formatSourceCompleteness(object)} />
         <SourceField
           label="Snapshot date"
           value={sourceRef.linkedAt ? formatDraftingTimestamp(sourceRef.linkedAt) : 'Not recorded'}
@@ -255,7 +256,7 @@ function formatSourceKind(object: DraftingObject, sourceType: string | undefined
       return 'Pile type';
     }
     if (sourceType === 'foundation_pile') {
-      return 'Pile instance';
+      return 'Placed pile';
     }
     if (sourceType === 'manual') {
       return 'Manual sketch';
@@ -271,6 +272,13 @@ function formatSourceKind(object: DraftingObject, sourceType: string | undefined
   }
 
   return formatSourceValue(sourceType);
+}
+
+function formatSourceCompleteness(object: DraftingObject) {
+  if (object.type === 'pile') {
+    return object.metadata.sourceCompleteness ?? 'Not recorded';
+  }
+  return 'Not recorded';
 }
 
 function propertySectionTitle(object: DraftingObject) {

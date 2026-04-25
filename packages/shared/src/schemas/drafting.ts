@@ -292,7 +292,7 @@ export const DraftingObjectSourceRefSchema = z.object({
   sourceVersion: z.string().optional(),
   linkedAt: z.string().datetime().optional(),
   linkedBy: z.string().optional(),
-  status: z.enum(['linked', 'snapshot', 'missing_source', 'manual']).optional(),
+  status: z.enum(['current', 'linked', 'snapshot', 'missing_source', 'manual']).optional(),
   snapshot: z.record(z.unknown()).optional(),
 });
 
@@ -435,6 +435,10 @@ export const DraftingPileObjectSchema = DraftingObjectBaseSchema.extend({
     designCompressionKn: z.number().finite().optional(),
     designTensionKn: z.number().finite().optional(),
     designLateralKn: z.number().finite().optional(),
+    sourceCompleteness: z.enum(['complete', 'incomplete']).optional(),
+    durabilityExposureNote: z.string().optional(),
+    constructionNote: z.string().optional(),
+    sourceStatus: z.string().optional(),
     cutOffLevel: z.number().finite().optional(),
     toeLevel: z.number().finite().optional(),
     notes: z.string().optional(),

@@ -74,11 +74,11 @@ describe('DraftingToolPalette', () => {
 
     expect(markup).toContain('data-testid="drafting-source-choice-panel"');
     expect(markup).toContain('Pile source');
-    expect(markup).toContain('Linked pile');
-    expect(markup).toContain('From pile type');
+    expect(markup).toContain('Place existing pile');
+    expect(markup).toContain('Place from pile type');
     expect(markup).toContain('Manual sketch pile');
     expect(markup).toContain('data-testid="drafting-source-pile-option"');
-    expect(markup).toContain('P1 · placed');
+    expect(markup).toContain('Select placed object · P1');
     expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
   });
 
@@ -116,6 +116,8 @@ describe('DraftingToolPalette', () => {
               compressionUltimateMax: null,
               tensionUltimateMin: null,
               tensionUltimateMax: null,
+              concreteGrade: 'C40',
+              socketLengthM: 3,
               active: true,
               order: 0,
             },
@@ -128,6 +130,8 @@ describe('DraftingToolPalette', () => {
       'Pile types found, but no placed pile instances yet. Select a pile type and place it on the model, or create pile instances in Foundations.',
     );
     expect(markup).toContain('data-testid="drafting-source-pile-type-option"');
+    expect(markup).toContain('Complete');
+    expect(markup).toContain('BP1 · 600 mm · C40 · socket 3 m');
     expect(markup).not.toContain('No project pile design records found');
   });
 });

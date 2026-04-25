@@ -106,6 +106,12 @@ describe('drafting source binding utils', () => {
                 compressionUltimateMax: 3200,
                 tensionUltimateMin: null,
                 tensionUltimateMax: 900,
+                pileSystem: 'bored pile',
+                concreteGrade: 'C40',
+                socketLengthM: 3,
+                foundingStratum: 'weathered shale',
+                designLateralKn: 120,
+                status: 'active',
                 active: true,
                 order: 0,
               },
@@ -136,16 +142,25 @@ describe('drafting source binding utils', () => {
       metadata: {
         pileId: 'P-NEW-001',
         pileTypeCode: 'BP1',
-        pileSystem: 'pile type library',
+        pileSystem: 'bored pile',
+        concreteGrade: 'C40',
+        socketLengthM: 3,
+        foundingStratum: 'weathered shale',
         designCompressionKn: 3200,
         designTensionKn: 900,
+        designLateralKn: 120,
+        sourceCompleteness: 'complete',
+        sourceStatus: 'active',
       },
       sourceRef: {
         sourceType: 'foundation_pile_type',
         sourceId: 'group-1:type:BP1',
         sourceLabel: 'BP1',
-        status: 'linked',
+        status: 'current',
       },
+    });
+    expect(object.sourceRef?.snapshot).toMatchObject({
+      completeness: { status: 'complete', missing: [] },
     });
   });
 
@@ -250,7 +265,7 @@ describe('drafting source binding utils', () => {
     });
     expect(refreshed.geometry.centre).toEqual({ x: 10, y: 20 });
     expect(refreshed.geometry.diameterMm).toBe(750);
-    expect(refreshed.sourceRef?.status).toBe('linked');
+    expect(refreshed.sourceRef?.status).toBe('current');
 
     const missing = refreshPileObjectFromSource({
       object,

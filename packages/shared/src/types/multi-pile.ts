@@ -445,11 +445,25 @@ export interface MultiPileGeoResultRow {
 export interface MultiPilePileTypeDefinition {
   id: string;
   displayName: string;
+  description?: string;
   sizePreset: string;
   useCustom: boolean;
   customMm: number;
   Dmm: number;
   nominalDiameterMm: number;
+  pileSystem?: string;
+  concreteGrade?: string;
+  socketLengthM?: number | null;
+  socketLengthMm?: number | null;
+  foundingStratum?: string;
+  foundingNote?: string;
+  designCompressionKn?: number | null;
+  designTensionKn?: number | null;
+  designLateralKn?: number | null;
+  durabilityExposureNote?: string;
+  constructionNote?: string;
+  status?: 'draft' | 'active' | 'superseded';
+  notes?: string;
   eoop: number;
   eoopM: number;
   compressionUltimateMin: number | null;

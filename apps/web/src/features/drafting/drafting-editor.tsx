@@ -133,6 +133,7 @@ export function DraftingEditor({
       ),
     [history.model?.objects],
   );
+  const sourcePileGroupId = pileSourceRecords[0]?.groupId ?? pileTypeSourceRecords[0]?.groupId;
 
   React.useEffect(() => {
     function isTextEntryTarget(target: EventTarget | null) {
@@ -573,6 +574,11 @@ export function DraftingEditor({
           onSelectPileTypeSource={handleSelectPileTypeSource}
           onToolChange={drafting.setActiveTool}
           pendingLinePointsCount={drafting.pendingLinePoints.length}
+          pileSourceManageHref={
+            sourcePileGroupId
+              ? `/projects/${projectId}/pile-groups/${sourcePileGroupId}/multi-pile`
+              : undefined
+          }
           pileSourceMode={pileSourceMode}
           pileSources={pileSourceRecords}
           pileTypeSources={pileTypeSourceRecords}

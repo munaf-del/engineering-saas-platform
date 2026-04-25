@@ -12,10 +12,11 @@ export function PileProperties({
   onUpdate: (nextObject: DraftingPileObject) => void;
 }) {
   const now = new Date().toISOString();
+  const centre = object.geometry.centre as typeof object.geometry.centre & { z?: number };
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <NumberField
           label="Centre X (mm)"
           value={object.geometry.centre.x}
@@ -39,6 +40,20 @@ export function PileProperties({
               geometry: {
                 ...object.geometry,
                 centre: { ...object.geometry.centre, y: value },
+              },
+              updatedAt: now,
+            })
+          }
+        />
+        <NumberField
+          label="Centre Z / RL"
+          value={centre.z ?? ''}
+          onChange={(value) =>
+            onUpdate({
+              ...object,
+              geometry: {
+                ...object.geometry,
+                centre: { ...object.geometry.centre, z: value } as typeof object.geometry.centre,
               },
               updatedAt: now,
             })
@@ -110,6 +125,22 @@ export function PileProperties({
           />
         </Field>
       </div>
+
+      <Field label="Pile system / type">
+        <Input
+          value={object.metadata.pileSystem ?? ''}
+          onChange={(event) =>
+            onUpdate({
+              ...object,
+              metadata: {
+                ...object.metadata,
+                pileSystem: event.target.value,
+              },
+              updatedAt: now,
+            })
+          }
+        />
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
@@ -216,6 +247,39 @@ export function PileProperties({
           }
         />
       </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Durability / exposure note">
+          <Input
+            value={object.metadata.durabilityExposureNote ?? ''}
+            onChange={(event) =>
+              onUpdate({
+                ...object,
+                metadata: {
+                  ...object.metadata,
+                  durabilityExposureNote: event.target.value,
+                },
+                updatedAt: now,
+              })
+            }
+          />
+        </Field>
+        <Field label="Construction / installation note">
+          <Input
+            value={object.metadata.constructionNote ?? ''}
+            onChange={(event) =>
+              onUpdate({
+                ...object,
+                metadata: {
+                  ...object.metadata,
+                  constructionNote: event.target.value,
+                },
+                updatedAt: now,
+              })
+            }
+          />
+        </Field>
+      </div>
 
       <Field label="Notes">
         <Textarea

@@ -228,6 +228,11 @@ describe('drafting schedule utils', () => {
       sourceLabel: 'P1',
       status: 'linked',
     };
+    if (pile.type === 'pile') {
+      pile.metadata.sourceCompleteness = 'complete';
+      pile.metadata.concreteGrade = 'C40';
+      pile.metadata.designCompressionKn = 0;
+    }
 
     const group = getDraftingScheduleGroup(
       buildDraftingScheduleSummary(modelWith([pile])),
@@ -239,6 +244,9 @@ describe('drafting schedule utils', () => {
       sourceType: 'foundation_pile',
       sourceId: 'pile-db-1',
       sourceStatus: 'linked',
+      sourceCompleteness: 'complete',
+      concreteGrade: 'C40',
+      designCompressionKn: '0',
     });
   });
 

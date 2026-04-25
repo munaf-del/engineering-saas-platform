@@ -46,11 +46,25 @@ const MULTI_PILE_STRUCT_DESIGNER_UI_STATE_KEY = 'multiPileStructDesigner';
 const DEFAULT_PILE_TYPE: MultiPilePileTypeDefinition = {
   id: 'BP1',
   displayName: 'BP1',
+  description: '',
   sizePreset: DEFAULT_PILE_SIZE_PRESET,
   useCustom: false,
   customMm: 600,
   Dmm: 600,
   nominalDiameterMm: 600,
+  pileSystem: '',
+  concreteGrade: '',
+  socketLengthM: null,
+  socketLengthMm: null,
+  foundingStratum: '',
+  foundingNote: '',
+  designCompressionKn: null,
+  designTensionKn: null,
+  designLateralKn: null,
+  durabilityExposureNote: '',
+  constructionNote: '',
+  status: 'draft',
+  notes: '',
   eoop: 0.075,
   eoopM: 0.075,
   compressionUltimateMin: null,
@@ -508,11 +522,25 @@ export class MultiPileService {
       return {
         id,
         displayName: this.stringValue(row.displayName ?? row.name ?? row.label, id),
+        description: this.stringValue(row.description, ''),
         sizePreset,
         useCustom,
         customMm,
         Dmm,
         nominalDiameterMm: Dmm,
+        pileSystem: this.stringValue(row.pileSystem ?? row.system ?? row.constructionMethod, ''),
+        concreteGrade: this.stringValue(row.concreteGrade, ''),
+        socketLengthM: this.nullableNumberValue(row.socketLengthM, { min: 0 }),
+        socketLengthMm: this.nullableNumberValue(row.socketLengthMm, { min: 0 }),
+        foundingStratum: this.stringValue(row.foundingStratum, ''),
+        foundingNote: this.stringValue(row.foundingNote, ''),
+        designCompressionKn: this.nullableNumberValue(row.designCompressionKn, { min: 0 }),
+        designTensionKn: this.nullableNumberValue(row.designTensionKn, { min: 0 }),
+        designLateralKn: this.nullableNumberValue(row.designLateralKn, { min: 0 }),
+        durabilityExposureNote: this.stringValue(row.durabilityExposureNote, ''),
+        constructionNote: this.stringValue(row.constructionNote, ''),
+        status: this.normalizePileTypeStatus(row.status),
+        notes: this.stringValue(row.notes, ''),
         eoop,
         eoopM: eoop,
         compressionUltimateMin: this.nullableNumberValue(row.compressionUltimateMin, { min: 0 }),
@@ -523,6 +551,10 @@ export class MultiPileService {
         order: index,
       };
     });
+  }
+
+  private normalizePileTypeStatus(value: unknown): MultiPilePileTypeDefinition['status'] {
+    return value === 'active' || value === 'superseded' || value === 'draft' ? value : 'draft';
   }
 
   private normalizeGeoArrSettings(

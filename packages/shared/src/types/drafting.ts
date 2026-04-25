@@ -172,7 +172,12 @@ export type DraftingObjectSourceType =
   | 'geotech_borehole'
   | 'spatial_feature'
   | 'manual';
-export type DraftingObjectSourceStatus = 'linked' | 'snapshot' | 'missing_source' | 'manual';
+export type DraftingObjectSourceStatus =
+  | 'current'
+  | 'linked'
+  | 'snapshot'
+  | 'missing_source'
+  | 'manual';
 
 export type DraftingPoint = {
   x: number;
@@ -726,6 +731,10 @@ export type DraftingPileObject = DraftingObjectBase & {
     designCompressionKn?: number;
     designTensionKn?: number;
     designLateralKn?: number;
+    sourceCompleteness?: 'complete' | 'incomplete';
+    durabilityExposureNote?: string;
+    constructionNote?: string;
+    sourceStatus?: string;
     cutOffLevel?: number;
     toeLevel?: number;
     notes?: string;

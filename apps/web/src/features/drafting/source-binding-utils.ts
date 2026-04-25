@@ -56,6 +56,11 @@ export type DraftingPileSourceRecord = {
   pileType?: MultiPilePileTypeDefinition;
 };
 
+export type DraftingPileTypeCompleteness = {
+  status: 'complete' | 'incomplete';
+  missing: string[];
+};
+
 export type DraftingSpatialSourceRecord = {
   sourceType: 'spatial_feature';
   sourceId: string;
@@ -202,6 +207,7 @@ export function createPileObjectFromSource(args: {
         layoutPoint: args.source.layoutPoint,
         joint: args.source.joint,
         pileTypeDefinition: args.source.pileType,
+        sourceCoordinates: point,
       },
     },
     updatedAt: now,
@@ -234,6 +240,7 @@ export function createPileObjectFromTypeSource(args: {
       notes: sourceNotes([
         args.source.groupName,
         'Placed from pile type; pile instance not assigned',
+        args.source.pileType.notes,
       ]),
     },
     sourceRef: {
@@ -243,7 +250,7 @@ export function createPileObjectFromTypeSource(args: {
       sourceVersion: args.source.sourceVersion,
       linkedAt: now,
       ...(args.linkedBy ? { linkedBy: args.linkedBy } : {}),
-      status: 'linked',
+      status: 'current',
       snapshot: {
         pileTypeId: args.source.pileType.id,
         pileTypeCode: args.source.pileType.id,
@@ -251,6 +258,7 @@ export function createPileObjectFromTypeSource(args: {
         pileGroupId: args.source.groupId,
         pileGroupName: args.source.groupName,
         diameterMm,
+        completeness: getPileTypeCompleteness(args.source.pileType),
         pileTypeDefinition: args.source.pileType,
       },
     },
@@ -335,6 +343,74 @@ export function findExistingSourceObject(
     (object) =>
       object.sourceRef?.sourceType === sourceType && object.sourceRef.sourceId === sourceId,
   );
+}
+
+export function getPileTypeCompleteness(
+  pileType: MultiPilePileTypeDefinition,
+): DraftingPileTypeCompleteness {
+  const missing: string[] = [];
+  if (!pileTypeDiameterMm(pileType)) {
+    missing.push('diameter');
+  }
+  if (!stringValue(pileType.concreteGrade)) {
+    missing.push('concrete');
+  }
+  if (
+    optionalNumber(pileType.socketLengthM) === undefined &&
+    optionalNumber(pileType.socketLengthMm) === undefined &&
+    !stringValue(pileType.foundingStratum) &&
+    !stringValue(pileType.foundingNote)
+  ) {
+    missing.push('socket/founding');
+  }
+
+  return {
+    status: missing.length === 0 ? 'complete' : 'incomplete',
+    missing,
+  };
+}
+
+export function formatPileTypeSourceSummary(source: DraftingPileTypeSourceRecord) {
+  const pileType = source.pileType;
+  const diameter = pileTypeDiameterMm(pileType);
+  const parts = [source.sourceLabel];
+  if (diameter) {
+    parts.push(`${diameter} mm`);
+  }
+  if (stringValue(pileType.concreteGrade)) {
+    parts.push(stringValue(pileType.concreteGrade));
+  }
+  const socket = optionalNumber(pileType.socketLengthM);
+  if (socket !== undefined) {
+    parts.push(`socket ${socket} m`);
+  } else if (stringValue(pileType.foundingStratum)) {
+    parts.push(stringValue(pileType.foundingStratum));
+  }
+  const completeness = getPileTypeCompleteness(pileType);
+  if (completeness.status === 'incomplete') {
+    parts.push(`missing ${completeness.missing.join('/')}`);
+  }
+  return parts.join(' · ');
+}
+
+export function formatPileInstanceSourceSummary(source: DraftingPileSourceRecord) {
+  const point = pointFromPileLayout(source.layoutPoint) ?? pointFromMultiPileJoint(source.joint);
+  const typeSummary = source.pileType
+    ? formatPileTypeSourceSummary({
+        sourceType: 'foundation_pile_type',
+        sourceId: `${source.groupId}:type:${source.pileType.id}`,
+        sourceLabel: source.pileType.displayName || source.pileType.id,
+        groupId: source.groupId,
+        groupName: source.groupName,
+        sourceVersion: source.sourceVersion,
+        pileType: source.pileType,
+      })
+    : undefined;
+  return sourceNotes([
+    source.sourceLabel,
+    point ? `X ${point.x}, Y ${point.y}` : undefined,
+    typeSummary,
+  ]);
 }
 
 function createBoreholeFromSpatialSource(args: {
@@ -639,12 +715,44 @@ function pileTypeMetadata(
   return {
     pileType: 'bored',
     pileTypeCode: pileType.id,
-    pileSystem: 'pile type library',
-    ...(Number.isFinite(pileType.compressionUltimateMax)
-      ? { designCompressionKn: pileType.compressionUltimateMax as number }
+    pileSystem: stringValue(pileType.pileSystem) || 'pile type library',
+    sourceCompleteness: getPileTypeCompleteness(pileType).status,
+    sourceStatus: pileType.status ?? 'draft',
+    ...(stringValue(pileType.concreteGrade)
+      ? { concreteGrade: stringValue(pileType.concreteGrade) }
       : {}),
-    ...(Number.isFinite(pileType.tensionUltimateMax)
-      ? { designTensionKn: pileType.tensionUltimateMax as number }
+    ...(optionalNumber(pileType.socketLengthM) !== undefined
+      ? { socketLengthM: optionalNumber(pileType.socketLengthM) }
+      : {}),
+    ...(stringValue(pileType.foundingStratum)
+      ? { foundingStratum: stringValue(pileType.foundingStratum) }
+      : {}),
+    ...(stringValue(pileType.foundingNote)
+      ? { foundingNote: stringValue(pileType.foundingNote) }
+      : {}),
+    ...(optionalNumber(pileType.designCompressionKn) !== undefined
+      ? { designCompressionKn: optionalNumber(pileType.designCompressionKn) }
+      : Number.isFinite(pileType.compressionUltimateMax)
+        ? { designCompressionKn: pileType.compressionUltimateMax as number }
+        : {}),
+    ...(optionalNumber(pileType.designTensionKn) !== undefined
+      ? { designTensionKn: optionalNumber(pileType.designTensionKn) }
+      : Number.isFinite(pileType.tensionUltimateMax)
+        ? { designTensionKn: pileType.tensionUltimateMax as number }
+        : {}),
+    ...(optionalNumber(pileType.designLateralKn) !== undefined
+      ? { designLateralKn: optionalNumber(pileType.designLateralKn) }
+      : {}),
+    ...(stringValue(pileType.durabilityExposureNote)
+      ? { durabilityExposureNote: stringValue(pileType.durabilityExposureNote) }
+      : {}),
+    ...(stringValue(pileType.constructionNote)
+      ? { constructionNote: stringValue(pileType.constructionNote) }
+      : {}),
+    ...(stringValue(pileType.notes) || stringValue(pileType.constructionNote)
+      ? {
+          notes: sourceNotes([stringValue(pileType.notes), stringValue(pileType.constructionNote)]),
+        }
       : {}),
   };
 }

@@ -18,7 +18,7 @@ describe('DraftingPropertiesPanel', () => {
     );
 
     expect(markup).toContain('Source / Provenance');
-    expect(markup).toContain('Pile instance');
+    expect(markup).toContain('Placed pile');
     expect(markup).toContain('P1 from calculator');
     expect(markup).toContain('Refresh from source');
     expect(markup).toContain('Refresh + coordinates');
