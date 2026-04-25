@@ -12,14 +12,20 @@ export type DraftingVisibleWorldBounds = {
   maxY: number;
 };
 
-export function screenToWorldPoint(point: DraftingPoint, view: DraftingModel['view']): DraftingPoint {
+export function screenToWorldPoint(
+  point: DraftingPoint,
+  view: DraftingModel['view'],
+): DraftingPoint {
   return {
     x: (point.x - view.offsetX) / view.scale,
     y: (point.y - view.offsetY) / view.scale,
   };
 }
 
-export function worldToScreenPoint(point: DraftingPoint, view: DraftingModel['view']): DraftingPoint {
+export function worldToScreenPoint(
+  point: DraftingPoint,
+  view: DraftingModel['view'],
+): DraftingPoint {
   return {
     x: point.x * view.scale + view.offsetX,
     y: point.y * view.scale + view.offsetY,
@@ -30,7 +36,7 @@ export function clientToWorldPoint(
   clientX: number,
   clientY: number,
   node: HTMLDivElement | null,
-  model: DraftingModel,
+  view: DraftingModel['view'],
 ) {
   if (!node) {
     return null;
@@ -42,7 +48,7 @@ export function clientToWorldPoint(
       x: clientX - rect.left,
       y: clientY - rect.top,
     },
-    model.view,
+    view,
   );
 }
 
@@ -72,5 +78,7 @@ export function createGridAxisValues(min: number, max: number, step: number) {
 
 export function getGridStep(scale: number) {
   const candidates = [100, 250, 500, 1000, 2000, 5000, 10000, 20000];
-  return candidates.find((candidate) => candidate * scale >= 24) ?? candidates[candidates.length - 1]!;
+  return (
+    candidates.find((candidate) => candidate * scale >= 24) ?? candidates[candidates.length - 1]!
+  );
 }

@@ -31,6 +31,7 @@ describe('DraftingStage', () => {
         onObjectPointerDown={() => undefined}
         onResetZoom={() => undefined}
         onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
         onUnderlayPointerDown={() => undefined}
         onZoomIn={() => undefined}
         onZoomOut={() => undefined}
@@ -42,6 +43,8 @@ describe('DraftingStage', () => {
         underlayCalibrationState={null}
         underlayCropPreview={null}
         underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
         visibleObjects={[pile]}
         visibleUnderlays={[]}
       />,
@@ -53,8 +56,51 @@ describe('DraftingStage', () => {
     expect(markup).toContain('aria-label="Fit model"');
     expect(markup).toContain('aria-label="Fit selected"');
     expect(markup).toContain('aria-label="Centre on reference point"');
+    expect(markup).toContain('aria-label="Lock View"');
     expect(markup).toContain('Canvas zoom 5%');
     expect(markup).toContain('Sheet scale 1:100');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('renders a locked view state while preserving object editing surface', () => {
+    const model = createEmptyDraftingModel('drawing-stage-locked-view');
+    const pile = createDraftingObject('pile', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        model={{ ...model, objects: [pile] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={pile.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked
+        visibleObjects={[pile]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(markup).toContain('View locked');
+    expect(markup).toContain('Unlock view to pan, zoom, fit, or recenter.');
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('data-drafting-object="true"');
   });
 });

@@ -23,6 +23,7 @@ type UseDraftingSelectionOptions = {
   activeTool: DraftingTool;
   containerRef: React.RefObject<HTMLDivElement | null>;
   model: DraftingModel | null;
+  view: DraftingModel['view'];
   currentUserName?: string | null;
   onCancelPendingLine: () => void;
   onSelectPropertiesTab: () => void;
@@ -42,6 +43,7 @@ export function useDraftingSelection({
   onSelectPropertiesTab,
   pendingLinePointCount,
   patchModel,
+  view,
 }: UseDraftingSelectionOptions) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -61,7 +63,7 @@ export function useDraftingSelection({
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }
@@ -201,7 +203,7 @@ export function useDraftingSelection({
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }

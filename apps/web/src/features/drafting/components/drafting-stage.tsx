@@ -6,7 +6,16 @@ import type {
   DraftingPoint,
   DraftingUnderlay,
 } from '@eng/shared';
-import { Crosshair, Maximize2, Minus, Plus, RotateCcw, ScanSearch } from 'lucide-react';
+import {
+  Crosshair,
+  Lock,
+  Maximize2,
+  Minus,
+  Plus,
+  RotateCcw,
+  ScanSearch,
+  Unlock,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +53,7 @@ export function DraftingStage({
   onObjectPointerDown,
   onResetZoom,
   onSetZoomScale,
+  onViewLockedChange,
   onUnderlayPointerDown,
   onZoomIn,
   onZoomOut,
@@ -54,6 +64,8 @@ export function DraftingStage({
   underlayCalibrationState,
   underlayCropPreview,
   underlayInteractionEnabled,
+  view,
+  viewLocked,
   selectedObjectId,
   visibleUnderlays,
   visibleObjects,
@@ -70,6 +82,7 @@ export function DraftingStage({
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
+  onViewLockedChange: (locked: boolean) => void;
   onUnderlayPointerDown: (
     event: React.PointerEvent<SVGElement>,
     underlay: DraftingUnderlay,
@@ -91,17 +104,19 @@ export function DraftingStage({
     rect: DraftingRect | null;
   } | null;
   underlayInteractionEnabled: (underlay: DraftingUnderlay) => boolean;
+  view: DraftingModel['view'];
+  viewLocked: boolean;
   selectedObjectId: string | null;
   visibleUnderlays: DraftingUnderlay[];
   visibleObjects: DraftingObject[];
 }) {
-  const visibleWorldBounds = getVisibleWorldBounds(model.view, canvasSize);
-  const gridStep = getGridStep(model.view.scale);
+  const visibleWorldBounds = getVisibleWorldBounds(view, canvasSize);
+  const gridStep = getGridStep(view.scale);
   const [cursorPoint, setCursorPoint] = React.useState<DraftingPoint | null>(null);
   const setup = model.drawingSetup!;
   const referencePoint = setup.referencePoint.modelPoint;
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
-  const zoomPercent = Math.round(model.view.scale * 100);
+  const zoomPercent = Math.round(view.scale * 100);
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -115,7 +130,7 @@ export function DraftingStage({
           x: event.clientX - rect.left,
           y: event.clientY - rect.top,
         },
-        model.view,
+        view,
       ),
     );
   }
@@ -135,6 +150,7 @@ export function DraftingStage({
             <Badge variant="outline">Model {setup.modelUnits}</Badge>
             <Badge variant="outline">Display {setup.displayUnits}</Badge>
             <Badge variant="outline">Canvas zoom {zoomPercent}%</Badge>
+            {viewLocked ? <Badge variant="secondary">View locked</Badge> : null}
             <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
           </div>
         </div>
@@ -151,10 +167,12 @@ export function DraftingStage({
             onFitSelected={onFitSelected}
             onResetZoom={onResetZoom}
             onSetZoomScale={onSetZoomScale}
+            onViewLockedChange={onViewLockedChange}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
             selectedObjectId={selectedObjectId}
             sheetScale={selectedSheetScale}
+            viewLocked={viewLocked}
             zoomPercent={zoomPercent}
           />
           <svg
@@ -168,16 +186,14 @@ export function DraftingStage({
             <GridLayer
               bounds={visibleWorldBounds}
               height={canvasSize.height}
-              offsetX={model.view.offsetX}
-              offsetY={model.view.offsetY}
-              scale={model.view.scale}
+              offsetX={view.offsetX}
+              offsetY={view.offsetY}
+              scale={view.scale}
               step={gridStep}
               width={canvasSize.width}
             />
 
-            <g
-              transform={`translate(${model.view.offsetX} ${model.view.offsetY}) scale(${model.view.scale})`}
-            >
+            <g transform={`translate(${view.offsetX} ${view.offsetY}) scale(${view.scale})`}>
               {visibleUnderlays.map((underlay) => (
                 <DraftingPdfUnderlay
                   key={underlay.id}
@@ -217,7 +233,7 @@ export function DraftingStage({
               <ReferencePointMarker
                 label={setup.referencePoint.label}
                 point={referencePoint}
-                scale={model.view.scale}
+                scale={view.scale}
               />
 
               {pendingLinePoints.length > 0 ? (
@@ -256,10 +272,12 @@ function DraftingCanvasZoomControls({
   onFitSelected,
   onResetZoom,
   onSetZoomScale,
+  onViewLockedChange,
   onZoomIn,
   onZoomOut,
   selectedObjectId,
   sheetScale,
+  viewLocked,
   zoomPercent,
 }: {
   onCenterReference: () => void;
@@ -267,26 +285,45 @@ function DraftingCanvasZoomControls({
   onFitSelected: () => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
+  onViewLockedChange: (locked: boolean) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   selectedObjectId: string | null;
   sheetScale: string;
+  viewLocked: boolean;
   zoomPercent: number;
 }) {
+  const lockedTitle = viewLocked ? 'Unlock view to pan, zoom, fit, or recenter.' : undefined;
+
   return (
     <div className="absolute right-3 top-3 z-10 flex flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm">
       <div className="flex items-center gap-1">
-        <Button aria-label="Zoom out" size="icon" variant="outline" onClick={onZoomOut}>
+        <Button
+          aria-label="Zoom out"
+          disabled={viewLocked}
+          size="icon"
+          title={lockedTitle}
+          variant="outline"
+          onClick={onZoomOut}
+        >
           <Minus className="h-4 w-4" />
         </Button>
         <div className="min-w-16 text-center text-sm font-medium" aria-label="Current canvas zoom">
           {zoomPercent}%
         </div>
-        <Button aria-label="Zoom in" size="icon" variant="outline" onClick={onZoomIn}>
+        <Button
+          aria-label="Zoom in"
+          disabled={viewLocked}
+          size="icon"
+          title={lockedTitle}
+          variant="outline"
+          onClick={onZoomIn}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
       <Select
+        disabled={viewLocked}
         value="custom"
         onValueChange={(value) => {
           if (value === 'fit') {
@@ -300,7 +337,7 @@ function DraftingCanvasZoomControls({
           }
         }}
       >
-        <SelectTrigger className="h-9 w-[116px]" aria-label="Zoom preset">
+        <SelectTrigger className="h-9 w-[116px]" aria-label="Zoom preset" title={lockedTitle}>
           <SelectValue placeholder="Preset" />
         </SelectTrigger>
         <SelectContent>
@@ -313,10 +350,24 @@ function DraftingCanvasZoomControls({
         </SelectContent>
       </Select>
       <div className="flex items-center gap-1">
-        <Button aria-label="Reset zoom to 100%" size="icon" variant="outline" onClick={onResetZoom}>
+        <Button
+          aria-label="Reset zoom to 100%"
+          disabled={viewLocked}
+          size="icon"
+          title={lockedTitle}
+          variant="outline"
+          onClick={onResetZoom}
+        >
           <RotateCcw className="h-4 w-4" />
         </Button>
-        <Button aria-label="Fit model" size="icon" variant="outline" onClick={onFitModel}>
+        <Button
+          aria-label="Fit model"
+          disabled={viewLocked}
+          size="icon"
+          title={lockedTitle}
+          variant="outline"
+          onClick={onFitModel}
+        >
           <Maximize2 className="h-4 w-4" />
         </Button>
         <Button
@@ -324,7 +375,8 @@ function DraftingCanvasZoomControls({
           size="icon"
           variant="outline"
           onClick={onFitSelected}
-          disabled={!selectedObjectId}
+          disabled={viewLocked || !selectedObjectId}
+          title={lockedTitle}
         >
           <ScanSearch className="h-4 w-4" />
         </Button>
@@ -333,12 +385,25 @@ function DraftingCanvasZoomControls({
           size="icon"
           variant="outline"
           onClick={onCenterReference}
+          disabled={viewLocked}
+          title={lockedTitle}
         >
           <Crosshair className="h-4 w-4" />
         </Button>
       </div>
+      <Button
+        aria-label="Lock View"
+        className="h-9"
+        size="sm"
+        type="button"
+        variant={viewLocked ? 'secondary' : 'outline'}
+        onClick={() => onViewLockedChange(!viewLocked)}
+      >
+        {viewLocked ? <Lock className="mr-2 h-4 w-4" /> : <Unlock className="mr-2 h-4 w-4" />}
+        {viewLocked ? 'View Locked' : 'Lock View'}
+      </Button>
       <div className="basis-full text-right text-[11px] text-muted-foreground">
-        Sheet scale {sheetScale}
+        {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}Sheet scale {sheetScale}
       </div>
     </div>
   );

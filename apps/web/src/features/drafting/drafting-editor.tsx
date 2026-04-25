@@ -34,7 +34,6 @@ import { useDraftingView } from './hooks/use-drafting-view';
 import {
   addDraftingObject,
   addDraftingUnderlay,
-  centerDraftingViewOnPoint,
   createDraftingObject,
   formatDrawingRevision,
   formatDraftingTimestamp,
@@ -67,9 +66,8 @@ export function DraftingEditor({
   const history = useDraftingHistory(projectId, drawingId);
   const view = useDraftingView({
     activeTool: drafting.activeTool,
+    drawingId,
     model: history.model,
-    patchModel: history.patchModel,
-    replaceModel: history.replaceModel,
   });
   const selection = useDraftingSelection({
     activeTool: drafting.activeTool,
@@ -80,6 +78,7 @@ export function DraftingEditor({
     onSelectPropertiesTab: () => drafting.setActiveTab('properties'),
     pendingLinePointCount: drafting.pendingLinePoints.length,
     patchModel: history.patchModel,
+    view: view.currentView,
   });
   const underlays = useDraftingUnderlays({
     activeTool: drafting.activeTool,
@@ -89,23 +88,8 @@ export function DraftingEditor({
     onSelectUnderlay: () => {},
     onClearObjectSelection: selection.clearSelection,
     patchModel: history.patchModel,
+    view: view.currentView,
   });
-
-  React.useEffect(() => {
-    const model = history.model;
-    if (!model || model.objects.length > 0 || model.underlays.length > 0) {
-      return;
-    }
-
-    if (model.view.offsetX !== 160 || model.view.offsetY !== 160) {
-      return;
-    }
-
-    const reference = model.drawingSetup?.referencePoint.modelPoint ?? { x: 0, y: 0 };
-    history.replaceModel(centerDraftingViewOnPoint(model, reference, view.canvasSize), {
-      dirty: false,
-    });
-  }, [history, view.canvasSize]);
 
   React.useEffect(() => {
     function isTextEntryTarget(target: EventTarget | null) {
@@ -128,28 +112,36 @@ export function DraftingEditor({
 
       if (event.key === '+' || event.key === '=') {
         event.preventDefault();
-        view.handleZoomIn();
+        if (!view.isViewLocked) {
+          view.handleZoomIn();
+        }
         return;
       }
 
       if (event.key === '-') {
         event.preventDefault();
-        view.handleZoomOut();
+        if (!view.isViewLocked) {
+          view.handleZoomOut();
+        }
         return;
       }
 
       if (event.key === '0') {
         event.preventDefault();
-        view.handleResetZoom();
+        if (!view.isViewLocked) {
+          view.handleResetZoom();
+        }
         return;
       }
 
       if (event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        if (event.shiftKey && selection.selectedObject) {
-          view.handleFitSelected([selection.selectedObject]);
-        } else if (!event.shiftKey) {
-          view.handleFitView();
+        if (!view.isViewLocked) {
+          if (event.shiftKey && selection.selectedObject) {
+            view.handleFitSelected([selection.selectedObject]);
+          } else if (!event.shiftKey) {
+            view.handleFitView();
+          }
         }
       }
     }
@@ -221,7 +213,7 @@ export function DraftingEditor({
       event.clientX,
       event.clientY,
       view.containerRef.current,
-      currentModel,
+      view.currentView,
     );
     if (!point) {
       return;
@@ -265,7 +257,7 @@ export function DraftingEditor({
         x: stageRect?.width ? stageRect.width / 2 : view.canvasSize.width / 2,
         y: stageRect?.height ? stageRect.height / 2 : view.canvasSize.height / 2,
       },
-      currentModel.view,
+      view.currentView,
     );
 
     const initialScale = PDF_POINT_TO_MM;
@@ -327,9 +319,7 @@ export function DraftingEditor({
 
   function handleCenterViewOnReference() {
     const reference = currentModel.drawingSetup!.referencePoint.modelPoint;
-    history.replaceModel(centerDraftingViewOnPoint(currentModel, reference, view.canvasSize), {
-      dirty: false,
-    });
+    view.handleCenterViewOnPoint(reference);
   }
 
   function handleFitSelectedView() {
@@ -347,7 +337,7 @@ export function DraftingEditor({
         x: stageRect?.width ? stageRect.width / 2 : view.canvasSize.width / 2,
         y: stageRect?.height ? stageRect.height / 2 : view.canvasSize.height / 2,
       },
-      currentModel.view,
+      view.currentView,
     );
 
     history.replaceModel(
@@ -412,6 +402,7 @@ export function DraftingEditor({
           onObjectPointerDown={selection.handleObjectPointerDown}
           onResetZoom={view.handleResetZoom}
           onSetZoomScale={view.handleSetZoomScale}
+          onViewLockedChange={view.setViewLocked}
           onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
           onZoomIn={view.handleZoomIn}
           onZoomOut={view.handleZoomOut}
@@ -438,6 +429,8 @@ export function DraftingEditor({
               : null
           }
           underlayInteractionEnabled={(underlay) => underlayInteractionEnabled(underlay.id)}
+          view={view.currentView}
+          viewLocked={view.isViewLocked}
           visibleUnderlays={visibleUnderlays}
           visibleObjects={visibleObjects}
         />
@@ -529,7 +522,7 @@ export function DraftingEditor({
                     activeSheetId={activeDrawingSheetId}
                     canvasSize={view.canvasSize}
                     currentUserName={currentUserName}
-                    currentView={currentModel.view}
+                    currentView={view.currentView}
                     drawingTitle={currentDrawing.title}
                     model={currentModel}
                     onActiveSheetChange={setActiveDrawingSheetId}

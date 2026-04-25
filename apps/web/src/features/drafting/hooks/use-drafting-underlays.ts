@@ -40,6 +40,7 @@ type UseDraftingUnderlaysOptions = {
   activeTool: DraftingTool;
   containerRef: React.RefObject<HTMLDivElement | null>;
   model: DraftingModel | null;
+  view: DraftingModel['view'];
   onSelectUnderlaysTab: () => void;
   onSelectUnderlay: (underlayId: string) => void;
   onClearObjectSelection: () => void;
@@ -57,6 +58,7 @@ export function useDraftingUnderlays({
   onSelectUnderlay,
   onClearObjectSelection,
   patchModel,
+  view,
 }: UseDraftingUnderlaysOptions) {
   const [selectedUnderlayId, setSelectedUnderlayId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<UnderlayDragState | null>(null);
@@ -79,7 +81,7 @@ export function useDraftingUnderlays({
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }
@@ -101,7 +103,7 @@ export function useDraftingUnderlays({
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }
@@ -286,7 +288,7 @@ export function useDraftingUnderlays({
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }

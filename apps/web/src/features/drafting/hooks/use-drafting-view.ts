@@ -12,6 +12,9 @@ import {
 } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
+export const DRAFTING_EDITOR_VIEW_STORAGE_VERSION = 1;
+export const DRAFTING_EDITOR_VIEW_STORAGE_PREFIX = 'eng.drafting.view';
+
 type PanState = {
   startClientX: number;
   startClientY: number;
@@ -19,26 +22,47 @@ type PanState = {
   originOffsetY: number;
 };
 
-type UseDraftingViewOptions = {
-  activeTool: DraftingTool;
-  model: DraftingModel | null;
-  patchModel: (
-    updater: (current: DraftingModel) => DraftingModel,
-    options?: { dirty?: boolean },
-  ) => void;
-  replaceModel: (nextModel: DraftingModel, options?: { dirty?: boolean }) => void;
+export type DraftingEditorViewState = DraftingModel['view'] & {
+  locked: boolean;
+  updatedAt?: string;
+  version: number;
 };
 
-export function useDraftingView({
-  activeTool,
-  model,
-  patchModel,
-  replaceModel,
-}: UseDraftingViewOptions) {
+type UseDraftingViewOptions = {
+  activeTool: DraftingTool;
+  drawingId: string;
+  model: DraftingModel | null;
+};
+
+export function useDraftingView({ activeTool, drawingId, model }: UseDraftingViewOptions) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 720 });
   const [panState, setPanState] = useState<PanState | null>(null);
+  const [editorView, setEditorView] = useState<DraftingEditorViewState>(() =>
+    createDraftingEditorViewState(model?.view),
+  );
+  const [resolvedDrawingId, setResolvedDrawingId] = useState<string | null>(null);
+  const drawingIdRef = useRef<string | null>(null);
   const zoomStep = 1.25;
+
+  useEffect(() => {
+    if (!model || drawingIdRef.current === drawingId) {
+      return;
+    }
+
+    drawingIdRef.current = drawingId;
+    setPanState(null);
+    setEditorView(resolveInitialDraftingEditorView(drawingId, model));
+    setResolvedDrawingId(drawingId);
+  }, [drawingId, model]);
+
+  useEffect(() => {
+    if (resolvedDrawingId !== drawingId) {
+      return;
+    }
+
+    persistDraftingEditorView(drawingId, editorView);
+  }, [drawingId, editorView, resolvedDrawingId]);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -70,17 +94,11 @@ export function useDraftingView({
     const deltaX = event.clientX - panState.startClientX;
     const deltaY = event.clientY - panState.startClientY;
 
-    patchModel(
-      (current) => ({
-        ...current,
-        view: {
-          ...current.view,
-          offsetX: panState.originOffsetX + deltaX,
-          offsetY: panState.originOffsetY + deltaY,
-        },
-      }),
-      { dirty: false },
-    );
+    updateView({
+      ...editorView,
+      offsetX: panState.originOffsetX + deltaX,
+      offsetY: panState.originOffsetY + deltaY,
+    });
   });
 
   useEffect(() => {
@@ -109,11 +127,16 @@ export function useDraftingView({
   function handleCanvasWheel(event: React.WheelEvent<SVGSVGElement>) {
     event.preventDefault();
 
-    if (!model) {
+    if (!model || editorView.locked) {
       return;
     }
 
-    const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, model);
+    const point = clientToWorldPoint(
+      event.clientX,
+      event.clientY,
+      containerRef.current,
+      editorView,
+    );
     if (!point) {
       return;
     }
@@ -127,72 +150,60 @@ export function useDraftingView({
     const localX = event.clientX - rect.left;
     const localY = event.clientY - rect.top;
 
-    replaceModel(
-      {
-        ...model,
-        view: zoomDraftingViewAtPoint(
-          model.view,
-          point,
-          { x: localX, y: localY },
-          model.view.scale * scaleFactor,
-        ),
-      },
-      { dirty: false },
+    updateView(
+      zoomDraftingViewAtPoint(
+        editorView,
+        point,
+        { x: localX, y: localY },
+        editorView.scale * scaleFactor,
+      ),
     );
   }
 
   function handleBackgroundPointerDown(event: React.PointerEvent<SVGSVGElement>) {
-    if (activeTool !== 'pan' || !model) {
+    if (activeTool !== 'pan' || !model || editorView.locked) {
       return;
     }
 
     setPanState({
       startClientX: event.clientX,
       startClientY: event.clientY,
-      originOffsetX: model.view.offsetX,
-      originOffsetY: model.view.offsetY,
+      originOffsetX: editorView.offsetX,
+      originOffsetY: editorView.offsetY,
     });
   }
 
   function handleFitView() {
-    if (!model) {
+    if (!model || editorView.locked) {
       return;
     }
 
-    replaceModel(
-      {
-        ...model,
-        view: fitDraftingModelView(model, canvasSize.width, canvasSize.height),
-      },
-      { dirty: false },
-    );
+    updateView(fitDraftingModelView(model, canvasSize.width, canvasSize.height));
   }
 
   function updateView(nextView: DraftingModel['view']) {
-    if (!model) {
-      return;
-    }
-
-    replaceModel({ ...model, view: nextView }, { dirty: false });
+    setEditorView((current) =>
+      createDraftingEditorViewState(nextView, current.locked, new Date().toISOString()),
+    );
   }
 
   function handleZoomBy(factor: number) {
-    if (!model) {
+    if (!model || editorView.locked) {
       return;
     }
 
     const centerScreenPoint = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
     const centerWorldPoint = {
-      x: (centerScreenPoint.x - model.view.offsetX) / model.view.scale,
-      y: (centerScreenPoint.y - model.view.offsetY) / model.view.scale,
+      x: (centerScreenPoint.x - editorView.offsetX) / editorView.scale,
+      y: (centerScreenPoint.y - editorView.offsetY) / editorView.scale,
     };
 
     updateView(
       zoomDraftingViewAtPoint(
-        model.view,
+        editorView,
         centerWorldPoint,
         centerScreenPoint,
-        model.view.scale * factor,
+        editorView.scale * factor,
       ),
     );
   }
@@ -206,46 +217,164 @@ export function useDraftingView({
   }
 
   function handleResetZoom() {
-    if (!model) {
+    if (!model || editorView.locked) {
       return;
     }
 
-    updateView(resetDraftingViewZoom(model, canvasSize));
+    updateView(resetDraftingViewZoom({ ...model, view: editorView }, canvasSize));
   }
 
   function handleSetZoomScale(scale: number) {
-    if (!model || !Number.isFinite(scale)) {
+    if (!model || editorView.locked || !Number.isFinite(scale)) {
       return;
     }
 
     const nextScale = Math.min(Math.max(scale, DRAFTING_VIEW_MIN_SCALE), DRAFTING_VIEW_MAX_SCALE);
     const centerScreenPoint = { x: canvasSize.width / 2, y: canvasSize.height / 2 };
     const centerWorldPoint = {
-      x: (centerScreenPoint.x - model.view.offsetX) / model.view.scale,
-      y: (centerScreenPoint.y - model.view.offsetY) / model.view.scale,
+      x: (centerScreenPoint.x - editorView.offsetX) / editorView.scale,
+      y: (centerScreenPoint.y - editorView.offsetY) / editorView.scale,
     };
 
-    updateView(zoomDraftingViewAtPoint(model.view, centerWorldPoint, centerScreenPoint, nextScale));
+    updateView(zoomDraftingViewAtPoint(editorView, centerWorldPoint, centerScreenPoint, nextScale));
   }
 
   function handleFitSelected(objects: DraftingObject[]) {
-    if (!model || objects.length === 0) {
+    if (!model || editorView.locked || objects.length === 0) {
       return;
     }
 
-    updateView(fitDraftingObjectsView(objects, canvasSize.width, canvasSize.height, model.view));
+    updateView(fitDraftingObjectsView(objects, canvasSize.width, canvasSize.height, editorView));
+  }
+
+  function handleCenterViewOnPoint(point: { x: number; y: number }) {
+    if (!model || editorView.locked) {
+      return;
+    }
+
+    updateView({
+      ...editorView,
+      offsetX: canvasSize.width / 2 - point.x * editorView.scale,
+      offsetY: canvasSize.height / 2 - point.y * editorView.scale,
+    });
+  }
+
+  function setViewLocked(locked: boolean) {
+    setPanState(null);
+    setEditorView((current) => ({
+      ...current,
+      locked,
+      updatedAt: new Date().toISOString(),
+      version: DRAFTING_EDITOR_VIEW_STORAGE_VERSION,
+    }));
   }
 
   return {
     canvasSize,
     containerRef,
+    currentView: editorView,
     handleBackgroundPointerDown,
     handleCanvasWheel,
+    handleCenterViewOnPoint,
     handleFitView,
     handleFitSelected,
     handleResetZoom,
     handleSetZoomScale,
     handleZoomIn,
     handleZoomOut,
+    isViewLocked: editorView.locked,
+    setViewLocked,
   };
+}
+
+export function getDraftingEditorViewStorageKey(drawingId: string) {
+  return `${DRAFTING_EDITOR_VIEW_STORAGE_PREFIX}.${drawingId}`;
+}
+
+export function createDraftingEditorViewState(
+  view?: DraftingModel['view'] | null,
+  locked = false,
+  updatedAt?: string,
+): DraftingEditorViewState {
+  return {
+    scale: clampViewScale(view?.scale ?? 0.05),
+    offsetX: Number.isFinite(view?.offsetX) ? view!.offsetX : 160,
+    offsetY: Number.isFinite(view?.offsetY) ? view!.offsetY : 160,
+    locked,
+    updatedAt,
+    version: DRAFTING_EDITOR_VIEW_STORAGE_VERSION,
+  };
+}
+
+export function parseStoredDraftingEditorView(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<DraftingEditorViewState>;
+    if (
+      parsed.version !== DRAFTING_EDITOR_VIEW_STORAGE_VERSION ||
+      !Number.isFinite(parsed.scale) ||
+      !Number.isFinite(parsed.offsetX) ||
+      !Number.isFinite(parsed.offsetY)
+    ) {
+      return null;
+    }
+
+    return createDraftingEditorViewState(
+      {
+        scale: parsed.scale as number,
+        offsetX: parsed.offsetX as number,
+        offsetY: parsed.offsetY as number,
+      },
+      parsed.locked === true,
+      typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function resolveInitialDraftingEditorView(
+  drawingId: string,
+  model: DraftingModel,
+  storage: Pick<Storage, 'getItem'> | null = getBrowserLocalStorage(),
+) {
+  const stored = storage?.getItem(getDraftingEditorViewStorageKey(drawingId)) ?? null;
+  return parseStoredDraftingEditorView(stored) ?? createDraftingEditorViewState(model.view);
+}
+
+export function serializeDraftingEditorView(view: DraftingEditorViewState) {
+  return JSON.stringify({
+    scale: clampViewScale(view.scale),
+    offsetX: view.offsetX,
+    offsetY: view.offsetY,
+    locked: view.locked,
+    updatedAt: view.updatedAt,
+    version: DRAFTING_EDITOR_VIEW_STORAGE_VERSION,
+  });
+}
+
+function persistDraftingEditorView(drawingId: string, view: DraftingEditorViewState) {
+  try {
+    getBrowserLocalStorage()?.setItem(
+      getDraftingEditorViewStorageKey(drawingId),
+      serializeDraftingEditorView(view),
+    );
+  } catch {
+    // Local viewport persistence is best-effort UI state.
+  }
+}
+
+function getBrowserLocalStorage() {
+  return typeof window === 'undefined' ? null : window.localStorage;
+}
+
+function clampViewScale(scale: number) {
+  if (!Number.isFinite(scale)) {
+    return 0.05;
+  }
+
+  return Math.min(Math.max(scale, DRAFTING_VIEW_MIN_SCALE), DRAFTING_VIEW_MAX_SCALE);
 }
