@@ -21,12 +21,16 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-compact-tool-toolbar"');
     expect(markup).toContain('data-testid="drafting-toolbar-view-row"');
     expect(markup).toContain('data-testid="drafting-toolbar-authoring-row"');
+    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
+    expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(4);
     expect(markup).toContain('Navigate');
-    expect(markup).toContain('Author');
     expect(markup).toContain('Shoring');
     expect(markup).toContain('Survey / Monitoring');
     expect(markup).toContain('Services');
     expect(markup).toContain('Annotation');
+    expect(markup).toContain('grid-cols-4');
+    expect(markup).toContain('grid-cols-2');
+    expect(markup).toContain('Active Run');
     expect(markup).toContain('title="Service run"');
     expect(markup).toContain('aria-label="Service run"');
     expect(markup).toContain('aria-pressed="true"');

@@ -19,7 +19,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import { formatDraftingTimestamp } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
@@ -88,6 +88,9 @@ const TOOL_GROUPS: Array<{
   },
 ];
 
+const NAVIGATE_GROUP = TOOL_GROUPS[0];
+const AUTHORING_GROUPS = TOOL_GROUPS.slice(1);
+
 export function DraftingToolPalette({
   activeTool,
   drawingUpdatedAt,
@@ -111,13 +114,13 @@ export function DraftingToolPalette({
       data-testid="drafting-compact-tool-toolbar"
     >
       <div
-        className="flex min-h-9 flex-wrap items-center gap-2 border-b pb-2"
+        className="flex min-h-9 flex-wrap items-center gap-2 border-b pb-1"
         data-testid="drafting-toolbar-view-row"
       >
         <div className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Navigate
         </div>
-        {TOOL_GROUPS[0]?.tools.map((entry) => (
+        {NAVIGATE_GROUP?.tools.map((entry) => (
           <ToolButton
             key={entry.tool}
             active={activeTool === entry.tool}
@@ -131,6 +134,7 @@ export function DraftingToolPalette({
         ))}
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{model.objects.length} objects</span>
+          <span>Active {getToolShortLabel(activeTool)}</span>
           <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
             Saved {formatDraftingTimestamp(drawingUpdatedAt)}
           </span>
@@ -138,22 +142,23 @@ export function DraftingToolPalette({
       </div>
 
       <div
-        className="flex min-h-9 flex-wrap items-center gap-2 pt-2"
+        className="grid gap-1.5 pt-1.5 lg:grid-cols-[minmax(21rem,2fr)_minmax(7.5rem,0.7fr)_minmax(7.5rem,0.7fr)_minmax(11rem,1fr)]"
         data-testid="drafting-toolbar-authoring-row"
       >
-        <div className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Author
-        </div>
-        {TOOL_GROUPS.slice(1).map((group, index) => (
-          <React.Fragment key={group.title}>
-            {index > 0 ? <Separator className="h-8" orientation="vertical" /> : null}
-            <section
-              aria-label={`${group.title} tools`}
-              className="flex flex-wrap items-center gap-1"
+        {AUTHORING_GROUPS.map((group) => (
+          <section
+            aria-label={`${group.title} tools`}
+            className="rounded-md border bg-muted/20 p-1"
+            data-testid="drafting-tool-group-block"
+            key={group.title}
+          >
+            <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.title}
+            </div>
+            <div
+              className={cn('grid gap-0.5', getAuthoringGroupGridClass(group.title))}
+              data-testid="drafting-tool-group-grid"
             >
-              <span className="mr-0.5 text-[11px] font-medium text-muted-foreground">
-                {group.title}
-              </span>
               {group.tools.map((entry) => (
                 <ToolButton
                   key={entry.tool}
@@ -162,12 +167,13 @@ export function DraftingToolPalette({
                   icon={entry.icon}
                   label={entry.label}
                   onClick={() => onToolChange(entry.tool)}
+                  tile
                 >
                   {entry.shortLabel}
                 </ToolButton>
               ))}
-            </section>
-          </React.Fragment>
+            </div>
+          </section>
         ))}
       </div>
 
@@ -210,6 +216,7 @@ function ToolButton({
   icon: Icon,
   label,
   onClick,
+  tile = false,
 }: {
   active: boolean;
   children: React.ReactNode;
@@ -217,19 +224,38 @@ function ToolButton({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   onClick: () => void;
+  tile?: boolean;
 }) {
   return (
     <Button
       aria-label={label}
       aria-pressed={active}
-      className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+      className={cn(
+        'shrink-0 gap-1.5',
+        tile ? 'h-7 min-w-0 justify-center px-1 text-[11px]' : 'h-8 px-2 text-xs',
+      )}
       title={hint ? `${label} (${hint})` : label}
       variant={active ? 'default' : 'outline'}
       onClick={onClick}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <Icon className={cn('shrink-0', tile ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
       <span>{children}</span>
       {hint ? <span className="text-[10px] opacity-70">{hint}</span> : null}
     </Button>
+  );
+}
+
+function getAuthoringGroupGridClass(title: string) {
+  if (title === 'Shoring') {
+    return 'grid-cols-4';
+  }
+
+  return 'grid-cols-2';
+}
+
+function getToolShortLabel(tool: DraftingTool) {
+  return (
+    TOOL_GROUPS.flatMap((group) => group.tools).find((entry) => entry.tool === tool)?.shortLabel ??
+    tool
   );
 }
