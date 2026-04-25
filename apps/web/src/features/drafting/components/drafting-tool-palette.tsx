@@ -110,18 +110,50 @@ export function DraftingToolPalette({
       className="rounded-md border bg-background px-2 py-2 shadow-sm"
       data-testid="drafting-compact-tool-toolbar"
     >
-      <div className="flex min-h-11 items-center gap-2 overflow-x-auto pb-1">
-        <div className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Tools
+      <div
+        className="flex min-h-9 flex-wrap items-center gap-2 border-b pb-2"
+        data-testid="drafting-toolbar-view-row"
+      >
+        <div className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Navigate
         </div>
-        {TOOL_GROUPS.map((group, index) => (
+        {TOOL_GROUPS[0]?.tools.map((entry) => (
+          <ToolButton
+            key={entry.tool}
+            active={activeTool === entry.tool}
+            hint={entry.hint}
+            icon={entry.icon}
+            label={entry.label}
+            onClick={() => onToolChange(entry.tool)}
+          >
+            {entry.shortLabel}
+          </ToolButton>
+        ))}
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{model.objects.length} objects</span>
+          <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
+            Saved {formatDraftingTimestamp(drawingUpdatedAt)}
+          </span>
+        </div>
+      </div>
+
+      <div
+        className="flex min-h-9 flex-wrap items-center gap-2 pt-2"
+        data-testid="drafting-toolbar-authoring-row"
+      >
+        <div className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Author
+        </div>
+        {TOOL_GROUPS.slice(1).map((group, index) => (
           <React.Fragment key={group.title}>
             {index > 0 ? <Separator className="h-8" orientation="vertical" /> : null}
             <section
               aria-label={`${group.title} tools`}
-              className="flex shrink-0 items-center gap-1"
+              className="flex flex-wrap items-center gap-1"
             >
-              <span className="sr-only">{group.title}</span>
+              <span className="mr-0.5 text-[11px] font-medium text-muted-foreground">
+                {group.title}
+              </span>
               {group.tools.map((entry) => (
                 <ToolButton
                   key={entry.tool}
@@ -137,13 +169,6 @@ export function DraftingToolPalette({
             </section>
           </React.Fragment>
         ))}
-        <Separator className="h-8" orientation="vertical" />
-        <div className="ml-auto flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-          <span>{model.objects.length} objects</span>
-          <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
-            Saved {formatDraftingTimestamp(drawingUpdatedAt)}
-          </span>
-        </div>
       </div>
 
       {activeTool === 'excavation_line' ? (

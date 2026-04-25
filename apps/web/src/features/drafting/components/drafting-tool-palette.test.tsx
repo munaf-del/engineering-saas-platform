@@ -19,7 +19,10 @@ describe('DraftingToolPalette', () => {
     );
 
     expect(markup).toContain('data-testid="drafting-compact-tool-toolbar"');
+    expect(markup).toContain('data-testid="drafting-toolbar-view-row"');
+    expect(markup).toContain('data-testid="drafting-toolbar-authoring-row"');
     expect(markup).toContain('Navigate');
+    expect(markup).toContain('Author');
     expect(markup).toContain('Shoring');
     expect(markup).toContain('Survey / Monitoring');
     expect(markup).toContain('Services');
