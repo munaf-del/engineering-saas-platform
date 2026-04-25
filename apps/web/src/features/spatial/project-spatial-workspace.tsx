@@ -101,12 +101,16 @@ import {
 import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
 import {
   formatSpatialLabel,
+  canClassifyProjectSpatialFeatureAsService,
   getProjectSpatialMetadataFields,
   getProjectSpatialFeatureSymbology,
+  getProjectSpatialServiceGeometryType,
+  isProjectSpatialServiceFeatureType,
   PROJECT_SPATIAL_FEATURE_TYPE_OPTIONS,
   PROJECT_SPATIAL_LINKED_DELIVERABLE_TYPE_OPTIONS,
   PROJECT_SPATIAL_SOURCE_TYPE_OPTIONS,
   usesProjectSpatialFallbackMetadata,
+  type ProjectSpatialServiceFeatureType,
 } from './project-spatial-utils';
 import {
   useCreateProjectSpatialFeature,
@@ -404,6 +408,8 @@ export function ProjectSpatialWorkspace({
   const [visibleFeatureTypes, setVisibleFeatureTypes] = useState<Set<ProjectSpatialFeatureType>>(
     () => new Set(PROJECT_SPATIAL_FEATURE_TYPES),
   );
+  const [pendingServiceSourceType, setPendingServiceSourceType] =
+    useState<ProjectSpatialServiceFeatureType | null>(null);
   const [draft, setDraft] = useState<EditableProjectSpatialFeature | null>(null);
   const [focusedPersistedFeatureId, setFocusedPersistedFeatureId] = useState<string | null>(null);
   const [focusRequestToken, setFocusRequestToken] = useState(0);
@@ -1270,6 +1276,7 @@ export function ProjectSpatialWorkspace({
   function clearDraft() {
     setDraft(null);
     setDraftBaseline(null);
+    setPendingServiceSourceType(null);
     setToolMode('select');
   }
 
@@ -1314,16 +1321,22 @@ export function ProjectSpatialWorkspace({
     geometryJson: ProjectSpatialGeometryJson,
   ) {
     runWithUnsavedChangesGuard(() => {
+      const serviceFeatureType =
+        pendingServiceSourceType &&
+        canClassifyProjectSpatialFeatureAsService(geometryType, pendingServiceSourceType)
+          ? pendingServiceSourceType
+          : '';
+
       setDraft({
         key: `draft-${Date.now()}`,
         persistedId: null,
         label: '',
-        featureType: '',
+        featureType: serviceFeatureType,
         geometryType,
         description: '',
         geometryJson,
         status: '',
-        sourceType: '',
+        sourceType: serviceFeatureType ? 'manual' : '',
         sourceReference: '',
         linkedProjectReferenceId: '',
         linkedAiDocumentId: '',
@@ -1335,11 +1348,55 @@ export function ProjectSpatialWorkspace({
         isNew: true,
       });
       setDraftBaseline(null);
+      setPendingServiceSourceType(null);
       setToolMode('select');
       if (!isMapFocusMode) {
         setIsMapRightPanelCollapsed(false);
       }
     });
+  }
+
+  function startServiceSourceDraft(featureType: ProjectSpatialServiceFeatureType) {
+    runWithUnsavedChangesGuard(() => {
+      setPendingServiceSourceType(featureType);
+      setToolMode(
+        getProjectSpatialServiceGeometryType(featureType) === 'line_string'
+          ? 'draw_line_string'
+          : 'draw_point',
+      );
+      setIsMapRightPanelCollapsed(false);
+      toast.info(
+        featureType === 'service_run'
+          ? 'Draw a service run line, then complete the source fields.'
+          : 'Place a crossing point, then complete the source fields.',
+      );
+    });
+  }
+
+  function classifyDraftAsServiceSource(featureType: ProjectSpatialServiceFeatureType) {
+    if (!draft) {
+      return;
+    }
+
+    if (!canClassifyProjectSpatialFeatureAsService(draft.geometryType, featureType)) {
+      toast.error(
+        featureType === 'service_run'
+          ? 'A service run must use line geometry.'
+          : 'A service crossing must use point geometry.',
+      );
+      return;
+    }
+
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            featureType,
+            sourceType: current.sourceType || 'manual',
+          }
+        : current,
+    );
+    setVisibleFeatureTypes((current) => new Set(current).add(featureType));
   }
 
   function handlePersistedFeatureGeometryChange(
@@ -6485,7 +6542,93 @@ export function ProjectSpatialWorkspace({
                       Drafting sketch objects.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold">Create Service Run</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Draw a line/path and save it as project source data.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => startServiceSourceDraft('service_run')}
+                          >
+                            <Route className="mr-2 h-4 w-4" />
+                            Draw run
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold">Create Service Crossing</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Place a point and save it as a project crossing source.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => startServiceSourceDraft('service_crossing')}
+                          >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Place crossing
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {draft &&
+                    !draft.isNew &&
+                    !isProjectSpatialServiceFeatureType(draft.featureType) ? (
+                      <div className="rounded-lg border border-dashed p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold">Classify selected feature</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Keep the existing geometry and mark this record as explicit project
+                              service source data.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                !canClassifyProjectSpatialFeatureAsService(
+                                  draft.geometryType,
+                                  'service_run',
+                                )
+                              }
+                              onClick={() => classifyDraftAsServiceSource('service_run')}
+                            >
+                              Mark as service run
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                !canClassifyProjectSpatialFeatureAsService(
+                                  draft.geometryType,
+                                  'service_crossing',
+                                )
+                              }
+                              onClick={() => classifyDraftAsServiceSource('service_crossing')}
+                            >
+                              Mark as service crossing
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
                     {projectServiceSources.length === 0 ? (
                       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                         No project service/utility sources yet. Draw a line for a service run or a
@@ -6501,10 +6644,14 @@ export function ProjectSpatialWorkspace({
                             onClick={() => handleFeatureListSelection(feature.id)}
                             type="button"
                           >
-                            <span className="block font-medium">{feature.label}</span>
-                            <span className="block text-xs text-muted-foreground">
-                              {formatSpatialLabel(feature.featureType)} ·{' '}
-                              {formatSpatialLabel(feature.geometryType)}
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium">{feature.label}</span>
+                              <Badge variant="outline" className="text-[10px]">
+                                {formatSpatialLabel(feature.featureType)}
+                              </Badge>
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {formatServiceSourceSummary(feature)}
                             </span>
                           </button>
                         ))}
@@ -6624,6 +6771,58 @@ export function ProjectSpatialWorkspace({
                         <Badge variant="success">Saved</Badge>
                       )}
                     </div>
+
+                    {!isProjectSpatialServiceFeatureType(draft.featureType) ? (
+                      <div className="rounded-lg border border-dashed p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold">Service / utility source</h3>
+                            <p className="text-xs text-muted-foreground">
+                              Mark this selected geometry as explicit project source data for
+                              Drafting service tools.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                !canClassifyProjectSpatialFeatureAsService(
+                                  draft.geometryType,
+                                  'service_run',
+                                )
+                              }
+                              onClick={() => classifyDraftAsServiceSource('service_run')}
+                            >
+                              Mark as service run
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                !canClassifyProjectSpatialFeatureAsService(
+                                  draft.geometryType,
+                                  'service_crossing',
+                                )
+                              }
+                              onClick={() => classifyDraftAsServiceSource('service_crossing')}
+                            >
+                              Mark as service crossing
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                        <div className="font-medium">Project service source</div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          This record is source data for Drafting linked service runs/crossings.
+                          Complete only known utility fields; leave unknown values blank.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="spatial-label">Label</Label>
@@ -6828,6 +7027,34 @@ export function ProjectSpatialWorkspace({
                               />
                               <span>{field.label}</span>
                             </label>
+                          );
+                        }
+
+                        if (field.kind === 'select') {
+                          return (
+                            <div key={field.key} className="space-y-2">
+                              <Label htmlFor={`spatial-property-${field.key}`}>{field.label}</Label>
+                              <Select
+                                value={typeof currentValue === 'string' ? currentValue : NONE_VALUE}
+                                onValueChange={(value) =>
+                                  updateDraftProperty(field.key, value === NONE_VALUE ? '' : value)
+                                }
+                              >
+                                <SelectTrigger id={`spatial-property-${field.key}`}>
+                                  <SelectValue
+                                    placeholder={`Select ${field.label.toLowerCase()}`}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={NONE_VALUE}>Not set</SelectItem>
+                                  {(field.options ?? []).map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           );
                         }
 
@@ -7229,6 +7456,34 @@ function ReadOnlyGeologyField({ label, value }: { label: string; value: string }
       <div className="whitespace-pre-wrap break-words">{value}</div>
     </div>
   );
+}
+
+function formatServiceSourceSummary(feature: ProjectSpatialFeature) {
+  const properties = asRecord(feature.propertiesJson);
+  const summary = [
+    typeof properties.serviceType === 'string' && properties.serviceType.trim()
+      ? properties.serviceType.trim()
+      : null,
+    typeof properties.status === 'string' && properties.status.trim()
+      ? properties.status.trim()
+      : feature.status,
+    typeof properties.diameterMm === 'string' && properties.diameterMm.trim()
+      ? `${properties.diameterMm.trim()} mm`
+      : null,
+    typeof properties.depthM === 'string' && properties.depthM.trim()
+      ? `depth ${properties.depthM.trim()} m`
+      : null,
+    typeof properties.clearanceMm === 'string' && properties.clearanceMm.trim()
+      ? `clearance ${properties.clearanceMm.trim()} mm`
+      : null,
+    typeof properties.authority === 'string' && properties.authority.trim()
+      ? properties.authority.trim()
+      : null,
+  ].filter(Boolean);
+
+  return summary.length
+    ? summary.join(' · ')
+    : `${formatSpatialLabel(feature.geometryType)} geometry · metadata not yet set`;
 }
 
 function formatLegendGeometryLabel(geometryType: ProjectSpatialGeometryType) {

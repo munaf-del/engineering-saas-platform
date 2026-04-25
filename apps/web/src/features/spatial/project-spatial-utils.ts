@@ -10,7 +10,8 @@ import {
 export type ProjectSpatialMetadataFieldDefinition = {
   key: string;
   label: string;
-  kind: 'text' | 'textarea' | 'checkbox';
+  kind: 'text' | 'textarea' | 'checkbox' | 'select';
+  options?: ReadonlyArray<{ value: string; label: string }>;
 };
 
 export type ProjectSpatialPointSymbolShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'star';
@@ -31,12 +32,65 @@ export type ProjectSpatialFeatureSymbologyDefinition = {
   fillOpacity: number;
 };
 
+export const PROJECT_SPATIAL_SERVICE_FEATURE_TYPES = [
+  'service_run',
+  'service_crossing',
+] as const satisfies readonly ProjectSpatialFeatureType[];
+
+export type ProjectSpatialServiceFeatureType =
+  (typeof PROJECT_SPATIAL_SERVICE_FEATURE_TYPES)[number];
+
 export function formatSpatialLabel(value: string) {
   return value
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
+
+export function isProjectSpatialServiceFeatureType(
+  featureType: ProjectSpatialFeatureType | '',
+): featureType is ProjectSpatialServiceFeatureType {
+  return PROJECT_SPATIAL_SERVICE_FEATURE_TYPES.includes(
+    featureType as ProjectSpatialServiceFeatureType,
+  );
+}
+
+export function getProjectSpatialServiceGeometryType(
+  featureType: ProjectSpatialServiceFeatureType,
+): ProjectSpatialGeometryType {
+  return featureType === 'service_run' ? 'line_string' : 'point';
+}
+
+export function canClassifyProjectSpatialFeatureAsService(
+  geometryType: ProjectSpatialGeometryType,
+  featureType: ProjectSpatialServiceFeatureType,
+) {
+  return geometryType === getProjectSpatialServiceGeometryType(featureType);
+}
+
+const PROJECT_SPATIAL_SERVICE_TYPE_OPTIONS = [
+  { value: 'stormwater', label: 'Stormwater' },
+  { value: 'sewer', label: 'Sewer' },
+  { value: 'water', label: 'Water' },
+  { value: 'electrical', label: 'Electrical' },
+  { value: 'communication', label: 'Communication' },
+  { value: 'gas', label: 'Gas' },
+  { value: 'unknown', label: 'Unknown' },
+] as const;
+
+const PROJECT_SPATIAL_SERVICE_STATUS_OPTIONS = [
+  { value: 'existing', label: 'Existing' },
+  { value: 'proposed', label: 'Proposed' },
+  { value: 'abandoned', label: 'Abandoned' },
+  { value: 'unknown', label: 'Unknown' },
+] as const;
+
+const PROJECT_SPATIAL_SERVICE_RISK_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'unknown', label: 'Unknown' },
+] as const;
 
 // Do NOT render propertiesJson as a raw JSON editor. Render type-specific form fields based on featureType selection.
 export const PROJECT_SPATIAL_METADATA_FIELDS: Partial<
@@ -77,8 +131,18 @@ export const PROJECT_SPATIAL_METADATA_FIELDS: Partial<
     { key: 'criticalFlag', label: 'Critical receiver', kind: 'checkbox' },
   ],
   service_run: [
-    { key: 'serviceType', label: 'Service type', kind: 'text' },
-    { key: 'status', label: 'Service status', kind: 'text' },
+    {
+      key: 'serviceType',
+      label: 'Service type',
+      kind: 'select',
+      options: PROJECT_SPATIAL_SERVICE_TYPE_OPTIONS,
+    },
+    {
+      key: 'status',
+      label: 'Service status',
+      kind: 'select',
+      options: PROJECT_SPATIAL_SERVICE_STATUS_OPTIONS,
+    },
     { key: 'diameterMm', label: 'Diameter (mm)', kind: 'text' },
     { key: 'depthM', label: 'Depth (m)', kind: 'text' },
     { key: 'levelRL', label: 'Level RL', kind: 'text' },
@@ -89,15 +153,30 @@ export const PROJECT_SPATIAL_METADATA_FIELDS: Partial<
     { key: 'notes', label: 'Notes', kind: 'textarea' },
   ],
   service_crossing: [
-    { key: 'serviceType', label: 'Service type', kind: 'text' },
-    { key: 'status', label: 'Service status', kind: 'text' },
+    {
+      key: 'serviceType',
+      label: 'Service type',
+      kind: 'select',
+      options: PROJECT_SPATIAL_SERVICE_TYPE_OPTIONS,
+    },
+    {
+      key: 'status',
+      label: 'Service status',
+      kind: 'select',
+      options: PROJECT_SPATIAL_SERVICE_STATUS_OPTIONS,
+    },
     { key: 'linkedServiceSourceId', label: 'Linked service source ID', kind: 'text' },
     { key: 'conflictType', label: 'Conflict type', kind: 'text' },
     { key: 'diameterMm', label: 'Diameter (mm)', kind: 'text' },
     { key: 'depthM', label: 'Depth (m)', kind: 'text' },
     { key: 'levelRL', label: 'Level RL', kind: 'text' },
     { key: 'clearanceMm', label: 'Clearance (mm)', kind: 'text' },
-    { key: 'riskStatus', label: 'Risk status', kind: 'text' },
+    {
+      key: 'riskStatus',
+      label: 'Risk status',
+      kind: 'select',
+      options: PROJECT_SPATIAL_SERVICE_RISK_OPTIONS,
+    },
     { key: 'authority', label: 'Authority', kind: 'text' },
     { key: 'material', label: 'Material', kind: 'text' },
     { key: 'sourceReference', label: 'Source reference', kind: 'text' },
