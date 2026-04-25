@@ -134,6 +134,12 @@ export function DraftingEditor({
     [history.model?.objects],
   );
   const sourcePileGroupId = pileSourceRecords[0]?.groupId ?? pileTypeSourceRecords[0]?.groupId;
+  const selectedSourceRefreshState = getSelectedSourceRefreshState(
+    selection.selectedObject,
+    pileSourceRecords,
+    pileTypeSourceRecords,
+    spatialSourceRecords,
+  );
 
   React.useEffect(() => {
     function isTextEntryTarget(target: EventTarget | null) {
@@ -667,7 +673,12 @@ export function DraftingEditor({
                     onUpdate={(nextObject: DraftingObject) =>
                       selection.updateSelectedObject(nextObject)
                     }
-                    sourceManageHref={`/projects/${projectId}/pile-groups`}
+                    sourceRefreshState={selectedSourceRefreshState}
+                    sourceManageHref={
+                      sourcePileGroupId
+                        ? `/projects/${projectId}/pile-groups/${sourcePileGroupId}/multi-pile`
+                        : `/projects/${projectId}/pile-groups`
+                    }
                   />
                 </ScrollArea>
               </TabsContent>
@@ -780,4 +791,63 @@ export function DraftingEditor({
 
 function getInspectorStorageKey(drawingId: string) {
   return `eng.drafting.inspector.${drawingId}`;
+}
+
+function getSelectedSourceRefreshState(
+  object: DraftingObject | null,
+  pileSources: DraftingPileSourceRecord[],
+  pileTypeSources: DraftingPileTypeSourceRecord[],
+  spatialSources: DraftingSpatialSourceRecord[],
+): 'current' | 'stale' | 'missing' {
+  const sourceRef = object?.sourceRef;
+  if (!sourceRef || sourceRef.sourceType === 'manual') {
+    return 'current';
+  }
+  if (sourceRef.status === 'missing_source') {
+    return 'missing';
+  }
+
+  const currentVersion = getCurrentSourceVersion(sourceRef.sourceType, sourceRef.sourceId, {
+    pileSources,
+    pileTypeSources,
+    spatialSources,
+  });
+  if (!currentVersion) {
+    return 'missing';
+  }
+  if (sourceRef.sourceVersion && sourceRef.sourceVersion !== currentVersion) {
+    return 'stale';
+  }
+  return 'current';
+}
+
+function getCurrentSourceVersion(
+  sourceType: NonNullable<DraftingObject['sourceRef']>['sourceType'],
+  sourceId: string | undefined,
+  sources: {
+    pileSources: DraftingPileSourceRecord[];
+    pileTypeSources: DraftingPileTypeSourceRecord[];
+    spatialSources: DraftingSpatialSourceRecord[];
+  },
+) {
+  if (!sourceId) {
+    return null;
+  }
+  if (sourceType === 'foundation_pile') {
+    return (
+      sources.pileSources.find((source) => source.sourceId === sourceId)?.sourceVersion ?? null
+    );
+  }
+  if (sourceType === 'foundation_pile_type') {
+    return (
+      sources.pileTypeSources.find((source) => source.sourceId === sourceId)?.sourceVersion ?? null
+    );
+  }
+  if (sourceType === 'spatial_feature' || sourceType === 'geotech_borehole') {
+    return (
+      sources.spatialSources.find((source) => source.sourceId === sourceId)?.feature.updatedAt ??
+      null
+    );
+  }
+  return null;
 }

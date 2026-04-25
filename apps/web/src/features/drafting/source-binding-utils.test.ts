@@ -8,6 +8,7 @@ import {
   createDraftingObjectFromSpatialSource,
   createPileObjectFromSource,
   createPileObjectFromTypeSource,
+  getPileTypeCompleteness,
   refreshPileObjectFromSource,
 } from './source-binding-utils';
 
@@ -217,6 +218,48 @@ describe('drafting source binding utils', () => {
       pileType: { id: 'BP1' },
       joint: { x: 0, y: 0, pileTypeId: 'BP1' },
     });
+  });
+
+  it('classifies pile type completeness for source manager badges', () => {
+    expect(
+      getPileTypeCompleteness({
+        id: 'BP1',
+        displayName: 'BP1',
+        sizePreset: '600',
+        useCustom: false,
+        customMm: 600,
+        Dmm: 600,
+        nominalDiameterMm: 600,
+        eoop: 0.075,
+        eoopM: 0.075,
+        compressionUltimateMin: null,
+        compressionUltimateMax: null,
+        tensionUltimateMin: null,
+        tensionUltimateMax: null,
+        active: true,
+        order: 0,
+      }).status,
+    ).toBe('diameter_only');
+    expect(
+      getPileTypeCompleteness({
+        id: 'BP2',
+        displayName: 'BP2',
+        sizePreset: '600',
+        useCustom: false,
+        customMm: 600,
+        Dmm: 600,
+        nominalDiameterMm: 600,
+        eoop: 0.075,
+        eoopM: 0.075,
+        compressionUltimateMin: null,
+        compressionUltimateMax: null,
+        tensionUltimateMin: null,
+        tensionUltimateMax: null,
+        concreteGrade: 'C40',
+        active: true,
+        order: 0,
+      }).status,
+    ).toBe('partial');
   });
 
   it('refreshes pile type sources and marks missing source records', () => {

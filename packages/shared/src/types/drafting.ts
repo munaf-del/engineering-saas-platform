@@ -731,7 +731,7 @@ export type DraftingPileObject = DraftingObjectBase & {
     designCompressionKn?: number;
     designTensionKn?: number;
     designLateralKn?: number;
-    sourceCompleteness?: 'complete' | 'incomplete';
+    sourceCompleteness?: 'complete' | 'partial' | 'diameter_only' | 'missing_key_fields';
     durabilityExposureNote?: string;
     constructionNote?: string;
     sourceStatus?: string;

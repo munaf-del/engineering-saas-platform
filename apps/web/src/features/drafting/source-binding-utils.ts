@@ -57,7 +57,7 @@ export type DraftingPileSourceRecord = {
 };
 
 export type DraftingPileTypeCompleteness = {
-  status: 'complete' | 'incomplete';
+  status: 'complete' | 'partial' | 'diameter_only' | 'missing_key_fields';
   missing: string[];
 };
 
@@ -349,23 +349,35 @@ export function getPileTypeCompleteness(
   pileType: MultiPilePileTypeDefinition,
 ): DraftingPileTypeCompleteness {
   const missing: string[] = [];
-  if (!pileTypeDiameterMm(pileType)) {
+  const hasDiameter = Boolean(pileTypeDiameterMm(pileType));
+  const hasConcrete = Boolean(stringValue(pileType.concreteGrade));
+  const hasFounding =
+    optionalNumber(pileType.socketLengthM) !== undefined ||
+    optionalNumber(pileType.socketLengthMm) !== undefined ||
+    Boolean(stringValue(pileType.foundingStratum)) ||
+    Boolean(stringValue(pileType.foundingNote));
+
+  if (!hasDiameter) {
     missing.push('diameter');
   }
-  if (!stringValue(pileType.concreteGrade)) {
+  if (!hasConcrete) {
     missing.push('concrete');
   }
-  if (
-    optionalNumber(pileType.socketLengthM) === undefined &&
-    optionalNumber(pileType.socketLengthMm) === undefined &&
-    !stringValue(pileType.foundingStratum) &&
-    !stringValue(pileType.foundingNote)
-  ) {
+  if (!hasFounding) {
     missing.push('socket/founding');
   }
 
+  const status =
+    missing.length === 0
+      ? 'complete'
+      : !hasDiameter
+        ? 'missing_key_fields'
+        : !hasConcrete && !hasFounding
+          ? 'diameter_only'
+          : 'partial';
+
   return {
-    status: missing.length === 0 ? 'complete' : 'incomplete',
+    status,
     missing,
   };
 }
@@ -387,7 +399,7 @@ export function formatPileTypeSourceSummary(source: DraftingPileTypeSourceRecord
     parts.push(stringValue(pileType.foundingStratum));
   }
   const completeness = getPileTypeCompleteness(pileType);
-  if (completeness.status === 'incomplete') {
+  if (completeness.status !== 'complete') {
     parts.push(`missing ${completeness.missing.join('/')}`);
   }
   return parts.join(' · ');

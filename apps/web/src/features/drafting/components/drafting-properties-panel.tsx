@@ -30,6 +30,7 @@ export function DraftingPropertiesPanel({
   onDelete,
   onRefreshSource,
   onUpdate,
+  sourceRefreshState = 'current',
   sourceManageHref,
 }: {
   layers: DraftingLayer[];
@@ -37,6 +38,7 @@ export function DraftingPropertiesPanel({
   onDelete: () => void;
   onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  sourceRefreshState?: 'current' | 'stale' | 'missing';
   sourceManageHref?: string;
 }) {
   if (!object) {
@@ -66,6 +68,7 @@ export function DraftingPropertiesPanel({
             object={object}
             onRefreshSource={onRefreshSource}
             onUpdate={onUpdate}
+            sourceRefreshState={sourceRefreshState}
             sourceManageHref={sourceManageHref}
           />
 
@@ -134,11 +137,13 @@ function DraftingSourceRefProperties({
   object,
   onRefreshSource,
   onUpdate,
+  sourceRefreshState,
   sourceManageHref,
 }: {
   object: DraftingObject;
   onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  sourceRefreshState: 'current' | 'stale' | 'missing';
   sourceManageHref?: string;
 }) {
   const sourceRef = object.sourceRef ?? {
@@ -146,6 +151,9 @@ function DraftingSourceRefProperties({
     status: 'manual' as const,
   };
   const status = sourceRef.status ?? (sourceRef.sourceType === 'manual' ? 'manual' : 'snapshot');
+  const isMissingSource = status === 'missing_source' || sourceRefreshState === 'missing';
+  const isStaleSource =
+    !isMissingSource && sourceRef.sourceType !== 'manual' && sourceRefreshState === 'stale';
 
   function updateSourceRef(nextSourceRef: DraftingObject['sourceRef']) {
     onUpdate({
@@ -158,15 +166,41 @@ function DraftingSourceRefProperties({
   return (
     <PropertySection title="Source / Provenance">
       <div className="grid gap-2 text-xs sm:grid-cols-5">
-        <SourceField label="Status" value={formatSourceValue(status)} />
+        <SourceField
+          label="Source status"
+          value={
+            isMissingSource
+              ? 'Source missing'
+              : isStaleSource
+                ? 'Source may have changed'
+                : formatSourceValue(status)
+          }
+        />
         <SourceField label="Source kind" value={formatSourceKind(object, sourceRef.sourceType)} />
-        <SourceField label="Source label" value={sourceRef.sourceLabel ?? 'Manual object'} />
+        <SourceField label="Source code" value={sourceRef.sourceLabel ?? 'Sketch / unlinked'} />
         <SourceField label="Completeness" value={formatSourceCompleteness(object)} />
         <SourceField
           label="Snapshot date"
           value={sourceRef.linkedAt ? formatDraftingTimestamp(sourceRef.linkedAt) : 'Not recorded'}
         />
       </div>
+      {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Coordinates come from the Foundations source. Use Refresh + coordinates to move this
+          drafting object to the current source coordinates.
+        </p>
+      ) : null}
+      {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile_type' ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Refresh from source updates engineering fields from the pile type library and keeps the
+          current drafting position.
+        </p>
+      ) : null}
+      {sourceRef.sourceType === 'manual' ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          This pile is not linked to project engineering data.
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           className="h-8"
@@ -223,7 +257,7 @@ function DraftingSourceRefProperties({
             })
           }
         >
-          Convert to manual
+          Convert to sketch/unlinked
         </Button>
       </div>
       {sourceRef.sourceId ? (
@@ -253,13 +287,13 @@ function formatSourceValue(value: string | undefined) {
 function formatSourceKind(object: DraftingObject, sourceType: string | undefined) {
   if (object.type === 'pile') {
     if (sourceType === 'foundation_pile_type') {
-      return 'Pile type';
+      return 'Pile type library';
     }
     if (sourceType === 'foundation_pile') {
-      return 'Placed pile';
+      return 'Existing placed pile';
     }
     if (sourceType === 'manual') {
-      return 'Manual sketch';
+      return 'Sketch pile';
     }
   }
 
@@ -276,7 +310,9 @@ function formatSourceKind(object: DraftingObject, sourceType: string | undefined
 
 function formatSourceCompleteness(object: DraftingObject) {
   if (object.type === 'pile') {
-    return object.metadata.sourceCompleteness ?? 'Not recorded';
+    return object.metadata.sourceCompleteness
+      ? object.metadata.sourceCompleteness.replaceAll('_', ' ')
+      : 'Not recorded';
   }
   return 'Not recorded';
 }

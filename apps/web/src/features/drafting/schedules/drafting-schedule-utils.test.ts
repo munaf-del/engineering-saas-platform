@@ -240,11 +240,13 @@ describe('drafting schedule utils', () => {
     );
 
     expect(group.rows[0]?.cells).toMatchObject({
-      sourceKind: 'pile instance',
+      sourceKind: 'existing placed pile',
       sourceType: 'foundation_pile',
       sourceId: 'pile-db-1',
+      sourceLabel: 'P1',
       sourceStatus: 'linked',
       sourceCompleteness: 'complete',
+      manualSketch: 'no',
       concreteGrade: 'C40',
       designCompressionKn: '0',
     });

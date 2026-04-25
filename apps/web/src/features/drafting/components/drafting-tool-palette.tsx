@@ -223,12 +223,14 @@ export function DraftingToolPalette({
           onPileSourceModeChange={onPileSourceModeChange}
           onSelectPileTypeSource={onSelectPileTypeSource}
           onToolChange={onToolChange}
+          model={model}
           placedSourceIds={placedSourceIds}
           pileSourceManageHref={pileSourceManageHref}
           pileSourceMode={pileSourceMode}
           pileSources={sourcePanel.pileSources}
           pileTypeSources={pileTypeSources}
           selectedPileTypeSourceId={selectedPileTypeSourceId}
+          sourceManagerSpatialSources={spatialSources}
           spatialSources={sourcePanel.spatialSources}
           sourceLoading={sourceLoading}
           title={sourcePanel.title}
@@ -274,17 +276,20 @@ function SourceChoicePanel({
   onPileSourceModeChange,
   onSelectPileTypeSource,
   onToolChange,
+  model,
   placedSourceIds,
   pileSourceManageHref,
   pileSourceMode,
   pileSources,
   pileTypeSources,
   selectedPileTypeSourceId,
+  sourceManagerSpatialSources,
   spatialSources,
   sourceLoading,
   title,
 }: {
   activeTool: DraftingTool;
+  model: DraftingModel;
   onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
   onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
   onPileSourceModeChange?: (mode: DraftingPileSourceMode) => void;
@@ -296,6 +301,7 @@ function SourceChoicePanel({
   pileSources: DraftingPileSourceRecord[];
   pileTypeSources: DraftingPileTypeSourceRecord[];
   selectedPileTypeSourceId: string | null;
+  sourceManagerSpatialSources: DraftingSpatialSourceRecord[];
   spatialSources: DraftingSpatialSourceRecord[];
   sourceLoading: boolean;
   title: string;
@@ -309,7 +315,7 @@ function SourceChoicePanel({
 
   return (
     <div
-      className="mt-2 grid gap-2 rounded-md border bg-muted/15 p-2 text-xs sm:grid-cols-[10rem_1fr]"
+      className="mt-2 grid gap-2 rounded-md border bg-muted/15 p-2 text-xs lg:grid-cols-[11rem_1fr]"
       data-testid="drafting-source-choice-panel"
     >
       <div className="space-y-1">
@@ -321,13 +327,13 @@ function SourceChoicePanel({
                 active={pileSourceMode === 'linked_pile'}
                 onClick={() => onPileSourceModeChange?.('linked_pile')}
               >
-                Place existing pile
+                Existing placed pile
               </SourceModeButton>
               <SourceModeButton
                 active={pileSourceMode === 'pile_type'}
                 onClick={() => onPileSourceModeChange?.('pile_type')}
               >
-                Place from pile type
+                Pile type library
               </SourceModeButton>
               <SourceModeButton
                 active={pileSourceMode === 'manual_sketch'}
@@ -337,23 +343,37 @@ function SourceChoicePanel({
                   onToolChange(activeTool);
                 }}
               >
-                Manual sketch pile
+                Sketch pile (unlinked)
               </SourceModeButton>
             </>
           ) : (
             <>
               <SourceModeButton active onClick={() => onToolChange(activeTool)}>
-                From project data
+                {getLinkedSourceModeLabel(activeTool)}
               </SourceModeButton>
               <SourceModeButton onClick={() => onToolChange(activeTool)}>
-                Manual object
+                {getSketchSourceModeLabel(activeTool)}
               </SourceModeButton>
             </>
           )}
         </div>
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-2">
+        <DraftingSourceManager
+          activeTool={activeTool}
+          model={model}
+          onPlacePileSource={onPlacePileSource}
+          onPlaceSpatialSource={onPlaceSpatialSource}
+          onPileSourceModeChange={onPileSourceModeChange}
+          onSelectPileTypeSource={onSelectPileTypeSource}
+          pileSourceManageHref={pileSourceManageHref}
+          pileSources={pileSources}
+          pileTypeSources={pileTypeSources}
+          placedSourceIds={placedSourceIds}
+          selectedPileTypeSourceId={selectedPileTypeSourceId}
+          spatialSources={sourceManagerSpatialSources}
+        />
         {sourceLoading ? (
           <p className="text-muted-foreground">Loading project data sources...</p>
         ) : activeTool === 'pile' ? (
@@ -424,6 +444,318 @@ function SourceModeButton({
   );
 }
 
+function DraftingSourceManager({
+  activeTool,
+  model,
+  onPlacePileSource,
+  onPlaceSpatialSource,
+  onPileSourceModeChange,
+  onSelectPileTypeSource,
+  pileSourceManageHref,
+  pileSources,
+  pileTypeSources,
+  placedSourceIds,
+  selectedPileTypeSourceId,
+  spatialSources,
+}: {
+  activeTool: DraftingTool;
+  model: DraftingModel;
+  onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
+  onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
+  onPileSourceModeChange?: (mode: DraftingPileSourceMode) => void;
+  onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
+  pileSourceManageHref?: string;
+  pileSources: DraftingPileSourceRecord[];
+  pileTypeSources: DraftingPileTypeSourceRecord[];
+  placedSourceIds: string[];
+  selectedPileTypeSourceId: string | null;
+  spatialSources: DraftingSpatialSourceRecord[];
+}) {
+  const sourceUsageCounts = React.useMemo(() => buildSourceUsageCounts(model), [model]);
+  const boreholes = spatialSources.filter((source) => source.objectType === 'borehole');
+  const monitoringPoints = spatialSources.filter(
+    (source) => source.objectType === 'monitoring_point',
+  );
+  const services = spatialSources.filter(
+    (source) => source.objectType === 'service_run' || source.objectType === 'service_crossing',
+  );
+
+  return (
+    <div className="rounded-md border bg-background p-2" data-testid="drafting-source-manager">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Sources
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Pick project data first; sketch objects stay unlinked and temporary.
+          </p>
+        </div>
+        {pileSourceManageHref ? (
+          <a
+            className="h-7 rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-accent"
+            href={pileSourceManageHref}
+          >
+            Manage project pile types
+          </a>
+        ) : null}
+      </div>
+      <div className="grid gap-2 xl:grid-cols-3">
+        <SourceManagerGroup title="Foundation pile types">
+          {pileTypeSources.length > 0 ? (
+            pileTypeSources.map((source) => (
+              <PileTypeSourceCard
+                key={source.sourceId}
+                onSelectPileTypeSource={onSelectPileTypeSource}
+                selected={selectedPileTypeSourceId === source.sourceId}
+                source={source}
+                usageCount={sourceUsageCounts.get(source.sourceId) ?? 0}
+              />
+            ))
+          ) : (
+            <SourceManagerEmpty>
+              No project pile type library found. Create pile types in Foundations.
+            </SourceManagerEmpty>
+          )}
+        </SourceManagerGroup>
+
+        <SourceManagerGroup title="Existing placed piles / joints">
+          {pileSources.length > 0 ? (
+            pileSources.map((source) => (
+              <PlacedPileSourceCard
+                alreadyPlaced={placedSourceIds.includes(source.sourceId)}
+                key={source.sourceId}
+                onPlacePileSource={onPlacePileSource}
+                source={source}
+                usageCount={sourceUsageCounts.get(source.sourceId) ?? 0}
+              />
+            ))
+          ) : (
+            <SourceManagerEmpty>No placed pile instances or joints found yet.</SourceManagerEmpty>
+          )}
+        </SourceManagerGroup>
+
+        <SourceManagerGroup title="Manual sketch objects">
+          <div className="rounded-md border border-dashed px-2 py-1.5">
+            <div className="font-medium">Sketch pile (unlinked)</div>
+            <p className="text-[11px] text-muted-foreground">
+              Temporary drafting-only pile. Not linked to calculator, geotech, or project source
+              data.
+            </p>
+            <Button
+              className="mt-1 h-7 px-2 text-[11px]"
+              onClick={() => {
+                onSelectPileTypeSource?.(null);
+                onPileSourceModeChange?.('manual_sketch');
+              }}
+              type="button"
+              variant={activeTool === 'pile' ? 'outline' : 'ghost'}
+            >
+              Use sketch pile
+            </Button>
+          </div>
+        </SourceManagerGroup>
+
+        <SourceManagerGroup title="Boreholes">
+          {boreholes.length > 0 ? (
+            boreholes.map((source) => (
+              <SpatialSourceCard
+                key={source.sourceId}
+                onPlaceSpatialSource={onPlaceSpatialSource}
+                source={source}
+                usageCount={sourceUsageCounts.get(source.sourceId) ?? 0}
+              />
+            ))
+          ) : (
+            <SourceManagerEmpty>No linked boreholes found.</SourceManagerEmpty>
+          )}
+        </SourceManagerGroup>
+
+        <SourceManagerGroup title="Monitoring points">
+          {monitoringPoints.length > 0 ? (
+            monitoringPoints.map((source) => (
+              <SpatialSourceCard
+                key={source.sourceId}
+                onPlaceSpatialSource={onPlaceSpatialSource}
+                source={source}
+                usageCount={sourceUsageCounts.get(source.sourceId) ?? 0}
+              />
+            ))
+          ) : (
+            <SourceManagerEmpty>No linked monitoring points found.</SourceManagerEmpty>
+          )}
+        </SourceManagerGroup>
+
+        <SourceManagerGroup title="Spatial / services">
+          {services.length > 0 ? (
+            services.map((source) => (
+              <SpatialSourceCard
+                key={source.sourceId}
+                onPlaceSpatialSource={onPlaceSpatialSource}
+                source={source}
+                usageCount={sourceUsageCounts.get(source.sourceId) ?? 0}
+              />
+            ))
+          ) : (
+            <SourceManagerEmpty>No linked spatial/service features found.</SourceManagerEmpty>
+          )}
+        </SourceManagerGroup>
+      </div>
+    </div>
+  );
+}
+
+function SourceManagerGroup({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <section className="min-w-0 space-y-1" aria-label={title}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </section>
+  );
+}
+
+function SourceManagerEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-md border border-dashed px-2 py-1.5 text-[11px] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function PileTypeSourceCard({
+  onSelectPileTypeSource,
+  selected,
+  source,
+  usageCount,
+}: {
+  onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
+  selected: boolean;
+  source: DraftingPileTypeSourceRecord;
+  usageCount: number;
+}) {
+  const completeness = getPileTypeCompleteness(source.pileType);
+
+  return (
+    <div className="rounded-md border px-2 py-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{source.sourceLabel}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {formatPileTypeSourceSummary(source)}
+          </div>
+        </div>
+        <CompletenessBadge status={completeness.status} />
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-muted-foreground">{usageCount} drafting object(s)</span>
+        <Button
+          aria-label={`Place linked object from pile type ${source.sourceLabel}`}
+          aria-pressed={selected}
+          className="h-7 px-2 text-[11px]"
+          disabled={!onSelectPileTypeSource}
+          onClick={() => onSelectPileTypeSource?.(source)}
+          type="button"
+          variant={selected ? 'secondary' : 'outline'}
+        >
+          Place linked object
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlacedPileSourceCard({
+  alreadyPlaced,
+  onPlacePileSource,
+  source,
+  usageCount,
+}: {
+  alreadyPlaced: boolean;
+  onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
+  source: DraftingPileSourceRecord;
+  usageCount: number;
+}) {
+  return (
+    <div className="rounded-md border px-2 py-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{source.sourceLabel}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {formatPileInstanceSourceSummary(source)}
+          </div>
+        </div>
+        <span className="rounded-full border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+          {alreadyPlaced ? 'Linked' : 'Unlinked'}
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-muted-foreground">{usageCount} drafting object(s)</span>
+        <Button
+          aria-label={
+            alreadyPlaced
+              ? `Select existing object for ${source.sourceLabel}`
+              : `Place linked object for ${source.sourceLabel}`
+          }
+          className="h-7 px-2 text-[11px]"
+          disabled={!onPlacePileSource}
+          onClick={() => onPlacePileSource?.(source)}
+          type="button"
+          variant={alreadyPlaced ? 'secondary' : 'outline'}
+        >
+          {alreadyPlaced ? 'Select existing object' : 'Place linked object'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SpatialSourceCard({
+  onPlaceSpatialSource,
+  source,
+  usageCount,
+}: {
+  onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
+  source: DraftingSpatialSourceRecord;
+  usageCount: number;
+}) {
+  const alreadyPlaced = usageCount > 0;
+
+  return (
+    <div className="rounded-md border px-2 py-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{source.sourceLabel}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {getSpatialSourceLabel(source)}
+          </div>
+        </div>
+        <span className="rounded-full border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+          {alreadyPlaced ? 'Linked' : 'Unlinked'}
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-muted-foreground">{usageCount} drafting object(s)</span>
+        <Button
+          aria-label={
+            alreadyPlaced
+              ? `Select existing object for ${source.sourceLabel}`
+              : `Place linked spatial feature ${source.sourceLabel}`
+          }
+          className="h-7 px-2 text-[11px]"
+          disabled={!onPlaceSpatialSource}
+          onClick={() => onPlaceSpatialSource?.(source)}
+          type="button"
+          variant={alreadyPlaced ? 'secondary' : 'outline'}
+        >
+          {alreadyPlaced ? 'Select existing object' : 'Place linked object'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function PileSourceChoices({
   hasPileInstances,
   hasPileTypes,
@@ -477,31 +809,36 @@ function PileSourceChoices({
 
   if (pileSourceMode === 'linked_pile') {
     return (
-      <div className="flex flex-wrap gap-1.5">
-        {pileSources.map((source) => {
-          const alreadyPlaced = placedSourceIds.includes(source.sourceId);
-          return (
-            <Button
-              aria-label={
-                alreadyPlaced
-                  ? `Select placed object ${source.sourceLabel}`
-                  : `Place existing pile ${source.sourceLabel}`
-              }
-              className="h-7 max-w-56 truncate px-2 text-[11px]"
-              data-testid="drafting-source-pile-option"
-              disabled={!onPlacePileSource}
-              key={source.sourceId}
-              onClick={() => onPlacePileSource?.(source)}
-              title={`${formatPileInstanceSourceSummary(source)}${alreadyPlaced ? ' · already in model' : ''}`}
-              type="button"
-              variant={alreadyPlaced ? 'secondary' : 'outline'}
-            >
-              {alreadyPlaced
-                ? `Select placed object · ${source.sourceLabel}`
-                : formatPileInstanceSourceSummary(source)}
-            </Button>
-          );
-        })}
+      <div className="space-y-1.5">
+        <p className="text-muted-foreground">
+          Use a real placed pile/joint from the Foundations model. Coordinates come from the source.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {pileSources.map((source) => {
+            const alreadyPlaced = placedSourceIds.includes(source.sourceId);
+            return (
+              <Button
+                aria-label={
+                  alreadyPlaced
+                    ? `Select placed object ${source.sourceLabel}`
+                    : `Place existing pile ${source.sourceLabel}`
+                }
+                className="h-7 max-w-56 truncate px-2 text-[11px]"
+                data-testid="drafting-source-pile-option"
+                disabled={!onPlacePileSource}
+                key={source.sourceId}
+                onClick={() => onPlacePileSource?.(source)}
+                title={`${formatPileInstanceSourceSummary(source)}${alreadyPlaced ? ' · already in model' : ''}`}
+                type="button"
+                variant={alreadyPlaced ? 'secondary' : 'outline'}
+              >
+                {alreadyPlaced
+                  ? `Select placed object · ${source.sourceLabel}`
+                  : formatPileInstanceSourceSummary(source)}
+              </Button>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -517,7 +854,12 @@ function PileSourceChoices({
     );
   }
 
-  return <p className="text-muted-foreground">Click the model to place an unlinked sketch pile.</p>;
+  return (
+    <p className="text-muted-foreground">
+      Temporary drafting-only pile. Not linked to calculator, geotech, or project source data. Click
+      the model to place a sketch pile.
+    </p>
+  );
 }
 
 function PileTypeSourceList({
@@ -559,7 +901,7 @@ function PileTypeSourceList({
                   : 'border-amber-300 bg-amber-50 text-amber-700',
               )}
             >
-              {completeness.status === 'complete' ? 'Complete' : 'Incomplete'}
+              {formatCompletenessLabel(completeness.status)}
             </span>
           </div>
         );
@@ -574,11 +916,69 @@ function PileTypeSourceList({
       ) : null}
       {selectedPileTypeSourceId ? (
         <span className="self-center text-[11px] text-muted-foreground">
-          Click canvas to place selected pile type.
+          Place a new Drafting pile using this project pile type. The pile remains linked to that
+          type for engineering properties, but its position is placed on the model canvas.
         </span>
       ) : null}
     </div>
   );
+}
+
+function CompletenessBadge({
+  status,
+}: {
+  status: ReturnType<typeof getPileTypeCompleteness>['status'];
+}) {
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+        status === 'complete'
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+          : status === 'partial'
+            ? 'border-sky-300 bg-sky-50 text-sky-700'
+            : 'border-amber-300 bg-amber-50 text-amber-700',
+      )}
+    >
+      {formatCompletenessLabel(status)}
+    </span>
+  );
+}
+
+function formatCompletenessLabel(status: ReturnType<typeof getPileTypeCompleteness>['status']) {
+  switch (status) {
+    case 'complete':
+      return 'Complete';
+    case 'partial':
+      return 'Partial';
+    case 'diameter_only':
+      return 'Diameter only';
+    case 'missing_key_fields':
+      return 'Missing key fields';
+  }
+}
+
+function buildSourceUsageCounts(model: DraftingModel) {
+  const counts = new Map<string, number>();
+  for (const object of model.objects) {
+    const sourceId = object.sourceRef?.sourceId;
+    if (sourceId) {
+      counts.set(sourceId, (counts.get(sourceId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function getSpatialSourceLabel(source: DraftingSpatialSourceRecord) {
+  switch (source.objectType) {
+    case 'borehole':
+      return 'Linked borehole';
+    case 'monitoring_point':
+      return 'Linked monitoring point';
+    case 'service_run':
+    case 'service_crossing':
+      return 'Linked spatial/service feature';
+  }
 }
 
 function ToolButton({
@@ -630,6 +1030,35 @@ function getToolShortLabel(tool: DraftingTool) {
     TOOL_GROUPS.flatMap((group) => group.tools).find((entry) => entry.tool === tool)?.shortLabel ??
     tool
   );
+}
+
+function getLinkedSourceModeLabel(tool: DraftingTool) {
+  if (tool === 'borehole') {
+    return 'Linked borehole';
+  }
+  if (tool === 'monitoring_point') {
+    return 'Linked monitoring point';
+  }
+  if (tool === 'service_run' || tool === 'service_crossing') {
+    return 'Linked spatial/service feature';
+  }
+  return 'Linked project data';
+}
+
+function getSketchSourceModeLabel(tool: DraftingTool) {
+  if (tool === 'borehole') {
+    return 'Sketch borehole';
+  }
+  if (tool === 'monitoring_point') {
+    return 'Sketch monitoring point';
+  }
+  if (tool === 'service_run') {
+    return 'Sketch service run';
+  }
+  if (tool === 'service_crossing') {
+    return 'Sketch service crossing';
+  }
+  return 'Sketch object';
 }
 
 function getSourcePanel(

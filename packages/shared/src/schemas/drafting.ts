@@ -435,7 +435,9 @@ export const DraftingPileObjectSchema = DraftingObjectBaseSchema.extend({
     designCompressionKn: z.number().finite().optional(),
     designTensionKn: z.number().finite().optional(),
     designLateralKn: z.number().finite().optional(),
-    sourceCompleteness: z.enum(['complete', 'incomplete']).optional(),
+    sourceCompleteness: z
+      .enum(['complete', 'partial', 'diameter_only', 'missing_key_fields'])
+      .optional(),
     durabilityExposureNote: z.string().optional(),
     constructionNote: z.string().optional(),
     sourceStatus: z.string().optional(),

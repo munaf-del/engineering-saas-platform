@@ -73,10 +73,13 @@ describe('DraftingToolPalette', () => {
     );
 
     expect(markup).toContain('data-testid="drafting-source-choice-panel"');
+    expect(markup).toContain('data-testid="drafting-source-manager"');
     expect(markup).toContain('Pile source');
-    expect(markup).toContain('Place existing pile');
-    expect(markup).toContain('Place from pile type');
-    expect(markup).toContain('Manual sketch pile');
+    expect(markup).toContain('Existing placed pile');
+    expect(markup).toContain('Pile type library');
+    expect(markup).toContain('Sketch pile (unlinked)');
+    expect(markup).toContain('Existing placed piles / joints');
+    expect(markup).toContain('Manual sketch objects');
     expect(markup).toContain('data-testid="drafting-source-pile-option"');
     expect(markup).toContain('Select placed object · P1');
     expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(4);
@@ -132,6 +135,54 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-source-pile-type-option"');
     expect(markup).toContain('Complete');
     expect(markup).toContain('BP1 · 600 mm · C40 · socket 3 m');
+    expect(markup).toContain('Foundation pile types');
+    expect(markup).toContain('Place linked object');
     expect(markup).not.toContain('No project pile design records found');
+  });
+
+  it('labels incomplete pile type sources as diameter-only instead of a flat incomplete state', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingToolPalette
+        activeTool="pile"
+        drawingUpdatedAt="2026-04-25T00:00:00.000Z"
+        model={createEmptyDraftingModel('drawing-source-pile-types-diameter-only')}
+        onCancelLine={() => undefined}
+        onFinishLine={() => undefined}
+        onPileSourceModeChange={() => undefined}
+        onSelectPileTypeSource={() => undefined}
+        onToolChange={() => undefined}
+        pendingLinePointsCount={0}
+        pileSourceMode="pile_type"
+        pileTypeSources={[
+          {
+            sourceType: 'foundation_pile_type',
+            sourceId: 'group-1:type:BP2',
+            sourceLabel: 'BP2',
+            groupId: 'group-1',
+            groupName: 'foundation piles',
+            pileType: {
+              id: 'BP2',
+              displayName: 'BP2',
+              sizePreset: '750',
+              useCustom: false,
+              customMm: 600,
+              Dmm: 750,
+              nominalDiameterMm: 750,
+              eoop: 0.075,
+              eoopM: 0.075,
+              compressionUltimateMin: null,
+              compressionUltimateMax: null,
+              tensionUltimateMin: null,
+              tensionUltimateMax: null,
+              active: true,
+              order: 0,
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain('Diameter only');
+    expect(markup).toContain('BP2 · 750 mm · missing concrete/socket/founding');
   });
 });

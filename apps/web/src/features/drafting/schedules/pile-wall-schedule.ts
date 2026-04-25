@@ -13,8 +13,10 @@ export const SHORING_PILE_SCHEDULE_COLUMNS = [
   { key: 'sourceKind', label: 'Source Kind' },
   { key: 'sourceType', label: 'Source Type' },
   { key: 'sourceId', label: 'Source ID' },
+  { key: 'sourceLabel', label: 'Source Label / Code' },
   { key: 'sourceStatus', label: 'Source Status' },
   { key: 'sourceCompleteness', label: 'Source Completeness' },
+  { key: 'manualSketch', label: 'Manual / Sketch' },
   { key: 'idOrWallId', label: 'ID / Wall ID' },
   { key: 'pileMark', label: 'Pile Mark' },
   { key: 'pileTypeCode', label: 'Pile Type / Code' },
@@ -65,9 +67,11 @@ function buildPileRow(object: Extract<DraftingObject, { type: 'pile' }>): Drafti
       sourceKind: formatPileSourceKind(object),
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       sourceStatus:
         object.sourceRef?.status ?? (object.sourceRef?.sourceType ? 'snapshot' : 'manual'),
-      sourceCompleteness: object.metadata.sourceCompleteness ?? '',
+      sourceCompleteness: object.metadata.sourceCompleteness?.replaceAll('_', ' ') ?? '',
+      manualSketch: isManualSketch(object) ? 'yes' : 'no',
       idOrWallId: object.metadata.pileId || object.id,
       pileMark: object.metadata.pileId || object.id,
       pileTypeCode: formatOptionalText(object.metadata.pileTypeCode ?? object.metadata.pileType),
@@ -136,8 +140,10 @@ function buildSecantPileWallRow(
       sourceKind: object.sourceRef?.sourceType === 'manual' ? 'manual' : 'linked',
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
+      manualSketch: isManualSketch(object) ? 'yes' : 'no',
       idOrWallId: object.metadata.wallId || object.id,
       pileMark: '',
       pileTypeCode: '',
@@ -179,8 +185,10 @@ function buildSoldierPileWallRow(
       sourceKind: object.sourceRef?.sourceType === 'manual' ? 'manual' : 'linked',
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
+      manualSketch: isManualSketch(object) ? 'yes' : 'no',
       idOrWallId: object.metadata.wallId || object.id,
       pileMark: '',
       pileTypeCode: '',
@@ -221,8 +229,10 @@ function buildExcavationLineRow(
       sourceKind: object.sourceRef?.sourceType === 'manual' ? 'manual' : 'linked',
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
+      sourceLabel: object.sourceRef?.sourceLabel ?? '',
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
+      manualSketch: isManualSketch(object) ? 'yes' : 'no',
       idOrWallId: object.metadata.excavationId || object.id,
       pileMark: '',
       pileTypeCode: '',
@@ -254,12 +264,16 @@ function buildExcavationLineRow(
 
 function formatPileSourceKind(object: Extract<DraftingObject, { type: 'pile' }>) {
   if (object.sourceRef?.sourceType === 'foundation_pile_type') {
-    return 'pile type';
+    return 'pile type library';
   }
   if (object.sourceRef?.sourceType === 'foundation_pile') {
-    return 'pile instance';
+    return 'existing placed pile';
   }
   return 'manual sketch';
+}
+
+function isManualSketch(object: DraftingObject) {
+  return !object.sourceRef || object.sourceRef.sourceType === 'manual';
 }
 
 function formatPileCoordinates(object: Extract<DraftingObject, { type: 'pile' }>) {

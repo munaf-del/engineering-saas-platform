@@ -252,6 +252,7 @@ export function DraftingStage({
                 onHandlePointerDown={onObjectHandlePointerDown}
                 scale={view.scale}
               />
+              <SelectedObjectSourceBadge object={selectedObject} scale={view.scale} />
 
               <ReferencePointMarker
                 label={setup.referencePoint.label}
@@ -457,6 +458,84 @@ function formatDraftingCanvasViewStatus(mode: DraftingCanvasViewMode, zoomPercen
     default:
       return zoomPercent < 25 ? `Model view (${zoomPercent}%)` : `Canvas zoom ${zoomPercent}%`;
   }
+}
+
+function SelectedObjectSourceBadge({
+  object,
+  scale,
+}: {
+  object: DraftingObject | null;
+  scale: number;
+}) {
+  if (!object) {
+    return null;
+  }
+  const anchor = getSourceBadgeAnchor(object);
+  if (!anchor) {
+    return null;
+  }
+  const label = getSelectedSourceBadgeLabel(object);
+  const safeScale = Math.max(0.0001, scale);
+  const width = Math.max(92, label.length * 7 + 18);
+
+  return (
+    <g
+      data-testid="drafting-selected-source-badge"
+      pointerEvents="none"
+      transform={`translate(${anchor.x} ${anchor.y}) scale(${1 / safeScale})`}
+    >
+      <rect
+        fill="#ffffff"
+        height={22}
+        rx={4}
+        stroke="#64748b"
+        strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
+        width={width}
+        x={16}
+        y={-34}
+      />
+      <text fill="#334155" fontSize={11} fontWeight={700} x={26} y={-19}>
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function getSourceBadgeAnchor(object: DraftingObject): DraftingPoint | null {
+  switch (object.type) {
+    case 'pile':
+      return object.geometry.centre;
+    case 'borehole':
+    case 'monitoring_point':
+      return object.geometry.point;
+    case 'service_crossing':
+      return object.geometry.crossingPoint;
+    case 'service_run':
+      return object.geometry.path[0] ?? null;
+    default:
+      return null;
+  }
+}
+
+function getSelectedSourceBadgeLabel(object: DraftingObject) {
+  const sourceRef = object.sourceRef;
+  if (!sourceRef || sourceRef.sourceType === 'manual') {
+    return 'Sketch / unlinked';
+  }
+  if (sourceRef.sourceType === 'foundation_pile_type') {
+    return `${sourceRef.sourceLabel ?? 'Pile type'} linked`;
+  }
+  if (sourceRef.sourceType === 'foundation_pile') {
+    return `${sourceRef.sourceLabel ?? 'Pile'} source`;
+  }
+  if (sourceRef.sourceType === 'geotech_borehole') {
+    return `${sourceRef.sourceLabel ?? 'Borehole'} linked`;
+  }
+  if (sourceRef.sourceType === 'spatial_feature') {
+    return `${sourceRef.sourceLabel ?? 'Spatial'} linked`;
+  }
+  return 'Source linked';
 }
 
 function ReferencePointMarker({
