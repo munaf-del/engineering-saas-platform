@@ -1,7 +1,11 @@
 import * as React from 'react';
 import type { DraftingCalloutArrowStyle, DraftingPoint } from '@eng/shared';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingCalloutRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  type DraftingCalloutRendererProps,
+} from './renderer-types';
 
 const BOX_WIDTH = 2200;
 
@@ -11,10 +15,17 @@ export function CalloutRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingCalloutRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#111827';
-  const fill = object.style?.fill ?? '#ffffff';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'leaderCallout',
+    surface,
+  });
+  const stroke = object.style?.stroke ?? lineStyle.color;
+  const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
   const textSize = object.style?.textSize ?? 220;
   const bodyLines = object.parameters.body.split('\n').filter(Boolean);
   const boxHeight = 760 + Math.max(bodyLines.length, 1) * 240;
@@ -40,7 +51,7 @@ export function CalloutRenderer({
         fill="none"
         points={leaderPoints.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}
-        strokeWidth={lineWeight * 25}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       {renderCalloutArrow(
@@ -48,15 +59,14 @@ export function CalloutRenderer({
         leaderPoints[1] ?? connectionPoint,
         object.geometry.anchorPoint,
         stroke,
-        lineWeight,
+        lineStyle.editorStrokeWidth,
       )}
 
       <rect
         fill={fill}
         height={boxHeight}
-        rx={80}
-        stroke={isSelected ? '#2563eb' : stroke}
-        strokeWidth={lineWeight * 22}
+        stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         width={BOX_WIDTH}
         x={boxX}
@@ -68,7 +78,7 @@ export function CalloutRenderer({
       <line
         stroke={stroke}
         strokeOpacity={0.3}
-        strokeWidth={lineWeight * 18}
+        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
         vectorEffect="non-scaling-stroke"
         x1={boxX + 120}
         x2={boxX + BOX_WIDTH - 120}
@@ -103,7 +113,7 @@ function renderCalloutArrow(
   fromPoint: DraftingPoint,
   toPoint: DraftingPoint,
   stroke: string,
-  lineWeight: number,
+  strokeWidth: number,
 ) {
   if (arrowStyle === 'dot') {
     return (
@@ -124,7 +134,7 @@ function renderCalloutArrow(
       fill={arrowStyle === 'filled' ? stroke : 'none'}
       points={arrowPoints.map((point) => `${point.x},${point.y}`).join(' ')}
       stroke={stroke}
-      strokeWidth={lineWeight * 18}
+      strokeWidth={strokeWidth}
       vectorEffect="non-scaling-stroke"
     />
   );

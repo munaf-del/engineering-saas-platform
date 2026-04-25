@@ -58,7 +58,7 @@ describe('DraftingStage', () => {
     expect(markup).toContain('aria-label="Fit selected"');
     expect(markup).toContain('aria-label="Centre on reference point"');
     expect(markup).toContain('aria-label="Lock View"');
-    expect(markup).toContain('Model fit (5%)');
+    expect(markup).toContain('Fit view (5%)');
     expect(markup).toContain('Sheet scale 1:100');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });

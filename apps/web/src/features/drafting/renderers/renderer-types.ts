@@ -24,6 +24,7 @@ import {
   resolveDraftingPaperLineStyle,
   type ResolvedDraftingLineStyle,
 } from '../standards/drafting-style-resolver';
+import type { DraftingLineRole } from '../standards/drafting-standard-profiles';
 
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   drawingSetup?: DraftingDrawingSetup;
@@ -35,15 +36,64 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
 };
 
 export function resolveRendererLineStyle(
-  props: Pick<DraftingRendererProps, 'drawingSetup' | 'layer' | 'object' | 'surface'>,
+  props: Pick<DraftingRendererProps, 'drawingSetup' | 'layer' | 'object' | 'surface'> & {
+    role?: DraftingLineRole;
+  },
 ): ResolvedDraftingLineStyle {
   const resolver =
     props.surface === 'sheet' ? resolveDraftingPaperLineStyle : resolveDraftingLineStyle;
   return resolver({
     layer: props.layer,
     object: props.object,
+    role: props.role,
     setup: props.drawingSetup,
   });
+}
+
+export const DRAFTING_SELECTION_STYLE = {
+  fill: 'rgba(37, 99, 235, 0.08)',
+  stroke: '#2563eb',
+  strokeDasharray: '160 120',
+  strokeWidth: 2,
+} as const;
+
+export const DRAFTING_TECHNICAL_FILLS = {
+  none: 'none',
+  pile: 'rgba(15, 23, 42, 0.025)',
+  structural: 'rgba(15, 23, 42, 0.035)',
+  serviceConflict: 'rgba(127, 29, 29, 0.04)',
+  survey: 'rgba(15, 23, 42, 0.025)',
+  annotation: 'rgba(255, 255, 255, 0.92)',
+} as const;
+
+export function resolveTechnicalStroke(
+  stroke: string | undefined,
+  lineStyle: ResolvedDraftingLineStyle,
+  legacyPalette: string[] = [],
+) {
+  if (!stroke || legacyPalette.includes(stroke.toLowerCase())) {
+    return lineStyle.color;
+  }
+
+  return stroke;
+}
+
+export function resolveTechnicalFill(fill: string | undefined, fallback: string) {
+  if (!fill || fill === '#ffffff' || fill === 'transparent') {
+    return fallback;
+  }
+
+  const lowerFill = fill.toLowerCase();
+  if (
+    lowerFill === '#fdba74' ||
+    lowerFill === '#dcfce7' ||
+    lowerFill === '#fee2e2' ||
+    lowerFill === 'rgba(59, 130, 246, 0.2)'
+  ) {
+    return fallback;
+  }
+
+  return fill;
 }
 
 export type DraftingPileRendererProps = DraftingRendererProps<DraftingPileObject>;

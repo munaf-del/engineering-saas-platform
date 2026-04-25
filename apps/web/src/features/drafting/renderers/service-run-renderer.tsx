@@ -1,7 +1,11 @@
 import * as React from 'react';
 import { getServiceRunMidpoint } from '../semantic-object-utils';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingServiceRunRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  resolveRendererLineStyle,
+  resolveTechnicalStroke,
+  type DraftingServiceRunRendererProps,
+} from './renderer-types';
 
 export function ServiceRunRenderer({
   drawingSetup,
@@ -9,9 +13,16 @@ export function ServiceRunRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingServiceRunRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#475569';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: object.parameters.status === 'proposed' ? 'serviceProposed' : 'serviceExisting',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#475569']);
   const textSize = object.style?.textSize ?? 220;
   const midpoint = getServiceRunMidpoint(object);
   const label = [
@@ -34,13 +45,27 @@ export function ServiceRunRenderer({
       <polyline
         fill="none"
         points={object.geometry.path.map((point) => `${point.x},${point.y}`).join(' ')}
-        stroke={isSelected ? '#2563eb' : stroke}
+        stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeDasharray={dashArray}
-        strokeLinecap="round"
+        strokeLinecap="square"
         strokeLinejoin="round"
-        strokeWidth={lineWeight * 35}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
+      {object.parameters.diameterMm ? (
+        <polyline
+          fill="none"
+          opacity={0.45}
+          points={object.geometry.path.map((point) => `${point.x},${point.y}`).join(' ')}
+          stroke={stroke}
+          strokeDasharray={dashArray}
+          strokeLinecap="square"
+          strokeLinejoin="round"
+          strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.5)}
+          transform={`translate(0 ${Math.min(object.parameters.diameterMm / 2, 180)})`}
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
       <text fill={stroke} fontSize={textSize} x={midpoint.x + 120} y={midpoint.y - 160}>
         {label}
       </text>

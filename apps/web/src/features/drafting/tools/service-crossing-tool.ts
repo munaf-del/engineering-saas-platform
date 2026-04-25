@@ -17,9 +17,6 @@ export function createServiceCrossingObject(
     visible: true,
     locked: false,
     style: {
-      stroke: '#b91c1c',
-      fill: '#fee2e2',
-      lineWeight: 2,
       textSize: 220,
     },
     geometry: {
@@ -29,7 +26,7 @@ export function createServiceCrossingObject(
       crossingId: `SC${sequence}`,
       serviceType: 'unknown',
       conflictType: 'unknown',
-      clearanceMm: undefined,
+      clearanceMm: 0,
       riskStatus: 'open',
     },
     metadata: {

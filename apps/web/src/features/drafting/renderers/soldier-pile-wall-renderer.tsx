@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { defaultSoldierPileSymbolDiameterMm } from '../semantic-object-utils';
 import {
+  DRAFTING_TECHNICAL_FILLS,
   resolveRendererLineStyle,
+  resolveTechnicalFill,
+  resolveTechnicalStroke,
   type DraftingSoldierPileWallRendererProps,
 } from './renderer-types';
 
@@ -13,8 +16,29 @@ export function SoldierPileWallRenderer({
   onPointerDown,
   surface,
 }: DraftingSoldierPileWallRendererProps) {
-  const lineStyle = resolveRendererLineStyle({ drawingSetup, layer, object, surface });
-  const stroke = object.style?.stroke ?? lineStyle.color;
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'pileOutline',
+    surface,
+  });
+  const baselineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'wallBaseline',
+    surface,
+  });
+  const centreStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'pileCentreMark',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#b45309', '#1d4ed8']);
+  const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.structural);
   const diameterMm = defaultSoldierPileSymbolDiameterMm(object);
   const radius = diameterMm / 2;
   const firstPile = object.geometry.pilePositions[0];
@@ -38,7 +62,7 @@ export function SoldierPileWallRenderer({
         points={object.geometry.baselinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}
         strokeDasharray={object.parameters.laggingType ? undefined : '250 180'}
-        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.8)}
+        strokeWidth={baselineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       {object.geometry.pilePositions.map((point, index) => (
@@ -46,7 +70,7 @@ export function SoldierPileWallRenderer({
           <circle
             cx={point.x}
             cy={point.y}
-            fill="rgba(255, 251, 235, 0.06)"
+            fill={fill}
             r={radius}
             stroke={stroke}
             strokeWidth={lineStyle.editorStrokeWidth}
@@ -55,7 +79,8 @@ export function SoldierPileWallRenderer({
           <line
             stroke={stroke}
             strokeOpacity={0.6}
-            strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.55)}
+            strokeDasharray={centreStyle.dashArray}
+            strokeWidth={centreStyle.editorStrokeWidth}
             vectorEffect="non-scaling-stroke"
             x1={point.x - centreMark}
             x2={point.x + centreMark}
@@ -65,7 +90,8 @@ export function SoldierPileWallRenderer({
           <line
             stroke={stroke}
             strokeOpacity={0.6}
-            strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.55)}
+            strokeDasharray={centreStyle.dashArray}
+            strokeWidth={centreStyle.editorStrokeWidth}
             vectorEffect="non-scaling-stroke"
             x1={point.x}
             x2={point.x}

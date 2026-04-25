@@ -1396,6 +1396,58 @@ describe('drafting defaults', () => {
     ).toThrow();
   });
 
+  it('accepts explicit zero service numeric values in saved drafting models', () => {
+    const now = new Date('2026-04-22T00:00:00.000Z').toISOString();
+
+    const parsed = DraftingModelSchema.parse({
+      ...createEmptyDraftingModel('drawing-zero-service-values'),
+      objects: [
+        {
+          id: 'service-run-zero',
+          type: 'service_run',
+          layerId: 'services',
+          geometry: {
+            path: [
+              { x: 0, y: 0 },
+              { x: 1000, y: 0 },
+            ],
+          },
+          parameters: {
+            serviceId: 'SR0',
+            serviceType: 'unknown',
+            status: 'existing',
+            diameterMm: 0,
+            depthM: 0,
+            levelRl: 0,
+          },
+          metadata: {},
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'service-crossing-zero',
+          type: 'service_crossing',
+          layerId: 'services_conflicts',
+          geometry: {
+            crossingPoint: { x: 0, y: 0 },
+          },
+          parameters: {
+            crossingId: 'SC0',
+            serviceType: 'unknown',
+            conflictType: 'unknown',
+            clearanceMm: 0,
+            riskStatus: 'open',
+          },
+          metadata: {},
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    expect(parsed.objects).toHaveLength(2);
+  });
+
   it('rejects saved calibration metadata when the warning has not been acknowledged', () => {
     expect(() =>
       DraftingUnderlaySchema.parse({

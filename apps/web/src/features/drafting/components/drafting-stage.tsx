@@ -430,7 +430,7 @@ type DraftingCanvasViewMode =
 function formatDraftingCanvasViewStatus(mode: DraftingCanvasViewMode, zoomPercent: number) {
   switch (mode) {
     case 'model-fit':
-      return `Model fit (${zoomPercent}%)`;
+      return `Fit view (${zoomPercent}%)`;
     case 'selection-fit':
       return `Selection fit (${zoomPercent}%)`;
     case 'reference-centred':
@@ -438,7 +438,7 @@ function formatDraftingCanvasViewStatus(mode: DraftingCanvasViewMode, zoomPercen
     case 'reset-100':
       return `Canvas zoom 100%`;
     default:
-      return `Canvas zoom ${zoomPercent}%`;
+      return zoomPercent < 25 ? `Model view (${zoomPercent}%)` : `Canvas zoom ${zoomPercent}%`;
   }
 }
 

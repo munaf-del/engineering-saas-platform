@@ -17,25 +17,19 @@ export function createServiceRunObject(
     visible: true,
     locked: false,
     style: {
-      stroke: '#475569',
-      lineWeight: 2,
       lineStyle: 'solid',
       textSize: 220,
     },
     geometry: {
-      path: [
-        point,
-        { x: point.x + 2400, y: point.y },
-        { x: point.x + 4200, y: point.y + 600 },
-      ],
+      path: [point, { x: point.x + 2400, y: point.y }, { x: point.x + 4200, y: point.y + 600 }],
     },
     parameters: {
       serviceId: `SR${sequence}`,
       serviceType: 'unknown',
       status: 'existing',
-      diameterMm: undefined,
-      depthM: undefined,
-      levelRl: undefined,
+      diameterMm: 0,
+      depthM: 0,
+      levelRl: 0,
       authority: '',
     },
     metadata: {

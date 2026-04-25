@@ -1,6 +1,12 @@
 import * as React from 'react';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingServiceCrossingRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  resolveTechnicalFill,
+  resolveTechnicalStroke,
+  type DraftingServiceCrossingRendererProps,
+} from './renderer-types';
 
 export function ServiceCrossingRenderer({
   drawingSetup,
@@ -8,16 +14,39 @@ export function ServiceCrossingRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingServiceCrossingRendererProps) {
-  const stroke =
-    object.style?.stroke ??
-    (object.parameters.riskStatus === 'resolved'
-      ? '#15803d'
+  const conflictStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'serviceConflict',
+    surface,
+  });
+  const existingStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'serviceExisting',
+    surface,
+  });
+  const statusStroke =
+    object.parameters.riskStatus === 'resolved'
+      ? existingStyle.color
       : object.parameters.riskStatus === 'reviewed'
-        ? '#c2410c'
-        : (layer?.color ?? '#b91c1c'));
-  const fill = object.style?.fill ?? '#fee2e2';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+        ? '#854d0e'
+        : conflictStyle.color;
+  const stroke = resolveTechnicalStroke(
+    object.style?.stroke,
+    { ...conflictStyle, color: statusStroke },
+    ['#b91c1c'],
+  );
+  const fill = resolveTechnicalFill(
+    object.style?.fill,
+    object.parameters.riskStatus === 'open'
+      ? DRAFTING_TECHNICAL_FILLS.serviceConflict
+      : DRAFTING_TECHNICAL_FILLS.none,
+  );
   const textSize = object.style?.textSize ?? 220;
   const { crossingPoint } = object.geometry;
 
@@ -27,10 +56,11 @@ export function ServiceCrossingRenderer({
         <circle
           cx={crossingPoint.x}
           cy={crossingPoint.y}
-          fill="rgba(37, 99, 235, 0.12)"
+          fill={DRAFTING_SELECTION_STYLE.fill}
           r={360}
-          stroke="#2563eb"
-          strokeWidth={50}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect="non-scaling-stroke"
         />
       ) : null}
@@ -43,12 +73,12 @@ export function ServiceCrossingRenderer({
           `${crossingPoint.x - 220},${crossingPoint.y}`,
         ].join(' ')}
         stroke={stroke}
-        strokeWidth={lineWeight * 20}
+        strokeWidth={conflictStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 18}
+        strokeWidth={Math.max(0.75, conflictStyle.editorStrokeWidth * 0.75)}
         vectorEffect="non-scaling-stroke"
         x1={crossingPoint.x - 110}
         x2={crossingPoint.x + 110}
@@ -57,7 +87,7 @@ export function ServiceCrossingRenderer({
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 18}
+        strokeWidth={Math.max(0.75, conflictStyle.editorStrokeWidth * 0.75)}
         vectorEffect="non-scaling-stroke"
         x1={crossingPoint.x - 110}
         x2={crossingPoint.x + 110}

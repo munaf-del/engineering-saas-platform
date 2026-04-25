@@ -21,8 +21,26 @@ export type DraftingTextRole =
   | 'callout';
 
 export type DraftingLineRole =
+  | 'referenceUnderlay'
   | 'objectVisible'
   | 'objectHidden'
+  | 'structuralPrimary'
+  | 'structuralSecondary'
+  | 'pileOutline'
+  | 'pileCentreMark'
+  | 'wallBaseline'
+  | 'anchorTieback'
+  | 'beamWaler'
+  | 'serviceExisting'
+  | 'serviceProposed'
+  | 'serviceConflict'
+  | 'borehole'
+  | 'monitoringPoint'
+  | 'dimension'
+  | 'leaderCallout'
+  | 'sectionMarker'
+  | 'surveyReferenceMark'
+  | 'northArrow'
   | 'centreLine'
   | 'dimensionLine'
   | 'leaderLine'
@@ -128,8 +146,26 @@ const as1100TextStyles: Record<DraftingTextRole, DraftingTextStyleDefinition> = 
 };
 
 const generalLineStyles: Record<DraftingLineRole, DraftingLineStyleDefinition> = {
+  referenceUnderlay: lineRole('referenceUnderlay', 0.13, '#94a3b8'),
   objectVisible: lineRole('objectVisible', 0.35, '#334155'),
   objectHidden: lineRole('objectHidden', 0.25, '#64748b', '4 2'),
+  structuralPrimary: lineRole('structuralPrimary', 0.35, '#111827'),
+  structuralSecondary: lineRole('structuralSecondary', 0.25, '#334155'),
+  pileOutline: lineRole('pileOutline', 0.35, '#111827'),
+  pileCentreMark: lineRole('pileCentreMark', 0.18, '#475569', '7 2 1.5 2'),
+  wallBaseline: lineRole('wallBaseline', 0.25, '#334155', '7 2 1.5 2'),
+  anchorTieback: lineRole('anchorTieback', 0.25, '#334155'),
+  beamWaler: lineRole('beamWaler', 0.35, '#111827'),
+  serviceExisting: lineRole('serviceExisting', 0.25, '#334155'),
+  serviceProposed: lineRole('serviceProposed', 0.25, '#334155', '6 2'),
+  serviceConflict: lineRole('serviceConflict', 0.35, '#7f1d1d'),
+  borehole: lineRole('borehole', 0.25, '#0f172a'),
+  monitoringPoint: lineRole('monitoringPoint', 0.25, '#0f172a'),
+  dimension: lineRole('dimension', 0.18, '#111827'),
+  leaderCallout: lineRole('leaderCallout', 0.18, '#111827'),
+  sectionMarker: lineRole('sectionMarker', 0.5, '#111827'),
+  surveyReferenceMark: lineRole('surveyReferenceMark', 0.35, '#0f172a'),
+  northArrow: lineRole('northArrow', 0.35, '#0f172a'),
   centreLine: lineRole('centreLine', 0.25, '#475569', '7 2 1.5 2'),
   dimensionLine: lineRole('dimensionLine', 0.18, '#111827'),
   leaderLine: lineRole('leaderLine', 0.18, '#111827'),
@@ -168,7 +204,11 @@ export const DRAFTING_STANDARD_PROFILES: DraftingStandardProfile[] = [
     label: 'AS/NZS 1100 Structural',
     lineOverrides: {
       objectVisible: { lineWeightMm: 0.35 },
+      structuralPrimary: { lineWeightMm: 0.35 },
+      beamWaler: { lineWeightMm: 0.35 },
+      pileOutline: { lineWeightMm: 0.35 },
       sectionLine: { lineWeightMm: 0.5 },
+      sectionMarker: { lineWeightMm: 0.5 },
       gridLine: { lineWeightMm: 0.25 },
       constructionSetout: { lineWeightMm: 0.25 },
     },
@@ -180,6 +220,7 @@ export const DRAFTING_STANDARD_PROFILES: DraftingStandardProfile[] = [
     label: 'AS 1100 Survey / Control',
     lineOverrides: {
       surveyControl: { lineWeightMm: 0.5 },
+      surveyReferenceMark: { lineWeightMm: 0.5 },
       constructionSetout: { lineWeightMm: 0.35 },
       gridLine: { lineWeightMm: 0.18 },
     },
@@ -188,24 +229,24 @@ export const DRAFTING_STANDARD_PROFILES: DraftingStandardProfile[] = [
 ];
 
 export const DRAFTING_OBJECT_LINE_ROLE_MAP: Record<DraftingObject['type'], DraftingLineRole> = {
-  pile: 'objectVisible',
+  pile: 'pileOutline',
   excavation_line: 'constructionSetout',
-  monitoring_point: 'surveyControl',
-  leader_note: 'leaderLine',
-  secant_pile_wall: 'objectVisible',
-  soldier_pile_wall: 'objectVisible',
-  anchor_tieback: 'constructionSetout',
-  capping_beam: 'sectionLine',
-  waler: 'objectVisible',
-  dimension_chain: 'dimensionLine',
-  callout: 'leaderLine',
-  section_marker: 'sectionLine',
-  borehole: 'surveyControl',
-  service_run: 'existing',
-  service_crossing: 'objectHidden',
-  survey_point: 'surveyControl',
-  service_line: 'existing',
-  dimension: 'dimensionLine',
+  monitoring_point: 'monitoringPoint',
+  leader_note: 'leaderCallout',
+  secant_pile_wall: 'structuralPrimary',
+  soldier_pile_wall: 'structuralPrimary',
+  anchor_tieback: 'anchorTieback',
+  capping_beam: 'beamWaler',
+  waler: 'beamWaler',
+  dimension_chain: 'dimension',
+  callout: 'leaderCallout',
+  section_marker: 'sectionMarker',
+  borehole: 'borehole',
+  service_run: 'serviceExisting',
+  service_crossing: 'serviceConflict',
+  survey_point: 'surveyReferenceMark',
+  service_line: 'serviceExisting',
+  dimension: 'dimension',
   title_block: 'objectVisible',
   revision_block: 'objectVisible',
 };

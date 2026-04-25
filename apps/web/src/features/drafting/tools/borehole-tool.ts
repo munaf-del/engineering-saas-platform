@@ -18,9 +18,6 @@ export function createBoreholeObject(
     visible: true,
     locked: false,
     style: {
-      stroke: '#0f766e',
-      fill: '#dcfce7',
-      lineWeight: 2,
       textSize: 220,
     },
     geometry: {

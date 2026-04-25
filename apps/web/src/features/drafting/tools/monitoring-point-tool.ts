@@ -16,11 +16,7 @@ export function createMonitoringPointObject(
     name: `Monitoring Point ${sequence}`,
     visible: true,
     locked: false,
-    style: {
-      stroke: '#7c3aed',
-      fill: '#ffffff',
-      lineWeight: 2,
-    },
+    style: {},
     geometry: {
       point,
     },

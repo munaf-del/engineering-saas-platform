@@ -51,10 +51,12 @@ describe('drafting standard profiles', () => {
   });
 
   it('maps implemented drafting object types to profile line roles', () => {
-    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.pile).toBe('objectVisible');
-    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.dimension_chain).toBe('dimensionLine');
-    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.borehole).toBe('surveyControl');
-    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.service_crossing).toBe('objectHidden');
+    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.pile).toBe('pileOutline');
+    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.dimension_chain).toBe('dimension');
+    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.borehole).toBe('borehole');
+    expect(DRAFTING_OBJECT_LINE_ROLE_MAP.service_crossing).toBe('serviceConflict');
+    expect(getDraftingStandardProfile().lineStyles.serviceExisting.color).toBe('#334155');
+    expect(getDraftingStandardProfile().lineStyles.pileOutline.color).toBe('#111827');
   });
 
   it('resolves editor and sheet line weights without coupling to canvas zoom', () => {

@@ -1143,7 +1143,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Shoring',
     visible: true,
     locked: false,
-    color: '#b45309',
+    color: '#111827',
     lineWeight: 2,
   },
   {
@@ -1151,7 +1151,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Piles',
     visible: true,
     locked: false,
-    color: '#1d4ed8',
+    color: '#111827',
     lineWeight: 2,
   },
   {
@@ -1159,7 +1159,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Anchors',
     visible: true,
     locked: false,
-    color: '#0f766e',
+    color: '#334155',
     lineWeight: 2,
   },
   {
@@ -1167,7 +1167,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Beams / Walers',
     visible: true,
     locked: false,
-    color: '#7c2d12',
+    color: '#111827',
     lineWeight: 3,
   },
   {
@@ -1175,7 +1175,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Excavation',
     visible: true,
     locked: false,
-    color: '#b91c1c',
+    color: '#334155',
     lineWeight: 2,
   },
   {
@@ -1183,7 +1183,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Monitoring',
     visible: true,
     locked: false,
-    color: '#7c3aed',
+    color: '#0f172a',
     lineWeight: 2,
   },
   {
@@ -1191,7 +1191,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Investigation',
     visible: true,
     locked: false,
-    color: '#0f766e',
+    color: '#0f172a',
     lineWeight: 2,
   },
   {
@@ -1207,7 +1207,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Services / Conflicts',
     visible: true,
     locked: false,
-    color: '#b91c1c',
+    color: '#7f1d1d',
     lineWeight: 2,
   },
   {
@@ -1215,7 +1215,7 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     name: 'Sections',
     visible: true,
     locked: false,
-    color: '#1e293b',
+    color: '#111827',
     lineWeight: 2,
   },
   {

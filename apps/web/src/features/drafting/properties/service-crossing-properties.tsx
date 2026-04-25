@@ -14,7 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Field, NumberField, OptionalNumberField } from './common-object-properties';
+import {
+  Field,
+  NumberField,
+  OptionalNumberField,
+  finiteNumberOrDefault,
+} from './common-object-properties';
 
 export function ServiceCrossingProperties({
   object,
@@ -29,30 +34,34 @@ export function ServiceCrossingProperties({
       updatedAt: new Date().toISOString(),
     });
   }
+  const crossingPoint = {
+    x: finiteNumberOrDefault(object.geometry.crossingPoint?.x),
+    y: finiteNumberOrDefault(object.geometry.crossingPoint?.y),
+  };
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
           label="Crossing X (mm)"
-          value={object.geometry.crossingPoint.x}
+          value={crossingPoint.x}
           onChange={(value) =>
             updateObject({
               ...object,
               geometry: {
-                crossingPoint: { ...object.geometry.crossingPoint, x: value },
+                crossingPoint: { ...crossingPoint, x: value },
               },
             })
           }
         />
         <NumberField
           label="Crossing Y (mm)"
-          value={object.geometry.crossingPoint.y}
+          value={crossingPoint.y}
           onChange={(value) =>
             updateObject({
               ...object,
               geometry: {
-                crossingPoint: { ...object.geometry.crossingPoint, y: value },
+                crossingPoint: { ...crossingPoint, y: value },
               },
             })
           }

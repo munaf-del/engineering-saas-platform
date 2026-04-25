@@ -1,6 +1,12 @@
 import * as React from 'react';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingBoreholeRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  resolveTechnicalFill,
+  resolveTechnicalStroke,
+  type DraftingBoreholeRendererProps,
+} from './renderer-types';
 
 export function BoreholeRenderer({
   drawingSetup,
@@ -8,10 +14,17 @@ export function BoreholeRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingBoreholeRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#0f766e';
-  const fill = object.style?.fill ?? '#dcfce7';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'borehole',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#0f766e']);
+  const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.survey);
   const textSize = object.style?.textSize ?? 220;
   const detailParts = [
     object.parameters.groundLevelRl !== undefined ? `GL ${object.parameters.groundLevelRl}` : null,
@@ -26,10 +39,11 @@ export function BoreholeRenderer({
         <circle
           cx={object.geometry.point.x}
           cy={object.geometry.point.y}
-          fill="rgba(14, 165, 233, 0.12)"
+          fill={DRAFTING_SELECTION_STYLE.fill}
           r={320}
-          stroke="#2563eb"
-          strokeWidth={50}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect="non-scaling-stroke"
         />
       ) : null}
@@ -39,12 +53,12 @@ export function BoreholeRenderer({
         fill={fill}
         r={160}
         stroke={stroke}
-        strokeWidth={lineWeight * 22}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 20}
+        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
         vectorEffect="non-scaling-stroke"
         x1={object.geometry.point.x}
         x2={object.geometry.point.x}
@@ -53,7 +67,7 @@ export function BoreholeRenderer({
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 20}
+        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
         vectorEffect="non-scaling-stroke"
         x1={object.geometry.point.x - 220}
         x2={object.geometry.point.x + 220}

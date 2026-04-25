@@ -17,11 +17,7 @@ export function createCappingBeamObject(
     name: `Capping Beam ${sequence}`,
     visible: true,
     locked: false,
-    style: {
-      stroke: '#7c2d12',
-      fill: '#fdba74',
-      lineWeight: 3,
-    },
+    style: {},
     geometry: {
       points: createDefaultBaselinePoints(point, 5000),
     },

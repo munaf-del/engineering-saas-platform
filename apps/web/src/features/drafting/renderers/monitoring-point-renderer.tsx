@@ -1,6 +1,12 @@
 import * as React from 'react';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingMonitoringPointRendererProps } from './renderer-types';
+import {
+  DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  resolveTechnicalFill,
+  resolveTechnicalStroke,
+  type DraftingMonitoringPointRendererProps,
+} from './renderer-types';
 
 export function MonitoringPointRenderer({
   drawingSetup,
@@ -8,10 +14,17 @@ export function MonitoringPointRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingMonitoringPointRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const fill = object.style?.fill ?? 'transparent';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'monitoringPoint',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#7c3aed']);
+  const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.none);
   const { x, y } = object.geometry.point;
 
   return (
@@ -20,10 +33,11 @@ export function MonitoringPointRenderer({
         <circle
           cx={x}
           cy={y}
-          fill="rgba(124, 58, 237, 0.12)"
+          fill={DRAFTING_SELECTION_STYLE.fill}
           r={420}
-          stroke="#7c3aed"
-          strokeWidth={50}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect="non-scaling-stroke"
         />
       ) : null}
@@ -33,12 +47,12 @@ export function MonitoringPointRenderer({
         fill={fill}
         r={220}
         stroke={stroke}
-        strokeWidth={lineWeight * 30}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 30}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={x - 300}
         x2={x + 300}
@@ -47,7 +61,7 @@ export function MonitoringPointRenderer({
       />
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 30}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={x}
         x2={x}

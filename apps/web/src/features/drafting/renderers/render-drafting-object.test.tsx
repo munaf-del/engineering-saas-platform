@@ -128,13 +128,34 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
 
-  it('keeps pile wall fills light instead of rendering solid blobs by default', () => {
+  it('renders drafting objects as linework-first profile-driven symbols', () => {
     const model = createEmptyDraftingModel('drawing-profile-wall-render');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);
     const secantWall = createDraftingObject('secant_pile_wall', { x: 1200, y: 2200 }, model);
     const soldierWall = createDraftingObject('soldier_pile_wall', { x: 1400, y: 2400 }, model);
+    const cappingBeam = createDraftingObject('capping_beam', { x: 1800, y: 2800 }, model);
+    const waler = createDraftingObject('waler', { x: 2000, y: 3000 }, model);
+    const serviceRun = createDraftingObject('service_run', { x: 4000, y: 5200 }, model);
+    const serviceCrossing = createDraftingObject('service_crossing', { x: 4200, y: 5400 }, model);
+    const borehole = createDraftingObject('borehole', { x: 3800, y: 5000 }, model);
+    const monitoringPoint = createDraftingObject('monitoring_point', { x: 2000, y: 3000 }, model);
+    const callout = createDraftingObject('callout', { x: 3400, y: 4600 }, model);
+    const sectionMarker = createDraftingObject('section_marker', { x: 3600, y: 4800 }, model);
     const markup = renderToStaticMarkup(
       <svg>
-        {[secantWall, soldierWall].map((object) => (
+        {[
+          pile,
+          secantWall,
+          soldierWall,
+          cappingBeam,
+          waler,
+          serviceRun,
+          serviceCrossing,
+          borehole,
+          monitoringPoint,
+          callout,
+          sectionMarker,
+        ].map((object) => (
           <React.Fragment key={object.id}>
             {renderDraftingObject({
               drawingSetup: model.drawingSetup,
@@ -148,10 +169,14 @@ describe('renderDraftingObject', () => {
       </svg>,
     );
 
-    expect(markup).toContain('rgba(253, 186, 116, 0.06)');
-    expect(markup).toContain('rgba(255, 251, 235, 0.06)');
+    expect(markup).toContain('rgba(15, 23, 42, 0.035)');
+    expect(markup).toContain('fill="none"');
+    expect(markup).toContain('stroke="#111827"');
     expect(markup).not.toContain('stroke-width="55"');
     expect(markup).not.toContain('stroke-width="65"');
+    expect(markup).not.toContain('#fdba74');
+    expect(markup).not.toContain('#dcfce7');
+    expect(markup).not.toContain('#fee2e2');
   });
 
   it('uses profile roles for pile, secant wall, and soldier wall rendering', () => {

@@ -13,7 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Field, NumberField, OptionalNumberField } from './common-object-properties';
+import {
+  Field,
+  NumberField,
+  OptionalNumberField,
+  finiteNumberOrDefault,
+} from './common-object-properties';
 
 export function ServiceRunProperties({
   object,
@@ -28,6 +33,10 @@ export function ServiceRunProperties({
       updatedAt: new Date().toISOString(),
     });
   }
+  const path = object.geometry.path.map((point) => ({
+    x: finiteNumberOrDefault(point.x),
+    y: finiteNumberOrDefault(point.y),
+  }));
 
   return (
     <div className="space-y-4">
@@ -159,7 +168,7 @@ export function ServiceRunProperties({
 
       <Field label="Path Points (mm)">
         <div className="space-y-3">
-          {object.geometry.path.map((point, index) => (
+          {path.map((point, index) => (
             <div key={`${object.id}-path-${index}`} className="grid gap-4 sm:grid-cols-2">
               <NumberField
                 label={`Point ${index + 1} X`}
@@ -169,7 +178,7 @@ export function ServiceRunProperties({
                     ...object,
                     geometry: {
                       ...object.geometry,
-                      path: object.geometry.path.map((existingPoint, pointIndex) =>
+                      path: path.map((existingPoint, pointIndex) =>
                         pointIndex === index ? { ...existingPoint, x: value } : existingPoint,
                       ),
                     },
@@ -184,7 +193,7 @@ export function ServiceRunProperties({
                     ...object,
                     geometry: {
                       ...object.geometry,
-                      path: object.geometry.path.map((existingPoint, pointIndex) =>
+                      path: path.map((existingPoint, pointIndex) =>
                         pointIndex === index ? { ...existingPoint, y: value } : existingPoint,
                       ),
                     },

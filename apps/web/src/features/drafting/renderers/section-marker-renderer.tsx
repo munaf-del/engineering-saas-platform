@@ -1,7 +1,10 @@
 import * as React from 'react';
 import type { DraftingPoint } from '@eng/shared';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingSectionMarkerRendererProps } from './renderer-types';
+import {
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  type DraftingSectionMarkerRendererProps,
+} from './renderer-types';
 
 export function SectionMarkerRenderer({
   drawingSetup,
@@ -9,10 +12,17 @@ export function SectionMarkerRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingSectionMarkerRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#1e293b';
-  const fill = object.style?.fill ?? '#ffffff';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'sectionMarker',
+    surface,
+  });
+  const stroke = object.style?.stroke ?? lineStyle.color;
+  const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
   const textSize = object.style?.textSize ?? 220;
   const midpoint = {
     x: (object.geometry.startPoint.x + object.geometry.endPoint.x) / 2,
@@ -24,7 +34,7 @@ export function SectionMarkerRenderer({
       <line
         stroke={isSelected ? '#2563eb' : stroke}
         strokeDasharray="260 180"
-        strokeWidth={lineWeight * 28}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={object.geometry.startPoint.x}
         x2={object.geometry.endPoint.x}
@@ -37,7 +47,7 @@ export function SectionMarkerRenderer({
             object.geometry.endPoint,
             object.geometry.startPoint,
             stroke,
-            lineWeight,
+            lineStyle.editorStrokeWidth,
           )
         : null}
       {object.parameters.arrowDirection === 'right' || object.parameters.arrowDirection === 'both'
@@ -45,7 +55,7 @@ export function SectionMarkerRenderer({
             object.geometry.startPoint,
             object.geometry.endPoint,
             stroke,
-            lineWeight,
+            lineStyle.editorStrokeWidth,
           )
         : null}
 
@@ -57,7 +67,7 @@ export function SectionMarkerRenderer({
             fill={fill}
             r={250}
             stroke={stroke}
-            strokeWidth={lineWeight * 20}
+            strokeWidth={lineStyle.editorStrokeWidth}
             vectorEffect="non-scaling-stroke"
           />
           <text
@@ -101,7 +111,7 @@ function renderSectionArrow(
   fromPoint: DraftingPoint,
   toPoint: DraftingPoint,
   stroke: string,
-  lineWeight: number,
+  strokeWidth: number,
 ) {
   const deltaX = toPoint.x - fromPoint.x;
   const deltaY = toPoint.y - fromPoint.y;
@@ -130,7 +140,7 @@ function renderSectionArrow(
         `${basePoint.x - normal.x * 140},${basePoint.y - normal.y * 140}`,
       ].join(' ')}
       stroke={stroke}
-      strokeWidth={lineWeight * 18}
+      strokeWidth={strokeWidth}
       vectorEffect="non-scaling-stroke"
     />
   );

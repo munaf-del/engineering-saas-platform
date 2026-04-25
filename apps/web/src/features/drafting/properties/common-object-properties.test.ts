@@ -3,9 +3,13 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createEmptyDraftingModel } from '@eng/shared';
 import { createSecantPileWallObject } from '../tools/secant-pile-wall-tool';
+import { createServiceCrossingObject } from '../tools/service-crossing-tool';
+import { createServiceRunObject } from '../tools/service-run-tool';
 import { createSoldierPileWallObject } from '../tools/soldier-pile-wall-tool';
 import { formatNumberInputValue } from './common-object-properties';
 import { SecantPileWallProperties } from './secant-pile-wall-properties';
+import { ServiceCrossingProperties } from './service-crossing-properties';
+import { ServiceRunProperties } from './service-run-properties';
 import { SoldierPileWallProperties } from './soldier-pile-wall-properties';
 
 describe('drafting common object property controls', () => {
@@ -55,5 +59,34 @@ describe('drafting common object property controls', () => {
     expect(markup).toContain('value="1500"');
     expect(markup).toContain('value="0"');
     expect(markup).toContain(`Generated pile count: ${object.geometry.pilePositions.length}`);
+  });
+
+  it('renders service crossing coordinate and clearance defaults instead of blank inputs', () => {
+    const model = createEmptyDraftingModel('drawing-service-crossing-properties');
+    const object = createServiceCrossingObject({ x: 0, y: 1250 }, model);
+    const markup = renderToStaticMarkup(
+      React.createElement(ServiceCrossingProperties, {
+        object,
+        onUpdate: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain('value="0"');
+    expect(markup).toContain('value="1250"');
+  });
+
+  it('renders service run numeric defaults including zero instead of blank inputs', () => {
+    const model = createEmptyDraftingModel('drawing-service-run-properties');
+    const object = createServiceRunObject({ x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      React.createElement(ServiceRunProperties, {
+        object,
+        onUpdate: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain('value="0"');
+    expect(markup).toContain('value="2400"');
+    expect(markup).toContain('value="4200"');
   });
 });

@@ -197,3 +197,7 @@ export function formatNumberInputValue(value: number | string | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? value : '';
 }
+
+export function finiteNumberOrDefault(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}

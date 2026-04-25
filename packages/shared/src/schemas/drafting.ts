@@ -654,7 +654,7 @@ export const DraftingServiceRunObjectSchema = DraftingObjectBaseSchema.extend({
     serviceId: z.string().min(1),
     serviceType: z.enum(DRAFTING_SERVICE_TYPES),
     status: z.enum(DRAFTING_SERVICE_STATUSES),
-    diameterMm: z.number().positive().optional(),
+    diameterMm: z.number().nonnegative().optional(),
     depthM: z.number().finite().optional(),
     levelRl: z.number().finite().optional(),
     authority: z.string().optional(),
@@ -675,7 +675,7 @@ export const DraftingServiceCrossingObjectSchema = DraftingObjectBaseSchema.exte
     crossingId: z.string().min(1),
     serviceType: z.enum(DRAFTING_SERVICE_TYPES),
     conflictType: z.enum(DRAFTING_SERVICE_CONFLICT_TYPES),
-    clearanceMm: z.number().positive().optional(),
+    clearanceMm: z.number().finite().optional(),
     riskStatus: z.enum(DRAFTING_SERVICE_RISK_STATUSES),
   }),
   metadata: z.object({

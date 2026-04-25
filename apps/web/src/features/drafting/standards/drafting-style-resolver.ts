@@ -48,7 +48,7 @@ export function resolveDraftingLineStyle(args: {
   const lineWeightMm =
     (overrideLineWeightMm ?? legacyLineWeightMm ?? profileStyle.lineWeightMm) *
     (setup?.outputLineWeightScale ?? setup?.graphics.lineWeightScale ?? 1);
-  const color = args.object?.style?.stroke ?? args.layer?.color ?? profileStyle.color;
+  const color = profileStyle.color ?? args.object?.style?.stroke ?? args.layer?.color;
   const dashArray = toEditorDashArray(args.object?.style?.lineStyle ? undefined : profileStyle);
 
   return {

@@ -1,5 +1,11 @@
 import * as React from 'react';
-import { resolveRendererLineStyle, type DraftingPileRendererProps } from './renderer-types';
+import {
+  DRAFTING_TECHNICAL_FILLS,
+  resolveRendererLineStyle,
+  resolveTechnicalFill,
+  resolveTechnicalStroke,
+  type DraftingPileRendererProps,
+} from './renderer-types';
 
 export function PileRenderer({
   drawingSetup,
@@ -10,8 +16,15 @@ export function PileRenderer({
   surface,
 }: DraftingPileRendererProps) {
   const lineStyle = resolveRendererLineStyle({ drawingSetup, layer, object, surface });
-  const stroke = object.style?.stroke ?? lineStyle.color;
-  const fill = resolvePileFill(object.style?.fill);
+  const centreStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'pileCentreMark',
+    surface,
+  });
+  const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#1d4ed8']);
+  const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.pile);
   const radius = object.geometry.diameterMm / 2;
   const centreMark = Math.min(radius * 0.35, 120);
 
@@ -40,8 +53,9 @@ export function PileRenderer({
       />
       <line
         stroke={stroke}
-        strokeOpacity={0.65}
-        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.65)}
+        strokeDasharray={centreStyle.dashArray}
+        strokeOpacity={0.75}
+        strokeWidth={centreStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={object.geometry.centre.x - centreMark}
         x2={object.geometry.centre.x + centreMark}
@@ -50,8 +64,9 @@ export function PileRenderer({
       />
       <line
         stroke={stroke}
-        strokeOpacity={0.65}
-        strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.65)}
+        strokeDasharray={centreStyle.dashArray}
+        strokeOpacity={0.75}
+        strokeWidth={centreStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={object.geometry.centre.x}
         x2={object.geometry.centre.x}
@@ -68,16 +83,4 @@ export function PileRenderer({
       </text>
     </g>
   );
-}
-
-function resolvePileFill(fill?: string) {
-  if (!fill || fill === '#ffffff') {
-    return 'rgba(255, 255, 255, 0.04)';
-  }
-
-  if (fill === 'rgba(59, 130, 246, 0.2)') {
-    return 'rgba(59, 130, 246, 0.06)';
-  }
-
-  return fill;
 }

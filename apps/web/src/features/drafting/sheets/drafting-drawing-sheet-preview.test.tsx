@@ -161,8 +161,9 @@ describe('drafting drawing sheet preview', () => {
     );
 
     expect(markup).toContain('stroke-width="0.35"');
-    expect(markup).toContain('rgba(253, 186, 116, 0.06)');
-    expect(markup).toContain('rgba(255, 251, 235, 0.06)');
+    expect(markup).toContain('rgba(15, 23, 42, 0.035)');
+    expect(markup).not.toContain('#fdba74');
+    expect(markup).not.toContain('#dcfce7');
     expect(markup).not.toContain('stroke-width="24"');
   });
 
