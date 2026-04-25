@@ -5,6 +5,14 @@ import {
   DraftingDrawingSummary,
   DraftingModel,
   DraftingModelSchema,
+  FoundationPileTypeSource,
+  FoundationPlacedPileSource,
+  GeotechBoreholeSource,
+  MonitoringPointSource,
+  OmnidotsMeasuringPointSource,
+  ProjectEngineeringSourceRegistry,
+  SpatialFeatureSource,
+  SpatialServiceSource,
   DraftingProjectTransmittal,
   DraftingProjectTransmittalInput,
   DraftingProjectTransmittalItem,
@@ -13,6 +21,8 @@ import {
   DraftingProjectTransmittalStatus,
   DraftingTransmittalEvidenceSource,
   DraftingRevision,
+  MultiPileJoint,
+  MultiPilePileTypeDefinition,
   createEmptyDraftingModel,
 } from '@eng/shared';
 import {
@@ -189,6 +199,444 @@ export class DraftingService {
 
     const drawing = await this.findDrawingRecord(access.projectId, drawingId);
     return serializeDraftingDrawing(drawing);
+  }
+
+  async buildSourceRegistry(
+    access: ProjectAccess,
+    drawingId?: string,
+  ): Promise<ProjectEngineeringSourceRegistry> {
+    await this.assertProjectReadAccess(access);
+
+    const [
+      pileGroups,
+      capacityProfiles,
+      designChecks,
+      spatialFeatures,
+      monitoringLocations,
+      environmentalDatasets,
+      drawing,
+    ] = await Promise.all([
+      this.prisma.pileGroup.findMany({
+        where: { projectId: access.projectId },
+        include: {
+          piles: true,
+          layoutPoints: true,
+          designChecks: true,
+        },
+        orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }],
+      }),
+      this.prisma.pileCapacityProfile.findMany({
+        where: { projectId: access.projectId },
+        orderBy: [{ updatedAt: 'desc' }],
+      }),
+      this.prisma.pileDesignCheck.findMany({
+        where: {
+          OR: [
+            { pileGroup: { projectId: access.projectId } },
+            { calculationRun: { projectId: access.projectId } },
+          ],
+        },
+        orderBy: [{ createdAt: 'desc' }],
+      }),
+      this.prisma.projectSpatialFeature.findMany({
+        where: { projectId: access.projectId },
+        orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }, { label: 'asc' }],
+      }),
+      this.prisma.projectEnvironmentalMonitoringLocation.findMany({
+        where: { monitoringReport: { projectId: access.projectId } },
+        include: {
+          monitoringReport: {
+            select: { id: true, reportType: true, title: true },
+          },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+      }),
+      this.prisma.projectEnvironmentalMonitoringDataset.findMany({
+        where: { monitoringReport: { projectId: access.projectId } },
+        include: {
+          measuringPoint: true,
+          connection: {
+            select: {
+              id: true,
+              displayName: true,
+              status: true,
+              lastSyncAt: true,
+            },
+          },
+          monitoringReport: {
+            select: { id: true, reportType: true, title: true },
+          },
+        },
+        orderBy: [{ updatedAt: 'desc' }],
+      }),
+      this.findRegistryDrawing(access.projectId, drawingId),
+    ]);
+
+    const model = drawing ? parseRegistryDraftingModel(drawing.modelJson) : null;
+    const usageCounts = buildDraftingSourceUsage(model);
+    const warnings: string[] = [];
+    const foundationPileTypes: FoundationPileTypeSource[] = [];
+    const foundationPlacedPiles: FoundationPlacedPileSource[] = [];
+    const foundationPileGroups = pileGroups.map((group) => ({
+      sourceType: 'foundation_pile_group',
+      sourceId: group.id,
+      sourceLabel: group.name,
+      sourceCode: group.name,
+      originModule: 'foundations' as const,
+      status: 'current' as const,
+      completeness: 'unknown' as const,
+      sourcePath: 'pile_groups',
+      sourceVersion: group.updatedAt.toISOString(),
+      snapshot: {
+        pileGroupId: group.id,
+        name: group.name,
+        description: group.description,
+      },
+      warnings: [],
+    }));
+
+    for (const group of pileGroups) {
+      const multiPile = getMultiPileStateFromMetadata(group.metadata);
+      multiPile.pileTypes.forEach((pileType, index) => {
+        const sourceId = `${group.id}:type:${pileType.id}`;
+        const completeness = getRegistryPileTypeCompleteness(pileType);
+        foundationPileTypes.push({
+          sourceType: 'foundation_pile_type',
+          sourceId,
+          sourceLabel: pileType.displayName || pileType.id,
+          sourceCode: pileType.id,
+          originModule: 'foundations',
+          status: completeness.status === 'complete' ? 'current' : 'incomplete',
+          completeness: completeness.status,
+          sourcePath: `pile_groups.metadata.multiPile.pileTypes[${index}]`,
+          sourceVersion: group.updatedAt.toISOString(),
+          usedByDraftingObjectCount: usageCounts.get(sourceId)?.count ?? 0,
+          alreadyRepresentedInDrafting: Boolean(usageCounts.get(sourceId)?.count),
+          existingDraftingObjectId: usageCounts.get(sourceId)?.firstObjectId,
+          engineering: {
+            code: pileType.id,
+            name: pileType.displayName,
+            pileSystem: stringOrUndefined(pileType.pileSystem),
+            diameterMm: pileTypeDiameterMm(pileType),
+            concreteGrade: stringOrUndefined(pileType.concreteGrade),
+            socketLengthM: numberOrUndefined(pileType.socketLengthM),
+            socketLengthMm: numberOrUndefined(pileType.socketLengthMm),
+            foundingStratum: stringOrUndefined(pileType.foundingStratum),
+            foundingNote: stringOrUndefined(pileType.foundingNote),
+            designCompressionKn: numberOrUndefined(pileType.designCompressionKn),
+            designTensionKn: numberOrUndefined(pileType.designTensionKn),
+            designLateralKn: numberOrUndefined(pileType.designLateralKn),
+            status: stringOrUndefined(pileType.status),
+            notes: stringOrUndefined(pileType.notes),
+          },
+          snapshot: {
+            pileGroupId: group.id,
+            pileGroupName: group.name,
+            pileTypeDefinition: pileType,
+            sourcePath: `pile_groups.metadata.multiPile.pileTypes[${index}]`,
+            originModule: 'foundations',
+          },
+          warnings: completeness.missing.map((field) => `Missing ${field}`),
+        });
+      });
+
+      const pileTypesById = new Map(multiPile.pileTypes.map((pileType) => [pileType.id, pileType]));
+      for (const pile of group.piles) {
+        const layoutPoint = group.layoutPoints.find((point) => point.pileId === pile.id);
+        const sourceId = pile.id;
+        const coordinates = layoutPoint
+          ? { x: layoutPoint.x, y: layoutPoint.y, z: layoutPoint.z }
+          : undefined;
+        foundationPlacedPiles.push({
+          sourceType: 'foundation_pile',
+          sourceId,
+          sourceLabel: layoutPoint?.label || pile.name,
+          sourceCode: layoutPoint?.label || pile.name,
+          originModule: 'foundations',
+          status: 'current',
+          completeness: pile.diameter ? 'partial' : 'unknown',
+          coordinates,
+          sourcePath: 'piles',
+          sourceVersion: pile.updatedAt.toISOString(),
+          usedByDraftingObjectCount: usageCounts.get(sourceId)?.count ?? 0,
+          alreadyRepresentedInDrafting: Boolean(usageCounts.get(sourceId)?.count),
+          existingDraftingObjectId: usageCounts.get(sourceId)?.firstObjectId,
+          engineering: {
+            pileTypeCode: String(pile.pileType),
+            diameterMm: metresToMm(pile.diameter),
+          },
+          snapshot: {
+            pileGroupId: group.id,
+            pileGroupName: group.name,
+            pile,
+            layoutPoint,
+            sourcePath: 'piles',
+            originModule: 'foundations',
+          },
+          warnings: layoutPoint ? [] : ['No pile layout coordinates found.'],
+        });
+      }
+
+      multiPile.joints.forEach((joint, index) => {
+        const sourceId = `${group.id}:joint:${joint.id}`;
+        const pileType = pileTypesById.get(joint.pileTypeId);
+        foundationPlacedPiles.push({
+          sourceType: 'foundation_pile',
+          sourceId,
+          sourceLabel: joint.displayName || joint.jointDisplayName || joint.id,
+          sourceCode: joint.id,
+          originModule: 'foundations',
+          status: 'current',
+          completeness: pileType ? getRegistryPileTypeCompleteness(pileType).status : 'partial',
+          coordinates: { x: joint.x, y: joint.y, z: joint.z },
+          sourcePath: `pile_groups.metadata.multiPile.joints[${index}]`,
+          sourceVersion: group.updatedAt.toISOString(),
+          usedByDraftingObjectCount: usageCounts.get(sourceId)?.count ?? 0,
+          alreadyRepresentedInDrafting: Boolean(usageCounts.get(sourceId)?.count),
+          existingDraftingObjectId: usageCounts.get(sourceId)?.firstObjectId,
+          engineering: {
+            pileTypeCode: pileType?.id ?? joint.pileTypeId,
+            pileTypeName: pileType?.displayName,
+            pileSystem: stringOrUndefined(pileType?.pileSystem),
+            diameterMm: pileType ? pileTypeDiameterMm(pileType) : undefined,
+            concreteGrade: stringOrUndefined(pileType?.concreteGrade),
+            socketLengthM: numberOrUndefined(pileType?.socketLengthM),
+            foundingStratum: stringOrUndefined(pileType?.foundingStratum),
+            foundingNote: stringOrUndefined(pileType?.foundingNote),
+            designCompressionKn: numberOrUndefined(pileType?.designCompressionKn),
+            designTensionKn: numberOrUndefined(pileType?.designTensionKn),
+            designLateralKn: numberOrUndefined(pileType?.designLateralKn),
+          },
+          snapshot: {
+            pileGroupId: group.id,
+            pileGroupName: group.name,
+            joint,
+            pileTypeDefinition: pileType,
+            sourcePath: `pile_groups.metadata.multiPile.joints[${index}]`,
+            originModule: 'foundations',
+          },
+          warnings: pileType
+            ? []
+            : [`Pile type ${joint.pileTypeId} not found for joint ${joint.id}.`],
+        });
+      });
+    }
+
+    const boreholes: GeotechBoreholeSource[] = [];
+    const monitoringPoints: MonitoringPointSource[] = [];
+    const referencePoints: SpatialFeatureSource[] = [];
+    const boundaries: SpatialFeatureSource[] = [];
+    const genericFeatures: SpatialFeatureSource[] = [];
+
+    for (const feature of spatialFeatures) {
+      const base = buildSpatialRegistrySource(feature, usageCounts);
+      if (feature.featureType === 'borehole') {
+        boreholes.push({
+          ...base,
+          sourceType: 'geotech_borehole',
+          originModule: 'spatial',
+          engineering: {
+            boreholeId:
+              stringOrUndefined(objectValue(feature.propertiesJson).boreholeId) ?? feature.label,
+            boreholeType: stringOrUndefined(feature.sourceType) ?? feature.featureType,
+            groundLevelRl: numberOrUndefined(objectValue(feature.propertiesJson).rlM),
+            terminationDepthM: numberOrUndefined(objectValue(feature.propertiesJson).depthM),
+          },
+        });
+        continue;
+      }
+
+      if (isMonitoringSpatialFeature(feature.featureType)) {
+        monitoringPoints.push({
+          ...base,
+          sourceType: 'spatial_feature',
+          originModule: 'spatial',
+          engineering: {
+            monitoringType:
+              feature.featureType === 'noise_monitor'
+                ? 'noise'
+                : feature.featureType === 'vibration_monitor'
+                  ? 'vibration'
+                  : 'survey',
+            monitorId:
+              stringOrUndefined(objectValue(feature.propertiesJson).monitorId) ??
+              stringOrUndefined(objectValue(feature.propertiesJson).wellId) ??
+              feature.label,
+          },
+        });
+        continue;
+      }
+
+      if (feature.featureType === 'reference_point') {
+        referencePoints.push({ ...base, category: 'reference_point' });
+      } else if (
+        feature.featureType === 'site_boundary' ||
+        feature.featureType === 'parcel_boundary'
+      ) {
+        boundaries.push({ ...base, category: 'boundary' });
+      } else {
+        genericFeatures.push(base);
+      }
+    }
+
+    for (const location of monitoringLocations) {
+      const sourceId = location.sourceSpatialFeatureId
+        ? `environmental-location:${location.id}:feature:${location.sourceSpatialFeatureId}`
+        : `environmental-location:${location.id}`;
+      monitoringPoints.push({
+        sourceType: 'monitoring_point',
+        sourceId,
+        sourceLabel: location.label,
+        sourceCode: location.sourceSpatialFeatureLabel ?? location.label,
+        originModule: 'environmental',
+        status: 'current',
+        completeness: location.coordinatesNote ? 'partial' : 'unknown',
+        sourcePath: 'project_environmental_monitoring_locations',
+        usedByDraftingObjectCount: usageCounts.get(sourceId)?.count ?? 0,
+        alreadyRepresentedInDrafting: Boolean(usageCounts.get(sourceId)?.count),
+        existingDraftingObjectId: usageCounts.get(sourceId)?.firstObjectId,
+        engineering: {
+          monitoringType: location.receiverType ?? location.monitoringReport.reportType,
+          monitorId: location.sourceSpatialFeatureLabel ?? location.label,
+          location: location.locationDescription ?? undefined,
+        },
+        snapshot: {
+          locationId: location.id,
+          reportId: location.monitoringReport.id,
+          reportTitle: location.monitoringReport.title,
+          sourceSpatialFeatureId: location.sourceSpatialFeatureId,
+          sourceSpatialFeatureLabel: location.sourceSpatialFeatureLabel,
+          coordinatesNote: location.coordinatesNote,
+          sourcePath: 'project_environmental_monitoring_locations',
+          originModule: 'environmental',
+        },
+        warnings: location.coordinatesNote
+          ? []
+          : ['No numeric coordinates stored for this monitoring location.'],
+      });
+    }
+
+    const omnidotsMeasuringPoints = environmentalDatasets.flatMap((dataset) => {
+      if (!dataset.measuringPoint) {
+        return [] as OmnidotsMeasuringPointSource[];
+      }
+      const point = dataset.measuringPoint;
+      const sourceId = point.id;
+      const coordinates =
+        point.userLatitude !== null && point.userLongitude !== null
+          ? { x: point.userLongitude, y: point.userLatitude }
+          : point.sensorLatitude !== null && point.sensorLongitude !== null
+            ? { x: point.sensorLongitude, y: point.sensorLatitude }
+            : undefined;
+      return [
+        {
+          sourceType: 'omnidots_measuring_point' as const,
+          sourceId,
+          sourceLabel: point.name,
+          sourceCode: point.externalMeasuringPointId,
+          originModule: 'omnidots' as const,
+          status: point.active ? ('current' as const) : ('incomplete' as const),
+          completeness: coordinates ? ('partial' as const) : ('unknown' as const),
+          coordinates,
+          sourcePath: 'omnidots_measuring_points',
+          sourceVersion: point.updatedAt.toISOString(),
+          usedByDraftingObjectCount: usageCounts.get(sourceId)?.count ?? 0,
+          alreadyRepresentedInDrafting: Boolean(usageCounts.get(sourceId)?.count),
+          existingDraftingObjectId: usageCounts.get(sourceId)?.firstObjectId,
+          engineering: {
+            externalMeasuringPointId: point.externalMeasuringPointId,
+            measuringType: point.measuringType ?? undefined,
+            category: point.category ?? undefined,
+            timezone: point.timezone ?? undefined,
+            active: point.active,
+          },
+          snapshot: {
+            measuringPointId: point.id,
+            externalMeasuringPointId: point.externalMeasuringPointId,
+            name: point.name,
+            connectionId: dataset.connection?.id,
+            connectionName: dataset.connection?.displayName,
+            reportId: dataset.monitoringReport.id,
+            reportTitle: dataset.monitoringReport.title,
+            sourcePath: 'omnidots_measuring_points',
+            originModule: 'omnidots',
+          },
+          warnings: coordinates ? [] : ['No Omnidots measuring point coordinates stored.'],
+        },
+      ];
+    });
+
+    const services: SpatialServiceSource[] = [];
+    warnings.push('No explicit service/utility source types found.');
+
+    return {
+      projectId: access.projectId,
+      generatedAt: new Date().toISOString(),
+      sources: {
+        foundation: {
+          pileTypes: foundationPileTypes,
+          placedPiles: foundationPlacedPiles,
+          pileGroups: foundationPileGroups,
+          capacityProfiles: capacityProfiles.map((profile) => ({
+            sourceType: 'pile_capacity_profile',
+            sourceId: profile.id,
+            sourceLabel: profile.method,
+            sourceCode: profile.method,
+            originModule: 'foundations' as const,
+            status: 'current' as const,
+            completeness: 'unknown' as const,
+            sourcePath: 'pile_capacity_profiles',
+            sourceVersion: profile.updatedAt.toISOString(),
+            snapshot: {
+              method: profile.method,
+              standardRef: profile.standardRef,
+              pileId: profile.pileId,
+              sourcePath: 'pile_capacity_profiles',
+              originModule: 'foundations',
+            },
+            warnings: [],
+          })),
+          designChecks: designChecks.map((check) => ({
+            sourceType: 'pile_design_check',
+            sourceId: check.id,
+            sourceLabel: `${check.checkType} ${check.status}`,
+            sourceCode: check.checkType,
+            originModule: 'foundations' as const,
+            status: 'current' as const,
+            completeness: 'unknown' as const,
+            sourcePath: 'pile_design_checks',
+            snapshot: {
+              checkType: check.checkType,
+              limitState: check.limitState,
+              demandValue: check.demandValue,
+              capacityValue: check.capacityValue,
+              utilisationRatio: check.utilisationRatio,
+              status: check.status,
+              pileId: check.pileId,
+              pileGroupId: check.pileGroupId,
+              sourcePath: 'pile_design_checks',
+              originModule: 'foundations',
+            },
+            warnings: [],
+          })),
+        },
+        geotech: {
+          boreholes,
+          strata: [],
+        },
+        monitoring: {
+          monitoringPoints,
+          omnidotsMeasuringPoints: dedupeBySourceId(omnidotsMeasuringPoints),
+        },
+        spatial: {
+          referencePoints,
+          boundaries,
+          features: genericFeatures,
+          services,
+        },
+      },
+      warnings,
+    };
   }
 
   async updateDrawing(
@@ -374,6 +822,23 @@ export class DraftingService {
     }
 
     return drawing;
+  }
+
+  private async findRegistryDrawing(projectId: string, drawingId?: string) {
+    if (drawingId) {
+      return this.prisma.draftingDrawing.findFirst({
+        where: { id: drawingId, projectId },
+      });
+    }
+
+    return this.prisma.draftingDrawing.findFirst({
+      where: {
+        projectId,
+        kind: 'model',
+        status: { not: 'archived' },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   private async findProjectTransmittalRecord(access: ProjectAccess, transmittalId: string) {
@@ -632,6 +1097,218 @@ export class DraftingService {
 
     return project;
   }
+}
+
+type RegistryUsage = {
+  count: number;
+  firstObjectId?: string;
+};
+
+type RegistryMultiPileState = {
+  pileTypes: MultiPilePileTypeDefinition[];
+  joints: MultiPileJoint[];
+};
+
+function parseRegistryDraftingModel(rawModel: unknown): DraftingModel | null {
+  const parsed = DraftingModelSchema.safeParse(rawModel);
+  return parsed.success ? parsed.data : null;
+}
+
+function buildDraftingSourceUsage(model: DraftingModel | null) {
+  const usage = new Map<string, RegistryUsage>();
+  for (const object of model?.objects ?? []) {
+    const sourceId = object.sourceRef?.sourceId;
+    if (!sourceId) {
+      continue;
+    }
+    const current = usage.get(sourceId) ?? { count: 0 };
+    usage.set(sourceId, {
+      count: current.count + 1,
+      firstObjectId: current.firstObjectId ?? object.id,
+    });
+  }
+  return usage;
+}
+
+function getMultiPileStateFromMetadata(metadata: unknown): RegistryMultiPileState {
+  const multiPile = objectValue(metadata).multiPile;
+  const state = objectValue(multiPile);
+  return {
+    pileTypes: arrayValue(state.pileTypes) as MultiPilePileTypeDefinition[],
+    joints: arrayValue(state.joints) as MultiPileJoint[],
+  };
+}
+
+function getRegistryPileTypeCompleteness(pileType: MultiPilePileTypeDefinition) {
+  const missing: string[] = [];
+  const hasDiameter = Boolean(pileTypeDiameterMm(pileType));
+  const hasConcrete = Boolean(stringOrUndefined(pileType.concreteGrade));
+  const hasFounding =
+    numberOrUndefined(pileType.socketLengthM) !== undefined ||
+    numberOrUndefined(pileType.socketLengthMm) !== undefined ||
+    Boolean(stringOrUndefined(pileType.foundingStratum)) ||
+    Boolean(stringOrUndefined(pileType.foundingNote));
+
+  if (!hasDiameter) {
+    missing.push('diameter');
+  }
+  if (!hasConcrete) {
+    missing.push('concrete');
+  }
+  if (!hasFounding) {
+    missing.push('socket/founding');
+  }
+
+  return {
+    status:
+      missing.length === 0
+        ? ('complete' as const)
+        : !hasDiameter
+          ? ('missing_key_fields' as const)
+          : !hasConcrete && !hasFounding
+            ? ('diameter_only' as const)
+            : ('partial' as const),
+    missing,
+  };
+}
+
+function buildSpatialRegistrySource(
+  feature: {
+    id: string;
+    projectId: string;
+    label: string;
+    featureType: string;
+    geometryType: string;
+    geometryJson: unknown;
+    propertiesJson: unknown;
+    status: string | null;
+    sourceType: string | null;
+    sourceReference: string | null;
+    linkedProjectReferenceId: string | null;
+    linkedAiDocumentId: string | null;
+    linkedDeliverableType: string | null;
+    linkedDeliverableId: string | null;
+    description: string | null;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  usageCounts: Map<string, RegistryUsage>,
+): SpatialFeatureSource {
+  const sourceId = feature.id;
+  const coordinates = pointFromSpatialGeometry(feature.geometryJson);
+  const usage = usageCounts.get(sourceId);
+  return {
+    sourceType: 'spatial_feature',
+    sourceId,
+    sourceLabel: feature.label,
+    sourceCode: feature.label,
+    originModule: 'spatial',
+    status: feature.status ? 'current' : 'stale_possible',
+    completeness: coordinates ? 'partial' : 'unknown',
+    ...(coordinates ? { coordinates } : {}),
+    sourcePath: 'project_spatial_features',
+    sourceVersion: feature.updatedAt.toISOString(),
+    usedByDraftingObjectCount: usage?.count ?? 0,
+    alreadyRepresentedInDrafting: Boolean(usage?.count),
+    existingDraftingObjectId: usage?.firstObjectId,
+    category: 'generic',
+    engineering: {
+      featureType: feature.featureType,
+      geometryType: feature.geometryType,
+      sourceType: feature.sourceType ?? undefined,
+      sourceReference: feature.sourceReference ?? undefined,
+    },
+    snapshot: {
+      feature: {
+        id: feature.id,
+        projectId: feature.projectId,
+        label: feature.label,
+        featureType: feature.featureType,
+        geometryType: feature.geometryType,
+        geometryJson: feature.geometryJson,
+        propertiesJson: feature.propertiesJson,
+        status: feature.status,
+        sourceType: feature.sourceType,
+        sourceReference: feature.sourceReference,
+        linkedProjectReferenceId: feature.linkedProjectReferenceId,
+        linkedAiDocumentId: feature.linkedAiDocumentId,
+        linkedDeliverableType: feature.linkedDeliverableType,
+        linkedDeliverableId: feature.linkedDeliverableId,
+        description: feature.description,
+        sortOrder: feature.sortOrder,
+        createdAt: feature.createdAt.toISOString(),
+        updatedAt: feature.updatedAt.toISOString(),
+      },
+      sourcePath: 'project_spatial_features',
+      originModule: 'spatial',
+    },
+    warnings: coordinates ? [] : ['No numeric point coordinate available for this feature.'],
+  };
+}
+
+function isMonitoringSpatialFeature(featureType: string) {
+  return (
+    featureType === 'monitoring_well' ||
+    featureType === 'vibration_monitor' ||
+    featureType === 'noise_monitor'
+  );
+}
+
+function pointFromSpatialGeometry(geometry: unknown) {
+  const value = objectValue(geometry);
+  if (value.type !== 'Point') {
+    return undefined;
+  }
+  const coordinates = Array.isArray(value.coordinates) ? value.coordinates : [];
+  const x = numberOrUndefined(coordinates[0]);
+  const y = numberOrUndefined(coordinates[1]);
+  const z = numberOrUndefined(coordinates[2]);
+  if (x === undefined || y === undefined) {
+    return undefined;
+  }
+  return z === undefined ? { x, y } : { x, y, z };
+}
+
+function pileTypeDiameterMm(pileType: MultiPilePileTypeDefinition | undefined) {
+  return (
+    numberOrUndefined(pileType?.nominalDiameterMm) ??
+    numberOrUndefined(pileType?.Dmm) ??
+    numberOrUndefined(pileType?.customMm)
+  );
+}
+
+function metresToMm(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1000) : undefined;
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function arrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringOrUndefined(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function numberOrUndefined(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function dedupeBySourceId<T extends { sourceId: string }>(sources: T[]) {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    if (seen.has(source.sourceId)) {
+      return false;
+    }
+    seen.add(source.sourceId);
+    return true;
+  });
 }
 
 function parseIncomingDraftingModel(

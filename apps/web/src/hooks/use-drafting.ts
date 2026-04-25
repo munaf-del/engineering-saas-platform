@@ -5,6 +5,7 @@ import type {
   DraftingModel,
   DraftingProjectTransmittal,
   DraftingProjectTransmittalInput,
+  ProjectEngineeringSourceRegistry,
   DraftingTransmittalEvidenceSource,
   UpdateDraftingDrawingInput,
 } from '@eng/shared';
@@ -87,6 +88,17 @@ export function useDraftingDrawing(projectId: string, drawingId: string) {
     queryFn: () =>
       draftingApi<DraftingDrawing>(`/projects/${projectId}/drafting/drawings/${drawingId}`),
     enabled: !!projectId && !!drawingId,
+  });
+}
+
+export function useDraftingSourceRegistry(projectId: string, drawingId?: string) {
+  return useQuery({
+    queryKey: draftingSourceRegistryQueryKey(projectId, drawingId),
+    queryFn: () =>
+      draftingApi<ProjectEngineeringSourceRegistry>(
+        `/projects/${projectId}/drafting/source-registry${drawingId ? `?drawingId=${encodeURIComponent(drawingId)}` : ''}`,
+      ),
+    enabled: !!projectId,
   });
 }
 
@@ -234,6 +246,16 @@ function draftingListQueryKey(projectId: string) {
 
 function draftingDetailQueryKey(projectId: string, drawingId: string) {
   return [...draftingListQueryKey(projectId), drawingId] as const;
+}
+
+function draftingSourceRegistryQueryKey(projectId: string, drawingId?: string) {
+  return [
+    'projects',
+    projectId,
+    'drafting',
+    'source-registry',
+    drawingId ?? 'project-model',
+  ] as const;
 }
 
 function projectTransmittalsQueryKey(projectId: string) {

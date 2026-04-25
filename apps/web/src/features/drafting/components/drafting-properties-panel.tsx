@@ -183,6 +183,8 @@ function DraftingSourceRefProperties({
           label="Snapshot date"
           value={sourceRef.linkedAt ? formatDraftingTimestamp(sourceRef.linkedAt) : 'Not recorded'}
         />
+        <SourceField label="Source module" value={formatSourceModule(sourceRef.snapshot)} />
+        <SourceField label="Source path" value={formatSourcePath(sourceRef.snapshot)} />
       </div>
       {object.type === 'pile' && sourceRef.sourceType === 'foundation_pile' ? (
         <p className="mt-2 text-xs text-muted-foreground">
@@ -282,6 +284,16 @@ function SourceField({ label, value }: { label: string; value: string }) {
 
 function formatSourceValue(value: string | undefined) {
   return value ? value.replaceAll('_', ' ') : 'Not recorded';
+}
+
+function formatSourceModule(snapshot: Record<string, unknown> | undefined) {
+  const value = snapshot?.originModule;
+  return typeof value === 'string' ? formatSourceValue(value) : 'Not recorded';
+}
+
+function formatSourcePath(snapshot: Record<string, unknown> | undefined) {
+  const value = snapshot?.sourcePath;
+  return typeof value === 'string' ? value : 'Not recorded';
 }
 
 function formatSourceKind(object: DraftingObject, sourceType: string | undefined) {

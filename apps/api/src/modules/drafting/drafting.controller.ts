@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -152,6 +153,37 @@ export class DraftingController {
       transmittalId,
       dto.notes,
     );
+  }
+
+  private access(projectId: string, user: RequestUser) {
+    if (!user.organisationId) {
+      throw new ForbiddenException('Organisation context required');
+    }
+
+    return {
+      projectId,
+      organisationId: user.organisationId,
+      userId: user.id,
+      orgRole: user.orgRole,
+    };
+  }
+}
+
+@ApiTags('drafting')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('projects/:projectId/drafting/source-registry')
+export class DraftingSourceRegistryController {
+  constructor(private readonly draftingService: DraftingService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List project engineering sources available to Drafting' })
+  async getSourceRegistry(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Query('drawingId') drawingId: string | undefined,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.draftingService.buildSourceRegistry(this.access(projectId, user), drawingId);
   }
 
   private access(projectId: string, user: RequestUser) {

@@ -6,19 +6,25 @@ import type {
   DraftingObjectSourceType,
   DraftingPileObject,
   DraftingPoint,
+  FoundationPileTypeSource,
+  FoundationPlacedPileSource,
   DraftingServiceCrossingObject,
   DraftingServiceRunObject,
   DraftingServiceStatus,
   DraftingServiceType,
+  GeotechBoreholeSource,
+  MonitoringPointSource,
   MultiPileJoint,
   MultiPilePileTypeDefinition,
   Pile,
   PileGroup,
   PileLayoutPoint,
   PileType,
+  ProjectEngineeringSourceRegistry,
   ProjectSpatialFeature,
   ProjectSpatialFeatureType,
   ProjectSpatialGeometryJson,
+  SpatialServiceSource,
 } from '@eng/shared';
 import { DRAFTING_SERVICE_STATUSES, DRAFTING_SERVICE_TYPES } from '@eng/shared';
 import { createBoreholeObject } from './tools/borehole-tool';
@@ -40,6 +46,8 @@ export type DraftingPileTypeSourceRecord = {
   groupId: string;
   groupName: string;
   sourceVersion?: string;
+  originModule?: string;
+  sourcePath?: string;
   pileType: MultiPilePileTypeDefinition;
 };
 
@@ -50,6 +58,8 @@ export type DraftingPileSourceRecord = {
   groupId: string;
   groupName: string;
   sourceVersion?: string;
+  originModule?: string;
+  sourcePath?: string;
   pile?: Pile;
   layoutPoint?: PileLayoutPoint;
   joint?: MultiPileJoint;
@@ -69,8 +79,80 @@ export type DraftingSpatialSourceRecord = {
     DraftingObject['type'],
     'borehole' | 'monitoring_point' | 'service_run' | 'service_crossing'
   >;
+  originModule?: string;
+  sourcePath?: string;
   feature: ProjectSpatialFeature;
 };
+
+export function buildDraftingPileTypeSourceRecordsFromRegistry(
+  registry: ProjectEngineeringSourceRegistry | undefined,
+): DraftingPileTypeSourceRecord[] {
+  return (registry?.sources.foundation.pileTypes ?? []).flatMap((source) => {
+    const pileType = pileTypeFromRegistrySource(source);
+    if (!pileType) {
+      return [];
+    }
+    return [
+      {
+        sourceType: 'foundation_pile_type' as const,
+        sourceId: source.sourceId,
+        sourceLabel: source.sourceLabel,
+        groupId: String(source.snapshot.pileGroupId ?? ''),
+        groupName: String(source.snapshot.pileGroupName ?? 'Foundation source'),
+        sourceVersion: source.sourceVersion,
+        originModule: source.originModule,
+        sourcePath: source.sourcePath,
+        pileType,
+      },
+    ];
+  });
+}
+
+export function buildDraftingPileSourceRecordsFromRegistry(
+  registry: ProjectEngineeringSourceRegistry | undefined,
+): DraftingPileSourceRecord[] {
+  return (registry?.sources.foundation.placedPiles ?? []).map((source) => {
+    const pileType = pileTypeFromRegistrySource(source);
+    const joint = multiPileJointFromRegistrySource(source);
+    const pile = pileFromRegistrySource(source);
+    const layoutPoint = layoutPointFromRegistrySource(source);
+    return {
+      sourceType: 'foundation_pile' as const,
+      sourceId: source.sourceId,
+      sourceLabel: source.sourceLabel,
+      groupId: String(source.snapshot.pileGroupId ?? ''),
+      groupName: String(source.snapshot.pileGroupName ?? 'Foundation source'),
+      sourceVersion: source.sourceVersion,
+      originModule: source.originModule,
+      sourcePath: source.sourcePath,
+      ...(pile ? { pile } : {}),
+      ...(layoutPoint ? { layoutPoint } : {}),
+      ...(joint ? { joint } : {}),
+      ...(pileType ? { pileType } : {}),
+    };
+  });
+}
+
+export function buildDraftingSpatialSourceRecordsFromRegistry(
+  registry: ProjectEngineeringSourceRegistry | undefined,
+): DraftingSpatialSourceRecord[] {
+  const boreholes = (registry?.sources.geotech.boreholes ?? []).map((source) =>
+    spatialRecordFromRegistrySource(source, 'borehole'),
+  );
+  const monitoring = (registry?.sources.monitoring.monitoringPoints ?? []).map((source) =>
+    spatialRecordFromRegistrySource(source, 'monitoring_point'),
+  );
+  const services = (registry?.sources.spatial.services ?? []).flatMap((source) => {
+    if (source.snapshot.objectType === 'service_crossing') {
+      return [spatialRecordFromRegistrySource(source, 'service_crossing')];
+    }
+    return [spatialRecordFromRegistrySource(source, 'service_run')];
+  });
+
+  return [...boreholes, ...monitoring, ...services].filter(
+    (source): source is DraftingSpatialSourceRecord => Boolean(source),
+  );
+}
 
 export function buildDraftingPileSourceRecords(
   pileGroups: PileGroupWithSources[] | undefined,
@@ -208,6 +290,8 @@ export function createPileObjectFromSource(args: {
         joint: args.source.joint,
         pileTypeDefinition: args.source.pileType,
         sourceCoordinates: point,
+        originModule: args.source.originModule,
+        sourcePath: args.source.sourcePath,
       },
     },
     updatedAt: now,
@@ -260,6 +344,8 @@ export function createPileObjectFromTypeSource(args: {
         diameterMm,
         completeness: getPileTypeCompleteness(args.source.pileType),
         pileTypeDefinition: args.source.pileType,
+        originModule: args.source.originModule,
+        sourcePath: args.source.sourcePath,
       },
     },
     updatedAt: now,
@@ -593,6 +679,8 @@ function buildSpatialSourceRef(
       linkedDeliverableType: feature.linkedDeliverableType,
       linkedDeliverableId: feature.linkedDeliverableId,
       propertiesJson: feature.propertiesJson,
+      originModule: 'spatial',
+      sourcePath: 'project_spatial_features',
       updatedAt: feature.updatedAt,
     },
   };
@@ -798,6 +886,133 @@ function preservePileObjectIdentity(
     sourceRef: refreshed.sourceRef,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function pileTypeFromRegistrySource(
+  source: FoundationPileTypeSource | FoundationPlacedPileSource,
+): MultiPilePileTypeDefinition | null {
+  const candidate = source.snapshot.pileTypeDefinition;
+  return isMultiPilePileType(candidate) ? candidate : null;
+}
+
+function multiPileJointFromRegistrySource(
+  source: FoundationPlacedPileSource,
+): MultiPileJoint | null {
+  const candidate = source.snapshot.joint;
+  return isMultiPileJoint(candidate) ? candidate : null;
+}
+
+function pileFromRegistrySource(source: FoundationPlacedPileSource): Pile | null {
+  const candidate = source.snapshot.pile;
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    typeof (candidate as { id?: unknown }).id === 'string' &&
+    typeof (candidate as { name?: unknown }).name === 'string'
+  ) {
+    return candidate as Pile;
+  }
+  return null;
+}
+
+function layoutPointFromRegistrySource(source: FoundationPlacedPileSource): PileLayoutPoint | null {
+  const candidate = source.snapshot.layoutPoint;
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    typeof (candidate as { id?: unknown }).id === 'string' &&
+    Number.isFinite((candidate as { x?: unknown }).x) &&
+    Number.isFinite((candidate as { y?: unknown }).y)
+  ) {
+    return candidate as PileLayoutPoint;
+  }
+  if (source.coordinates) {
+    return {
+      id: `${source.sourceId}:coordinates`,
+      pileGroupId: String(source.snapshot.pileGroupId ?? ''),
+      x: source.coordinates.x,
+      y: source.coordinates.y,
+      z: source.coordinates.z ?? 0,
+      label: source.sourceLabel,
+    };
+  }
+  return null;
+}
+
+function spatialRecordFromRegistrySource(
+  source: GeotechBoreholeSource | MonitoringPointSource | SpatialServiceSource,
+  objectType: DraftingSpatialSourceRecord['objectType'],
+): DraftingSpatialSourceRecord | null {
+  const feature = featureFromRegistrySource(source);
+  if (!feature) {
+    return null;
+  }
+  return {
+    sourceType: 'spatial_feature',
+    sourceId: source.sourceId,
+    sourceLabel: source.sourceLabel,
+    objectType,
+    originModule: source.originModule,
+    sourcePath: source.sourcePath,
+    feature,
+  };
+}
+
+function featureFromRegistrySource(
+  source: GeotechBoreholeSource | MonitoringPointSource | SpatialServiceSource,
+): ProjectSpatialFeature | null {
+  const candidate = source.snapshot.feature;
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    typeof (candidate as { id?: unknown }).id === 'string' &&
+    typeof (candidate as { label?: unknown }).label === 'string'
+  ) {
+    const record = candidate as Record<string, unknown>;
+    return {
+      id: String(record.id),
+      projectId: String(record.projectId ?? ''),
+      featureType: String(record.featureType) as ProjectSpatialFeatureType,
+      geometryType: String(record.geometryType) as ProjectSpatialFeature['geometryType'],
+      label: String(record.label),
+      description: typeof record.description === 'string' ? record.description : null,
+      geometryJson: record.geometryJson as ProjectSpatialGeometryJson,
+      status: typeof record.status === 'string' ? record.status : null,
+      sourceType:
+        typeof record.sourceType === 'string'
+          ? (record.sourceType as ProjectSpatialFeature['sourceType'])
+          : null,
+      sourceReference: typeof record.sourceReference === 'string' ? record.sourceReference : null,
+      linkedProjectReferenceId:
+        typeof record.linkedProjectReferenceId === 'string'
+          ? record.linkedProjectReferenceId
+          : null,
+      linkedAiDocumentId:
+        typeof record.linkedAiDocumentId === 'string' ? record.linkedAiDocumentId : null,
+      linkedDeliverableType:
+        typeof record.linkedDeliverableType === 'string'
+          ? (record.linkedDeliverableType as ProjectSpatialFeature['linkedDeliverableType'])
+          : null,
+      linkedDeliverableId:
+        typeof record.linkedDeliverableId === 'string' ? record.linkedDeliverableId : null,
+      propertiesJson: recordObject(record.propertiesJson),
+      sortOrder: optionalNumber(record.sortOrder) ?? 0,
+      createdAt:
+        typeof record.createdAt === 'string' ? record.createdAt : new Date(0).toISOString(),
+      updatedAt:
+        typeof record.updatedAt === 'string' ? record.updatedAt : new Date(0).toISOString(),
+    };
+  }
+  return null;
+}
+
+function recordObject(value: unknown): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+  return typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function markMissingSource(object: DraftingPileObject): DraftingPileObject {

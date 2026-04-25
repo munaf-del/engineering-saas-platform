@@ -22,6 +22,7 @@ jest.mock('@eng/shared', () => {
     layerId: z.string(),
     visible: z.boolean().optional(),
     locked: z.boolean().optional(),
+    sourceRef: z.record(z.unknown()).optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
   });
@@ -152,6 +153,12 @@ describe('DraftingService', () => {
       findMany: jest.Mock;
       update: jest.Mock;
     };
+    pileGroup: { findMany: jest.Mock };
+    pileCapacityProfile: { findMany: jest.Mock };
+    pileDesignCheck: { findMany: jest.Mock };
+    projectSpatialFeature: { findMany: jest.Mock };
+    projectEnvironmentalMonitoringLocation: { findMany: jest.Mock };
+    projectEnvironmentalMonitoringDataset: { findMany: jest.Mock };
   };
   let documentsService: {
     create: jest.Mock;
@@ -226,6 +233,26 @@ describe('DraftingService', () => {
           .fn()
           .mockImplementation((args) => Promise.resolve(buildProjectTransmittalRecord(args.data))),
       },
+      pileGroup: { findMany: jest.fn().mockResolvedValue([buildPileGroupRecord()]) },
+      pileCapacityProfile: { findMany: jest.fn().mockResolvedValue([]) },
+      pileDesignCheck: { findMany: jest.fn().mockResolvedValue([]) },
+      projectSpatialFeature: {
+        findMany: jest.fn().mockResolvedValue([
+          buildSpatialFeatureRecord({
+            featureType: 'borehole',
+            label: 'nh',
+            propertiesJson: { boreholeId: 'nh', depthM: 12, rlM: 3 },
+          }),
+          buildSpatialFeatureRecord({
+            id: 'spatial-vm-1',
+            featureType: 'vibration_monitor',
+            label: 'VM1',
+            propertiesJson: { monitorId: 'VM1' },
+          }),
+        ]),
+      },
+      projectEnvironmentalMonitoringLocation: { findMany: jest.fn().mockResolvedValue([]) },
+      projectEnvironmentalMonitoringDataset: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
     documentsService = {
@@ -456,6 +483,74 @@ describe('DraftingService', () => {
         }),
       }),
     );
+  });
+
+  it('builds a project engineering source registry for Drafting', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValue(
+      buildDrawingRecord({
+        kind: 'model',
+        modelJson: {
+          ...createEmptyModel(drawingId),
+          objects: [
+            {
+              id: 'drafting-j1',
+              type: 'pile',
+              layerId: 'piles',
+              visible: true,
+              locked: false,
+              geometry: { centre: { x: 0, y: 0 }, diameterMm: 600 },
+              metadata: { pileId: 'J1' },
+              sourceRef: {
+                sourceType: 'foundation_pile',
+                sourceId: 'pile-group-1:joint:J1',
+                sourceLabel: 'J1',
+              },
+              createdAt: '2026-04-21T00:00:00.000Z',
+              updatedAt: '2026-04-21T00:00:00.000Z',
+            },
+          ],
+        },
+      }),
+    );
+
+    const registry = await service.buildSourceRegistry(access, drawingId);
+
+    expect(registry.projectId).toBe(access.projectId);
+    expect(registry.sources.foundation.pileTypes.map((source) => source.sourceCode)).toEqual([
+      'BP1',
+      'BP2',
+      'BP3',
+      'BP4',
+    ]);
+    expect(registry.sources.foundation.placedPiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceCode: 'J1',
+          alreadyRepresentedInDrafting: true,
+          existingDraftingObjectId: 'drafting-j1',
+          sourcePath: 'pile_groups.metadata.multiPile.joints[0]',
+        }),
+      ]),
+    );
+    expect(registry.sources.geotech.boreholes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceLabel: 'nh',
+          originModule: 'spatial',
+          engineering: expect.objectContaining({ boreholeId: 'nh' }),
+        }),
+      ]),
+    );
+    expect(registry.sources.monitoring.monitoringPoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceLabel: 'VM1',
+          originModule: 'spatial',
+        }),
+      ]),
+    );
+    expect(registry.sources.spatial.services).toEqual([]);
+    expect(registry.warnings).toContain('No explicit service/utility source types found.');
   });
 
   it('creates a project transmittal with issued sheet snapshots from multiple drawings', async () => {
@@ -936,6 +1031,101 @@ function buildDocument(overrides: Record<string, unknown> = {}) {
     storagePath: 'project/document-1/evidence.pdf',
     uploadedBy: '33333333-3333-3333-3333-333333333333',
     createdAt: new Date('2026-04-24T01:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function buildPileGroupRecord() {
+  const now = new Date('2026-04-24T00:00:00.000Z');
+  return {
+    id: 'pile-group-1',
+    projectId: testProjectId,
+    name: 'foundation piles',
+    description: null,
+    metadata: {
+      multiPile: {
+        pileTypes: [
+          pileType('BP1', 600, { concreteGrade: 'C40', socketLengthM: 3 }),
+          pileType('BP2', 750),
+          pileType('BP3', 750),
+          pileType('BP4', 900),
+        ],
+        joints: [
+          {
+            id: 'J1',
+            x: 0,
+            y: 0,
+            z: 0,
+            pileTypeId: 'BP1',
+            supportCount: 1,
+            noOfSupports: 1,
+            assignmentMode: 'manual',
+            active: true,
+            order: 0,
+          },
+        ],
+      },
+    },
+    piles: [],
+    layoutPoints: [],
+    designChecks: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function pileType(id: string, diameterMm: number, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    displayName: id,
+    sizePreset: String(diameterMm),
+    useCustom: false,
+    customMm: diameterMm,
+    Dmm: diameterMm,
+    nominalDiameterMm: diameterMm,
+    eoop: 0.075,
+    eoopM: 0.075,
+    compressionUltimateMin: null,
+    compressionUltimateMax: null,
+    tensionUltimateMin: null,
+    tensionUltimateMax: null,
+    active: true,
+    order: 0,
+    ...overrides,
+  };
+}
+
+function buildSpatialFeatureRecord(overrides: Record<string, unknown> = {}) {
+  const now = new Date('2026-04-24T00:00:00.000Z');
+  const geometryType = (overrides.geometryType as string | undefined) ?? 'point';
+  return {
+    id: overrides.id ?? 'spatial-bh-1',
+    projectId: testProjectId,
+    featureType: overrides.featureType ?? 'borehole',
+    geometryType,
+    label: overrides.label ?? 'nh',
+    description: null,
+    geometryJson:
+      geometryType === 'line_string'
+        ? {
+            type: 'LineString',
+            coordinates: [
+              [0, 0],
+              [10, 0],
+            ],
+          }
+        : { type: 'Point', coordinates: [0, 0] },
+    status: 'current',
+    sourceType: 'manual',
+    sourceReference: null,
+    linkedProjectReferenceId: null,
+    linkedAiDocumentId: null,
+    linkedDeliverableType: null,
+    linkedDeliverableId: null,
+    propertiesJson: overrides.propertiesJson ?? null,
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
     ...overrides,
   };
 }

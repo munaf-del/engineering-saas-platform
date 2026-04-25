@@ -7,8 +7,7 @@ import { PageLoading } from '@/components/loading';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
-import { usePileGroups } from '@/hooks/use-pile-groups';
-import { useProjectSpatialFeatures } from '@/hooks/use-project-spatial';
+import { useDraftingSourceRegistry } from '@/hooks/use-drafting';
 import { DraftingInspectorDrawer } from './components/drafting-inspector-drawer';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
@@ -47,9 +46,9 @@ import {
   updateLayer,
 } from './model-utils';
 import {
-  buildDraftingPileSourceRecords,
-  buildDraftingPileTypeSourceRecords,
-  buildDraftingSpatialSourceRecords,
+  buildDraftingPileSourceRecordsFromRegistry,
+  buildDraftingPileTypeSourceRecordsFromRegistry,
+  buildDraftingSpatialSourceRecordsFromRegistry,
   createDraftingObjectFromSpatialSource,
   createPileObjectFromSource,
   createPileObjectFromTypeSource,
@@ -85,8 +84,7 @@ export function DraftingEditor({
   );
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
-  const pileGroupsQuery = usePileGroups(projectId);
-  const spatialFeaturesQuery = useProjectSpatialFeatures(projectId);
+  const sourceRegistryQuery = useDraftingSourceRegistry(projectId, drawingId);
   const history = useDraftingHistory(projectId, drawingId);
   const view = useDraftingView({
     activeTool: drafting.activeTool,
@@ -115,16 +113,16 @@ export function DraftingEditor({
     view: view.currentView,
   });
   const pileSourceRecords = React.useMemo(
-    () => buildDraftingPileSourceRecords(pileGroupsQuery.data),
-    [pileGroupsQuery.data],
+    () => buildDraftingPileSourceRecordsFromRegistry(sourceRegistryQuery.data),
+    [sourceRegistryQuery.data],
   );
   const pileTypeSourceRecords = React.useMemo(
-    () => buildDraftingPileTypeSourceRecords(pileGroupsQuery.data),
-    [pileGroupsQuery.data],
+    () => buildDraftingPileTypeSourceRecordsFromRegistry(sourceRegistryQuery.data),
+    [sourceRegistryQuery.data],
   );
   const spatialSourceRecords = React.useMemo(
-    () => buildDraftingSpatialSourceRecords(spatialFeaturesQuery.data),
-    [spatialFeaturesQuery.data],
+    () => buildDraftingSpatialSourceRecordsFromRegistry(sourceRegistryQuery.data),
+    [sourceRegistryQuery.data],
   );
   const placedSourceIds = React.useMemo(
     () =>
@@ -591,7 +589,7 @@ export function DraftingEditor({
           placedSourceIds={placedSourceIds}
           selectedPileTypeSourceId={selectedPileTypeSourceId}
           spatialSources={spatialSourceRecords}
-          sourceLoading={pileGroupsQuery.isLoading || spatialFeaturesQuery.isLoading}
+          sourceLoading={sourceRegistryQuery.isLoading}
         />
 
         <DraftingStage

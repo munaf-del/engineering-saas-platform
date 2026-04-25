@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ProjectSpatialFeature } from '@eng/shared';
+import type { ProjectEngineeringSourceRegistry, ProjectSpatialFeature } from '@eng/shared';
 import { createEmptyDraftingModel } from '@eng/shared';
 import {
   buildDraftingPileSourceRecords,
+  buildDraftingPileSourceRecordsFromRegistry,
   buildDraftingPileTypeSourceRecords,
+  buildDraftingPileTypeSourceRecordsFromRegistry,
   buildDraftingSpatialSourceRecords,
+  buildDraftingSpatialSourceRecordsFromRegistry,
   createDraftingObjectFromSpatialSource,
   createPileObjectFromSource,
   createPileObjectFromTypeSource,
@@ -401,6 +404,123 @@ describe('drafting source binding utils', () => {
       },
     });
   });
+
+  it('derives drafting source records from the project engineering source registry', () => {
+    const registry: ProjectEngineeringSourceRegistry = {
+      projectId: 'project-1',
+      generatedAt: '2026-04-25T00:00:00.000Z',
+      sources: {
+        foundation: {
+          pileTypes: [
+            {
+              sourceType: 'foundation_pile_type',
+              sourceId: 'group-1:type:BP1',
+              sourceLabel: 'BP1',
+              sourceCode: 'BP1',
+              originModule: 'foundations',
+              status: 'current',
+              completeness: 'complete',
+              sourcePath: 'pile_groups.metadata.multiPile.pileTypes[0]',
+              sourceVersion: '2026-04-25T00:00:00.000Z',
+              engineering: { diameterMm: 600, concreteGrade: 'C40' },
+              snapshot: {
+                pileGroupId: 'group-1',
+                pileGroupName: 'foundation piles',
+                pileTypeDefinition: pileType('BP1', 600, {
+                  concreteGrade: 'C40',
+                  socketLengthM: 3,
+                }),
+              },
+            },
+          ],
+          placedPiles: [
+            {
+              sourceType: 'foundation_pile',
+              sourceId: 'group-1:joint:J1',
+              sourceLabel: 'J1',
+              sourceCode: 'J1',
+              originModule: 'foundations',
+              status: 'current',
+              completeness: 'complete',
+              coordinates: { x: 0, y: 0, z: 0 },
+              sourcePath: 'pile_groups.metadata.multiPile.joints[0]',
+              engineering: { pileTypeCode: 'BP1', diameterMm: 600 },
+              snapshot: {
+                pileGroupId: 'group-1',
+                pileGroupName: 'foundation piles',
+                joint: {
+                  id: 'J1',
+                  x: 0,
+                  y: 0,
+                  z: 0,
+                  supportCount: 1,
+                  noOfSupports: 1,
+                  pileTypeId: 'BP1',
+                  assignmentMode: 'manual',
+                  active: true,
+                  order: 0,
+                },
+                pileTypeDefinition: pileType('BP1', 600),
+              },
+            },
+          ],
+          pileGroups: [],
+          capacityProfiles: [],
+          designChecks: [],
+        },
+        geotech: {
+          boreholes: [
+            {
+              sourceType: 'geotech_borehole',
+              sourceId: 'spatial-bh-1',
+              sourceLabel: 'nh',
+              originModule: 'spatial',
+              status: 'current',
+              completeness: 'partial',
+              coordinates: { x: 1, y: 2 },
+              sourcePath: 'project_spatial_features',
+              engineering: { boreholeId: 'nh' },
+              snapshot: {
+                feature: spatialFeature({
+                  featureType: 'borehole',
+                  geometryJson: { type: 'Point', coordinates: [1, 2] },
+                  label: 'nh',
+                }),
+              },
+            },
+          ],
+          strata: [],
+        },
+        monitoring: {
+          monitoringPoints: [],
+          omnidotsMeasuringPoints: [],
+        },
+        spatial: {
+          referencePoints: [],
+          boundaries: [],
+          features: [],
+          services: [],
+        },
+      },
+      warnings: ['No explicit service/utility source types found.'],
+    };
+
+    expect(buildDraftingPileTypeSourceRecordsFromRegistry(registry)[0]).toMatchObject({
+      sourceLabel: 'BP1',
+      originModule: 'foundations',
+      sourcePath: 'pile_groups.metadata.multiPile.pileTypes[0]',
+    });
+    expect(buildDraftingPileSourceRecordsFromRegistry(registry)[0]).toMatchObject({
+      sourceLabel: 'J1',
+      joint: { id: 'J1' },
+      pileType: { id: 'BP1' },
+    });
+    expect(buildDraftingSpatialSourceRecordsFromRegistry(registry)[0]).toMatchObject({
+      sourceLabel: 'nh',
+      objectType: 'borehole',
+      originModule: 'spatial',
+    });
+  });
 });
 
 function spatialFeature(
@@ -428,5 +548,26 @@ function spatialFeature(
     createdAt: '2026-04-25T00:00:00.000Z',
     updatedAt: '2026-04-25T00:00:00.000Z',
     ...rest,
+  };
+}
+
+function pileType(id: string, diameterMm: number, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    displayName: id,
+    sizePreset: String(diameterMm),
+    useCustom: false,
+    customMm: diameterMm,
+    Dmm: diameterMm,
+    nominalDiameterMm: diameterMm,
+    eoop: 0.075,
+    eoopM: 0.075,
+    compressionUltimateMin: null,
+    compressionUltimateMax: null,
+    tensionUltimateMin: null,
+    tensionUltimateMax: null,
+    active: true,
+    order: 0,
+    ...overrides,
   };
 }

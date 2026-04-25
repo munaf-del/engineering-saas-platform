@@ -14,6 +14,7 @@ export const SHORING_PILE_SCHEDULE_COLUMNS = [
   { key: 'sourceType', label: 'Source Type' },
   { key: 'sourceId', label: 'Source ID' },
   { key: 'sourceLabel', label: 'Source Label / Code' },
+  { key: 'originModule', label: 'Origin Module' },
   { key: 'sourceStatus', label: 'Source Status' },
   { key: 'sourceCompleteness', label: 'Source Completeness' },
   { key: 'manualSketch', label: 'Manual / Sketch' },
@@ -68,6 +69,7 @@ function buildPileRow(object: Extract<DraftingObject, { type: 'pile' }>): Drafti
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
       sourceLabel: object.sourceRef?.sourceLabel ?? '',
+      originModule: formatSourceSnapshotText(object.sourceRef?.snapshot, 'originModule'),
       sourceStatus:
         object.sourceRef?.status ?? (object.sourceRef?.sourceType ? 'snapshot' : 'manual'),
       sourceCompleteness: object.metadata.sourceCompleteness?.replaceAll('_', ' ') ?? '',
@@ -141,6 +143,7 @@ function buildSecantPileWallRow(
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
       sourceLabel: object.sourceRef?.sourceLabel ?? '',
+      originModule: formatSourceSnapshotText(object.sourceRef?.snapshot, 'originModule'),
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
       manualSketch: isManualSketch(object) ? 'yes' : 'no',
@@ -186,6 +189,7 @@ function buildSoldierPileWallRow(
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
       sourceLabel: object.sourceRef?.sourceLabel ?? '',
+      originModule: formatSourceSnapshotText(object.sourceRef?.snapshot, 'originModule'),
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
       manualSketch: isManualSketch(object) ? 'yes' : 'no',
@@ -230,6 +234,7 @@ function buildExcavationLineRow(
       sourceType: object.sourceRef?.sourceType ?? 'manual',
       sourceId: object.sourceRef?.sourceId ?? '',
       sourceLabel: object.sourceRef?.sourceLabel ?? '',
+      originModule: formatSourceSnapshotText(object.sourceRef?.snapshot, 'originModule'),
       sourceStatus: object.sourceRef?.status ?? '',
       sourceCompleteness: '',
       manualSketch: isManualSketch(object) ? 'yes' : 'no',
@@ -270,6 +275,11 @@ function formatPileSourceKind(object: Extract<DraftingObject, { type: 'pile' }>)
     return 'existing placed pile/joint';
   }
   return 'manual sketch';
+}
+
+function formatSourceSnapshotText(snapshot: Record<string, unknown> | undefined, key: string) {
+  const value = snapshot?.[key];
+  return typeof value === 'string' ? value : '';
 }
 
 function isManualSketch(object: DraftingObject) {
