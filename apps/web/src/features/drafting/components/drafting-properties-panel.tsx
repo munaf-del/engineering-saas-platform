@@ -58,6 +58,8 @@ export function DraftingPropertiesPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <DraftingSourceRefProperties object={object} onUpdate={onUpdate} />
+
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
 
           <PropertySection title={propertySectionTitle(object)}>
@@ -117,6 +119,100 @@ export function DraftingPropertiesPanel({
       </Card>
     </div>
   );
+}
+
+function DraftingSourceRefProperties({
+  object,
+  onUpdate,
+}: {
+  object: DraftingObject;
+  onUpdate: (nextObject: DraftingObject) => void;
+}) {
+  const sourceRef = object.sourceRef ?? {
+    sourceType: 'manual' as const,
+    status: 'manual' as const,
+  };
+  const status = sourceRef.status ?? (sourceRef.sourceType === 'manual' ? 'manual' : 'snapshot');
+
+  function updateSourceRef(nextSourceRef: DraftingObject['sourceRef']) {
+    onUpdate({
+      ...object,
+      ...(nextSourceRef ? { sourceRef: nextSourceRef } : { sourceRef: undefined }),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return (
+    <PropertySection title="Source / Provenance">
+      <div className="grid gap-2 text-xs sm:grid-cols-4">
+        <SourceField label="Status" value={formatSourceValue(status)} />
+        <SourceField label="Source type" value={formatSourceValue(sourceRef.sourceType)} />
+        <SourceField label="Source label" value={sourceRef.sourceLabel ?? 'Manual object'} />
+        <SourceField
+          label="Snapshot date"
+          value={sourceRef.linkedAt ? formatDraftingTimestamp(sourceRef.linkedAt) : 'Not recorded'}
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          className="h-8"
+          disabled={sourceRef.sourceType === 'manual'}
+          size="sm"
+          title="Source refresh requires the originating source record to be available in the current workspace."
+          type="button"
+          variant="outline"
+        >
+          Refresh from source
+        </Button>
+        <Button
+          className="h-8"
+          disabled={sourceRef.sourceType === 'manual'}
+          size="sm"
+          type="button"
+          variant="outline"
+          onClick={() => updateSourceRef(undefined)}
+        >
+          Unlink
+        </Button>
+        <Button
+          className="h-8"
+          size="sm"
+          type="button"
+          variant={sourceRef.sourceType === 'manual' ? 'secondary' : 'outline'}
+          onClick={() =>
+            updateSourceRef({
+              sourceType: 'manual',
+              status: 'manual',
+              linkedAt: new Date().toISOString(),
+              sourceLabel: object.name ?? object.type.replaceAll('_', ' '),
+            })
+          }
+        >
+          Convert to manual
+        </Button>
+      </div>
+      {sourceRef.sourceId ? (
+        <p className="mt-2 break-all text-xs text-muted-foreground">
+          Source ID {sourceRef.sourceId}
+        </p>
+      ) : null}
+    </PropertySection>
+  );
+}
+
+function SourceField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="font-medium text-muted-foreground">{label}</div>
+      <div className="truncate text-foreground" title={value}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function formatSourceValue(value: string | undefined) {
+  return value ? value.replaceAll('_', ' ') : 'Not recorded';
 }
 
 function propertySectionTitle(object: DraftingObject) {

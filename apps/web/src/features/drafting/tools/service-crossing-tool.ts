@@ -19,6 +19,11 @@ export function createServiceCrossingObject(
     style: {
       textSize: 220,
     },
+    sourceRef: {
+      sourceType: 'manual',
+      status: 'manual',
+      linkedAt: now,
+    },
     geometry: {
       crossingPoint: point,
     },

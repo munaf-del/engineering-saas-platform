@@ -165,6 +165,13 @@ export type DraftingServiceStatus = (typeof DRAFTING_SERVICE_STATUSES)[number];
 export type DraftingServiceConflictType = (typeof DRAFTING_SERVICE_CONFLICT_TYPES)[number];
 export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[number];
 export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
+export type DraftingObjectSourceType =
+  | 'foundation_pile'
+  | 'foundation_pile_group'
+  | 'geotech_borehole'
+  | 'spatial_feature'
+  | 'manual';
+export type DraftingObjectSourceStatus = 'linked' | 'snapshot' | 'missing_source' | 'manual';
 
 export type DraftingPoint = {
   x: number;
@@ -675,6 +682,7 @@ export type DraftingObjectBase = {
   style?: DraftingStyle;
   metadata?: Record<string, unknown>;
   provenance?: DraftingObjectProvenance;
+  sourceRef?: DraftingObjectSourceRef;
   createdAt: string;
   updatedAt: string;
 };
@@ -685,6 +693,17 @@ export type DraftingObjectProvenance = {
   updatedAt?: string;
   updatedBy?: string;
   lastAction?: DraftingObjectProvenanceAction;
+};
+
+export type DraftingObjectSourceRef = {
+  sourceType: DraftingObjectSourceType;
+  sourceId?: string;
+  sourceLabel?: string;
+  sourceVersion?: string;
+  linkedAt?: string;
+  linkedBy?: string;
+  status?: DraftingObjectSourceStatus;
+  snapshot?: Record<string, unknown>;
 };
 
 export type DraftingPileObject = DraftingObjectBase & {

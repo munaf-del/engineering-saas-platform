@@ -9,6 +9,8 @@ import {
 
 export const BOREHOLE_SCHEDULE_COLUMNS = [
   { key: 'boreholeId', label: 'Borehole ID' },
+  { key: 'sourceType', label: 'Source Type' },
+  { key: 'sourceId', label: 'Source ID' },
   { key: 'label', label: 'Label' },
   { key: 'groundRl', label: 'Ground RL' },
   { key: 'terminationDepth', label: 'Termination Depth' },
@@ -32,6 +34,8 @@ function buildBoreholeRow(
     objectType: object.type,
     cells: {
       boreholeId: object.parameters.boreholeId || object.id,
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       label: formatOptionalText(object.parameters.label),
       groundRl: formatRl(object.parameters.groundLevelRl),
       terminationDepth: formatMetres(object.parameters.terminationDepthM),

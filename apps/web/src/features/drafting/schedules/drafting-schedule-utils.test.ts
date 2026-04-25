@@ -25,6 +25,8 @@ describe('drafting schedule utils', () => {
     expect(group.rows).toHaveLength(4);
     expect(group.rows[0]?.cells).toMatchObject({
       objectType: 'pile',
+      sourceType: 'manual',
+      sourceId: '',
       idOrWallId: 'P1',
       pileCount: '1',
       diameterOrSection: '600 mm',
@@ -40,6 +42,8 @@ describe('drafting schedule utils', () => {
     expect(group.rows[2]?.cells.diameterOrSection).toBe('600 mm; UC310');
     expect(group.rows[3]?.cells).toMatchObject({
       objectType: 'excavation line',
+      sourceType: 'manual',
+      sourceId: '',
       idOrWallId: 'EX1',
       notes: 'Stage 2; design level 8.5; Bulk excavation hold point',
     });
@@ -98,6 +102,8 @@ describe('drafting schedule utils', () => {
     expect(group.rows).toHaveLength(1);
     expect(group.rows[0]?.cells).toEqual({
       boreholeId: 'BH1',
+      sourceType: 'manual',
+      sourceId: '',
       label: 'BH-01',
       groundRl: 'RL 13.2',
       terminationDepth: '12 m',
@@ -116,6 +122,8 @@ describe('drafting schedule utils', () => {
     expect(group.rows).toHaveLength(2);
     expect(group.rows[0]?.cells).toMatchObject({
       objectType: 'service run',
+      sourceType: 'manual',
+      sourceId: '',
       serviceOrCrossingId: 'SR1',
       serviceType: 'water',
       status: 'existing',
@@ -125,6 +133,8 @@ describe('drafting schedule utils', () => {
     });
     expect(group.rows[1]?.cells).toMatchObject({
       objectType: 'service crossing',
+      sourceType: 'manual',
+      sourceId: '',
       serviceOrCrossingId: 'SC1',
       conflictType: 'crosses_anchor',
       clearance: '350 mm',
@@ -208,6 +218,26 @@ describe('drafting schedule utils', () => {
     expect(exported).not.toContain('pdf-file-1');
     expect(exported).not.toContain('data:application/pdf');
     expect(exported).not.toContain('"buffer"');
+  });
+
+  it('includes source reference metadata in schedule rows when objects are source-linked', () => {
+    const pile = pileObject();
+    pile.sourceRef = {
+      sourceType: 'foundation_pile',
+      sourceId: 'pile-db-1',
+      sourceLabel: 'P1',
+      status: 'linked',
+    };
+
+    const group = getDraftingScheduleGroup(
+      buildDraftingScheduleSummary(modelWith([pile])),
+      'shoring_piles',
+    );
+
+    expect(group.rows[0]?.cells).toMatchObject({
+      sourceType: 'foundation_pile',
+      sourceId: 'pile-db-1',
+    });
   });
 
   it('does not fabricate row provenance for legacy objects without object provenance', () => {

@@ -20,6 +20,11 @@ export function createServiceRunObject(
       lineStyle: 'solid',
       textSize: 220,
     },
+    sourceRef: {
+      sourceType: 'manual',
+      status: 'manual',
+      linkedAt: now,
+    },
     geometry: {
       path: [point, { x: point.x + 2400, y: point.y }, { x: point.x + 4200, y: point.y + 600 }],
     },

@@ -64,6 +64,50 @@ describe('drafting defaults', () => {
     expect(summary.isProjectModel).toBe(true);
   });
 
+  it('hydrates optional source references on drafting objects without requiring legacy objects to have them', () => {
+    const now = '2026-04-25T00:00:00.000Z';
+    const model = createEmptyDraftingModel('drawing-source-ref');
+    model.objects.push({
+      id: 'pile-source-1',
+      type: 'pile',
+      layerId: 'piles',
+      name: 'P1',
+      visible: true,
+      locked: false,
+      geometry: {
+        centre: { x: 1000, y: 2000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      sourceRef: {
+        sourceType: 'foundation_pile',
+        sourceId: 'pile-db-1',
+        sourceLabel: 'P1',
+        linkedAt: now,
+        status: 'linked',
+        snapshot: {
+          pileType: 'bored',
+          diameter: 0.6,
+        },
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const parsed = DraftingModelSchema.parse(model);
+
+    expect(parsed.objects[0]?.sourceRef).toMatchObject({
+      sourceType: 'foundation_pile',
+      sourceId: 'pile-db-1',
+      status: 'linked',
+      snapshot: {
+        diameter: 0.6,
+      },
+    });
+  });
+
   it('hydrates older drafting models with drawing setup defaults', () => {
     const legacyModel = createEmptyDraftingModel('drawing-legacy') as ReturnType<
       typeof createEmptyDraftingModel

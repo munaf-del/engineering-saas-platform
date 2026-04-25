@@ -10,6 +10,8 @@ import {
 
 export const SHORING_PILE_SCHEDULE_COLUMNS = [
   { key: 'objectType', label: 'Object Type' },
+  { key: 'sourceType', label: 'Source Type' },
+  { key: 'sourceId', label: 'Source ID' },
   { key: 'idOrWallId', label: 'ID / Wall ID' },
   { key: 'pileCount', label: 'Pile Count' },
   { key: 'diameterOrSection', label: 'Diameter / Section' },
@@ -43,6 +45,8 @@ function buildPileRow(object: Extract<DraftingObject, { type: 'pile' }>): Drafti
     objectType: object.type,
     cells: {
       objectType: 'pile',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       idOrWallId: object.metadata.pileId || object.id,
       pileCount: '1',
       diameterOrSection: formatMm(object.geometry.diameterMm),
@@ -68,6 +72,8 @@ function buildSecantPileWallRow(
     objectType: object.type,
     cells: {
       objectType: 'secant pile wall',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       idOrWallId: object.metadata.wallId || object.id,
       pileCount: String(object.metadata.pileCount),
       diameterOrSection: formatMm(object.parameters.pileDiameterMm),
@@ -92,6 +98,8 @@ function buildSoldierPileWallRow(
     objectType: object.type,
     cells: {
       objectType: 'soldier pile wall',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       idOrWallId: object.metadata.wallId || object.id,
       pileCount: String(object.metadata.pileCount),
       diameterOrSection: formatScheduleNotes([
@@ -115,6 +123,8 @@ function buildExcavationLineRow(
     objectType: object.type,
     cells: {
       objectType: 'excavation line',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       idOrWallId: object.metadata.excavationId || object.id,
       pileCount: '',
       diameterOrSection: '',

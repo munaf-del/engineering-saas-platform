@@ -14,6 +14,11 @@ export function createPileObject(point: DraftingPoint, model: DraftingModel): Dr
     visible: true,
     locked: false,
     style: {},
+    sourceRef: {
+      sourceType: 'manual',
+      status: 'manual',
+      linkedAt: now,
+    },
     geometry: {
       centre: point,
       diameterMm: 600,

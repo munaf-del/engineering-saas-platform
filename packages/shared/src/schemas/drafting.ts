@@ -278,6 +278,23 @@ export const DraftingObjectProvenanceSchema = z.object({
   lastAction: z.enum(DRAFTING_OBJECT_PROVENANCE_ACTIONS).optional(),
 });
 
+export const DraftingObjectSourceRefSchema = z.object({
+  sourceType: z.enum([
+    'foundation_pile',
+    'foundation_pile_group',
+    'geotech_borehole',
+    'spatial_feature',
+    'manual',
+  ]),
+  sourceId: z.string().optional(),
+  sourceLabel: z.string().optional(),
+  sourceVersion: z.string().optional(),
+  linkedAt: z.string().datetime().optional(),
+  linkedBy: z.string().optional(),
+  status: z.enum(['linked', 'snapshot', 'missing_source', 'manual']).optional(),
+  snapshot: z.record(z.unknown()).optional(),
+});
+
 export const DraftingScheduleSummaryRowSnapshotSchema = z.object({
   id: z.string().min(1),
   sourceObjectId: z.string().min(1),
@@ -382,6 +399,7 @@ const DraftingObjectBaseSchema = z.object({
   style: DraftingStyleSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   provenance: DraftingObjectProvenanceSchema.optional(),
+  sourceRef: DraftingObjectSourceRefSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

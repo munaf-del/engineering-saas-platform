@@ -7,6 +7,8 @@ import { PageLoading } from '@/components/loading';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
+import { usePileGroups } from '@/hooks/use-pile-groups';
+import { useProjectSpatialFeatures } from '@/hooks/use-project-spatial';
 import { DraftingInspectorDrawer } from './components/drafting-inspector-drawer';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
@@ -44,6 +46,15 @@ import {
   updateDraftingDrawingSetup,
   updateLayer,
 } from './model-utils';
+import {
+  buildDraftingPileSourceRecords,
+  buildDraftingSpatialSourceRecords,
+  createDraftingObjectFromSpatialSource,
+  createPileObjectFromSource,
+  findExistingSourceObject,
+  type DraftingPileSourceRecord,
+  type DraftingSpatialSourceRecord,
+} from './source-binding-utils';
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
@@ -64,6 +75,8 @@ export function DraftingEditor({
   const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
+  const pileGroupsQuery = usePileGroups(projectId);
+  const spatialFeaturesQuery = useProjectSpatialFeatures(projectId);
   const history = useDraftingHistory(projectId, drawingId);
   const view = useDraftingView({
     activeTool: drafting.activeTool,
@@ -91,6 +104,21 @@ export function DraftingEditor({
     patchModel: history.patchModel,
     view: view.currentView,
   });
+  const pileSourceRecords = React.useMemo(
+    () => buildDraftingPileSourceRecords(pileGroupsQuery.data),
+    [pileGroupsQuery.data],
+  );
+  const spatialSourceRecords = React.useMemo(
+    () => buildDraftingSpatialSourceRecords(spatialFeaturesQuery.data),
+    [spatialFeaturesQuery.data],
+  );
+  const placedSourceIds = React.useMemo(
+    () =>
+      (history.model?.objects ?? []).flatMap((object) =>
+        object.sourceRef?.sourceId ? [object.sourceRef.sourceId] : [],
+      ),
+    [history.model?.objects],
+  );
 
   React.useEffect(() => {
     function isTextEntryTarget(target: EventTarget | null) {
@@ -370,6 +398,61 @@ export function DraftingEditor({
     );
   }
 
+  function handlePlacePileSource(source: DraftingPileSourceRecord) {
+    const existing = findExistingSourceObject(currentModel, 'foundation_pile', source.sourceId);
+    if (existing) {
+      selection.selectObject(existing.id);
+      drafting.setActiveTab('properties');
+      toast.info(`${source.sourceLabel} is already in the model; selected existing object`);
+      return;
+    }
+
+    const nextObject = createPileObjectFromSource({
+      fallbackPoint: getViewportCentrePoint(),
+      linkedBy: currentUserName,
+      model: currentModel,
+      source,
+    });
+    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+    selection.selectObject(nextObject.id);
+    drafting.setActiveTab('properties');
+    toast.success(`Placed linked pile ${source.sourceLabel}`);
+  }
+
+  function handlePlaceSpatialSource(source: DraftingSpatialSourceRecord) {
+    const existing =
+      findExistingSourceObject(currentModel, 'spatial_feature', source.sourceId) ??
+      findExistingSourceObject(currentModel, 'geotech_borehole', source.sourceId);
+    if (existing) {
+      selection.selectObject(existing.id);
+      drafting.setActiveTab('properties');
+      toast.info(`${source.sourceLabel} is already in the model; selected existing object`);
+      return;
+    }
+
+    const nextObject = createDraftingObjectFromSpatialSource({
+      fallbackPoint: getViewportCentrePoint(),
+      linkedBy: currentUserName,
+      model: currentModel,
+      source,
+    });
+    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+    selection.selectObject(nextObject.id);
+    drafting.setActiveTab('properties');
+    toast.success(`Placed linked ${source.objectType.replaceAll('_', ' ')} ${source.sourceLabel}`);
+  }
+
+  function getViewportCentrePoint() {
+    const stageRect = view.containerRef.current?.getBoundingClientRect();
+    return screenToWorldPoint(
+      {
+        x: stageRect?.width ? stageRect.width / 2 : view.canvasSize.width / 2,
+        y: stageRect?.height ? stageRect.height / 2 : view.canvasSize.height / 2,
+      },
+      view.currentView,
+    );
+  }
+
   function handleInspectorTabChange(value: string) {
     drafting.setActiveTab(value as typeof drafting.activeTab);
     setInspectorExpanded(true);
@@ -407,8 +490,14 @@ export function DraftingEditor({
           model={currentModel}
           onCancelLine={drafting.clearPendingLine}
           onFinishLine={handleFinishExcavationLine}
+          onPlacePileSource={handlePlacePileSource}
+          onPlaceSpatialSource={handlePlaceSpatialSource}
           onToolChange={drafting.setActiveTool}
           pendingLinePointsCount={drafting.pendingLinePoints.length}
+          pileSources={pileSourceRecords}
+          placedSourceIds={placedSourceIds}
+          spatialSources={spatialSourceRecords}
+          sourceLoading={pileGroupsQuery.isLoading || spatialFeaturesQuery.isLoading}
         />
 
         <DraftingStage

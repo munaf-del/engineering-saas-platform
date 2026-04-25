@@ -20,6 +20,11 @@ export function createBoreholeObject(
     style: {
       textSize: 220,
     },
+    sourceRef: {
+      sourceType: 'manual',
+      status: 'manual',
+      linkedAt: now,
+    },
     geometry: {
       point,
     },

@@ -17,6 +17,11 @@ export function createMonitoringPointObject(
     visible: true,
     locked: false,
     style: {},
+    sourceRef: {
+      sourceType: 'manual',
+      status: 'manual',
+      linkedAt: now,
+    },
     geometry: {
       point,
     },

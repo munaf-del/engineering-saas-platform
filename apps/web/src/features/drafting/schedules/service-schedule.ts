@@ -10,6 +10,8 @@ import {
 
 export const SERVICE_SCHEDULE_COLUMNS = [
   { key: 'objectType', label: 'Object Type' },
+  { key: 'sourceType', label: 'Source Type' },
+  { key: 'sourceId', label: 'Source ID' },
   { key: 'serviceOrCrossingId', label: 'Service / Crossing ID' },
   { key: 'serviceType', label: 'Service Type' },
   { key: 'status', label: 'Status' },
@@ -45,6 +47,8 @@ function buildServiceRunRow(
     objectType: object.type,
     cells: {
       objectType: 'service run',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       serviceOrCrossingId: object.parameters.serviceId || object.id,
       serviceType: formatOptionalText(object.parameters.serviceType),
       status: formatOptionalText(object.parameters.status),
@@ -69,6 +73,8 @@ function buildServiceCrossingRow(
     objectType: object.type,
     cells: {
       objectType: 'service crossing',
+      sourceType: object.sourceRef?.sourceType ?? 'manual',
+      sourceId: object.sourceRef?.sourceId ?? '',
       serviceOrCrossingId: object.parameters.crossingId || object.id,
       serviceType: formatOptionalText(object.parameters.serviceType),
       status: '',

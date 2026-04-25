@@ -21,6 +21,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDraftingTimestamp } from '../model-utils';
+import type {
+  DraftingPileSourceRecord,
+  DraftingSpatialSourceRecord,
+} from '../source-binding-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
 
 const TOOL_GROUPS: Array<{
@@ -97,17 +101,31 @@ export function DraftingToolPalette({
   model,
   onCancelLine,
   onFinishLine,
+  onPlacePileSource,
+  onPlaceSpatialSource,
   onToolChange,
   pendingLinePointsCount,
+  placedSourceIds = [],
+  pileSources = [],
+  spatialSources = [],
+  sourceLoading = false,
 }: {
   activeTool: DraftingTool;
   drawingUpdatedAt: string;
   model: DraftingModel;
   onCancelLine: () => void;
   onFinishLine: () => void;
+  onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
+  onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
   onToolChange: (tool: DraftingTool) => void;
   pendingLinePointsCount: number;
+  placedSourceIds?: string[];
+  pileSources?: DraftingPileSourceRecord[];
+  spatialSources?: DraftingSpatialSourceRecord[];
+  sourceLoading?: boolean;
 }) {
+  const sourcePanel = getSourcePanel(activeTool, pileSources, spatialSources);
+
   return (
     <div
       className="rounded-md border bg-background px-2 py-2 shadow-sm"
@@ -177,6 +195,20 @@ export function DraftingToolPalette({
         ))}
       </div>
 
+      {sourcePanel ? (
+        <SourceChoicePanel
+          activeTool={activeTool}
+          onPlacePileSource={onPlacePileSource}
+          onPlaceSpatialSource={onPlaceSpatialSource}
+          onToolChange={onToolChange}
+          placedSourceIds={placedSourceIds}
+          pileSources={sourcePanel.pileSources}
+          spatialSources={sourcePanel.spatialSources}
+          sourceLoading={sourceLoading}
+          title={sourcePanel.title}
+        />
+      ) : null}
+
       {activeTool === 'excavation_line' ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 text-xs text-muted-foreground">
           <span>
@@ -205,6 +237,112 @@ export function DraftingToolPalette({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SourceChoicePanel({
+  activeTool,
+  onPlacePileSource,
+  onPlaceSpatialSource,
+  onToolChange,
+  placedSourceIds,
+  pileSources,
+  spatialSources,
+  sourceLoading,
+  title,
+}: {
+  activeTool: DraftingTool;
+  onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
+  onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
+  onToolChange: (tool: DraftingTool) => void;
+  placedSourceIds: string[];
+  pileSources: DraftingPileSourceRecord[];
+  spatialSources: DraftingSpatialSourceRecord[];
+  sourceLoading: boolean;
+  title: string;
+}) {
+  const hasSources = pileSources.length > 0 || spatialSources.length > 0;
+
+  return (
+    <div
+      className="mt-2 grid gap-2 rounded-md border bg-muted/15 p-2 text-xs sm:grid-cols-[10rem_1fr]"
+      data-testid="drafting-source-choice-panel"
+    >
+      <div className="space-y-1">
+        <div className="font-semibold text-foreground">{title}</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            className="h-7 px-2 text-[11px]"
+            type="button"
+            variant="secondary"
+            onClick={() => onToolChange(activeTool)}
+          >
+            From project data
+          </Button>
+          <Button
+            className="h-7 px-2 text-[11px]"
+            type="button"
+            variant="outline"
+            onClick={() => onToolChange(activeTool)}
+          >
+            Manual {activeTool === 'pile' ? 'pile' : 'object'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        {sourceLoading ? (
+          <p className="text-muted-foreground">Loading project data sources...</p>
+        ) : hasSources ? (
+          <div className="flex flex-wrap gap-1.5">
+            {pileSources.map((source) => {
+              const alreadyPlaced = placedSourceIds.includes(source.sourceId);
+              return (
+                <Button
+                  aria-label={`Place source pile ${source.sourceLabel}`}
+                  className="h-7 max-w-56 truncate px-2 text-[11px]"
+                  data-testid="drafting-source-pile-option"
+                  disabled={!onPlacePileSource}
+                  key={source.sourceId}
+                  onClick={() => onPlacePileSource?.(source)}
+                  title={`${source.sourceLabel} · ${source.groupName}${alreadyPlaced ? ' · already in model' : ''}`}
+                  type="button"
+                  variant={alreadyPlaced ? 'secondary' : 'outline'}
+                >
+                  {source.sourceLabel}
+                  {alreadyPlaced ? ' · placed' : ''}
+                </Button>
+              );
+            })}
+            {spatialSources.map((source) => {
+              const alreadyPlaced = placedSourceIds.includes(source.sourceId);
+              return (
+                <Button
+                  aria-label={`Place spatial feature ${source.sourceLabel}`}
+                  className="h-7 max-w-64 truncate px-2 text-[11px]"
+                  data-testid="drafting-source-spatial-option"
+                  disabled={!onPlaceSpatialSource}
+                  key={source.sourceId}
+                  onClick={() => onPlaceSpatialSource?.(source)}
+                  title={`${source.sourceLabel} · ${source.objectType.replaceAll('_', ' ')}${alreadyPlaced ? ' · already in model' : ''}`}
+                  type="button"
+                  variant={alreadyPlaced ? 'secondary' : 'outline'}
+                >
+                  {source.sourceLabel}
+                  {alreadyPlaced ? ' · placed' : ''}
+                </Button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">
+            {activeTool === 'pile'
+              ? 'No project pile design records found. Create or confirm piles in Foundations/Calculators first, or place a manual pile.'
+              : 'No matching project spatial records found. Place a manual object or add source records in Spatial first.'}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -258,4 +396,40 @@ function getToolShortLabel(tool: DraftingTool) {
     TOOL_GROUPS.flatMap((group) => group.tools).find((entry) => entry.tool === tool)?.shortLabel ??
     tool
   );
+}
+
+function getSourcePanel(
+  activeTool: DraftingTool,
+  pileSources: DraftingPileSourceRecord[],
+  spatialSources: DraftingSpatialSourceRecord[],
+) {
+  if (activeTool === 'pile') {
+    return {
+      title: 'Pile source',
+      pileSources,
+      spatialSources: [] as DraftingSpatialSourceRecord[],
+    };
+  }
+
+  if (activeTool === 'borehole') {
+    return {
+      title: 'Borehole source',
+      pileSources: [] as DraftingPileSourceRecord[],
+      spatialSources: spatialSources.filter((source) => source.objectType === 'borehole'),
+    };
+  }
+
+  if (
+    activeTool === 'monitoring_point' ||
+    activeTool === 'service_run' ||
+    activeTool === 'service_crossing'
+  ) {
+    return {
+      title: 'Place from Spatial',
+      pileSources: [] as DraftingPileSourceRecord[],
+      spatialSources: spatialSources.filter((source) => source.objectType === activeTool),
+    };
+  }
+
+  return null;
 }
