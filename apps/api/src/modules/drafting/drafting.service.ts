@@ -572,6 +572,15 @@ export class DraftingService {
       ];
     });
 
+    const serviceRuns = services.filter((service) => service.category === 'service_run');
+    const serviceCrossings = services.filter((service) => service.category === 'service_crossing');
+    const serviceWarnings =
+      services.length === 0
+        ? [
+            'No explicit project service/utility sources found. Sketch services remain unlinked until project service sources are added.',
+          ]
+        : [];
+
     if (services.length === 0) {
       warnings.push(
         'No explicit project service/utility sources found. Sketch services remain unlinked until project service sources are added.',
@@ -642,6 +651,11 @@ export class DraftingService {
           boundaries,
           features: genericFeatures,
           services,
+        },
+        services: {
+          serviceRuns,
+          serviceCrossings,
+          warnings: serviceWarnings,
         },
       },
       warnings,

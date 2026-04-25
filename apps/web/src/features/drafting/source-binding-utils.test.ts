@@ -610,39 +610,28 @@ describe('drafting source binding utils', () => {
           referencePoints: [],
           boundaries: [],
           features: [],
-          services: [
-            {
-              sourceType: 'spatial_feature',
+          services: [],
+        },
+        services: {
+          serviceRuns: [
+            serviceSource({
               sourceId: 'spatial-service-1',
               sourceLabel: 'W-EX-01',
-              originModule: 'spatial',
-              status: 'current',
-              completeness: 'partial',
-              sourcePath: 'project_spatial_features',
-              engineering: {
-                featureType: 'service_run',
-                geometryType: 'line_string',
-                serviceType: 'water',
-                serviceStatus: 'existing',
-              },
               category: 'service_run',
-              snapshot: {
-                objectType: 'service_run',
-                feature: spatialFeature({
-                  featureType: 'service_run',
-                  geometryType: 'line_string',
-                  geometryJson: {
-                    type: 'LineString',
-                    coordinates: [
-                      [0, 0],
-                      [1000, 0],
-                    ],
-                  },
-                  label: 'W-EX-01',
-                }),
+              objectType: 'service_run',
+              featureType: 'service_run',
+              geometryType: 'line_string',
+              geometryJson: {
+                type: 'LineString',
+                coordinates: [
+                  [0, 0],
+                  [1000, 0],
+                ],
               },
-            },
+            }),
           ],
+          serviceCrossings: [],
+          warnings: [],
         },
       },
       warnings: [],
@@ -696,6 +685,50 @@ function spatialFeature(
     createdAt: '2026-04-25T00:00:00.000Z',
     updatedAt: '2026-04-25T00:00:00.000Z',
     ...rest,
+  };
+}
+
+function serviceSource({
+  category,
+  featureType,
+  geometryJson,
+  geometryType,
+  objectType,
+  sourceId,
+  sourceLabel,
+}: {
+  category: 'service_run' | 'service_crossing';
+  featureType: 'service_run' | 'service_crossing';
+  geometryJson: ProjectSpatialFeature['geometryJson'];
+  geometryType: ProjectSpatialFeature['geometryType'];
+  objectType: 'service_run' | 'service_crossing';
+  sourceId: string;
+  sourceLabel: string;
+}) {
+  return {
+    sourceType: 'spatial_feature' as const,
+    sourceId,
+    sourceLabel,
+    originModule: 'spatial' as const,
+    status: 'current' as const,
+    completeness: 'partial' as const,
+    sourcePath: 'project_spatial_features',
+    engineering: {
+      featureType,
+      geometryType,
+      serviceType: 'water',
+      serviceStatus: 'existing',
+    },
+    category,
+    snapshot: {
+      objectType,
+      feature: spatialFeature({
+        featureType,
+        geometryType,
+        geometryJson,
+        label: sourceLabel,
+      }),
+    },
   };
 }
 

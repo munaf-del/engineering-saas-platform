@@ -184,6 +184,11 @@ export type ProjectEngineeringSourceRegistry = {
       features: SpatialFeatureSource[];
       services: SpatialServiceSource[];
     };
+    services?: {
+      serviceRuns: SpatialServiceSource[];
+      serviceCrossings: SpatialServiceSource[];
+      warnings: string[];
+    };
   };
   warnings: string[];
 };

@@ -149,7 +149,10 @@ export function buildDraftingSpatialSourceRecordsFromRegistry(
   const monitoring = (registry?.sources.monitoring.monitoringPoints ?? []).map((source) =>
     spatialRecordFromRegistrySource(source, 'monitoring_point'),
   );
-  const services = (registry?.sources.spatial.services ?? []).flatMap((source) => {
+  const registryServices = registry?.sources.services
+    ? [...registry.sources.services.serviceRuns, ...registry.sources.services.serviceCrossings]
+    : (registry?.sources.spatial.services ?? []);
+  const services = registryServices.flatMap((source) => {
     if (source.snapshot.objectType === 'service_crossing') {
       return [spatialRecordFromRegistrySource(source, 'service_crossing')];
     }

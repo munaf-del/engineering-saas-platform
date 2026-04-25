@@ -7,6 +7,7 @@ const childrenByTab = {
   setup: <div>Setup compact content</div>,
   properties: <div>Selected pile P1 properties</div>,
   layers: <div>Layer controls</div>,
+  sources: <div>Source coverage controls</div>,
   underlays: <div>PDF underlay controls</div>,
   sheets: <div>Sheet output controls</div>,
   transmittals: <div>Transmittal controls</div>,

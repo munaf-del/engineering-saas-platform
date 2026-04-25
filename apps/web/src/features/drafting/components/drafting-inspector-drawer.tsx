@@ -8,6 +8,7 @@ const INSPECTOR_TABS: Array<{ value: DraftingInspectorTab; label: string }> = [
   { value: 'setup', label: 'Setup' },
   { value: 'properties', label: 'Properties' },
   { value: 'layers', label: 'Layers' },
+  { value: 'sources', label: 'Sources' },
   { value: 'underlays', label: 'Underlays' },
   { value: 'sheets', label: 'Sheets' },
   { value: 'transmittals', label: 'Transmittals' },
@@ -76,7 +77,7 @@ export function DraftingInspectorDrawer({
         ) : (
           <div className="border-t px-3 py-2 text-xs text-muted-foreground">
             Inspector collapsed. Select objects normally; expand for setup, properties, layers,
-            underlays, sheets, transmittals, or schedules.
+            sources, underlays, sheets, transmittals, or schedules.
           </div>
         )}
       </Tabs>

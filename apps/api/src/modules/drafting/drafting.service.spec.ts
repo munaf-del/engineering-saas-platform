@@ -603,6 +603,27 @@ describe('DraftingService', () => {
         }),
       ]),
     );
+    expect(registry.sources.services).toEqual(
+      expect.objectContaining({
+        serviceRuns: [
+          expect.objectContaining({
+            sourceLabel: 'W-EX-01',
+            category: 'service_run',
+            originModule: 'spatial',
+            sourcePath: 'project_spatial_features',
+          }),
+        ],
+        serviceCrossings: [
+          expect.objectContaining({
+            sourceLabel: 'SC-01',
+            category: 'service_crossing',
+            originModule: 'spatial',
+            sourcePath: 'project_spatial_features',
+          }),
+        ],
+        warnings: [],
+      }),
+    );
     expect(registry.warnings).not.toContain(
       'No explicit project service/utility sources found. Sketch services remain unlinked until project service sources are added.',
     );

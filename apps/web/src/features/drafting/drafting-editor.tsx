@@ -14,6 +14,7 @@ import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingSetupPanel } from './components/drafting-setup-panel';
+import { DraftingSourceCoveragePanel } from './components/drafting-source-coverage-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
@@ -478,24 +479,7 @@ export function DraftingEditor({
     object: DraftingObject,
     options?: { updateCoordinates?: boolean },
   ) {
-    const refreshed =
-      object.type === 'pile'
-        ? refreshPileObjectFromSource({
-            object,
-            pileSources: pileSourceRecords,
-            pileTypeSources: pileTypeSourceRecords,
-            updateCoordinates: options?.updateCoordinates,
-          })
-        : object.type === 'borehole' ||
-            object.type === 'monitoring_point' ||
-            object.type === 'service_run' ||
-            object.type === 'service_crossing'
-          ? refreshSpatialObjectFromSource({
-              object,
-              spatialSources: spatialSourceRecords,
-              updateCoordinates: options?.updateCoordinates,
-            })
-          : object;
+    const refreshed = refreshDraftingObjectFromCurrentSources(object, options);
 
     if (refreshed === object) {
       return;
@@ -512,6 +496,54 @@ export function DraftingEditor({
     } else {
       toast.success('Source snapshot refreshed');
     }
+  }
+
+  function handleRefreshSourceObjects(
+    objects: DraftingObject[],
+    options?: { updateCoordinates?: boolean },
+  ) {
+    const objectIds = new Set(objects.map((object) => object.id));
+    let refreshedCount = 0;
+    const nextObjects = currentModel.objects.map((candidate) => {
+      if (!objectIds.has(candidate.id)) {
+        return candidate;
+      }
+      const refreshed = refreshDraftingObjectFromCurrentSources(candidate, options);
+      if (refreshed !== candidate) {
+        refreshedCount += 1;
+      }
+      return refreshed;
+    });
+
+    if (refreshedCount === 0) {
+      return;
+    }
+
+    history.replaceModel({ ...currentModel, objects: nextObjects });
+    toast.success(`Refreshed ${refreshedCount} source snapshot(s)`);
+  }
+
+  function refreshDraftingObjectFromCurrentSources(
+    object: DraftingObject,
+    options?: { updateCoordinates?: boolean },
+  ) {
+    return object.type === 'pile'
+      ? refreshPileObjectFromSource({
+          object,
+          pileSources: pileSourceRecords,
+          pileTypeSources: pileTypeSourceRecords,
+          updateCoordinates: options?.updateCoordinates,
+        })
+      : object.type === 'borehole' ||
+          object.type === 'monitoring_point' ||
+          object.type === 'service_run' ||
+          object.type === 'service_crossing'
+        ? refreshSpatialObjectFromSource({
+            object,
+            spatialSources: spatialSourceRecords,
+            updateCoordinates: options?.updateCoordinates,
+          })
+        : object;
   }
 
   function handlePlaceSpatialSource(source: DraftingSpatialSourceRecord) {
@@ -535,6 +567,89 @@ export function DraftingEditor({
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');
     toast.success(`Placed linked ${source.objectType.replaceAll('_', ' ')} ${source.sourceLabel}`);
+  }
+
+  function handlePlacePileSources(sources: DraftingPileSourceRecord[]) {
+    if (sources.length === 0) {
+      return;
+    }
+    const fallbackPoint = getViewportCentrePoint();
+    let nextModel = currentModel;
+    let placedCount = 0;
+    let lastObjectId: string | null = null;
+
+    for (const source of sources) {
+      const existing = findExistingSourceObject(nextModel, 'foundation_pile', source.sourceId);
+      if (existing) {
+        lastObjectId = existing.id;
+        continue;
+      }
+      const nextObject = createPileObjectFromSource({
+        fallbackPoint,
+        linkedBy: currentUserName,
+        model: nextModel,
+        source,
+      });
+      nextModel = addDraftingObject(nextModel, nextObject, { by: currentUserName });
+      placedCount += 1;
+      lastObjectId = nextObject.id;
+    }
+
+    if (nextModel !== currentModel) {
+      history.replaceModel(nextModel);
+    }
+    if (lastObjectId) {
+      selection.selectObject(lastObjectId);
+      drafting.setActiveTab('properties');
+    }
+    if (placedCount > 0) {
+      toast.success(`Placed ${placedCount} linked pile source(s)`);
+    }
+  }
+
+  function handlePlaceSpatialSources(sources: DraftingSpatialSourceRecord[]) {
+    if (sources.length === 0) {
+      return;
+    }
+    const fallbackPoint = getViewportCentrePoint();
+    let nextModel = currentModel;
+    let placedCount = 0;
+    let lastObjectId: string | null = null;
+
+    for (const source of sources) {
+      const existing =
+        findExistingSourceObject(nextModel, 'spatial_feature', source.sourceId) ??
+        findExistingSourceObject(nextModel, 'geotech_borehole', source.sourceId);
+      if (existing) {
+        lastObjectId = existing.id;
+        continue;
+      }
+      const nextObject = createDraftingObjectFromSpatialSource({
+        fallbackPoint,
+        linkedBy: currentUserName,
+        model: nextModel,
+        source,
+      });
+      nextModel = addDraftingObject(nextModel, nextObject, { by: currentUserName });
+      placedCount += 1;
+      lastObjectId = nextObject.id;
+    }
+
+    if (nextModel !== currentModel) {
+      history.replaceModel(nextModel);
+    }
+    if (lastObjectId) {
+      selection.selectObject(lastObjectId);
+      drafting.setActiveTab('properties');
+    }
+    if (placedCount > 0) {
+      toast.success(`Placed ${placedCount} linked source object(s)`);
+    }
+  }
+
+  function handleSelectSourceCoverageObject(objectId: string) {
+    selection.selectObject(objectId);
+    drafting.setActiveTab('properties');
   }
 
   function getViewportCentrePoint() {
@@ -702,6 +817,30 @@ export function DraftingEditor({
                     onUpdate={(nextLayer) =>
                       history.replaceModel(updateLayer(currentModel, nextLayer))
                     }
+                  />
+                </ScrollArea>
+              </TabsContent>
+            ),
+            sources: (
+              <TabsContent className="m-0" forceMount value="sources">
+                <ScrollArea className="h-[320px] pr-3">
+                  <DraftingSourceCoveragePanel
+                    model={currentModel}
+                    onPlacePileSource={handlePlacePileSource}
+                    onPlacePileSources={handlePlacePileSources}
+                    onPlaceSpatialSource={handlePlaceSpatialSource}
+                    onPlaceSpatialSources={handlePlaceSpatialSources}
+                    onRefreshObject={handleRefreshSourceObject}
+                    onRefreshObjects={handleRefreshSourceObjects}
+                    onSelectObject={handleSelectSourceCoverageObject}
+                    pileSourceManageHref={
+                      sourcePileGroupId
+                        ? `/projects/${projectId}/pile-groups/${sourcePileGroupId}/multi-pile`
+                        : undefined
+                    }
+                    pileSources={pileSourceRecords}
+                    registry={sourceRegistryQuery.data}
+                    spatialSources={spatialSourceRecords}
                   />
                 </ScrollArea>
               </TabsContent>

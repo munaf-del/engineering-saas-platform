@@ -6,6 +6,7 @@ export type DraftingInspectorTab =
   | 'setup'
   | 'properties'
   | 'layers'
+  | 'sources'
   | 'underlays'
   | 'schedules'
   | 'sheets'
