@@ -150,8 +150,8 @@ export function DraftingStage({
   }
 
   return (
-    <Card className="min-h-[720px]">
-      <CardHeader className="pb-3">
+    <Card data-testid="drafting-canvas-stage">
+      <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">Project Model Canvas</CardTitle>
@@ -170,10 +170,10 @@ export function DraftingStage({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="pt-0">
         <div
           ref={containerRef}
-          className="relative h-[640px] overflow-hidden rounded-lg border bg-slate-50"
+          className="relative h-[clamp(560px,66vh,760px)] overflow-hidden rounded-lg border bg-slate-50"
         >
           <DraftingCanvasZoomControls
             onCenterReference={onCenterReference}

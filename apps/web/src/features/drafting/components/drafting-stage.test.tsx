@@ -52,6 +52,7 @@ describe('DraftingStage', () => {
       />,
     );
 
+    expect(markup).toContain('data-testid="drafting-canvas-stage"');
     expect(markup).toContain('aria-label="Zoom in"');
     expect(markup).toContain('aria-label="Zoom out"');
     expect(markup).toContain('aria-label="Reset zoom to 100%"');

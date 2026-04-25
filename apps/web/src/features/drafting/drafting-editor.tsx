@@ -4,10 +4,10 @@ import * as React from 'react';
 import type { DraftingObject, Project } from '@eng/shared';
 import { toast } from 'sonner';
 import { PageLoading } from '@/components/loading';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
+import { DraftingInspectorDrawer } from './components/drafting-inspector-drawer';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
@@ -61,6 +61,7 @@ export function DraftingEditor({
   const [activeDrawingSheetId, setActiveDrawingSheetId] = React.useState<string | null>(null);
   const [showDrawingSheetViewportOverlay, setShowDrawingSheetViewportOverlay] =
     React.useState(true);
+  const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
   const currentUserName = user?.name ?? user?.email ?? null;
   const drafting = useDrafting();
   const history = useDraftingHistory(projectId, drawingId);
@@ -149,6 +150,18 @@ export function DraftingEditor({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selection.selectedObject, view]);
+
+  React.useEffect(() => {
+    const storedValue = window.localStorage.getItem(getInspectorStorageKey(drawingId));
+    setInspectorExpanded(storedValue === 'expanded');
+  }, [drawingId]);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(
+      getInspectorStorageKey(drawingId),
+      inspectorExpanded ? 'expanded' : 'collapsed',
+    );
+  }, [drawingId, inspectorExpanded]);
 
   if (history.isLoading || !history.drawing || !history.model) {
     return <PageLoading />;
@@ -357,6 +370,15 @@ export function DraftingEditor({
     );
   }
 
+  function handleInspectorTabChange(value: string) {
+    drafting.setActiveTab(value as typeof drafting.activeTab);
+    setInspectorExpanded(true);
+  }
+
+  const selectedObjectSummary = selection.selectedObject
+    ? `${selection.selectedObject.name ?? selection.selectedObject.type.replaceAll('_', ' ')} · ${selection.selectedObject.type.replaceAll('_', ' ')}`
+    : 'No object selected';
+
   return (
     <>
       <DraftingToolbar
@@ -378,7 +400,7 @@ export function DraftingEditor({
         open={titleRevisionOpen}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_340px]">
+      <div className="space-y-3" data-testid="drafting-workspace-layout">
         <DraftingToolPalette
           activeTool={drafting.activeTool}
           drawingUpdatedAt={currentDrawing.updatedAt}
@@ -437,31 +459,17 @@ export function DraftingEditor({
           visibleObjects={visibleObjects}
         />
 
-        <Card className="min-h-[720px]">
-          <CardHeader>
-            <CardTitle className="text-base">Project Model Inspector</CardTitle>
-            <CardDescription>
-              Edit model setup, object properties, layer controls, underlays, sheet outputs, and
-              derived schedules.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs
-              value={drafting.activeTab}
-              onValueChange={(value) => drafting.setActiveTab(value as typeof drafting.activeTab)}
-            >
-              <TabsList className="grid w-full grid-cols-7">
-                <TabsTrigger value="setup">Setup</TabsTrigger>
-                <TabsTrigger value="properties">Properties</TabsTrigger>
-                <TabsTrigger value="layers">Layers</TabsTrigger>
-                <TabsTrigger value="underlays">Underlays</TabsTrigger>
-                <TabsTrigger value="sheets">Sheets</TabsTrigger>
-                <TabsTrigger value="transmittals">Transmittals</TabsTrigger>
-                <TabsTrigger value="schedules">Schedules</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="setup">
-                <ScrollArea className="h-[580px] pr-3">
+        <DraftingInspectorDrawer
+          activeTab={drafting.activeTab}
+          expanded={inspectorExpanded}
+          objectCount={currentModel.objects.length}
+          onExpandedChange={setInspectorExpanded}
+          onTabChange={handleInspectorTabChange}
+          selectedObjectSummary={selectedObjectSummary}
+          childrenByTab={{
+            setup: (
+              <TabsContent className="m-0" forceMount value="setup">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingSetupPanel
                     model={currentModel}
                     onCenterViewOnReference={handleCenterViewOnReference}
@@ -470,9 +478,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="properties">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            properties: (
+              <TabsContent className="m-0" forceMount value="properties">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingPropertiesPanel
                     layers={currentModel.layers}
                     object={selection.selectedObject}
@@ -483,9 +492,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="layers">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            layers: (
+              <TabsContent className="m-0" forceMount value="layers">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingLayerPanel
                     layers={currentModel.layers}
                     onUpdate={(nextLayer) =>
@@ -494,9 +504,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="underlays">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            underlays: (
+              <TabsContent className="m-0" forceMount value="underlays">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingUnderlaysPanel
                     drawingId={drawingId}
                     onAddUnderlay={handleAddUnderlay}
@@ -517,9 +528,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="sheets">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            sheets: (
+              <TabsContent className="m-0" forceMount value="sheets">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingDrawingSheetsPanel
                     activeSheetId={activeDrawingSheetId}
                     canvasSize={view.canvasSize}
@@ -538,9 +550,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="transmittals">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            transmittals: (
+              <TabsContent className="m-0" forceMount value="transmittals">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingTransmittalsPanel
                     currentUserName={currentUserName}
                     drawingId={drawingId}
@@ -551,9 +564,10 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-
-              <TabsContent value="schedules">
-                <ScrollArea className="h-[580px] pr-3">
+            ),
+            schedules: (
+              <TabsContent className="m-0" forceMount value="schedules">
+                <ScrollArea className="h-[320px] pr-3">
                   <DraftingSchedulesPanel
                     currentUserName={currentUserName}
                     drawingTitle={currentDrawing.title}
@@ -577,10 +591,14 @@ export function DraftingEditor({
                   />
                 </ScrollArea>
               </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+            ),
+          }}
+        />
       </div>
     </>
   );
+}
+
+function getInspectorStorageKey(drawingId: string) {
+  return `eng.drafting.inspector.${drawingId}`;
 }

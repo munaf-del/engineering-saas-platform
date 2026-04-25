@@ -18,14 +18,17 @@ describe('DraftingToolPalette', () => {
       />,
     );
 
+    expect(markup).toContain('data-testid="drafting-compact-tool-toolbar"');
     expect(markup).toContain('Navigate');
     expect(markup).toContain('Shoring');
     expect(markup).toContain('Survey / Monitoring');
     expect(markup).toContain('Services');
     expect(markup).toContain('Annotation');
     expect(markup).toContain('title="Service run"');
+    expect(markup).toContain('aria-label="Service run"');
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain('Add Secant Pile Wall');
     expect(markup).not.toContain('Add Service Crossing');
+    expect(markup).not.toContain('Choose a tool, then author typed objects');
   });
 });

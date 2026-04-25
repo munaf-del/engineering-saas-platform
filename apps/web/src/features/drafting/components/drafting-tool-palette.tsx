@@ -19,7 +19,6 @@ import {
   Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDraftingTimestamp } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
@@ -107,18 +106,22 @@ export function DraftingToolPalette({
   pendingLinePointsCount: number;
 }) {
   return (
-    <Card className="h-fit">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Tools</CardTitle>
-        <CardDescription>AS 1100-style engineering object tools.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {TOOL_GROUPS.map((group) => (
-          <section key={group.title} className="space-y-1.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {group.title}
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
+    <div
+      className="rounded-md border bg-background px-2 py-2 shadow-sm"
+      data-testid="drafting-compact-tool-toolbar"
+    >
+      <div className="flex min-h-11 items-center gap-2 overflow-x-auto pb-1">
+        <div className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Tools
+        </div>
+        {TOOL_GROUPS.map((group, index) => (
+          <React.Fragment key={group.title}>
+            {index > 0 ? <Separator className="h-8" orientation="vertical" /> : null}
+            <section
+              aria-label={`${group.title} tools`}
+              className="flex shrink-0 items-center gap-1"
+            >
+              <span className="sr-only">{group.title}</span>
               {group.tools.map((entry) => (
                 <ToolButton
                   key={entry.tool}
@@ -131,39 +134,47 @@ export function DraftingToolPalette({
                   {entry.shortLabel}
                 </ToolButton>
               ))}
-            </div>
-          </section>
+            </section>
+          </React.Fragment>
         ))}
+        <Separator className="h-8" orientation="vertical" />
+        <div className="ml-auto flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+          <span>{model.objects.length} objects</span>
+          <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
+            Saved {formatDraftingTimestamp(drawingUpdatedAt)}
+          </span>
+        </div>
+      </div>
 
-        {activeTool === 'excavation_line' ? (
-          <>
-            <Separator />
-            <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-              {pendingLinePointsCount === 0
-                ? 'Click in the canvas to start the excavation polyline.'
-                : `${pendingLinePointsCount} point(s) captured for the current line.`}
-            </div>
-            <Button className="w-full" onClick={onFinishLine} disabled={pendingLinePointsCount < 2}>
-              Finish Line
+      {activeTool === 'excavation_line' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 text-xs text-muted-foreground">
+          <span>
+            {pendingLinePointsCount === 0
+              ? 'Click in the canvas to start the excavation polyline.'
+              : `${pendingLinePointsCount} point(s) captured for the current line.`}
+          </span>
+          <div className="ml-auto flex gap-2">
+            <Button
+              className="h-8"
+              onClick={onFinishLine}
+              disabled={pendingLinePointsCount < 2}
+              size="sm"
+            >
+              Finish
             </Button>
             <Button
-              className="w-full"
+              className="h-8"
               variant="outline"
               onClick={onCancelLine}
               disabled={pendingLinePointsCount === 0}
+              size="sm"
             >
-              Cancel Line
+              Cancel
             </Button>
-          </>
-        ) : null}
-
-        <Separator />
-        <div className="space-y-1 text-sm text-muted-foreground">
-          <p>{model.objects.length} object(s) in current model</p>
-          <p>Last saved {formatDraftingTimestamp(drawingUpdatedAt)}</p>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      ) : null}
+    </div>
   );
 }
 
@@ -184,15 +195,16 @@ function ToolButton({
 }) {
   return (
     <Button
+      aria-label={label}
       aria-pressed={active}
-      className="h-9 justify-start gap-1.5 px-2 text-xs"
+      className="h-8 shrink-0 gap-1.5 px-2 text-xs"
       title={hint ? `${label} (${hint})` : label}
       variant={active ? 'default' : 'outline'}
       onClick={onClick}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
-      {children}
-      {hint ? <span className="ml-auto text-[10px] opacity-70">{hint}</span> : null}
+      <span>{children}</span>
+      {hint ? <span className="text-[10px] opacity-70">{hint}</span> : null}
     </Button>
   );
 }
