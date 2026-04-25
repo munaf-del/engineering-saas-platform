@@ -1,14 +1,20 @@
 import * as React from 'react';
 import { defaultSoldierPileSymbolDiameterMm } from '../semantic-object-utils';
-import { type DraftingSoldierPileWallRendererProps } from './renderer-types';
+import {
+  resolveRendererLineStyle,
+  type DraftingSoldierPileWallRendererProps,
+} from './renderer-types';
 
 export function SoldierPileWallRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingSoldierPileWallRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#92400e';
+  const lineStyle = resolveRendererLineStyle({ drawingSetup, layer, object, surface });
+  const stroke = object.style?.stroke ?? lineStyle.color;
   const diameterMm = defaultSoldierPileSymbolDiameterMm(object);
   const radius = diameterMm / 2;
   const firstPile = object.geometry.pilePositions[0];
@@ -21,7 +27,7 @@ export function SoldierPileWallRenderer({
         points={object.geometry.baselinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}
         strokeDasharray={object.parameters.laggingType ? undefined : '250 180'}
-        strokeWidth={isSelected ? 95 : 65}
+        strokeWidth={isSelected ? lineStyle.editorStrokeWidth * 1.8 : lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       {object.geometry.pilePositions.map((point, index) => (
@@ -29,10 +35,10 @@ export function SoldierPileWallRenderer({
           key={`${object.id}-pile-${index}`}
           cx={point.x}
           cy={point.y}
-          fill="#fffbeb"
+          fill="rgba(255, 251, 235, 0.28)"
           r={radius}
           stroke={stroke}
-          strokeWidth={isSelected ? 80 : 45}
+          strokeWidth={isSelected ? lineStyle.editorStrokeWidth * 1.6 : lineStyle.editorStrokeWidth}
           vectorEffect="non-scaling-stroke"
         />
       ))}

@@ -148,11 +148,27 @@ export class DraftingService {
     await this.assertProjectWriteAccess(access);
 
     const drawingId = randomUUID();
+    const kind = dto.kind ?? 'sketch';
+    if (kind === 'model') {
+      await this.prisma.draftingDrawing.updateMany({
+        where: {
+          projectId: access.projectId,
+          kind: 'model',
+          status: { not: 'archived' },
+        },
+        data: {
+          kind: 'sketch',
+          updatedById: access.userId,
+        },
+      });
+    }
+
     const drawing = await this.prisma.draftingDrawing.create({
       data: {
         id: drawingId,
         projectId: access.projectId,
-        title: dto.title.trim(),
+        title: kind === 'model' ? 'Project Model' : dto.title.trim(),
+        kind,
         modelVersion: 1,
         modelJson: createEmptyDraftingModel(drawingId) as Prisma.InputJsonValue,
         createdById: access.userId,
@@ -181,13 +197,34 @@ export class DraftingService {
     dto: UpdateDraftingDrawingDto,
   ): Promise<DraftingDrawing> {
     await this.assertProjectWriteAccess(access);
-    await this.findDrawingRecord(access.projectId, drawingId);
+    const existing = await this.findDrawingRecord(access.projectId, drawingId);
+    if (existing.kind === 'model' && dto.status === 'archived') {
+      throw new BadRequestException('The active project model canvas cannot be archived');
+    }
+    if (existing.kind === 'model' && dto.kind === 'sketch') {
+      throw new BadRequestException('A project must keep one active project model canvas');
+    }
+    if (dto.kind === 'model') {
+      await this.prisma.draftingDrawing.updateMany({
+        where: {
+          projectId: access.projectId,
+          id: { not: drawingId },
+          kind: 'model',
+          status: { not: 'archived' },
+        },
+        data: {
+          kind: 'sketch',
+          updatedById: access.userId,
+        },
+      });
+    }
 
     const drawing = await this.prisma.draftingDrawing.update({
       where: { id: drawingId },
       data: {
         ...(dto.title !== undefined && { title: dto.title.trim() }),
         ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.kind !== undefined && { kind: dto.kind }),
         updatedById: access.userId,
       },
       include: {
@@ -634,10 +671,15 @@ function serializeDraftingDrawing(record: DraftingDrawingRecord): DraftingDrawin
 }
 
 function serializeDraftingDrawingSummary(record: DraftingDrawingRecord): DraftingDrawingSummary {
+  const kind = record.kind ?? 'sketch';
+
   return {
     id: record.id,
     projectId: record.projectId,
     title: record.title,
+    kind,
+    isProjectModel: kind === 'model' && record.status !== 'archived',
+    isSketch: kind === 'sketch',
     status: record.status,
     currentRevision: record.currentRevision,
     modelVersion: record.modelVersion,

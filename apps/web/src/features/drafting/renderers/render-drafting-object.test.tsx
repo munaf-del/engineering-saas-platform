@@ -104,7 +104,53 @@ describe('renderDraftingObject', () => {
       </svg>,
     );
 
-    expect(markup).toContain('stroke-width="116');
+    expect(markup).toContain('stroke-width="2.8"');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('renders sheet strokes from paper-mm line weights', () => {
+    const model = createEmptyDraftingModel('drawing-profile-sheet-render');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === pile.layerId) ?? null,
+          object: pile,
+          onPointerDown: () => undefined,
+          surface: 'sheet',
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('stroke-width="0.35"');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('keeps pile wall fills light instead of rendering solid blobs by default', () => {
+    const model = createEmptyDraftingModel('drawing-profile-wall-render');
+    const secantWall = createDraftingObject('secant_pile_wall', { x: 1200, y: 2200 }, model);
+    const soldierWall = createDraftingObject('soldier_pile_wall', { x: 1400, y: 2400 }, model);
+    const markup = renderToStaticMarkup(
+      <svg>
+        {[secantWall, soldierWall].map((object) => (
+          <React.Fragment key={object.id}>
+            {renderDraftingObject({
+              drawingSetup: model.drawingSetup,
+              isSelected: false,
+              layer: model.layers.find((layer) => layer.id === object.layerId) ?? null,
+              object,
+              onPointerDown: () => undefined,
+            })}
+          </React.Fragment>
+        ))}
+      </svg>,
+    );
+
+    expect(markup).toContain('rgba(253, 186, 116, 0.18)');
+    expect(markup).toContain('rgba(255, 251, 235, 0.28)');
+    expect(markup).not.toContain('stroke-width="55"');
+    expect(markup).not.toContain('stroke-width="65"');
   });
 });

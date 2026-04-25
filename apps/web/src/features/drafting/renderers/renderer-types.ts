@@ -19,6 +19,11 @@ import type {
   DraftingSoldierPileWallObject,
   DraftingWalerObject,
 } from '@eng/shared';
+import {
+  resolveDraftingLineStyle,
+  resolveDraftingPaperLineStyle,
+  type ResolvedDraftingLineStyle,
+} from '../standards/drafting-style-resolver';
 
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   drawingSetup?: DraftingDrawingSetup;
@@ -26,7 +31,20 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   layer: DraftingLayer | null;
   object: T;
   onPointerDown: (event: React.PointerEvent) => void;
+  surface?: 'editor' | 'sheet';
 };
+
+export function resolveRendererLineStyle(
+  props: Pick<DraftingRendererProps, 'drawingSetup' | 'layer' | 'object' | 'surface'>,
+): ResolvedDraftingLineStyle {
+  const resolver =
+    props.surface === 'sheet' ? resolveDraftingPaperLineStyle : resolveDraftingLineStyle;
+  return resolver({
+    layer: props.layer,
+    object: props.object,
+    setup: props.drawingSetup,
+  });
+}
 
 export type DraftingPileRendererProps = DraftingRendererProps<DraftingPileObject>;
 export type DraftingSecantPileWallRendererProps =

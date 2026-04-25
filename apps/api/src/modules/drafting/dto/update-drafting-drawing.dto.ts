@@ -1,4 +1,4 @@
-import { DRAFTING_DRAWING_STATUSES } from '@eng/shared';
+import { DRAFTING_DRAWING_KINDS, DRAFTING_DRAWING_STATUSES } from '@eng/shared';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
@@ -14,4 +14,9 @@ export class UpdateDraftingDrawingDto {
   @IsOptional()
   @IsEnum(DRAFTING_DRAWING_STATUSES)
   status?: (typeof DRAFTING_DRAWING_STATUSES)[number];
+
+  @ApiPropertyOptional({ enum: DRAFTING_DRAWING_KINDS })
+  @IsOptional()
+  @IsEnum(DRAFTING_DRAWING_KINDS)
+  kind?: (typeof DRAFTING_DRAWING_KINDS)[number];
 }

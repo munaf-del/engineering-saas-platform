@@ -78,7 +78,7 @@ vi.mock('@/components/page-header', () => ({
   ),
 }));
 
-describe('DraftingRegister archived drawing visibility', () => {
+describe('DraftingRegister project model architecture', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -97,54 +97,54 @@ describe('DraftingRegister archived drawing visibility', () => {
     mockPush.mockReset();
   });
 
-  it('hides archived drawings by default and counts only active drawings', async () => {
+  it('shows one project model card and hides sketches by default', async () => {
     await renderRegister();
 
-    expect(container.textContent).toContain('2 active drawing(s)');
-    expect(container.textContent).toContain('Show archived (2)');
-    expect(container.textContent).toContain('Active newer');
-    expect(container.textContent).toContain('Active older');
+    expect(container.textContent).toContain('1 project model canvas');
+    expect(container.textContent).toContain('Project Model');
+    expect(container.textContent).toContain('Open Project Model');
+    expect(container.textContent).toContain('Show sketches (3)');
+    expect(container.textContent).not.toContain('QA sketch newer');
     expect(container.textContent).not.toContain('Archived newest');
     expect(container.textContent).not.toContain('Archived older');
     expect(container.textContent).not.toContain('72 drawing(s)');
     expect(container.textContent).not.toContain('PDF underlays next');
   });
 
-  it('reveals archived drawings in a separate section below active drawings', async () => {
+  it('reveals sketches and archived sketches in a non-production section', async () => {
     await renderRegister();
 
-    await clickButton('Show archived (2)');
+    await clickButton('Show sketches (3)');
 
     const text = container.textContent ?? '';
-    expect(text).toContain('Archived drawings');
+    expect(text).toContain('Sketches');
+    expect(text).toContain('sketch / QA');
+    expect(text).toContain('QA sketch newer');
     expect(text).toContain('Archived newest');
     expect(text).toContain('Archived older');
-    expect(text.indexOf('Active newer')).toBeLessThan(text.indexOf('Archived drawings'));
-    expect(text.indexOf('Active older')).toBeLessThan(text.indexOf('Archived drawings'));
+    expect(text.indexOf('Project Model')).toBeLessThan(text.indexOf('QA sketch newer'));
   });
 
-  it('keeps active archive actions separate from archived restore actions', async () => {
+  it('keeps sketch archive actions separate from archived restore actions', async () => {
     await renderRegister();
 
-    expect(cardButtonLabels('Active newer')).toContain('Archive');
-    expect(cardButtonLabels('Active newer')).not.toContain('Restore');
+    expect(container.textContent).not.toContain('QA sketch newer');
     expect(container.textContent).not.toContain('Restore');
 
-    await clickButton('Show archived (2)');
+    await clickButton('Show sketches (3)');
 
+    expect(cardButtonLabels('QA sketch newer')).toContain('Archive');
     expect(cardButtonLabels('Archived newest')).toContain('Restore');
     expect(cardButtonLabels('Archived newest')).not.toContain('Archive');
-    expect(cardButtonLabels('Active newer')).toContain('Archive');
   });
 
-  it('sorts active and archived drawings within their own sections', async () => {
+  it('keeps project transmittal routing visible at project level', async () => {
     await renderRegister();
-    await clickButton('Show archived (2)');
 
-    const text = container.textContent ?? '';
-    expect(text.indexOf('Active newer')).toBeLessThan(text.indexOf('Active older'));
-    expect(text.indexOf('Archived newest')).toBeLessThan(text.indexOf('Archived older'));
-    expect(text.indexOf('Active older')).toBeLessThan(text.indexOf('Archived newest'));
+    const transmittalLinks = Array.from(container.querySelectorAll('a')).filter((link) =>
+      link.getAttribute('href')?.endsWith('/drafting/transmittals'),
+    );
+    expect(transmittalLinks.length).toBeGreaterThan(0);
   });
 
   async function renderRegister() {
@@ -193,14 +193,23 @@ const project: Project = {
 function createDrawings(): DraftingDrawingSummary[] {
   return [
     createDrawing({
+      id: 'model-active',
+      title: 'Project Model',
+      kind: 'model',
+      isProjectModel: true,
+      isSketch: false,
+      status: 'draft',
+      updatedAt: '2026-04-25T03:42:00.000Z',
+    }),
+    createDrawing({
       id: 'archived-newest',
       title: 'Archived newest',
       status: 'archived',
       updatedAt: '2026-04-25T02:42:00.000Z',
     }),
     createDrawing({
-      id: 'active-newer',
-      title: 'Active newer',
+      id: 'sketch-newer',
+      title: 'QA sketch newer',
       status: 'draft',
       updatedAt: '2026-04-24T02:42:00.000Z',
     }),
@@ -210,12 +219,6 @@ function createDrawings(): DraftingDrawingSummary[] {
       status: 'archived',
       updatedAt: '2026-04-23T02:42:00.000Z',
     }),
-    createDrawing({
-      id: 'active-older',
-      title: 'Active older',
-      status: 'draft',
-      updatedAt: '2026-04-22T02:42:00.000Z',
-    }),
   ];
 }
 
@@ -224,6 +227,9 @@ function createDrawing(
 ): DraftingDrawingSummary {
   return {
     projectId: 'project-1',
+    kind: 'sketch',
+    isProjectModel: false,
+    isSketch: true,
     status: 'draft',
     currentRevision: 0,
     modelVersion: 1,

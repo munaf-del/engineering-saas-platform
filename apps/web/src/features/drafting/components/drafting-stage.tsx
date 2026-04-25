@@ -141,14 +141,14 @@ export function DraftingStage({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Canvas</CardTitle>
+            <CardTitle className="text-base">Project Model Canvas</CardTitle>
             <CardDescription>
-              Model units {setup.modelUnits}; display units {setup.displayUnits}. Canvas zoom and
-              plotted sheet scale are separate.
+              Model space uses reference point / survey mark coordinates. Model units, display
+              units, canvas zoom, and plotted sheet scale are separate.
             </CardDescription>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            <Badge variant="outline">Model {setup.modelUnits}</Badge>
+            <Badge variant="outline">Model units {setup.modelUnits}</Badge>
             <Badge variant="outline">Display {setup.displayUnits}</Badge>
             <Badge variant="outline">Canvas zoom {zoomPercent}%</Badge>
             {viewLocked ? <Badge variant="secondary">View locked</Badge> : null}

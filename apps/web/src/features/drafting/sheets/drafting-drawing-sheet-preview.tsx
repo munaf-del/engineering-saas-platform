@@ -418,11 +418,7 @@ export function DraftingDrawingSheetPage({
           viewBox={`0 0 ${sheetLayout.viewport.width} ${sheetLayout.viewport.height}`}
           width="100%"
         >
-          <style>
-            {
-              '.drafting-sheet-hide-labels text{display:none}.drafting-sheet-paper-preview *{vector-effect:none}'
-            }
-          </style>
+          <style>{'.drafting-sheet-hide-labels text{display:none}'}</style>
           <defs>
             <clipPath id={viewportClipPathId}>
               <rect
@@ -474,6 +470,7 @@ export function DraftingDrawingSheetPage({
                     layer: getLayerById(drawing.model, object.layerId),
                     object,
                     onPointerDown: () => {},
+                    surface: 'sheet',
                   })}
                 </React.Fragment>
               ))}

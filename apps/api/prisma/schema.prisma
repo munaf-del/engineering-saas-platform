@@ -1639,10 +1639,16 @@ enum DraftingDrawingStatus {
   archived
 }
 
+enum DraftingDrawingKind {
+  model
+  sketch
+}
+
 model DraftingDrawing {
   id              String                @id @default(uuid()) @db.Uuid
   projectId       String                @map("project_id") @db.Uuid
   title           String
+  kind            DraftingDrawingKind   @default(sketch)
   status          DraftingDrawingStatus @default(draft)
   currentRevision Int                   @default(0) @map("current_revision")
   modelVersion    Int                   @default(1) @map("model_version")
@@ -1656,6 +1662,7 @@ model DraftingDrawing {
   revisions DraftingRevision[]
 
   @@index([projectId, status, updatedAt])
+  @@index([projectId, kind, status, updatedAt])
   @@index([projectId, updatedAt])
   @@map("drafting_drawings")
 }

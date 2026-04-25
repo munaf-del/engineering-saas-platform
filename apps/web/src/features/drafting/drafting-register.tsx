@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, Plus, Send } from 'lucide-react';
+import { FileText, Layers3, Plus, Send } from 'lucide-react';
 import type { DraftingDrawingSummary, Project } from '@eng/shared';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -54,8 +54,11 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
       first.title.localeCompare(second.title),
   );
   const activeDrawings = sortedDrawings.filter((drawing) => drawing.status !== 'archived');
+  const explicitProjectModel = activeDrawings.find((drawing) => drawing.isProjectModel);
+  const projectModel = explicitProjectModel ?? activeDrawings[0] ?? null;
+  const sketchDrawings = activeDrawings.filter((drawing) => drawing.id !== projectModel?.id);
   const archivedDrawings = sortedDrawings.filter((drawing) => drawing.status === 'archived');
-  const activeCount = activeDrawings.length;
+  const sketchCount = sketchDrawings.length;
   const archivedCount = archivedDrawings.length;
 
   async function handleCreateDrawing(event: React.FormEvent<HTMLFormElement>) {
@@ -64,8 +67,9 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
     try {
       const drawing = await createDrawing.mutateAsync({
         title: newTitle,
+        kind: 'sketch',
       });
-      toast.success('Drafting drawing created');
+      toast.success('Drafting sketch created');
       setShowCreateDialog(false);
       setNewTitle('General Arrangement 01');
       router.push(`/projects/${projectId}/drafting/${drawing.id}`);
@@ -74,11 +78,29 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
     }
   }
 
+  async function handleOpenProjectModel() {
+    if (projectModel) {
+      router.push(`/projects/${projectId}/drafting/${projectModel.id}`);
+      return;
+    }
+
+    try {
+      const drawing = await createDrawing.mutateAsync({
+        title: 'Project Model',
+        kind: 'model',
+      });
+      toast.success('Project model created');
+      router.push(`/projects/${projectId}/drafting/${drawing.id}`);
+    } catch {
+      toast.error('Failed to create project model');
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="Drafting"
-        description={`${project.code} · Project-native drawing register and editor`}
+        description={`${project.code} · Project model canvas, sheet outputs, sketches, and transmittals`}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -90,15 +112,15 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
             </Link>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Drawing
+              New Sketch
             </Button>
           </div>
         }
         badges={
           <>
-            <Badge variant="outline">{activeCount} active drawing(s)</Badge>
+            <Badge variant="outline">1 project model canvas</Badge>
             <Badge variant="secondary">
-              Project-native drawing register, sheets, schedules, underlays, and transmittals.
+              Sheets and transmittals are outputs of the project model.
             </Badge>
           </>
         }
@@ -106,71 +128,119 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Drawing Register</h2>
+          <h2 className="text-lg font-semibold">Project Model</h2>
           <p className="text-sm text-muted-foreground">
-            Manage project-owned engineering drawings, revisions, and exports from one place.
+            Single model space for project drafting objects, underlays, reference point, and
+            coordinates.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {archivedCount > 0 ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowArchived((value) => !value)}
-            >
-              {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
-            </Button>
-          ) : null}
-        </div>
-
-        {activeCount === 0 ? (
-          <EmptyState
-            icon={<FileText className="h-12 w-12" />}
-            title={archivedCount > 0 ? 'No active drafting drawings' : 'No drafting drawings yet'}
-            description={
-              archivedCount > 0
-                ? 'Archived drawings are hidden from the default register view.'
-                : 'Create the first project-native drawing to start authoring piles, excavation lines, monitoring points, and notes.'
-            }
-            action={
-              archivedCount > 0 ? (
-                <Button variant="outline" onClick={() => setShowArchived(true)}>
-                  Show archived ({archivedCount})
-                </Button>
-              ) : (
-                <Button onClick={() => setShowCreateDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create drawing
-                </Button>
-              )
-            }
+        {projectModel ? (
+          <ProjectModelCard
+            drawing={projectModel}
+            onOpenProjectModel={handleOpenProjectModel}
+            projectId={projectId}
           />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {activeDrawings.map((drawing) => (
-              <DraftingDrawingCard
-                key={drawing.id}
-                projectId={projectId}
-                onRename={() => setRenameState({ id: drawing.id, title: drawing.title })}
-                drawing={drawing}
-              />
-            ))}
-          </div>
+          <EmptyState
+            icon={<Layers3 className="h-12 w-12" />}
+            title="No project model canvas"
+            description="Create the single model space for drafting objects, underlays, reference point, and coordinates."
+            action={<Button onClick={handleOpenProjectModel}>Open Project Model</Button>}
+          />
         )}
 
-        {showArchived && archivedCount > 0 ? (
-          <section className="space-y-4" aria-label="Archived drawings">
+        <section className="space-y-4" aria-label="Sheets and outputs">
+          <div>
+            <h2 className="text-lg font-semibold">Sheets / Outputs</h2>
+            <p className="text-sm text-muted-foreground">
+              Plotted views, drawing sheet previews, issue snapshots, schedules, and sheet exports
+              come from the project model.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={
+                projectModel
+                  ? `/projects/${projectId}/drafting/${projectModel.id}/sheets/preview`
+                  : `/projects/${projectId}/drafting`
+              }
+              className={buttonVariants({ variant: 'outline' })}
+              aria-disabled={!projectModel}
+            >
+              Drawing Sheet Preview
+            </Link>
+            <Link
+              href={
+                projectModel
+                  ? `/projects/${projectId}/drafting/${projectModel.id}/schedules/preview`
+                  : `/projects/${projectId}/drafting`
+              }
+              className={buttonVariants({ variant: 'outline' })}
+              aria-disabled={!projectModel}
+            >
+              Schedule Pack Preview
+            </Link>
+          </div>
+        </section>
+
+        <section className="space-y-4" aria-label="Project transmittals">
+          <div>
+            <h2 className="text-lg font-semibold">Transmittals</h2>
+            <p className="text-sm text-muted-foreground">
+              Project-level transmittals package issued sheet snapshots without changing the model
+              canvas.
+            </p>
+          </div>
+          <Link
+            href={`/projects/${projectId}/drafting/transmittals`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            <Send className="mr-2 h-4 w-4" />
+            Project Transmittal Register
+          </Link>
+        </section>
+
+        <section className="space-y-4" aria-label="Sketches">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-base font-semibold">Archived drawings</h3>
+              <h2 className="text-lg font-semibold">Sketches</h2>
               <p className="text-sm text-muted-foreground">
-                Restored drawings return to the active register.
+                QA, scratch, and freeform canvases. These are not production model spaces.
               </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              {sketchCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowArchived((value) => !value)}
+                >
+                  {showArchived
+                    ? 'Hide sketches'
+                    : `Show sketches (${sketchCount + archivedCount})`}
+                </Button>
+              ) : null}
+              {archivedCount > 0 && sketchCount === 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowArchived((value) => !value)}
+                >
+                  {showArchived
+                    ? 'Hide archived sketches'
+                    : `Show archived sketches (${archivedCount})`}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {showArchived ? (
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              {archivedDrawings.map((drawing) => (
-                <DraftingDrawingCard
+              {[...sketchDrawings, ...archivedDrawings].map((drawing) => (
+                <DraftingSketchCard
                   key={drawing.id}
                   projectId={projectId}
                   onRename={() => setRenameState({ id: drawing.id, title: drawing.title })}
@@ -178,27 +248,31 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
                 />
               ))}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <div className="rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Sketch and QA canvases are hidden by default.
+            </div>
+          )}
+        </section>
       </section>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Drafting Drawing</DialogTitle>
+            <DialogTitle>New Sketch</DialogTitle>
             <DialogDescription>
-              Start a project-native drawing backed by a typed drafting model.
+              Create a QA, scratch, or freeform drafting canvas separate from the project model.
             </DialogDescription>
           </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleCreateDrawing}>
             <div className="space-y-2">
-              <Label htmlFor="drawing-title">Title</Label>
+              <Label htmlFor="drawing-title">Sketch title</Label>
               <Input
                 id="drawing-title"
                 value={newTitle}
                 onChange={(event) => setNewTitle(event.target.value)}
-                placeholder="Basement shoring layout"
+                placeholder="QA sketch or freeform check"
               />
             </div>
 
@@ -215,7 +289,7 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
                 type="submit"
                 disabled={createDrawing.isPending || newTitle.trim().length === 0}
               >
-                Create drawing
+                Create sketch
               </Button>
             </DialogFooter>
           </form>
@@ -231,7 +305,51 @@ export function DraftingRegister({ projectId, project }: { projectId: string; pr
   );
 }
 
-function DraftingDrawingCard({
+function ProjectModelCard({
+  projectId,
+  drawing,
+  onOpenProjectModel,
+}: {
+  projectId: string;
+  drawing: DraftingDrawingSummary;
+  onOpenProjectModel: () => void;
+}) {
+  return (
+    <Card className="max-w-3xl">
+      <CardHeader className="space-y-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-base">Project Model</CardTitle>
+            <Badge variant="secondary">model space</Badge>
+            <Badge variant={drawing.status === 'draft' ? 'warning' : 'secondary'}>
+              {drawing.status}
+            </Badge>
+          </div>
+          <CardDescription>
+            Single model space for project drafting objects, underlays, reference point, and
+            coordinates. {drawing.objectCount} object{drawing.objectCount === 1 ? '' : 's'} ·
+            Updated {formatDraftingTimestamp(drawing.updatedAt)}
+          </CardDescription>
+        </div>
+        <CardContent className="space-y-3 px-0 pb-0">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onOpenProjectModel}>
+              Open Project Model
+            </Button>
+            <Link
+              href={`/projects/${projectId}/drafting/${drawing.id}/sheets/preview`}
+              className={buttonVariants({ size: 'sm', variant: 'outline' })}
+            >
+              Sheet Outputs
+            </Link>
+          </div>
+        </CardContent>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function DraftingSketchCard({
   projectId,
   drawing,
   onRename,
@@ -245,7 +363,7 @@ function DraftingDrawingCard({
   async function handleArchive(nextStatus: 'archived' | 'draft') {
     try {
       await updateDrawing.mutateAsync({ status: nextStatus });
-      toast.success(nextStatus === 'archived' ? 'Drawing archived' : 'Drawing restored');
+      toast.success(nextStatus === 'archived' ? 'Sketch archived' : 'Sketch restored');
     } catch {
       toast.error('Failed to update drawing status');
     }
@@ -257,6 +375,7 @@ function DraftingDrawingCard({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-base">{drawing.title}</CardTitle>
+            <Badge variant="outline">sketch / QA</Badge>
             <Badge variant={drawing.status === 'draft' ? 'warning' : 'secondary'}>
               {drawing.status}
             </Badge>
@@ -274,7 +393,7 @@ function DraftingDrawingCard({
               href={`/projects/${projectId}/drafting/${drawing.id}`}
               className={buttonVariants({ size: 'sm' })}
             >
-              Open Editor
+              Open Sketch
             </Link>
             <Button size="sm" variant="outline" onClick={onRename}>
               Rename
@@ -339,7 +458,7 @@ function RenameDrawingDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename Drawing</DialogTitle>
-          <DialogDescription>Update the register title for this drawing.</DialogDescription>
+          <DialogDescription>Update the register title for this sketch.</DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleRename}>

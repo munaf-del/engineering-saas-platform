@@ -13,7 +13,7 @@ import {
 } from './drafting-standard-profiles';
 
 const LEGACY_LINE_WEIGHT_UNIT_MM = 0.18;
-const EDITOR_STROKE_PX_PER_MM = 170;
+const EDITOR_STROKE_PX_PER_MM = 4;
 
 export type ResolvedDraftingLineStyle = {
   color: string;
@@ -40,7 +40,7 @@ export function resolveDraftingLineStyle(args: {
   const profileStyle = profile.lineStyles[role] ?? profile.lineStyles.objectVisible;
   const overrideLineWeightMm = args.object?.style?.lineWeightMm;
   const legacyLineWeightMm =
-    args.object?.style?.lineWeight !== undefined
+    !setup && args.object?.style?.lineWeight !== undefined
       ? args.object.style.lineWeight * LEGACY_LINE_WEIGHT_UNIT_MM
       : !setup && args.layer?.lineWeight !== undefined
         ? args.layer.lineWeight * LEGACY_LINE_WEIGHT_UNIT_MM
@@ -54,7 +54,7 @@ export function resolveDraftingLineStyle(args: {
   return {
     color,
     ...(dashArray ? { dashArray } : {}),
-    editorStrokeWidth: Math.max(12, lineWeightMm * EDITOR_STROKE_PX_PER_MM),
+    editorStrokeWidth: Math.max(0.75, lineWeightMm * EDITOR_STROKE_PX_PER_MM),
     lineWeightMm,
     role,
   };

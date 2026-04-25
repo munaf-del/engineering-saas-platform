@@ -1,5 +1,7 @@
 export const DRAFTING_DRAWING_STATUSES = ['draft', 'issued', 'archived'] as const;
 export type DraftingDrawingStatus = (typeof DRAFTING_DRAWING_STATUSES)[number];
+export const DRAFTING_DRAWING_KINDS = ['model', 'sketch'] as const;
+export type DraftingDrawingKind = (typeof DRAFTING_DRAWING_KINDS)[number];
 
 export const DRAFTING_LAYER_IDS = [
   'underlay',
@@ -1020,6 +1022,9 @@ export interface DraftingDrawingSummary {
   id: string;
   projectId: string;
   title: string;
+  kind: DraftingDrawingKind;
+  isProjectModel: boolean;
+  isSketch: boolean;
   status: DraftingDrawingStatus;
   currentRevision: number;
   modelVersion: number;
@@ -1111,11 +1116,13 @@ export type DraftingProjectTransmittalInput = {
 
 export interface CreateDraftingDrawingInput {
   title: string;
+  kind?: DraftingDrawingKind;
 }
 
 export interface UpdateDraftingDrawingInput {
   title?: string;
   status?: DraftingDrawingStatus;
+  kind?: DraftingDrawingKind;
 }
 
 export interface SaveDraftingModelInput {

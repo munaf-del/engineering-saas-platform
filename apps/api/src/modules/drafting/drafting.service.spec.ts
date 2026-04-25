@@ -140,9 +140,11 @@ describe('DraftingService', () => {
   let prisma: {
     project: { findFirst: jest.Mock };
     draftingDrawing: {
+      create: jest.Mock;
       findMany: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     projectDraftingTransmittal: {
       create: jest.Mock;
@@ -158,7 +160,7 @@ describe('DraftingService', () => {
   let service: DraftingService;
 
   function buildDrawingRecord(
-    overrides: Partial<{ modelJson: Record<string, unknown>; status: string }> = {},
+    overrides: Partial<{ kind: string; modelJson: Record<string, unknown>; status: string }> = {},
   ) {
     const now = new Date('2026-04-21T00:00:00.000Z');
 
@@ -166,6 +168,7 @@ describe('DraftingService', () => {
       id: drawingId,
       projectId: access.projectId,
       title: 'Drafting QA Drawing',
+      kind: overrides.kind ?? 'sketch',
       status: overrides.status ?? 'draft',
       currentRevision: 0,
       modelVersion: 1,
@@ -188,18 +191,30 @@ describe('DraftingService', () => {
         }),
       },
       draftingDrawing: {
+        create: jest.fn().mockImplementation((args) =>
+          Promise.resolve(
+            buildDrawingRecord({
+              kind: args.data?.kind ?? 'sketch',
+              modelJson: args.data?.modelJson,
+            }),
+          ),
+        ),
         findMany: jest
           .fn()
-          .mockResolvedValue([buildDrawingRecord({ modelJson: issuedSheetModel() })]),
+          .mockResolvedValue([
+            buildDrawingRecord({ kind: 'model', modelJson: issuedSheetModel() }),
+          ]),
         findFirst: jest.fn().mockResolvedValue(buildDrawingRecord()),
         update: jest.fn().mockImplementation((args) =>
           Promise.resolve(
             buildDrawingRecord({
+              kind: args.data?.kind ?? 'sketch',
               status: args.data?.status ?? 'draft',
               modelJson: args.data?.modelJson,
             }),
           ),
         ),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       projectDraftingTransmittal: {
         create: jest
@@ -227,6 +242,38 @@ describe('DraftingService', () => {
     };
 
     service = new DraftingService(prisma as never, documentsService as never);
+  });
+
+  it('creates one project model canvas by demoting other active model records', async () => {
+    await service.createDrawing(access, { title: 'Ignored title', kind: 'model' });
+
+    expect(prisma.draftingDrawing.updateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: access.projectId,
+        kind: 'model',
+        status: { not: 'archived' },
+      },
+      data: {
+        kind: 'sketch',
+        updatedById: access.userId,
+      },
+    });
+    expect(prisma.draftingDrawing.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: 'model',
+          title: 'Project Model',
+        }),
+      }),
+    );
+  });
+
+  it('does not allow archiving the active project model canvas', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValueOnce(buildDrawingRecord({ kind: 'model' }));
+
+    await expect(service.updateDrawing(access, drawingId, { status: 'archived' })).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('rejects invalid drafting model payloads before persisting', async () => {

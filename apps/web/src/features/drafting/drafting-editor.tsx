@@ -182,7 +182,7 @@ export function DraftingEditor({
   async function handleSaveModel() {
     try {
       await history.saveModel();
-      toast.success('Drafting model saved');
+      toast.success('Project model saved');
     } catch {
       toast.error('Failed to save drafting model');
     }
@@ -437,10 +437,10 @@ export function DraftingEditor({
 
         <Card className="min-h-[720px]">
           <CardHeader>
-            <CardTitle className="text-base">Inspector</CardTitle>
+            <CardTitle className="text-base">Project Model Inspector</CardTitle>
             <CardDescription>
-              Edit drawing setup, object properties, layer controls, underlays, sheets, and derived
-              schedules.
+              Edit model setup, object properties, layer controls, underlays, sheet outputs, and
+              derived schedules.
             </CardDescription>
           </CardHeader>
           <CardContent>

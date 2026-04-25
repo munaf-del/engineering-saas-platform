@@ -6,7 +6,11 @@ import {
   defaultLayerIdForDraftingObjectType,
   ensureDraftingModelLayers,
 } from './drafting.js';
-import { DraftingModelSchema, DraftingUnderlaySchema } from '../schemas/drafting.js';
+import {
+  DraftingDrawingSummarySchema,
+  DraftingModelSchema,
+  DraftingUnderlaySchema,
+} from '../schemas/drafting.js';
 
 describe('drafting defaults', () => {
   it('creates a valid empty drafting model', () => {
@@ -36,6 +40,28 @@ describe('drafting defaults', () => {
     expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.drawingSheetIssues).toEqual([]);
     expect(parsed.drawingTransmittals).toEqual([]);
+  });
+
+  it('accepts project model and sketch drawing summary classification', () => {
+    const summary = DraftingDrawingSummarySchema.parse({
+      id: '11111111-1111-1111-1111-111111111111',
+      projectId: '22222222-2222-2222-2222-222222222222',
+      title: 'Project Model',
+      kind: 'model',
+      isProjectModel: true,
+      isSketch: false,
+      status: 'draft',
+      currentRevision: 0,
+      modelVersion: 1,
+      objectCount: 0,
+      createdById: null,
+      updatedById: null,
+      createdAt: '2026-04-25T00:00:00.000Z',
+      updatedAt: '2026-04-25T00:00:00.000Z',
+    });
+
+    expect(summary.kind).toBe('model');
+    expect(summary.isProjectModel).toBe(true);
   });
 
   it('hydrates older drafting models with drawing setup defaults', () => {

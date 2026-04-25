@@ -95,6 +95,8 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('data-testid="drafting-sheet-north-overlay"');
     expect(markup).toContain('clip-path="url(#drafting-sheet-viewport-clip-drawing-sheet-1)"');
     expect(markup).toContain('data-drafting-object="true"');
+    expect(markup).toContain('stroke-width="0.35"');
+    expect(markup).toContain('vector-effect="non-scaling-stroke"');
     expect(markup).toContain('P1');
     expect(markup).toContain('Retention Plan');
     expect(markup).toContain('Retention Wall General Arrangement');
@@ -104,6 +106,39 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('AVD');
     expect(markup).toContain('CKR');
     expect(markup).toContain('APR');
+  });
+
+  it('does not disable profile-driven paper line weights inside sheet preview', () => {
+    const drawing = createDrawing();
+    drawing.model.objects.push({
+      id: 'pile-1',
+      type: 'pile',
+      layerId: 'piles',
+      geometry: {
+        centre: { x: 1000, y: 1000 },
+        diameterMm: 600,
+      },
+      metadata: {
+        pileId: 'P1',
+      },
+      createdAt: '2026-04-24T00:00:00.000Z',
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    });
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' })}
+      />,
+    );
+
+    expect(markup).not.toContain('vector-effect:none');
+    expect(markup).toContain('stroke-width="0.35"');
   });
 
   it('hides renderer text labels when object labels are disabled', () => {
@@ -404,6 +439,9 @@ function createDrawing(): DraftingDrawing {
     id: 'drawing-1',
     projectId: 'project-1',
     title: 'Drafting Geometry Sheet QA',
+    kind: 'model',
+    isProjectModel: true,
+    isSketch: false,
     status: 'draft',
     currentRevision: 0,
     modelVersion: 1,

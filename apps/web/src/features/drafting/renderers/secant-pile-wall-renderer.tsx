@@ -1,15 +1,24 @@
 import * as React from 'react';
-import { type DraftingSecantPileWallRendererProps } from './renderer-types';
+import {
+  resolveRendererLineStyle,
+  type DraftingSecantPileWallRendererProps,
+} from './renderer-types';
 
 export function SecantPileWallRenderer({
+  drawingSetup,
   isSelected,
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingSecantPileWallRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#9a3412';
+  const lineStyle = resolveRendererLineStyle({ drawingSetup, layer, object, surface });
+  const stroke = object.style?.stroke ?? lineStyle.color;
   const radius = object.parameters.pileDiameterMm / 2;
-  const fill = object.style?.fill ?? '#fdba74';
+  const fill =
+    object.style?.fill && object.style.fill !== '#fdba74'
+      ? object.style.fill
+      : 'rgba(253, 186, 116, 0.18)';
   const firstPile = object.geometry.pileCentres[0];
   const pattern = object.parameters.primarySecondaryPattern;
 
@@ -21,12 +30,12 @@ export function SecantPileWallRenderer({
         points={object.geometry.baselinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}
         strokeDasharray={object.parameters.secantType === 'tangent' ? '300 200' : undefined}
-        strokeWidth={70}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       {object.geometry.pileCentres.map((point, index) => {
         const useAlternatingFill = pattern !== 'contiguous';
-        const pileFill = useAlternatingFill && index % 2 === 1 ? '#fff7ed' : fill;
+        const pileFill = useAlternatingFill && index % 2 === 1 ? 'rgba(255, 247, 237, 0.28)' : fill;
 
         return (
           <circle
@@ -36,7 +45,9 @@ export function SecantPileWallRenderer({
             fill={pileFill}
             r={radius}
             stroke={stroke}
-            strokeWidth={isSelected ? 90 : 55}
+            strokeWidth={
+              isSelected ? lineStyle.editorStrokeWidth * 1.8 : lineStyle.editorStrokeWidth
+            }
             vectorEffect="non-scaling-stroke"
           />
         );
