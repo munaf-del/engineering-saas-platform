@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel } from '@eng/shared';
+import { createEmptyDraftingModel, type DraftingDimensionChainObject } from '@eng/shared';
 import { createDraftingObject } from '../model-utils';
 import { renderDraftingObject } from './render-drafting-object';
 
@@ -109,6 +109,7 @@ describe('renderDraftingObject', () => {
     const dimension = createDraftingObject('dimension_chain', { x: 0, y: 0 }, model, [
       { x: 0, y: 0 },
       { x: 3000, y: 0 },
+      { x: 5000, y: 0 },
       { x: 0, y: -900 },
     ]);
     const markup = renderToStaticMarkup(
@@ -125,8 +126,62 @@ describe('renderDraftingObject', () => {
 
     expect(markup).toContain('data-dimension-id="DIM1"');
     expect(markup).toContain('3000 mm');
+    expect(markup).toContain('2000 mm');
+    expect(markup).toContain('5000 mm');
+    expect(markup.match(/3000 mm/g)).toHaveLength(1);
+    expect(markup.match(/2000 mm/g)).toHaveLength(1);
+    expect(markup.match(/5000 mm/g)).toHaveLength(1);
+    expect(markup).toContain('paint-order="stroke"');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
     expect(markup).not.toContain(`${dimension.id}-node`);
+  });
+
+  it('resolves snapped dimension witness anchors against moved source geometry', () => {
+    const model = createEmptyDraftingModel('dimension-anchor-render');
+    const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 4000, y: 0 },
+    ]);
+    const baseDimension = createDraftingObject('dimension_chain', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 3000, y: 0 },
+      { x: 0, y: -900 },
+    ]) as DraftingDimensionChainObject;
+    const dimension: DraftingDimensionChainObject = {
+      ...baseDimension,
+      metadata: {
+        associatedObjectIds: [line.id],
+        witnessAnchorRefs: [
+          {
+            sourceObjectId: line.id,
+            anchorKind: 'endpoint',
+            anchorIndex: 0,
+            capturedCoordinate: { x: 0, y: 0 },
+          },
+          {
+            sourceObjectId: line.id,
+            anchorKind: 'endpoint',
+            anchorIndex: 1,
+            capturedCoordinate: { x: 3000, y: 0 },
+          },
+        ],
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          allObjects: [line, dimension],
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === dimension.layerId) ?? null,
+          object: dimension,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('4000 mm');
+    expect(markup).not.toContain('3000 mm');
   });
 
   it('uses profile-resolved line weights without removing non-scaling strokes', () => {

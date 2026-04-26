@@ -33,6 +33,11 @@ export function useDrafting() {
     setPendingLinePoints([]);
   }
 
+  function changeActiveTool(tool: DraftingTool) {
+    setActiveTool(tool);
+    setPendingLinePoints([]);
+  }
+
   function toggleSnapEnabled() {
     setSnapSettings((current) => ({ ...current, enabled: !current.enabled }));
   }
@@ -54,7 +59,7 @@ export function useDrafting() {
     clearPendingLine,
     pendingLinePoints,
     setActiveTab,
-    setActiveTool,
+    setActiveTool: changeActiveTool,
     setPendingLinePoints,
     setSnapSettings,
     snapSettings,

@@ -282,6 +282,7 @@ export function DraftingStage({
                     isSelected: object.id === selectedObjectId,
                     layer: getLayerById(model, object.layerId),
                     object,
+                    allObjects: model.objects,
                     onPointerDown: (event) => onObjectPointerDown(event, object),
                   })}
                 </React.Fragment>

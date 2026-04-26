@@ -39,6 +39,7 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   layer: DraftingLayer | null;
   object: T;
   onPointerDown: (event: React.PointerEvent) => void;
+  allObjects?: DraftingObject[];
   surface?: 'editor' | 'sheet';
 };
 

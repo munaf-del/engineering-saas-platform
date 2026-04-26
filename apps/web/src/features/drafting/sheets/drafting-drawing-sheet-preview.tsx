@@ -469,6 +469,7 @@ export function DraftingDrawingSheetPage({
                     isSelected: false,
                     layer: getLayerById(drawing.model, object.layerId),
                     object,
+                    allObjects: drawing.model.objects,
                     onPointerDown: () => {},
                     surface: 'sheet',
                   })}

@@ -1,8 +1,5 @@
 import * as React from 'react';
-import {
-  DRAFTING_DIMENSION_UNITS,
-  type DraftingDimensionChainObject,
-} from '@eng/shared';
+import { DRAFTING_DIMENSION_UNITS, type DraftingDimensionChainObject } from '@eng/shared';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -21,6 +18,8 @@ export function DimensionChainProperties({
   object: DraftingDimensionChainObject;
   onUpdate: (nextObject: DraftingDimensionChainObject) => void;
 }) {
+  const witnessAnchorCount = object.metadata.witnessAnchorRefs?.length ?? 0;
+
   function updateObject(nextObject: DraftingDimensionChainObject) {
     onUpdate({
       ...nextObject,
@@ -139,6 +138,14 @@ export function DimensionChainProperties({
           </label>
         </Field>
       </div>
+
+      <Field label="Associativity">
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          {witnessAnchorCount > 0
+            ? `${witnessAnchorCount} snapped witness anchor(s). Fallback coordinates are retained if an anchor cannot be resolved.`
+            : 'Manual dimension. Witness points are fixed coordinates until snapped to object geometry.'}
+        </div>
+      </Field>
 
       <Field label="Dimension Points (mm)">
         <div className="space-y-3">

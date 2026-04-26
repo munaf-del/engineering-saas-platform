@@ -307,7 +307,10 @@ export function DraftingEditor({
     const isUnderlayModeActive =
       underlays.activeCropUnderlayId !== null || underlays.calibrationState !== null;
 
-    if (target.closest('[data-drafting-object="true"]')) {
+    if (
+      target.closest('[data-drafting-object="true"]') &&
+      (drafting.activeTool === 'select' || drafting.activeTool === 'pan')
+    ) {
       return;
     }
     if (isUnderlayModeActive && !target.closest('[data-drafting-underlay="true"]')) {

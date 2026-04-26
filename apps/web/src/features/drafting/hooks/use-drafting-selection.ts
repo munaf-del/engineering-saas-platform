@@ -202,6 +202,10 @@ export function useDraftingSelection({
   }
 
   function handleObjectPointerDown(event: React.PointerEvent, object: DraftingObject) {
+    if (activeTool !== 'select') {
+      return;
+    }
+
     event.stopPropagation();
 
     if (!model) {
