@@ -33,6 +33,7 @@ import {
 } from '../standards/drafting-style-resolver';
 import type { DraftingLineRole } from '../standards/drafting-standard-profiles';
 import type { DraftingCanvasLabelMode } from './label-policy';
+import type { DraftingLabelPlacement } from '../labels/drafting-label-layout';
 
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   drawingSetup?: DraftingDrawingSetup;
@@ -42,6 +43,7 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   onPointerDown: (event: React.PointerEvent) => void;
   allObjects?: DraftingObject[];
   labelMode?: DraftingCanvasLabelMode;
+  labelPlacement?: DraftingLabelPlacement;
   surface?: 'editor' | 'sheet';
   viewScale?: number;
 };

@@ -30,6 +30,7 @@ import type { GenericTemplateDocument } from '@/features/templates/core/generic-
 import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
 import { downloadDraftingDrawingSheetIssueManifestJson } from '../export-utils';
 import { createGridAxisValues } from '../geometry-utils';
+import { buildDraftingLabelLayout } from '../labels/drafting-label-candidates';
 import {
   formatDrawingRevision,
   getDraftingCurrentRevisionLabel,
@@ -379,6 +380,14 @@ export function DraftingDrawingSheetPage({
     rotationDeg: viewport.rotationDeg ?? 0,
     scale: viewport.scale,
   });
+  const labelLayout = buildDraftingLabelLayout({
+    labelMode: 'engineering',
+    model: drawing.model,
+    objects: visibleObjects,
+    selectedObjectId: null,
+    surface: 'sheet',
+    viewScale: viewport.scale,
+  });
   const viewportClipPathId = `drafting-sheet-viewport-clip-${sanitizeSvgId(sheet.id)}`;
 
   return (
@@ -469,6 +478,7 @@ export function DraftingDrawingSheetPage({
                     isSelected: false,
                     layer: getLayerById(drawing.model, object.layerId),
                     labelMode: 'engineering',
+                    labelPlacement: labelLayout.placementByObjectId[object.id],
                     object,
                     allObjects: drawing.model.objects,
                     onPointerDown: () => {},

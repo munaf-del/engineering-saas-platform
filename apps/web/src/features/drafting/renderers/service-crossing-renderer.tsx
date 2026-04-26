@@ -20,6 +20,7 @@ export function ServiceCrossingRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingServiceCrossingRendererProps) {
@@ -111,8 +112,12 @@ export function ServiceCrossingRenderer({
         y2={crossingPoint.y - 110}
       />
       <DraftingCanvasLabel
+        anchorPoint={crossingPoint}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={crossingPoint.x + 240}
         y={crossingPoint.y - 80}

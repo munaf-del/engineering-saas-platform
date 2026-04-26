@@ -20,6 +20,7 @@ export function MonitoringPointRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingMonitoringPointRendererProps) {
@@ -86,8 +87,12 @@ export function MonitoringPointRenderer({
         y2={y + 300}
       />
       <DraftingCanvasLabel
+        anchorPoint={object.geometry.point}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={x + 320}
         y={y - 140}

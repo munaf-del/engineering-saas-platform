@@ -20,6 +20,7 @@ export function BoreholeRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingBoreholeRendererProps) {
@@ -85,8 +86,12 @@ export function BoreholeRenderer({
         y2={object.geometry.point.y}
       />
       <DraftingCanvasLabel
+        anchorPoint={object.geometry.point}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={object.geometry.point.x + 260}
         y={object.geometry.point.y - 80}

@@ -18,6 +18,7 @@ export function WalerRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingWalerRendererProps) {
@@ -85,8 +86,12 @@ export function WalerRenderer({
       ))}
       {firstPoint ? (
         <DraftingCanvasLabel
+          anchorPoint={firstPoint}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={firstPoint.x + 180}
           y={firstPoint.y - 180}

@@ -16,6 +16,7 @@ export function ExcavationLineRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingExcavationLineRendererProps) {
@@ -52,8 +53,12 @@ export function ExcavationLineRenderer({
       />
       {firstPoint ? (
         <DraftingCanvasLabel
+          anchorPoint={firstPoint}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={firstPoint.x + 120}
           y={firstPoint.y - 160}

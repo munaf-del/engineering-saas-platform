@@ -18,6 +18,7 @@ export function CappingBeamRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingCappingBeamRendererProps) {
@@ -85,8 +86,12 @@ export function CappingBeamRenderer({
       ))}
       {firstPoint ? (
         <DraftingCanvasLabel
+          anchorPoint={firstPoint}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={firstPoint.x + 180}
           y={firstPoint.y - 220}

@@ -19,6 +19,7 @@ export function SecantPileWallRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingSecantPileWallRendererProps) {
@@ -133,8 +134,12 @@ export function SecantPileWallRenderer({
       })}
       {firstPile ? (
         <DraftingCanvasLabel
+          anchorPoint={firstPile}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={firstPile.x + radius + 180}
           y={firstPile.y - 180}

@@ -44,6 +44,7 @@ import {
 } from '../snapping/drafting-snap-utils';
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
+import { buildDraftingLabelLayout } from '../labels/drafting-label-candidates';
 import { resolveDraftingLineStyle } from '../standards/drafting-style-resolver';
 import {
   DRAFTING_CANVAS_LABEL_MODES,
@@ -167,6 +168,18 @@ export function DraftingStage({
   const selectedObject = selectedObjectId
     ? (visibleObjects.find((object) => object.id === selectedObjectId) ?? null)
     : null;
+  const labelLayout = React.useMemo(
+    () =>
+      buildDraftingLabelLayout({
+        labelMode,
+        model,
+        objects: visibleObjects,
+        selectedObjectId,
+        surface: 'editor',
+        viewScale: view.scale,
+      }),
+    [labelMode, model, selectedObjectId, view.scale, visibleObjects],
+  );
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -292,6 +305,7 @@ export function DraftingStage({
                     isSelected: object.id === selectedObjectId,
                     layer: getLayerById(model, object.layerId),
                     labelMode,
+                    labelPlacement: labelLayout.placementByObjectId[object.id],
                     object,
                     allObjects: model.objects,
                     onPointerDown: (event) => onObjectPointerDown(event, object),

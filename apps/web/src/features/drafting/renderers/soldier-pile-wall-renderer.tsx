@@ -20,6 +20,7 @@ export function SoldierPileWallRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingSoldierPileWallRendererProps) {
@@ -119,8 +120,12 @@ export function SoldierPileWallRenderer({
       ))}
       {firstPile ? (
         <DraftingCanvasLabel
+          anchorPoint={firstPile}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={firstPile.x + radius + 180}
           y={firstPile.y - 180}

@@ -19,6 +19,7 @@ export function PileRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingPileRendererProps) {
@@ -92,8 +93,12 @@ export function PileRenderer({
           y2={object.geometry.centre.y + 190}
         />
         <DraftingCanvasLabel
+          anchorPoint={object.geometry.centre}
+          leaderStroke={stroke}
           lines={labelLines}
+          placement={labelPlacement}
           stroke={stroke}
+          surface={surface}
           textSize={textSize}
           x={object.geometry.centre.x + 220}
           y={object.geometry.centre.y - 110}
@@ -148,8 +153,12 @@ export function PileRenderer({
         y2={object.geometry.centre.y + centreMark}
       />
       <DraftingCanvasLabel
+        anchorPoint={object.geometry.centre}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={object.geometry.centre.x + radius + 180}
         y={object.geometry.centre.y - 120}

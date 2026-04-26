@@ -18,6 +18,7 @@ export function AnchorTiebackRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingAnchorTiebackRendererProps) {
@@ -84,8 +85,12 @@ export function AnchorTiebackRenderer({
         vectorEffect={vectorEffect}
       />
       <DraftingCanvasLabel
+        anchorPoint={{ x: (headPoint.x + tailPoint.x) / 2, y: (headPoint.y + tailPoint.y) / 2 }}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={labelX}
         y={labelY}

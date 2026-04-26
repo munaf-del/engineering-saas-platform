@@ -24,6 +24,7 @@ import { buildDraftingObjectLabelLines } from './label-policy';
 export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObject>) {
   const style = usePrimitiveStyle(props);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
+  const anchor = midpoint([props.object.geometry.startPoint, props.object.geometry.endPoint]);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <line
@@ -35,6 +36,7 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
         y1={props.object.geometry.startPoint.y}
         y2={props.object.geometry.endPoint.y}
       />
+      <PrimitiveCanvasLabel anchor={anchor} props={props} stroke={style.stroke} />
     </g>
   );
 }
@@ -42,6 +44,7 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
 export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolylineObject>) {
   const style = usePrimitiveStyle(props);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
+  const anchor = midpoint(props.object.geometry.points);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <polyline
@@ -52,6 +55,7 @@ export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolyl
         strokeWidth={style.strokeWidth}
         vectorEffect={vectorEffect}
       />
+      <PrimitiveCanvasLabel anchor={anchor} props={props} stroke={style.stroke} />
     </g>
   );
 }
@@ -64,6 +68,7 @@ export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRect
   const y = Math.min(cornerA.y, cornerB.y);
   const width = Math.abs(cornerB.x - cornerA.x);
   const height = Math.abs(cornerB.y - cornerA.y);
+  const anchor = midpoint([cornerA, cornerB]);
 
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
@@ -77,6 +82,7 @@ export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRect
         x={x}
         y={y}
       />
+      <PrimitiveCanvasLabel anchor={anchor} props={props} stroke={style.stroke} />
     </g>
   );
 }
@@ -105,6 +111,11 @@ export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleO
         y1={props.object.geometry.centre.y}
         y2={props.object.geometry.centre.y}
       />
+      <PrimitiveCanvasLabel
+        anchor={props.object.geometry.centre}
+        props={props}
+        stroke={style.stroke}
+      />
     </g>
   );
 }
@@ -112,6 +123,7 @@ export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleO
 export function DraftPolygonRenderer(props: DraftingRendererProps<DraftingPolygonObject>) {
   const style = usePrimitiveStyle(props);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
+  const anchor = midpoint(props.object.geometry.points);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <polygon
@@ -122,6 +134,7 @@ export function DraftPolygonRenderer(props: DraftingRendererProps<DraftingPolygo
         strokeWidth={style.strokeWidth}
         vectorEffect={vectorEffect}
       />
+      <PrimitiveCanvasLabel anchor={anchor} props={props} stroke={style.stroke} />
     </g>
   );
 }
@@ -208,8 +221,12 @@ export function StructuralJointRenderer(
         </g>
       ) : null}
       <DraftingCanvasLabel
+        anchorPoint={point}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={props.labelPlacement}
         stroke={stroke}
+        surface={props.surface}
         textSize={textSize}
         x={point.x + 220}
         y={point.y - 140}
@@ -282,8 +299,12 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
         </g>
       ))}
       <DraftingCanvasLabel
+        anchorPoint={props.object.geometry.points[0] ?? undefined}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={props.labelPlacement}
         stroke={stroke}
+        surface={props.surface}
         textSize={textSize}
         x={props.object.geometry.points[0]?.x ?? 0}
         y={(props.object.geometry.points[0]?.y ?? 0) - 180}
@@ -297,6 +318,50 @@ function usePrimitiveStyle(props: DraftingRendererProps) {
   return {
     stroke: resolveTechnicalStroke(props.object.style?.stroke, lineStyle),
     strokeWidth: lineStyle.editorStrokeWidth,
+  };
+}
+
+function PrimitiveCanvasLabel({
+  anchor,
+  props,
+  stroke,
+}: {
+  anchor: DraftingPoint;
+  props: DraftingRendererProps;
+  stroke: string;
+}) {
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects: props.allObjects,
+    isSelected: props.isSelected,
+    labelMode: props.labelMode,
+    object: props.object,
+    surface: props.surface,
+    viewScale: props.viewScale,
+  });
+
+  return (
+    <DraftingCanvasLabel
+      anchorPoint={anchor}
+      leaderStroke={stroke}
+      lines={labelLines}
+      placement={props.labelPlacement}
+      stroke={stroke}
+      surface={props.surface}
+      textSize={textSize}
+      x={anchor.x + 180}
+      y={anchor.y - 180}
+    />
+  );
+}
+
+function midpoint(points: DraftingPoint[]) {
+  if (points.length === 0) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: points.reduce((total, point) => total + point.x, 0) / points.length,
+    y: points.reduce((total, point) => total + point.y, 0) / points.length,
   };
 }
 

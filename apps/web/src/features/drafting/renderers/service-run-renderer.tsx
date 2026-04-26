@@ -19,6 +19,7 @@ export function ServiceRunRenderer({
   onPointerDown,
   allObjects,
   labelMode,
+  labelPlacement,
   surface,
   viewScale,
 }: DraftingServiceRunRendererProps) {
@@ -103,8 +104,12 @@ export function ServiceRunRenderer({
         />
       ) : null}
       <DraftingCanvasLabel
+        anchorPoint={midpoint}
+        leaderStroke={stroke}
         lines={labelLines}
+        placement={labelPlacement}
         stroke={stroke}
+        surface={surface}
         textSize={textSize}
         x={midpoint.x + 120}
         y={midpoint.y - 160}
