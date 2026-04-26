@@ -185,4 +185,44 @@ describe('DraftingStage', () => {
     expect(editableMarkup).toContain('data-handle-id="diameter"');
     expect(lockedMarkup).not.toContain('data-testid="drafting-object-handles"');
   });
+
+  it('renders the active command prompt in the canvas status bar', () => {
+    const model = createEmptyDraftingModel('drawing-stage-command-prompt');
+    const markup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        commandPrompt="Pick start point"
+        containerRef={React.createRef<HTMLDivElement>()}
+        model={model}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={null}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(markup).toContain('Pick start point');
+  });
 });

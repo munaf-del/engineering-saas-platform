@@ -50,6 +50,7 @@ import { DraftingStatusBar } from './drafting-status-bar';
 
 export function DraftingStage({
   canvasSize,
+  commandPrompt,
   containerRef,
   model,
   onBackgroundPointerDown,
@@ -84,6 +85,7 @@ export function DraftingStage({
   visibleObjects,
 }: {
   canvasSize: DraftingCanvasSize;
+  commandPrompt?: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
   model: DraftingModel;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
@@ -323,6 +325,7 @@ export function DraftingStage({
           </svg>
 
           <DraftingStatusBar
+            commandPrompt={commandPrompt}
             cursorPoint={cursorPoint}
             displayUnits={setup.displayUnits}
             hasModelExtents={Boolean(getDraftingModelBounds(visibleObjects))}

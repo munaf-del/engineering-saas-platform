@@ -407,7 +407,7 @@ export function refreshPileObjectFromSource(args: {
   pileSources: DraftingPileSourceRecord[];
   pileTypeSources: DraftingPileTypeSourceRecord[];
   updateCoordinates?: boolean;
-}): DraftingPileObject {
+}): DraftingObject {
   const sourceRef = args.object.sourceRef;
   if (!sourceRef?.sourceId || sourceRef.sourceType === 'manual') {
     return args.object;
@@ -438,6 +438,9 @@ export function refreshPileObjectFromSource(args: {
       fallbackPoint: args.object.geometry.centre,
       model: { objects: [] } as unknown as DraftingModel,
     });
+    if (refreshed.type === 'structural_joint') {
+      return preserveConvertedJointIdentity(args.object, refreshed);
+    }
     if (refreshed.type !== 'pile') {
       return args.object;
     }
@@ -1010,6 +1013,19 @@ function preservePileObjectIdentity(
       pileId: original.metadata.pileId,
     },
     sourceRef: refreshed.sourceRef,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function preserveConvertedJointIdentity(
+  original: DraftingPileObject,
+  refreshed: DraftingStructuralJointObject,
+): DraftingStructuralJointObject {
+  return {
+    ...refreshed,
+    id: original.id,
+    createdAt: original.createdAt,
+    provenance: original.provenance,
     updatedAt: new Date().toISOString(),
   };
 }

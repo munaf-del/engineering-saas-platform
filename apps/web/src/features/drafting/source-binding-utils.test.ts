@@ -248,6 +248,65 @@ describe('drafting source binding utils', () => {
     });
   });
 
+  it('converts a legacy pile representation to a structural joint when its source is a foundation joint', () => {
+    const oldPileObject = {
+      id: 'drafting-j1',
+      type: 'pile' as const,
+      layerId: 'piles' as const,
+      name: 'J1',
+      visible: true,
+      locked: false,
+      style: { stroke: '#111827', fill: '#ffffff', lineWeightMm: 0.35, textSize: 220 },
+      geometry: { centre: { x: 100, y: 200 }, diameterMm: 600 },
+      metadata: { pileId: 'J1' },
+      sourceRef: {
+        sourceType: 'foundation_pile' as const,
+        sourceId: 'group-1:joint:J1',
+        sourceLabel: 'J1',
+        status: 'linked' as const,
+      },
+      createdAt: '2026-04-26T00:00:00.000Z',
+      updatedAt: '2026-04-26T00:00:00.000Z',
+    };
+
+    const refreshed = refreshPileObjectFromSource({
+      object: oldPileObject,
+      pileSources: [
+        {
+          sourceType: 'foundation_joint',
+          sourceId: 'group-1:joint:J1',
+          sourceLabel: 'J1',
+          groupId: 'group-1',
+          groupName: 'foundation piles',
+          joint: {
+            id: 'J1',
+            x: 100,
+            y: 200,
+            z: 3,
+            supportCount: 1,
+            noOfSupports: 1,
+            pileTypeId: 'BP1',
+            assignmentMode: 'manual',
+            active: true,
+            order: 0,
+          },
+        },
+      ],
+      pileTypeSources: [],
+      updateCoordinates: true,
+    });
+
+    expect(refreshed).toMatchObject({
+      id: oldPileObject.id,
+      type: 'structural_joint',
+      geometry: { point: { x: 100, y: 200, z: 3 } },
+      sourceRef: {
+        sourceType: 'foundation_joint',
+        sourceId: 'group-1:joint:J1',
+      },
+    });
+  });
+
   it('classifies pile type completeness for source manager badges', () => {
     expect(
       getPileTypeCompleteness({
@@ -334,6 +393,10 @@ describe('drafting source binding utils', () => {
       pileSources: [],
       pileTypeSources: [source!],
     });
+    expect(refreshed.type).toBe('pile');
+    if (refreshed.type !== 'pile') {
+      throw new Error('Expected refreshed pile');
+    }
     expect(refreshed.geometry.centre).toEqual({ x: 10, y: 20 });
     expect(refreshed.geometry.diameterMm).toBe(750);
     expect(refreshed.sourceRef?.status).toBe('current');

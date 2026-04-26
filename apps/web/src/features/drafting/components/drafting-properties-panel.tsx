@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { DraftingLayer, DraftingObject } from '@eng/shared';
+import type { DraftingLayer, DraftingObject, DraftingPoint } from '@eng/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -30,6 +30,7 @@ export function DraftingPropertiesPanel({
   onDelete,
   onRefreshSource,
   onUpdate,
+  referenceDatum,
   sourceRefreshState = 'current',
   sourceManageHref,
 }: {
@@ -38,6 +39,7 @@ export function DraftingPropertiesPanel({
   onDelete: () => void;
   onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  referenceDatum?: string;
   sourceRefreshState?: 'current' | 'stale' | 'missing';
   sourceManageHref?: string;
 }) {
@@ -73,6 +75,8 @@ export function DraftingPropertiesPanel({
           />
 
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
+
+          <DraftingCoordinateSummary object={object} referenceDatum={referenceDatum} />
 
           <PropertySection title={propertySectionTitle(object)}>
             {object.type === 'pile' ? <PileProperties object={object} onUpdate={onUpdate} /> : null}
@@ -284,6 +288,59 @@ function SourceField({ label, value }: { label: string; value: string }) {
       </div>
     </div>
   );
+}
+
+function DraftingCoordinateSummary({
+  object,
+  referenceDatum,
+}: {
+  object: DraftingObject;
+  referenceDatum?: string;
+}) {
+  const point = getPrimaryCoordinatePoint(object);
+  if (!point) {
+    return null;
+  }
+
+  return (
+    <PropertySection title="Coordinates / RL">
+      <div className="grid gap-2 text-xs sm:grid-cols-5">
+        <SourceField label="X" value={formatCoordinateValue(point.x)} />
+        <SourceField label="Y" value={formatCoordinateValue(point.y)} />
+        <SourceField label="Z" value={formatOptionalCoordinateValue(point.z)} />
+        <SourceField label="RL" value={formatOptionalCoordinateValue(point.rl)} />
+        <SourceField label="Datum" value={referenceDatum?.trim() || 'Not recorded'} />
+      </div>
+    </PropertySection>
+  );
+}
+
+function getPrimaryCoordinatePoint(object: DraftingObject): DraftingPoint | null {
+  switch (object.type) {
+    case 'pile':
+      return object.geometry.centre;
+    case 'borehole':
+    case 'monitoring_point':
+      return object.geometry.point;
+    case 'service_crossing':
+      return object.geometry.crossingPoint;
+    case 'draft_circle':
+      return object.geometry.centre;
+    case 'structural_joint':
+      return object.geometry.point;
+    case 'geotech_surface':
+      return object.geometry.points[0] ?? null;
+    default:
+      return null;
+  }
+}
+
+function formatCoordinateValue(value: number) {
+  return Number.isFinite(value) ? value.toFixed(3) : 'Not recorded';
+}
+
+function formatOptionalCoordinateValue(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : 'Not recorded';
 }
 
 function formatSourceValue(value: string | undefined) {

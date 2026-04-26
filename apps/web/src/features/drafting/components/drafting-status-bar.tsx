@@ -1,12 +1,14 @@
 import type { DraftingDisplayUnits, DraftingPoint } from '@eng/shared';
 
 export function DraftingStatusBar({
+  commandPrompt,
   cursorPoint,
   displayUnits,
   hasModelExtents,
   snapLabel,
   visibleObjectCount,
 }: {
+  commandPrompt?: string;
   cursorPoint?: DraftingPoint | null;
   displayUnits?: DraftingDisplayUnits;
   hasModelExtents: boolean;
@@ -15,6 +17,12 @@ export function DraftingStatusBar({
 }) {
   return (
     <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-3 py-2 text-xs text-muted-foreground shadow">
+      {commandPrompt ? (
+        <>
+          <span className="font-medium text-foreground">{commandPrompt}</span>
+          {' · '}
+        </>
+      ) : null}
       {visibleObjectCount} visible object(s) ·{' '}
       {hasModelExtents ? 'Model extents ready' : 'Place the first object to establish extents'}
       {cursorPoint ? (

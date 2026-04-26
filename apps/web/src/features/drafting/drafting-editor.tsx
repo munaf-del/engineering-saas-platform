@@ -62,6 +62,7 @@ import {
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
+import type { DraftingTool } from './tools/drafting-tool-types';
 import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
 
 const PDF_POINT_TO_MM = 25.4 / 72;
@@ -252,6 +253,10 @@ export function DraftingEditor({
       }
       if (event.key === 'Escape') {
         drafting.clearPendingLine();
+      }
+      if (event.key === 'Enter' && PATH_AUTHORING_TOOLS.has(drafting.activeTool)) {
+        event.preventDefault();
+        handleFinishPendingPath();
       }
     }
 
@@ -839,6 +844,10 @@ export function DraftingEditor({
 
         <DraftingStage
           canvasSize={view.canvasSize}
+          commandPrompt={getDraftingCommandPrompt(
+            drafting.activeTool,
+            drafting.pendingLinePoints.length,
+          )}
           containerRef={view.containerRef}
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
@@ -919,6 +928,7 @@ export function DraftingEditor({
                     onUpdate={(nextObject: DraftingObject) =>
                       selection.updateSelectedObject(nextObject)
                     }
+                    referenceDatum={currentModel.drawingSetup?.referencePoint.datum}
                     sourceRefreshState={selectedSourceRefreshState}
                     sourceManageHref={
                       sourcePileGroupId
@@ -1130,4 +1140,38 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
   return Boolean(
     target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'),
   );
+}
+
+function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number) {
+  if (TWO_POINT_AUTHORING_TOOLS.has(tool)) {
+    return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
+  }
+
+  if (PATH_AUTHORING_TOOLS.has(tool)) {
+    return pendingPointCount === 0
+      ? 'Pick start point'
+      : 'Pick next point · Enter to finish / Esc to cancel';
+  }
+
+  if (tool === 'dimension_chain') {
+    if (pendingPointCount === 0) {
+      return 'Pick first witness point';
+    }
+    if (pendingPointCount === 1) {
+      return 'Pick next witness point';
+    }
+    return 'Pick dimension offset';
+  }
+
+  if (
+    tool === 'pile' ||
+    tool === 'service_crossing' ||
+    tool === 'borehole' ||
+    tool === 'monitoring_point' ||
+    tool === 'structural_joint'
+  ) {
+    return 'Pick placement point';
+  }
+
+  return undefined;
 }
