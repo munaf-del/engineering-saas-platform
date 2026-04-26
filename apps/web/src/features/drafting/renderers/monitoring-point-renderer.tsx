@@ -2,7 +2,9 @@ import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingMonitoringPointRendererProps,
@@ -26,6 +28,8 @@ export function MonitoringPointRenderer({
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#7c3aed']);
   const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.none);
   const { x, y } = object.geometry.point;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const vectorEffect = resolveRendererVectorEffect(surface);
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -38,7 +42,7 @@ export function MonitoringPointRenderer({
           stroke={DRAFTING_SELECTION_STYLE.stroke}
           strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
           strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <circle
@@ -48,12 +52,12 @@ export function MonitoringPointRenderer({
         r={220}
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       <line
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={x - 300}
         x2={x + 300}
         y1={y}
@@ -62,13 +66,21 @@ export function MonitoringPointRenderer({
       <line
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={x}
         x2={x}
         y1={y - 300}
         y2={y + 300}
       />
-      <text fill={stroke} fontSize={220} x={x + 320} y={y - 140}>
+      <text
+        fill={stroke}
+        fontSize={textSize}
+        paintOrder="stroke"
+        stroke="#ffffff"
+        strokeWidth={34}
+        x={x + 320}
+        y={y - 140}
+      >
         {object.metadata.pointId}
       </text>
     </g>

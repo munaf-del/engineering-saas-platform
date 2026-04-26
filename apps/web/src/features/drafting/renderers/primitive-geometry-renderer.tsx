@@ -11,7 +11,9 @@ import type {
 } from '@eng/shared';
 import {
   DRAFTING_SELECTION_STYLE,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingRendererProps,
@@ -19,12 +21,13 @@ import {
 
 export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObject>) {
   const style = usePrimitiveStyle(props);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <line
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeWidth={style.strokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={props.object.geometry.startPoint.x}
         x2={props.object.geometry.endPoint.x}
         y1={props.object.geometry.startPoint.y}
@@ -36,6 +39,7 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
 
 export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolylineObject>) {
   const style = usePrimitiveStyle(props);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <polyline
@@ -44,7 +48,7 @@ export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolyl
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeLinejoin="round"
         strokeWidth={style.strokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
     </g>
   );
@@ -52,6 +56,7 @@ export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolyl
 
 export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRectangleObject>) {
   const style = usePrimitiveStyle(props);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   const { cornerA, cornerB } = props.object.geometry;
   const x = Math.min(cornerA.x, cornerB.x);
   const y = Math.min(cornerA.y, cornerB.y);
@@ -65,7 +70,7 @@ export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRect
         height={height}
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeWidth={style.strokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         width={width}
         x={x}
         y={y}
@@ -76,6 +81,7 @@ export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRect
 
 export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleObject>) {
   const style = usePrimitiveStyle(props);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <circle
@@ -85,13 +91,13 @@ export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleO
         r={props.object.geometry.radiusMm}
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeWidth={style.strokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       <line
         stroke={style.stroke}
         strokeDasharray="120 90"
         strokeWidth={Math.max(0.75, style.strokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={props.object.geometry.centre.x - props.object.geometry.radiusMm}
         x2={props.object.geometry.centre.x + props.object.geometry.radiusMm}
         y1={props.object.geometry.centre.y}
@@ -103,6 +109,7 @@ export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleO
 
 export function DraftPolygonRenderer(props: DraftingRendererProps<DraftingPolygonObject>) {
   const style = usePrimitiveStyle(props);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
       <polygon
@@ -111,7 +118,7 @@ export function DraftPolygonRenderer(props: DraftingRendererProps<DraftingPolygo
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeLinejoin="round"
         strokeWidth={style.strokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
     </g>
   );
@@ -123,7 +130,8 @@ export function StructuralJointRenderer(
   const lineStyle = resolveRendererLineStyle({ ...props, role: 'structuralPrimary' });
   const stroke = resolveTechnicalStroke(props.object.style?.stroke, lineStyle);
   const point = props.object.geometry.point;
-  const textSize = props.object.style?.textSize ?? 220;
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 170);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
   const hasLoad =
     props.object.parameters.loadEnabled &&
     [
@@ -139,28 +147,28 @@ export function StructuralJointRenderer(
         cx={point.x}
         cy={point.y}
         fill="#ffffff"
-        r={160}
+        r={120}
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       <line
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
-        x1={point.x - 240}
-        x2={point.x + 240}
+        vectorEffect={vectorEffect}
+        x1={point.x - 190}
+        x2={point.x + 190}
         y1={point.y}
         y2={point.y}
       />
       <line
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={point.x}
         x2={point.x}
-        y1={point.y - 240}
-        y2={point.y + 240}
+        y1={point.y - 190}
+        y2={point.y + 190}
       />
       {hasLoad ? (
         <g>
@@ -168,7 +176,7 @@ export function StructuralJointRenderer(
             markerEnd={`url(#${props.object.id}-joint-load-arrow)`}
             stroke="#7f1d1d"
             strokeWidth={lineStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
             x1={point.x}
             x2={point.x}
             y1={point.y - 1200}
@@ -189,11 +197,28 @@ export function StructuralJointRenderer(
           </defs>
         </g>
       ) : null}
-      <text fill={stroke} fontSize={textSize} fontWeight={700} x={point.x + 260} y={point.y - 180}>
+      <text
+        fill={stroke}
+        fontSize={textSize}
+        fontWeight={600}
+        paintOrder="stroke"
+        stroke="#ffffff"
+        strokeWidth={34}
+        x={point.x + 220}
+        y={point.y - 140}
+      >
         {props.object.parameters.label}
       </text>
       {point.rl !== undefined || point.z !== undefined ? (
-        <text fill="#475569" fontSize={textSize * 0.75} x={point.x + 260} y={point.y + 70}>
+        <text
+          fill="#475569"
+          fontSize={textSize * 0.72}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeWidth={28}
+          x={point.x + 220}
+          y={point.y + 70}
+        >
           RL {(point.rl ?? point.z)?.toFixed(2)}
         </text>
       ) : null}
@@ -204,7 +229,8 @@ export function StructuralJointRenderer(
 export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeotechSurfaceObject>) {
   const lineStyle = resolveRendererLineStyle({ ...props, role: 'constructionSetout' });
   const stroke = resolveTechnicalStroke(props.object.style?.stroke, lineStyle);
-  const textSize = props.object.style?.textSize ?? 200;
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150);
+  const vectorEffect = resolveRendererVectorEffect(props.surface);
 
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
@@ -216,7 +242,7 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
           stroke={stroke}
           strokeDasharray="240 160"
           strokeWidth={lineStyle.editorStrokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ))}
       {props.object.geometry.boundary ? (
@@ -226,7 +252,7 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
           stroke={stroke}
           strokeDasharray="300 180"
           strokeWidth={lineStyle.editorStrokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       {props.object.geometry.points.map((point, index) => (
@@ -238,10 +264,18 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
             r={90}
             stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
             strokeWidth={lineStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
           />
           {props.object.parameters.showPointLabels !== false ? (
-            <text fill={stroke} fontSize={textSize} x={point.x + 130} y={point.y - 80}>
+            <text
+              fill={stroke}
+              fontSize={textSize}
+              paintOrder="stroke"
+              stroke="#ffffff"
+              strokeWidth={28}
+              x={point.x + 130}
+              y={point.y - 80}
+            >
               RL {point.z.toFixed(2)}
             </text>
           ) : null}

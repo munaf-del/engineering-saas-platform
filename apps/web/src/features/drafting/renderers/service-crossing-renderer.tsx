@@ -2,7 +2,9 @@ import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingServiceCrossingRendererProps,
@@ -47,8 +49,14 @@ export function ServiceCrossingRenderer({
       ? DRAFTING_TECHNICAL_FILLS.serviceConflict
       : DRAFTING_TECHNICAL_FILLS.none,
   );
-  const textSize = object.style?.textSize ?? 220;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize);
   const { crossingPoint } = object.geometry;
+  const vectorEffect = resolveRendererVectorEffect(surface);
+  const detailParts = [
+    object.parameters.serviceType !== 'unknown' ? object.parameters.serviceType : null,
+    object.parameters.conflictType !== 'unknown' ? object.parameters.conflictType : null,
+    object.parameters.riskStatus !== 'open' ? object.parameters.riskStatus : null,
+  ].filter(Boolean);
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -61,7 +69,7 @@ export function ServiceCrossingRenderer({
           stroke={DRAFTING_SELECTION_STYLE.stroke}
           strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
           strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <polygon
@@ -74,12 +82,12 @@ export function ServiceCrossingRenderer({
         ].join(' ')}
         stroke={stroke}
         strokeWidth={conflictStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       <line
         stroke={stroke}
         strokeWidth={Math.max(0.75, conflictStyle.editorStrokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={crossingPoint.x - 110}
         x2={crossingPoint.x + 110}
         y1={crossingPoint.y - 110}
@@ -88,29 +96,38 @@ export function ServiceCrossingRenderer({
       <line
         stroke={stroke}
         strokeWidth={Math.max(0.75, conflictStyle.editorStrokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={crossingPoint.x - 110}
         x2={crossingPoint.x + 110}
         y1={crossingPoint.y + 110}
         y2={crossingPoint.y - 110}
       />
-      <text fill={stroke} fontSize={textSize} x={crossingPoint.x + 280} y={crossingPoint.y - 80}>
-        {object.parameters.crossingId}
-      </text>
       <text
         fill={stroke}
-        fontSize={textSize * 0.9}
-        x={crossingPoint.x + 280}
-        y={crossingPoint.y + 180}
+        fontSize={textSize}
+        paintOrder="stroke"
+        stroke="#ffffff"
+        strokeLinejoin="round"
+        strokeWidth={Math.max(28, textSize * 0.16)}
+        x={crossingPoint.x + 240}
+        y={crossingPoint.y - 80}
       >
-        {[
-          object.parameters.serviceType,
-          object.parameters.conflictType,
-          object.parameters.riskStatus,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
+        {object.parameters.crossingId}
       </text>
+      {detailParts.length > 0 ? (
+        <text
+          fill={stroke}
+          fontSize={textSize * 0.8}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeLinejoin="round"
+          strokeWidth={Math.max(24, textSize * 0.12)}
+          x={crossingPoint.x + 240}
+          y={crossingPoint.y + 120}
+        >
+          {detailParts.join(' · ')}
+        </text>
+      ) : null}
     </g>
   );
 }

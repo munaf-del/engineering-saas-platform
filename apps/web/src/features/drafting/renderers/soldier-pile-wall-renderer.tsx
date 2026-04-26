@@ -2,7 +2,9 @@ import * as React from 'react';
 import { defaultSoldierPileSymbolDiameterMm } from '../semantic-object-utils';
 import {
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingSoldierPileWallRendererProps,
@@ -43,6 +45,8 @@ export function SoldierPileWallRenderer({
   const radius = diameterMm / 2;
   const firstPile = object.geometry.pilePositions[0];
   const centreMark = Math.min(radius * 0.35, 110);
+  const vectorEffect = resolveRendererVectorEffect(surface);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize);
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -53,7 +57,7 @@ export function SoldierPileWallRenderer({
           stroke="#2563eb"
           strokeDasharray="180 120"
           strokeWidth={2}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <polyline
@@ -63,7 +67,7 @@ export function SoldierPileWallRenderer({
         stroke={stroke}
         strokeDasharray={object.parameters.laggingType ? undefined : '250 180'}
         strokeWidth={baselineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       {object.geometry.pilePositions.map((point, index) => (
         <g key={`${object.id}-pile-${index}`}>
@@ -74,14 +78,14 @@ export function SoldierPileWallRenderer({
             r={radius}
             stroke={stroke}
             strokeWidth={lineStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
           />
           <line
             stroke={stroke}
             strokeOpacity={0.6}
             strokeDasharray={centreStyle.dashArray}
             strokeWidth={centreStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
             x1={point.x - centreMark}
             x2={point.x + centreMark}
             y1={point.y}
@@ -92,7 +96,7 @@ export function SoldierPileWallRenderer({
             strokeOpacity={0.6}
             strokeDasharray={centreStyle.dashArray}
             strokeWidth={centreStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
             x1={point.x}
             x2={point.x}
             y1={point.y - centreMark}
@@ -101,8 +105,17 @@ export function SoldierPileWallRenderer({
         </g>
       ))}
       {firstPile ? (
-        <text fill={stroke} fontSize={220} x={firstPile.x + radius + 180} y={firstPile.y - 180}>
-          {`${object.metadata.wallId} (${object.parameters.sectionLabel || `${diameterMm} dia`})`}
+        <text
+          fill={stroke}
+          fontSize={textSize}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeLinejoin="round"
+          strokeWidth={Math.max(28, textSize * 0.16)}
+          x={firstPile.x + radius + 180}
+          y={firstPile.y - 180}
+        >
+          {object.metadata.wallId}
         </text>
       ) : null}
     </g>

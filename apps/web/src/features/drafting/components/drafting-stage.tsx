@@ -744,11 +744,8 @@ function ReferencePointMarker({
         y1={-14}
         y2={14}
       />
-      <text fill={surveyStyle.color} fontSize={12} fontWeight={700} x={20} y={-12}>
+      <text fill={surveyStyle.color} fontSize={11} fontWeight={700} x={20} y={-12}>
         {label}
-      </text>
-      <text fill="#475569" fontSize={10} x={20} y={2}>
-        X {point.x.toFixed(0)} Y {point.y.toFixed(0)} Z {point.z.toFixed(0)}
       </text>
     </g>
   );

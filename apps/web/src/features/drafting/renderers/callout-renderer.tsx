@@ -3,11 +3,13 @@ import type { DraftingCalloutArrowStyle, DraftingPoint } from '@eng/shared';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   type DraftingCalloutRendererProps,
 } from './renderer-types';
 
-const BOX_WIDTH = 2200;
+const BOX_WIDTH = 1900;
 
 export function CalloutRenderer({
   drawingSetup,
@@ -26,9 +28,10 @@ export function CalloutRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = object.style?.textSize ?? 220;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
+  const vectorEffect = resolveRendererVectorEffect(surface);
   const bodyLines = object.parameters.body.split('\n').filter(Boolean);
-  const boxHeight = 760 + Math.max(bodyLines.length, 1) * 240;
+  const boxHeight = 560 + Math.max(bodyLines.length, 1) * 190;
   const boxX = object.geometry.labelPoint.x;
   const boxY = object.geometry.labelPoint.y;
   const connectOnLeft = object.geometry.anchorPoint.x <= boxX;
@@ -52,7 +55,7 @@ export function CalloutRenderer({
         points={leaderPoints.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       {renderCalloutArrow(
         object.parameters.arrowStyle,
@@ -60,6 +63,7 @@ export function CalloutRenderer({
         object.geometry.anchorPoint,
         stroke,
         lineStyle.editorStrokeWidth,
+        vectorEffect,
       )}
 
       <rect
@@ -67,40 +71,41 @@ export function CalloutRenderer({
         height={boxHeight}
         stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         width={BOX_WIDTH}
         x={boxX}
         y={boxY}
       />
-      <text fill={stroke} fontSize={textSize} fontWeight={600} x={boxX + 140} y={boxY + 280}>
+      <text fill={stroke} fontSize={textSize} fontWeight={600} x={boxX + 120} y={boxY + 220}>
         {object.parameters.title}
       </text>
       <line
         stroke={stroke}
         strokeOpacity={0.3}
         strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
-        x1={boxX + 120}
-        x2={boxX + BOX_WIDTH - 120}
-        y1={boxY + 380}
-        y2={boxY + 380}
+        vectorEffect={vectorEffect}
+        x1={boxX + 100}
+        x2={boxX + BOX_WIDTH - 100}
+        y1={boxY + 300}
+        y2={boxY + 300}
       />
       {(bodyLines.length > 0 ? bodyLines : [' ']).map((line, index) => (
         <text
           key={`${object.id}-line-${index}`}
           fill={stroke}
           fontSize={textSize * 0.95}
-          x={boxX + 140}
-          y={boxY + 640 + index * 240}
+          x={boxX + 120}
+          y={boxY + 500 + index * 190}
         >
           {line}
         </text>
       ))}
       <text
         fill={stroke}
-        fontSize={textSize * 0.85}
-        x={boxX + BOX_WIDTH - 360}
-        y={boxY + boxHeight - 120}
+        fontSize={textSize * 0.7}
+        opacity={0.62}
+        x={boxX + BOX_WIDTH - 320}
+        y={boxY + boxHeight - 90}
       >
         {object.parameters.calloutId}
       </text>
@@ -114,28 +119,23 @@ function renderCalloutArrow(
   toPoint: DraftingPoint,
   stroke: string,
   strokeWidth: number,
+  vectorEffect?: string,
 ) {
   if (arrowStyle === 'dot') {
     return (
-      <circle
-        cx={toPoint.x}
-        cy={toPoint.y}
-        fill={stroke}
-        r={80}
-        vectorEffect="non-scaling-stroke"
-      />
+      <circle cx={toPoint.x} cy={toPoint.y} fill={stroke} r={48} vectorEffect={vectorEffect} />
     );
   }
 
-  const arrowPoints = buildArrowHeadPoints(fromPoint, toPoint, 220, 140);
+  const arrowPoints = buildArrowHeadPoints(fromPoint, toPoint, 160, 90);
 
   return (
     <polygon
-      fill={arrowStyle === 'filled' ? stroke : 'none'}
+      fill={arrowStyle === 'filled' ? '#ffffff' : 'none'}
       points={arrowPoints.map((point) => `${point.x},${point.y}`).join(' ')}
       stroke={stroke}
       strokeWidth={strokeWidth}
-      vectorEffect="non-scaling-stroke"
+      vectorEffect={vectorEffect}
     />
   );
 }

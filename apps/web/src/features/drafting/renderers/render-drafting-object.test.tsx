@@ -229,7 +229,7 @@ describe('renderDraftingObject', () => {
     );
 
     expect(markup).toContain('stroke-width="0.35"');
-    expect(markup).toContain('vector-effect="non-scaling-stroke"');
+    expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
   });
 
   it('renders drafting objects as linework-first profile-driven symbols', () => {
@@ -273,11 +273,13 @@ describe('renderDraftingObject', () => {
       </svg>,
     );
 
-    expect(markup).toContain('rgba(15, 23, 42, 0.035)');
     expect(markup).toContain('fill="none"');
     expect(markup).toContain('stroke="#111827"');
+    expect(markup).toContain('paint-order="stroke"');
     expect(markup).not.toContain('stroke-width="55"');
     expect(markup).not.toContain('stroke-width="65"');
+    expect(markup).not.toContain('#fdba74');
+    expect(markup).not.toContain('#dcfce7');
     expect(markup).not.toContain('#fdba74');
     expect(markup).not.toContain('#dcfce7');
     expect(markup).not.toContain('#fee2e2');

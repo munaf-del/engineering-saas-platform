@@ -2,7 +2,9 @@ import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingBoreholeRendererProps,
@@ -25,7 +27,8 @@ export function BoreholeRenderer({
   });
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#0f766e']);
   const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.survey);
-  const textSize = object.style?.textSize ?? 220;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const vectorEffect = resolveRendererVectorEffect(surface);
   const detailParts = [
     object.parameters.groundLevelRl !== undefined ? `GL ${object.parameters.groundLevelRl}` : null,
     object.parameters.terminationDepthM !== undefined
@@ -44,7 +47,7 @@ export function BoreholeRenderer({
           stroke={DRAFTING_SELECTION_STYLE.stroke}
           strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
           strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <circle
@@ -54,12 +57,12 @@ export function BoreholeRenderer({
         r={160}
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       <line
         stroke={stroke}
         strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={object.geometry.point.x}
         x2={object.geometry.point.x}
         y1={object.geometry.point.y - 220}
@@ -68,7 +71,7 @@ export function BoreholeRenderer({
       <line
         stroke={stroke}
         strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.75)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={object.geometry.point.x - 220}
         x2={object.geometry.point.x + 220}
         y1={object.geometry.point.y}
@@ -77,6 +80,9 @@ export function BoreholeRenderer({
       <text
         fill={stroke}
         fontSize={textSize}
+        paintOrder="stroke"
+        stroke="#ffffff"
+        strokeWidth={36}
         x={object.geometry.point.x + 260}
         y={object.geometry.point.y - 80}
       >
@@ -86,6 +92,9 @@ export function BoreholeRenderer({
         <text
           fill={stroke}
           fontSize={textSize * 0.9}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeWidth={32}
           x={object.geometry.point.x + 260}
           y={object.geometry.point.y + 180}
         >

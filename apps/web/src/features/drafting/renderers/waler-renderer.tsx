@@ -1,7 +1,9 @@
 import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalStroke,
   type DraftingWalerRendererProps,
 } from './renderer-types';
@@ -31,6 +33,8 @@ export function WalerRenderer({
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#7c2d12', '#b45309']);
   const firstPoint = object.geometry.points[0];
   const edgePoints = buildOffsetPolyline(object.geometry.points, 130);
+  const vectorEffect = resolveRendererVectorEffect(surface);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize);
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -41,7 +45,7 @@ export function WalerRenderer({
           stroke={DRAFTING_SELECTION_STYLE.stroke}
           strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
           strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <polyline
@@ -52,7 +56,7 @@ export function WalerRenderer({
         strokeLinecap="square"
         strokeLinejoin="round"
         strokeWidth={Math.max(0.75, centreStyle.editorStrokeWidth)}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       {edgePoints.map((points, index) => (
         <polyline
@@ -63,12 +67,21 @@ export function WalerRenderer({
           strokeLinecap="square"
           strokeLinejoin="round"
           strokeWidth={lineStyle.editorStrokeWidth}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ))}
       {firstPoint ? (
-        <text fill={stroke} fontSize={220} x={firstPoint.x + 180} y={firstPoint.y - 180}>
-          {`${object.parameters.walerId} ${object.parameters.sectionLabel}`}
+        <text
+          fill={stroke}
+          fontSize={textSize}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeLinejoin="round"
+          strokeWidth={Math.max(28, textSize * 0.16)}
+          x={firstPoint.x + 180}
+          y={firstPoint.y - 180}
+        >
+          {object.parameters.walerId}
         </text>
       ) : null}
     </g>

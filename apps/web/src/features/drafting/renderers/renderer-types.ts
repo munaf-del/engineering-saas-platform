@@ -67,12 +67,20 @@ export const DRAFTING_SELECTION_STYLE = {
 
 export const DRAFTING_TECHNICAL_FILLS = {
   none: 'none',
-  pile: 'rgba(15, 23, 42, 0.025)',
-  structural: 'rgba(15, 23, 42, 0.035)',
-  serviceConflict: 'rgba(127, 29, 29, 0.04)',
-  survey: 'rgba(15, 23, 42, 0.025)',
+  pile: 'none',
+  structural: 'none',
+  serviceConflict: 'rgba(127, 29, 29, 0.025)',
+  survey: 'none',
   annotation: 'rgba(255, 255, 255, 0.92)',
 } as const;
+
+export function resolveRendererVectorEffect(surface?: 'editor' | 'sheet') {
+  return surface === 'sheet' ? undefined : 'non-scaling-stroke';
+}
+
+export function resolveCanvasLabelSize(textSize: number | undefined, fallback = 170) {
+  return Math.min(textSize ?? fallback, 180);
+}
 
 export function resolveTechnicalStroke(
   stroke: string | undefined,

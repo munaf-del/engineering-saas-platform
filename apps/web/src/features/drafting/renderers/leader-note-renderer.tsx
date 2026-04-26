@@ -1,6 +1,10 @@
 import * as React from 'react';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingLeaderNoteRendererProps } from './renderer-types';
+import {
+  resolveCanvasLabelSize,
+  resolveRendererLineStyle,
+  resolveRendererVectorEffect,
+  type DraftingLeaderNoteRendererProps,
+} from './renderer-types';
 
 export function LeaderNoteRenderer({
   drawingSetup,
@@ -8,35 +12,44 @@ export function LeaderNoteRenderer({
   layer,
   object,
   onPointerDown,
+  surface,
 }: DraftingLeaderNoteRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'leaderCallout',
+    surface,
+  });
+  const stroke = object.style?.stroke ?? lineStyle.color;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
+  const vectorEffect = resolveRendererVectorEffect(surface);
   const { anchor, textPoint } = object.geometry;
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
       <line
         stroke={stroke}
-        strokeWidth={lineWeight * 25}
-        vectorEffect="non-scaling-stroke"
+        strokeWidth={lineStyle.editorStrokeWidth}
+        vectorEffect={vectorEffect}
         x1={anchor.x}
         x2={textPoint.x}
         y1={anchor.y}
         y2={textPoint.y}
       />
-      <circle cx={anchor.x} cy={anchor.y} fill={stroke} r={60} vectorEffect="non-scaling-stroke" />
+      <circle cx={anchor.x} cy={anchor.y} fill={stroke} r={42} vectorEffect={vectorEffect} />
       <rect
         fill="rgba(255,255,255,0.92)"
-        height={420}
-        rx={60}
+        height={340}
+        rx={18}
         stroke={isSelected ? '#2563eb' : stroke}
-        strokeWidth={lineWeight * 20}
-        vectorEffect="non-scaling-stroke"
-        width={1600}
+        strokeWidth={lineStyle.editorStrokeWidth}
+        vectorEffect={vectorEffect}
+        width={1450}
         x={textPoint.x}
-        y={textPoint.y - 300}
+        y={textPoint.y - 250}
       />
-      <text fill={stroke} fontSize={220} x={textPoint.x + 120} y={textPoint.y - 40}>
+      <text fill={stroke} fontSize={textSize} x={textPoint.x + 100} y={textPoint.y - 45}>
         {object.metadata.text}
       </text>
     </g>

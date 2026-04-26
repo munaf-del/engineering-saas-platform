@@ -1,7 +1,9 @@
 import * as React from 'react';
 import {
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   resolveTechnicalFill,
   resolveTechnicalStroke,
   type DraftingSecantPileWallRendererProps,
@@ -42,6 +44,8 @@ export function SecantPileWallRenderer({
   const firstPile = object.geometry.pileCentres[0];
   const pattern = object.parameters.primarySecondaryPattern;
   const centreMark = Math.min(radius * 0.28, 120);
+  const vectorEffect = resolveRendererVectorEffect(surface);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize);
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -52,7 +56,7 @@ export function SecantPileWallRenderer({
           stroke="#2563eb"
           strokeDasharray="180 120"
           strokeWidth={2}
-          vectorEffect="non-scaling-stroke"
+          vectorEffect={vectorEffect}
         />
       ) : null}
       <polyline
@@ -62,7 +66,7 @@ export function SecantPileWallRenderer({
         stroke={stroke}
         strokeDasharray={object.parameters.secantType === 'tangent' ? '300 200' : undefined}
         strokeWidth={baselineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
       />
       {object.geometry.pileCentres.map((point, index) => {
         const useAlternatingFill = pattern !== 'contiguous';
@@ -77,7 +81,7 @@ export function SecantPileWallRenderer({
               r={radius}
               stroke={stroke}
               strokeWidth={lineStyle.editorStrokeWidth}
-              vectorEffect="non-scaling-stroke"
+              vectorEffect={vectorEffect}
             />
             <circle
               cx={point.x}
@@ -87,14 +91,14 @@ export function SecantPileWallRenderer({
               stroke={stroke}
               strokeOpacity={0.35}
               strokeWidth={Math.max(0.75, lineStyle.editorStrokeWidth * 0.55)}
-              vectorEffect="non-scaling-stroke"
+              vectorEffect={vectorEffect}
             />
             <line
               stroke={stroke}
               strokeDasharray={centreStyle.dashArray}
               strokeOpacity={0.55}
               strokeWidth={centreStyle.editorStrokeWidth}
-              vectorEffect="non-scaling-stroke"
+              vectorEffect={vectorEffect}
               x1={point.x - centreMark}
               x2={point.x + centreMark}
               y1={point.y}
@@ -105,7 +109,7 @@ export function SecantPileWallRenderer({
               strokeDasharray={centreStyle.dashArray}
               strokeOpacity={0.55}
               strokeWidth={centreStyle.editorStrokeWidth}
-              vectorEffect="non-scaling-stroke"
+              vectorEffect={vectorEffect}
               x1={point.x}
               x2={point.x}
               y1={point.y - centreMark}
@@ -115,8 +119,17 @@ export function SecantPileWallRenderer({
         );
       })}
       {firstPile ? (
-        <text fill={stroke} fontSize={220} x={firstPile.x + radius + 180} y={firstPile.y - 180}>
-          {`${object.metadata.wallId} (${object.metadata.pileCount} piles)`}
+        <text
+          fill={stroke}
+          fontSize={textSize}
+          paintOrder="stroke"
+          stroke="#ffffff"
+          strokeLinejoin="round"
+          strokeWidth={Math.max(28, textSize * 0.16)}
+          x={firstPile.x + radius + 180}
+          y={firstPile.y - 180}
+        >
+          {object.metadata.wallId}
         </text>
       ) : null}
     </g>

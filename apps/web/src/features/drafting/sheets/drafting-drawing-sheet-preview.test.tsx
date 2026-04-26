@@ -97,7 +97,7 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('clip-path="url(#drafting-sheet-viewport-clip-drawing-sheet-1)"');
     expect(markup).toContain('data-drafting-object="true"');
     expect(markup).toContain('stroke-width="0.35"');
-    expect(markup).toContain('vector-effect="non-scaling-stroke"');
+    expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
     expect(markup).toContain('P1');
     expect(markup).toContain('Retention Plan');
     expect(markup).toContain('Retention Wall General Arrangement');
@@ -142,7 +142,7 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('stroke-width="0.35"');
   });
 
-  it('uses plotted paper line weights and light fills for pile wall objects', () => {
+  it('uses plotted paper line weights and linework-first pile wall objects', () => {
     const drawing = createDrawing();
     const secantWall = createDraftingObject('secant_pile_wall', { x: 0, y: 0 }, drawing.model);
     const soldierWall = createDraftingObject('soldier_pile_wall', { x: 0, y: 1200 }, drawing.model);
@@ -161,7 +161,7 @@ describe('drafting drawing sheet preview', () => {
     );
 
     expect(markup).toContain('stroke-width="0.35"');
-    expect(markup).toContain('rgba(15, 23, 42, 0.035)');
+    expect(markup).toContain('fill="none"');
     expect(markup).not.toContain('#fdba74');
     expect(markup).not.toContain('#dcfce7');
     expect(markup).not.toContain('stroke-width="24"');

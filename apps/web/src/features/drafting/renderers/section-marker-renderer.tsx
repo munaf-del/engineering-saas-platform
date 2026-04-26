@@ -2,7 +2,9 @@ import * as React from 'react';
 import type { DraftingPoint } from '@eng/shared';
 import {
   DRAFTING_TECHNICAL_FILLS,
+  resolveCanvasLabelSize,
   resolveRendererLineStyle,
+  resolveRendererVectorEffect,
   type DraftingSectionMarkerRendererProps,
 } from './renderer-types';
 
@@ -23,7 +25,8 @@ export function SectionMarkerRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = object.style?.textSize ?? 220;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const vectorEffect = resolveRendererVectorEffect(surface);
   const midpoint = {
     x: (object.geometry.startPoint.x + object.geometry.endPoint.x) / 2,
     y: (object.geometry.startPoint.y + object.geometry.endPoint.y) / 2,
@@ -35,7 +38,7 @@ export function SectionMarkerRenderer({
         stroke={isSelected ? '#2563eb' : stroke}
         strokeDasharray="260 180"
         strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect="non-scaling-stroke"
+        vectorEffect={vectorEffect}
         x1={object.geometry.startPoint.x}
         x2={object.geometry.endPoint.x}
         y1={object.geometry.startPoint.y}
@@ -48,6 +51,7 @@ export function SectionMarkerRenderer({
             object.geometry.startPoint,
             stroke,
             lineStyle.editorStrokeWidth,
+            vectorEffect,
           )
         : null}
       {object.parameters.arrowDirection === 'right' || object.parameters.arrowDirection === 'both'
@@ -56,6 +60,7 @@ export function SectionMarkerRenderer({
             object.geometry.endPoint,
             stroke,
             lineStyle.editorStrokeWidth,
+            vectorEffect,
           )
         : null}
 
@@ -65,37 +70,44 @@ export function SectionMarkerRenderer({
             cx={point.x}
             cy={point.y}
             fill={fill}
-            r={250}
+            r={210}
             stroke={stroke}
             strokeWidth={lineStyle.editorStrokeWidth}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect={vectorEffect}
           />
-          <text
-            dominantBaseline="middle"
-            fill={stroke}
-            fontSize={textSize * 0.8}
-            textAnchor="middle"
-            x={point.x}
-            y={point.y + 10}
-          >
-            {object.parameters.sectionLabel}
-          </text>
+          {index === 0 ? (
+            <text
+              dominantBaseline="middle"
+              fill={stroke}
+              fontSize={textSize * 0.8}
+              fontWeight={600}
+              textAnchor="middle"
+              x={point.x}
+              y={point.y + 8}
+            >
+              {object.parameters.sectionLabel}
+            </text>
+          ) : null}
         </g>
       ))}
 
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        textAnchor="middle"
-        x={midpoint.x}
-        y={midpoint.y - 260}
-      >
-        {object.parameters.sectionId}
-      </text>
+      {object.parameters.sectionId !== object.parameters.sectionLabel ? (
+        <text
+          fill={stroke}
+          fontSize={textSize * 0.75}
+          opacity={0.7}
+          textAnchor="middle"
+          x={midpoint.x}
+          y={midpoint.y - 240}
+        >
+          {object.parameters.sectionId}
+        </text>
+      ) : null}
       {object.parameters.sheetReference ? (
         <text
           fill={stroke}
-          fontSize={textSize * 0.9}
+          fontSize={textSize * 0.75}
+          opacity={0.7}
           textAnchor="middle"
           x={midpoint.x}
           y={midpoint.y + 300}
@@ -112,6 +124,7 @@ function renderSectionArrow(
   toPoint: DraftingPoint,
   stroke: string,
   strokeWidth: number,
+  vectorEffect?: string,
 ) {
   const deltaX = toPoint.x - fromPoint.x;
   const deltaY = toPoint.y - fromPoint.y;
@@ -133,7 +146,7 @@ function renderSectionArrow(
 
   return (
     <polygon
-      fill={stroke}
+      fill="none"
       points={[
         `${basePoint.x + normal.x * 140},${basePoint.y + normal.y * 140}`,
         `${arrowTip.x},${arrowTip.y}`,
@@ -141,7 +154,7 @@ function renderSectionArrow(
       ].join(' ')}
       stroke={stroke}
       strokeWidth={strokeWidth}
-      vectorEffect="non-scaling-stroke"
+      vectorEffect={vectorEffect}
     />
   );
 }

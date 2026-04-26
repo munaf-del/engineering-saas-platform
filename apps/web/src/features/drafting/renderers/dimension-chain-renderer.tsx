@@ -11,8 +11,12 @@ import {
   formatDimensionDistance,
   resolveDimensionChainOffsetVector,
 } from '../semantic-object-utils';
-import { resolveDraftingLegacyLineWeight } from '../standards/drafting-style-resolver';
-import { type DraftingDimensionChainRendererProps } from './renderer-types';
+import {
+  resolveCanvasLabelSize,
+  resolveRendererLineStyle,
+  resolveRendererVectorEffect,
+  type DraftingDimensionChainRendererProps,
+} from './renderer-types';
 
 export function DimensionChainRenderer({
   drawingSetup,
@@ -21,10 +25,19 @@ export function DimensionChainRenderer({
   object,
   onPointerDown,
   allObjects = [],
+  surface,
 }: DraftingDimensionChainRendererProps) {
-  const stroke = object.style?.stroke ?? layer?.color ?? '#334155';
-  const lineWeight = resolveDraftingLegacyLineWeight({ layer, object, setup: drawingSetup });
-  const textSize = object.style?.textSize ?? 220;
+  const lineStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: 'dimension',
+    surface,
+  });
+  const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? '#334155';
+  const lineWeight = lineStyle.editorStrokeWidth;
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const vectorEffect = resolveRendererVectorEffect(surface);
   const resolvedObject = resolveDimensionAnchoredObject(object, allObjects);
   const offsetPoints = buildDimensionChainOffsetPoints(resolvedObject);
   const offsetVector = resolveDimensionChainOffsetVector(resolvedObject);
@@ -55,8 +68,8 @@ export function DimensionChainRenderer({
           fill="none"
           points={offsetPoints.map((point) => `${point.x},${point.y}`).join(' ')}
           stroke="#2563eb"
-          strokeWidth={90}
-          vectorEffect="non-scaling-stroke"
+          strokeWidth={Math.max(2, lineWeight * 2)}
+          vectorEffect={vectorEffect}
         />
       ) : null}
 
@@ -74,8 +87,8 @@ export function DimensionChainRenderer({
           <line
             key={`${object.id}-extension-${index}`}
             stroke={stroke}
-            strokeWidth={lineWeight * 20}
-            vectorEffect="non-scaling-stroke"
+            strokeWidth={lineWeight}
+            vectorEffect={vectorEffect}
             x1={point.x}
             x2={extended.x}
             y1={point.y}
@@ -89,8 +102,8 @@ export function DimensionChainRenderer({
           fill="none"
           points={offsetPoints.map((point) => `${point.x},${point.y}`).join(' ')}
           stroke={stroke}
-          strokeWidth={lineWeight * 25}
-          vectorEffect="non-scaling-stroke"
+          strokeWidth={lineWeight}
+          vectorEffect={vectorEffect}
         />
       ) : null}
 
@@ -103,8 +116,9 @@ export function DimensionChainRenderer({
             key={`${object.id}-tick-${index}`}
             point={point}
             stroke={stroke}
-            strokeWidth={lineWeight * 25}
+            strokeWidth={lineWeight}
             tangent={tangent}
+            vectorEffect={vectorEffect}
           />
         );
       })}
@@ -166,8 +180,8 @@ export function DimensionChainRenderer({
                   opacity={0.7}
                   stroke={stroke}
                   strokeDasharray="180 120"
-                  strokeWidth={lineWeight * 18}
-                  vectorEffect="non-scaling-stroke"
+                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
+                  vectorEffect={vectorEffect}
                   x1={totalStart.x}
                   x2={totalEnd.x}
                   y1={totalStart.y}
@@ -176,20 +190,22 @@ export function DimensionChainRenderer({
                 <DimensionTick
                   point={totalStart}
                   stroke={stroke}
-                  strokeWidth={lineWeight * 18}
+                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
                   tangent={normaliseVector({
                     x: totalEnd.x - totalStart.x,
                     y: totalEnd.y - totalStart.y,
                   })}
+                  vectorEffect={vectorEffect}
                 />
                 <DimensionTick
                   point={totalEnd}
                   stroke={stroke}
-                  strokeWidth={lineWeight * 18}
+                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
                   tangent={normaliseVector({
                     x: totalEnd.x - totalStart.x,
                     y: totalEnd.y - totalStart.y,
                   })}
+                  vectorEffect={vectorEffect}
                 />
                 <DimensionLabel
                   bold
@@ -222,12 +238,14 @@ function DimensionTick({
   tangent,
   stroke,
   strokeWidth,
+  vectorEffect,
 }: {
   point: DraftingPoint;
   start?: DraftingPoint;
   tangent?: DraftingPoint;
   stroke: string;
   strokeWidth: number;
+  vectorEffect?: 'non-scaling-stroke';
 }) {
   const baseTangent =
     tangent ??
@@ -240,7 +258,7 @@ function DimensionTick({
     <line
       stroke={stroke}
       strokeWidth={strokeWidth}
-      vectorEffect="non-scaling-stroke"
+      vectorEffect={vectorEffect}
       x1={point.x - dx}
       x2={point.x + dx}
       y1={point.y - dy}
