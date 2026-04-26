@@ -8,6 +8,7 @@ import {
   resolveRendererVectorEffect,
   type DraftingCalloutRendererProps,
 } from './renderer-types';
+import { buildFullAnnotationFooter, resolveEffectiveLabelMode } from './label-policy';
 
 const BOX_WIDTH = 1900;
 
@@ -17,7 +18,9 @@ export function CalloutRenderer({
   layer,
   object,
   onPointerDown,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingCalloutRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -30,8 +33,17 @@ export function CalloutRenderer({
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
   const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
   const vectorEffect = resolveRendererVectorEffect(surface);
+  const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
+  const compactAtScale = surface !== 'sheet' && !isSelected && (viewScale ?? 1) < 0.08;
+  const showBody = effectiveLabelMode !== 'minimal' && !compactAtScale;
+  const footer =
+    effectiveLabelMode === 'full'
+      ? (buildFullAnnotationFooter({ isSelected, labelMode, object, surface, viewScale }) ??
+        object.parameters.calloutId)
+      : null;
   const bodyLines = object.parameters.body.split('\n').filter(Boolean);
-  const boxHeight = 560 + Math.max(bodyLines.length, 1) * 190;
+  const visibleBodyLines = showBody ? bodyLines : [];
+  const boxHeight = showBody ? 560 + Math.max(bodyLines.length, 1) * 190 : 360;
   const boxX = object.geometry.labelPoint.x;
   const boxY = object.geometry.labelPoint.y;
   const connectOnLeft = object.geometry.anchorPoint.x <= boxX;
@@ -89,7 +101,7 @@ export function CalloutRenderer({
         y1={boxY + 300}
         y2={boxY + 300}
       />
-      {(bodyLines.length > 0 ? bodyLines : [' ']).map((line, index) => (
+      {(visibleBodyLines.length > 0 ? visibleBodyLines : []).map((line, index) => (
         <text
           key={`${object.id}-line-${index}`}
           fill={stroke}
@@ -100,15 +112,17 @@ export function CalloutRenderer({
           {line}
         </text>
       ))}
-      <text
-        fill={stroke}
-        fontSize={textSize * 0.7}
-        opacity={0.62}
-        x={boxX + BOX_WIDTH - 320}
-        y={boxY + boxHeight - 90}
-      >
-        {object.parameters.calloutId}
-      </text>
+      {footer ? (
+        <text
+          fill={stroke}
+          fontSize={textSize * 0.7}
+          opacity={0.62}
+          x={boxX + BOX_WIDTH - 520}
+          y={boxY + boxHeight - 90}
+        >
+          {footer}
+        </text>
+      ) : null}
     </g>
   );
 }

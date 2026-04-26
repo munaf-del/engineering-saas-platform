@@ -17,6 +17,7 @@ import {
   resolveRendererVectorEffect,
   type DraftingDimensionChainRendererProps,
 } from './renderer-types';
+import { resolveEffectiveLabelMode } from './label-policy';
 
 export function DimensionChainRenderer({
   drawingSetup,
@@ -25,7 +26,9 @@ export function DimensionChainRenderer({
   object,
   onPointerDown,
   allObjects = [],
+  labelMode,
   surface,
+  viewScale,
 }: DraftingDimensionChainRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -35,8 +38,11 @@ export function DimensionChainRenderer({
     surface,
   });
   const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? '#334155';
-  const lineWeight = lineStyle.editorStrokeWidth;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const lineWeight =
+    surface === 'sheet'
+      ? lineStyle.editorStrokeWidth
+      : Math.max(0.85, lineStyle.editorStrokeWidth * 0.8);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 150);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const resolvedObject = resolveDimensionAnchoredObject(object, allObjects);
   const offsetPoints = buildDimensionChainOffsetPoints(resolvedObject);
@@ -44,10 +50,18 @@ export function DimensionChainRenderer({
   const offsetLength = Math.max(1, Math.hypot(offsetVector.x, offsetVector.y));
   const offsetUnit = { x: offsetVector.x / offsetLength, y: offsetVector.y / offsetLength };
   const extensionOvershoot = 180;
-  const segmentTextGap = 260;
+  const segmentTextGap = 340;
   const totalLineGap = 620;
-  const totalTextGap = 360;
+  const totalTextGap = 420;
   const segments = calculateDimensionChainSegments(resolvedObject.geometry.points);
+  const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
+  const showSegmentLabels =
+    resolvedObject.parameters.showSegments &&
+    (surface === 'sheet' ||
+      isSelected ||
+      effectiveLabelMode !== 'minimal' ||
+      (viewScale ?? 1) >= 0.12 ||
+      segments.length === 1);
   const totalDistance = calculateDimensionChainTotal(resolvedObject.geometry.points);
   const totalLabel =
     resolvedObject.parameters.textOverride?.trim() ||
@@ -140,7 +154,7 @@ export function DimensionChainRenderer({
         );
         return (
           <React.Fragment key={`${object.id}-dimension-segment-${index}`}>
-            {resolvedObject.parameters.showSegments ? (
+            {showSegmentLabels ? (
               <DimensionLabel
                 bold={false}
                 label={formatDimensionDistance(
@@ -180,7 +194,7 @@ export function DimensionChainRenderer({
                   opacity={0.7}
                   stroke={stroke}
                   strokeDasharray="180 120"
-                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
+                  strokeWidth={Math.max(0.6, lineWeight * 0.65)}
                   vectorEffect={vectorEffect}
                   x1={totalStart.x}
                   x2={totalEnd.x}
@@ -190,7 +204,7 @@ export function DimensionChainRenderer({
                 <DimensionTick
                   point={totalStart}
                   stroke={stroke}
-                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
+                  strokeWidth={Math.max(0.6, lineWeight * 0.65)}
                   tangent={normaliseVector({
                     x: totalEnd.x - totalStart.x,
                     y: totalEnd.y - totalStart.y,
@@ -200,7 +214,7 @@ export function DimensionChainRenderer({
                 <DimensionTick
                   point={totalEnd}
                   stroke={stroke}
-                  strokeWidth={Math.max(0.75, lineWeight * 0.75)}
+                  strokeWidth={Math.max(0.6, lineWeight * 0.65)}
                   tangent={normaliseVector({
                     x: totalEnd.x - totalStart.x,
                     y: totalEnd.y - totalStart.y,
@@ -289,7 +303,7 @@ function DimensionLabel({
       paintOrder="stroke"
       stroke="#ffffff"
       strokeLinejoin="round"
-      strokeWidth={Math.max(40, textSize * 0.18)}
+      strokeWidth={Math.max(18, textSize * 0.1)}
       textAnchor="middle"
       x={point.x}
       y={point.y}

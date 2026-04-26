@@ -1,7 +1,11 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel, type DraftingDimensionChainObject } from '@eng/shared';
+import {
+  createEmptyDraftingModel,
+  type DraftingDimensionChainObject,
+  type DraftingPileObject,
+} from '@eng/shared';
 import { createDraftingObject } from '../model-utils';
 import { renderDraftingObject } from './render-drafting-object';
 
@@ -99,7 +103,7 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('BH-01');
     expect(markup).toContain('SR1');
     expect(markup).toContain('SC1');
-    expect(markup).toContain('J-NEW-001');
+    expect(markup).not.toContain('J-NEW-001');
     expect(markup).toContain('EX1');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
@@ -312,5 +316,42 @@ describe('renderDraftingObject', () => {
     expect(soldierWall.style?.stroke).toBeUndefined();
     expect(markup).toContain('stroke-width="1.4"');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('declutters generated labels in minimal fit-view while preserving selected labels', () => {
+    const model = createEmptyDraftingModel('drawing-label-declutter');
+    const pile: DraftingPileObject = {
+      ...createDraftingObject('pile', { x: 1000, y: 2000 }, model),
+      metadata: { pileId: 'P-NEW-001' },
+    } as DraftingPileObject;
+    const selectedMarkup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: true,
+          labelMode: 'minimal',
+          layer: model.layers.find((layer) => layer.id === pile.layerId) ?? null,
+          object: pile,
+          onPointerDown: () => undefined,
+          viewScale: 0.04,
+        })}
+      </svg>,
+    );
+    const unselectedMarkup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          labelMode: 'minimal',
+          layer: model.layers.find((layer) => layer.id === pile.layerId) ?? null,
+          object: pile,
+          onPointerDown: () => undefined,
+          viewScale: 0.04,
+        })}
+      </svg>,
+    );
+
+    expect(selectedMarkup).toContain('data-drafting-label="true"');
+    expect(unselectedMarkup).not.toContain('P-NEW-001');
   });
 });

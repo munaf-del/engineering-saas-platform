@@ -7,6 +7,8 @@ import {
   resolveTechnicalStroke,
   type DraftingAnchorTiebackRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function AnchorTiebackRenderer({
   drawingSetup,
@@ -14,7 +16,10 @@ export function AnchorTiebackRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingAnchorTiebackRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -30,6 +35,14 @@ export function AnchorTiebackRenderer({
   const labelY = (headPoint.y + tailPoint.y) / 2 - 140;
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -70,18 +83,13 @@ export function AnchorTiebackRenderer({
         strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect={vectorEffect}
       />
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeLinejoin="round"
-        strokeWidth={Math.max(28, textSize * 0.16)}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={labelX}
         y={labelY}
-      >
-        {object.parameters.anchorId}
-      </text>
+      />
     </g>
   );
 }

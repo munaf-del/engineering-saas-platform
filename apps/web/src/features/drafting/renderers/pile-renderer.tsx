@@ -8,6 +8,8 @@ import {
   resolveTechnicalStroke,
   type DraftingPileRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function PileRenderer({
   drawingSetup,
@@ -15,7 +17,10 @@ export function PileRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingPileRendererProps) {
   const lineStyle = resolveRendererLineStyle({ drawingSetup, layer, object, surface });
   const centreStyle = resolveRendererLineStyle({
@@ -35,9 +40,14 @@ export function PileRenderer({
     object.sourceRef?.sourceType === 'foundation_pile' &&
     object.sourceRef.snapshot !== undefined &&
     'joint' in object.sourceRef.snapshot;
-  const label = object.metadata.pileId.startsWith('P-NEW')
-    ? object.metadata.pileTypeCode || object.metadata.pileId
-    : object.metadata.pileId;
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   if (isJointSource) {
     return (
@@ -81,18 +91,13 @@ export function PileRenderer({
           y1={object.geometry.centre.y - 190}
           y2={object.geometry.centre.y + 190}
         />
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
+        <DraftingCanvasLabel
+          lines={labelLines}
+          stroke={stroke}
+          textSize={textSize}
           x={object.geometry.centre.x + 220}
           y={object.geometry.centre.y - 110}
-        >
-          {label}
-        </text>
+        />
       </g>
     );
   }
@@ -142,18 +147,13 @@ export function PileRenderer({
         y1={object.geometry.centre.y - centreMark}
         y2={object.geometry.centre.y + centreMark}
       />
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeLinejoin="round"
-        strokeWidth={Math.max(28, textSize * 0.16)}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={object.geometry.centre.x + radius + 180}
         y={object.geometry.centre.y - 120}
-      >
-        {label}
-      </text>
+      />
     </g>
   );
 }

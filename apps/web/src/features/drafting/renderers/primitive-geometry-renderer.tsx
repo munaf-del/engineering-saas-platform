@@ -18,6 +18,8 @@ import {
   resolveTechnicalStroke,
   type DraftingRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObject>) {
   const style = usePrimitiveStyle(props);
@@ -132,6 +134,14 @@ export function StructuralJointRenderer(
   const point = props.object.geometry.point;
   const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 170);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects: props.allObjects,
+    isSelected: props.isSelected,
+    labelMode: props.labelMode,
+    object: props.object,
+    surface: props.surface,
+    viewScale: props.viewScale,
+  });
   const hasLoad =
     props.object.parameters.loadEnabled &&
     [
@@ -197,31 +207,13 @@ export function StructuralJointRenderer(
           </defs>
         </g>
       ) : null}
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        fontWeight={600}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeWidth={34}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={point.x + 220}
         y={point.y - 140}
-      >
-        {props.object.parameters.label}
-      </text>
-      {point.rl !== undefined || point.z !== undefined ? (
-        <text
-          fill="#475569"
-          fontSize={textSize * 0.72}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeWidth={28}
-          x={point.x + 220}
-          y={point.y + 70}
-        >
-          RL {(point.rl ?? point.z)?.toFixed(2)}
-        </text>
-      ) : null}
+      />
     </g>
   );
 }
@@ -231,6 +223,14 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
   const stroke = resolveTechnicalStroke(props.object.style?.stroke, lineStyle);
   const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects: props.allObjects,
+    isSelected: props.isSelected,
+    labelMode: props.labelMode,
+    object: props.object,
+    surface: props.surface,
+    viewScale: props.viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
@@ -281,6 +281,13 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
           ) : null}
         </g>
       ))}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
+        x={props.object.geometry.points[0]?.x ?? 0}
+        y={(props.object.geometry.points[0]?.y ?? 0) - 180}
+      />
     </g>
   );
 }

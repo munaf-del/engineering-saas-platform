@@ -32,6 +32,7 @@ import {
   type ResolvedDraftingLineStyle,
 } from '../standards/drafting-style-resolver';
 import type { DraftingLineRole } from '../standards/drafting-standard-profiles';
+import type { DraftingCanvasLabelMode } from './label-policy';
 
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   drawingSetup?: DraftingDrawingSetup;
@@ -40,7 +41,9 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   object: T;
   onPointerDown: (event: React.PointerEvent) => void;
   allObjects?: DraftingObject[];
+  labelMode?: DraftingCanvasLabelMode;
   surface?: 'editor' | 'sheet';
+  viewScale?: number;
 };
 
 export function resolveRendererLineStyle(

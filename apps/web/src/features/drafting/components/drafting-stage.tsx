@@ -45,6 +45,10 @@ import {
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
 import { resolveDraftingLineStyle } from '../standards/drafting-style-resolver';
+import {
+  DRAFTING_CANVAS_LABEL_MODES,
+  type DraftingCanvasLabelMode,
+} from '../renderers/label-policy';
 import { DraftingPdfUnderlay } from './drafting-pdf-underlay';
 import { DraftingStatusBar } from './drafting-status-bar';
 
@@ -53,6 +57,7 @@ export function DraftingStage({
   commandPrompt,
   containerRef,
   model,
+  labelMode = 'minimal',
   onBackgroundPointerDown,
   onCanvasClick,
   onCanvasWheel,
@@ -63,6 +68,7 @@ export function DraftingStage({
   onObjectPointerDown,
   onResetZoom,
   onSetZoomScale,
+  onLabelModeChange = () => {},
   onToggleSnapEnabled = () => {},
   onToggleSnapMode = () => {},
   onViewLockedChange,
@@ -88,6 +94,7 @@ export function DraftingStage({
   commandPrompt?: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
   model: DraftingModel;
+  labelMode?: DraftingCanvasLabelMode;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onCanvasClick: (event: React.MouseEvent<SVGSVGElement>) => void;
   onCanvasWheel: (event: React.WheelEvent<SVGSVGElement>) => void;
@@ -102,6 +109,7 @@ export function DraftingStage({
   onObjectPointerDown: (event: React.PointerEvent, object: DraftingObject) => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
+  onLabelModeChange?: (mode: DraftingCanvasLabelMode) => void;
   onToggleSnapEnabled?: () => void;
   onToggleSnapMode?: (mode: DraftingSnapMode) => void;
   onViewLockedChange: (locked: boolean) => void;
@@ -221,6 +229,7 @@ export function DraftingStage({
             onSetZoomScale={onSetZoomScale}
             onToggleSnapEnabled={onToggleSnapEnabled}
             onToggleSnapMode={onToggleSnapMode}
+            onLabelModeChange={onLabelModeChange}
             onViewLockedChange={onViewLockedChange}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
@@ -230,6 +239,7 @@ export function DraftingStage({
             viewLocked={viewLocked}
             zoomPercent={zoomPercent}
             snapSettings={activeSnapSettings}
+            labelMode={labelMode}
           />
           <svg
             className="h-full w-full touch-none"
@@ -281,9 +291,11 @@ export function DraftingStage({
                     drawingSetup: setup,
                     isSelected: object.id === selectedObjectId,
                     layer: getLayerById(model, object.layerId),
+                    labelMode,
                     object,
                     allObjects: model.objects,
                     onPointerDown: (event) => onObjectPointerDown(event, object),
+                    viewScale: view.scale,
                   })}
                 </React.Fragment>
               ))}
@@ -353,6 +365,7 @@ function DraftingCanvasZoomControls({
   onSetZoomScale,
   onToggleSnapEnabled,
   onToggleSnapMode,
+  onLabelModeChange,
   onViewLockedChange,
   onZoomIn,
   onZoomOut,
@@ -362,6 +375,7 @@ function DraftingCanvasZoomControls({
   viewLocked,
   zoomPercent,
   snapSettings,
+  labelMode,
 }: {
   onCenterReference: () => void;
   onFitModel: () => void;
@@ -370,6 +384,7 @@ function DraftingCanvasZoomControls({
   onSetZoomScale: (scale: number) => void;
   onToggleSnapEnabled: () => void;
   onToggleSnapMode: (mode: DraftingSnapMode) => void;
+  onLabelModeChange: (mode: DraftingCanvasLabelMode) => void;
   onViewLockedChange: (locked: boolean) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -379,6 +394,7 @@ function DraftingCanvasZoomControls({
   viewLocked: boolean;
   zoomPercent: number;
   snapSettings: DraftingSnapSettings;
+  labelMode: DraftingCanvasLabelMode;
 }) {
   const lockedTitle = viewLocked ? 'Unlock view to pan, zoom, fit, or recenter.' : undefined;
   const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
@@ -522,9 +538,25 @@ function DraftingCanvasZoomControls({
           Ortho
         </Button>
       </div>
+      <div className="flex items-center gap-1 border-l pl-2" aria-label="Canvas label mode">
+        <span className="px-1 text-xs font-medium text-muted-foreground">Labels</span>
+        {DRAFTING_CANVAS_LABEL_MODES.map((mode) => (
+          <Button
+            aria-label={`Labels ${mode}`}
+            className="h-8 px-2 text-xs capitalize"
+            key={mode}
+            type="button"
+            variant={labelMode === mode ? 'secondary' : 'outline'}
+            onClick={() => onLabelModeChange(mode)}
+          >
+            {mode}
+          </Button>
+        ))}
+      </div>
       <div className="basis-full text-right text-[11px] text-muted-foreground">
         {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}
-        Canvas view separate · Sheet scale {sheetScale} · Snap {snapSettings.enabled ? 'on' : 'off'}
+        Canvas view separate · Sheet scale {sheetScale} · Labels {labelMode} · Snap{' '}
+        {snapSettings.enabled ? 'on' : 'off'}
       </div>
     </div>
   );

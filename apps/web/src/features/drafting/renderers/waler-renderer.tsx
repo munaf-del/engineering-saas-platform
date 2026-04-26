@@ -7,6 +7,8 @@ import {
   resolveTechnicalStroke,
   type DraftingWalerRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function WalerRenderer({
   drawingSetup,
@@ -14,7 +16,10 @@ export function WalerRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingWalerRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -35,6 +40,14 @@ export function WalerRenderer({
   const edgePoints = buildOffsetPolyline(object.geometry.points, 130);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -71,18 +84,13 @@ export function WalerRenderer({
         />
       ))}
       {firstPoint ? (
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
+        <DraftingCanvasLabel
+          lines={labelLines}
+          stroke={stroke}
+          textSize={textSize}
           x={firstPoint.x + 180}
           y={firstPoint.y - 180}
-        >
-          {object.parameters.walerId}
-        </text>
+        />
       ) : null}
     </g>
   );

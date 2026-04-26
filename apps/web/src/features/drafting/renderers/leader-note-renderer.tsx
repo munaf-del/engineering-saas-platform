@@ -12,7 +12,9 @@ export function LeaderNoteRenderer({
   layer,
   object,
   onPointerDown,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingLeaderNoteRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -25,6 +27,8 @@ export function LeaderNoteRenderer({
   const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const { anchor, textPoint } = object.geometry;
+  const compactAtScale =
+    surface !== 'sheet' && !isSelected && labelMode !== 'full' && (viewScale ?? 1) < 0.08;
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -38,17 +42,19 @@ export function LeaderNoteRenderer({
         y2={textPoint.y}
       />
       <circle cx={anchor.x} cy={anchor.y} fill={stroke} r={42} vectorEffect={vectorEffect} />
-      <rect
-        fill="rgba(255,255,255,0.92)"
-        height={340}
-        rx={18}
-        stroke={isSelected ? '#2563eb' : stroke}
-        strokeWidth={lineStyle.editorStrokeWidth}
-        vectorEffect={vectorEffect}
-        width={1450}
-        x={textPoint.x}
-        y={textPoint.y - 250}
-      />
+      {compactAtScale ? null : (
+        <rect
+          fill="rgba(255,255,255,0.82)"
+          height={340}
+          rx={18}
+          stroke={isSelected ? '#2563eb' : stroke}
+          strokeWidth={lineStyle.editorStrokeWidth}
+          vectorEffect={vectorEffect}
+          width={1450}
+          x={textPoint.x}
+          y={textPoint.y - 250}
+        />
+      )}
       <text fill={stroke} fontSize={textSize} x={textPoint.x + 100} y={textPoint.y - 45}>
         {object.metadata.text}
       </text>

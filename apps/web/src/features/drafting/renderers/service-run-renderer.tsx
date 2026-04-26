@@ -8,6 +8,8 @@ import {
   resolveTechnicalStroke,
   type DraftingServiceRunRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function ServiceRunRenderer({
   drawingSetup,
@@ -15,7 +17,10 @@ export function ServiceRunRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingServiceRunRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -28,18 +33,18 @@ export function ServiceRunRenderer({
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
   const midpoint = getServiceRunMidpoint(object);
   const isDegeneratePath = serviceRunPathLength(object.geometry.path) < 1;
-  const label =
-    isDegeneratePath && !isSelected
-      ? ''
-      : [
-          object.parameters.serviceId,
-          object.parameters.serviceType !== 'unknown' ? object.parameters.serviceType : null,
-          object.parameters.status !== 'unknown' ? object.parameters.status : null,
-          object.parameters.diameterMm ? `Ø${object.parameters.diameterMm}` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
   const vectorEffect = resolveRendererVectorEffect(surface);
+  const labelLines =
+    isDegeneratePath && !isSelected
+      ? []
+      : buildDraftingObjectLabelLines({
+          allObjects,
+          isSelected,
+          labelMode,
+          object,
+          surface,
+          viewScale,
+        });
   const dashArray =
     object.style?.lineStyle === 'dashed' || object.parameters.status === 'proposed'
       ? '320 180'
@@ -97,20 +102,13 @@ export function ServiceRunRenderer({
           vectorEffect={vectorEffect}
         />
       ) : null}
-      {label ? (
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
-          x={midpoint.x + 120}
-          y={midpoint.y - 160}
-        >
-          {label}
-        </text>
-      ) : null}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
+        x={midpoint.x + 120}
+        y={midpoint.y - 160}
+      />
     </g>
   );
 }

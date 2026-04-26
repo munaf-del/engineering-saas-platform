@@ -9,6 +9,8 @@ import {
   resolveTechnicalStroke,
   type DraftingServiceCrossingRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function ServiceCrossingRenderer({
   drawingSetup,
@@ -16,7 +18,10 @@ export function ServiceCrossingRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingServiceCrossingRendererProps) {
   const conflictStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -52,11 +57,14 @@ export function ServiceCrossingRenderer({
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
   const { crossingPoint } = object.geometry;
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const detailParts = [
-    object.parameters.serviceType !== 'unknown' ? object.parameters.serviceType : null,
-    object.parameters.conflictType !== 'unknown' ? object.parameters.conflictType : null,
-    object.parameters.riskStatus !== 'open' ? object.parameters.riskStatus : null,
-  ].filter(Boolean);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -102,32 +110,13 @@ export function ServiceCrossingRenderer({
         y1={crossingPoint.y + 110}
         y2={crossingPoint.y - 110}
       />
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeLinejoin="round"
-        strokeWidth={Math.max(28, textSize * 0.16)}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={crossingPoint.x + 240}
         y={crossingPoint.y - 80}
-      >
-        {object.parameters.crossingId}
-      </text>
-      {detailParts.length > 0 ? (
-        <text
-          fill={stroke}
-          fontSize={textSize * 0.8}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(24, textSize * 0.12)}
-          x={crossingPoint.x + 240}
-          y={crossingPoint.y + 120}
-        >
-          {detailParts.join(' · ')}
-        </text>
-      ) : null}
+      />
     </g>
   );
 }

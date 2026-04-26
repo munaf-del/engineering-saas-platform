@@ -33,6 +33,7 @@ import { useDraftingHistory } from './hooks/use-drafting-history';
 import { useDraftingSelection } from './hooks/use-drafting-selection';
 import { useDraftingUnderlays } from './hooks/use-drafting-underlays';
 import { useDraftingView } from './hooks/use-drafting-view';
+import type { DraftingCanvasLabelMode } from './renderers/label-policy';
 import {
   addDraftingObject,
   addDraftingUnderlay,
@@ -101,6 +102,7 @@ export function DraftingEditor({
   const [showDrawingSheetViewportOverlay, setShowDrawingSheetViewportOverlay] =
     React.useState(true);
   const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
+  const [canvasLabelMode, setCanvasLabelMode] = React.useState<DraftingCanvasLabelMode>('minimal');
   const [pileSourceMode, setPileSourceMode] =
     React.useState<DraftingPileSourceMode>('manual_sketch');
   const [selectedPileTypeSourceId, setSelectedPileTypeSourceId] = React.useState<string | null>(
@@ -228,11 +230,24 @@ export function DraftingEditor({
   }, [drawingId]);
 
   React.useEffect(() => {
+    const storedValue = window.localStorage.getItem(getLabelModeStorageKey(drawingId));
+    if (storedValue === 'minimal' || storedValue === 'engineering' || storedValue === 'full') {
+      setCanvasLabelMode(storedValue);
+    } else {
+      setCanvasLabelMode('minimal');
+    }
+  }, [drawingId]);
+
+  React.useEffect(() => {
     window.localStorage.setItem(
       getInspectorStorageKey(drawingId),
       inspectorExpanded ? 'expanded' : 'collapsed',
     );
   }, [drawingId, inspectorExpanded]);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(getLabelModeStorageKey(drawingId), canvasLabelMode);
+  }, [canvasLabelMode, drawingId]);
 
   React.useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -852,6 +867,7 @@ export function DraftingEditor({
             drafting.pendingLinePoints.length,
           )}
           containerRef={view.containerRef}
+          labelMode={canvasLabelMode}
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
@@ -863,6 +879,7 @@ export function DraftingEditor({
           onObjectPointerDown={selection.handleObjectPointerDown}
           onResetZoom={view.handleResetZoom}
           onSetZoomScale={view.handleSetZoomScale}
+          onLabelModeChange={setCanvasLabelMode}
           onToggleSnapEnabled={drafting.toggleSnapEnabled}
           onToggleSnapMode={drafting.toggleSnapMode}
           onViewLockedChange={view.setViewLocked}
@@ -1074,6 +1091,10 @@ export function DraftingEditor({
 
 function getInspectorStorageKey(drawingId: string) {
   return `eng.drafting.inspector.${drawingId}`;
+}
+
+function getLabelModeStorageKey(drawingId: string) {
+  return `eng.drafting.labelMode.${drawingId}`;
 }
 
 function getSelectedSourceRefreshState(

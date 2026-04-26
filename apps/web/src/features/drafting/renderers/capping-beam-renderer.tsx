@@ -7,6 +7,8 @@ import {
   resolveTechnicalStroke,
   type DraftingCappingBeamRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function CappingBeamRenderer({
   drawingSetup,
@@ -14,7 +16,10 @@ export function CappingBeamRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingCappingBeamRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -35,6 +40,14 @@ export function CappingBeamRenderer({
   const outlinePoints = buildOffsetPolyline(object.geometry.points, object.parameters.widthMm / 2);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -71,18 +84,13 @@ export function CappingBeamRenderer({
         />
       ))}
       {firstPoint ? (
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
+        <DraftingCanvasLabel
+          lines={labelLines}
+          stroke={stroke}
+          textSize={textSize}
           x={firstPoint.x + 180}
           y={firstPoint.y - 220}
-        >
-          {object.parameters.beamId}
-        </text>
+        />
       ) : null}
     </g>
   );

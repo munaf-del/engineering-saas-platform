@@ -468,10 +468,12 @@ export function DraftingDrawingSheetPage({
                     drawingSetup: drawing.model.drawingSetup,
                     isSelected: false,
                     layer: getLayerById(drawing.model, object.layerId),
+                    labelMode: 'engineering',
                     object,
                     allObjects: drawing.model.objects,
                     onPointerDown: () => {},
                     surface: 'sheet',
+                    viewScale: viewport.scale,
                   })}
                 </React.Fragment>
               ))}

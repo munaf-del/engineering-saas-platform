@@ -9,6 +9,8 @@ import {
   resolveTechnicalStroke,
   type DraftingBoreholeRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function BoreholeRenderer({
   drawingSetup,
@@ -16,7 +18,10 @@ export function BoreholeRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingBoreholeRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -29,12 +34,14 @@ export function BoreholeRenderer({
   const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.survey);
   const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const detailParts = [
-    object.parameters.groundLevelRl !== undefined ? `GL ${object.parameters.groundLevelRl}` : null,
-    object.parameters.terminationDepthM !== undefined
-      ? `TD ${object.parameters.terminationDepthM}m`
-      : null,
-  ].filter(Boolean);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -77,30 +84,13 @@ export function BoreholeRenderer({
         y1={object.geometry.point.y}
         y2={object.geometry.point.y}
       />
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeWidth={36}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={object.geometry.point.x + 260}
         y={object.geometry.point.y - 80}
-      >
-        {object.parameters.label}
-      </text>
-      {detailParts.length > 0 ? (
-        <text
-          fill={stroke}
-          fontSize={textSize * 0.9}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeWidth={32}
-          x={object.geometry.point.x + 260}
-          y={object.geometry.point.y + 180}
-        >
-          {detailParts.join(' · ')}
-        </text>
-      ) : null}
+      />
     </g>
   );
 }

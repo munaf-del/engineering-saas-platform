@@ -5,6 +5,8 @@ import {
   resolveRendererVectorEffect,
   type DraftingExcavationLineRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function ExcavationLineRenderer({
   drawingSetup,
@@ -12,7 +14,10 @@ export function ExcavationLineRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingExcavationLineRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -26,6 +31,14 @@ export function ExcavationLineRenderer({
   const firstPoint = object.geometry.points[0];
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -38,18 +51,13 @@ export function ExcavationLineRenderer({
         vectorEffect={vectorEffect}
       />
       {firstPoint ? (
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
+        <DraftingCanvasLabel
+          lines={labelLines}
+          stroke={stroke}
+          textSize={textSize}
           x={firstPoint.x + 120}
           y={firstPoint.y - 160}
-        >
-          {object.metadata.excavationId || object.name || 'Excavation'}
-        </text>
+        />
       ) : null}
     </g>
   );

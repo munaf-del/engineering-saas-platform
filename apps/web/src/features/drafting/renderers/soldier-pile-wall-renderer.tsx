@@ -9,6 +9,8 @@ import {
   resolveTechnicalStroke,
   type DraftingSoldierPileWallRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function SoldierPileWallRenderer({
   drawingSetup,
@@ -16,7 +18,10 @@ export function SoldierPileWallRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingSoldierPileWallRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -47,6 +52,14 @@ export function SoldierPileWallRenderer({
   const centreMark = Math.min(radius * 0.35, 110);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -105,18 +118,13 @@ export function SoldierPileWallRenderer({
         </g>
       ))}
       {firstPile ? (
-        <text
-          fill={stroke}
-          fontSize={textSize}
-          paintOrder="stroke"
-          stroke="#ffffff"
-          strokeLinejoin="round"
-          strokeWidth={Math.max(28, textSize * 0.16)}
+        <DraftingCanvasLabel
+          lines={labelLines}
+          stroke={stroke}
+          textSize={textSize}
           x={firstPile.x + radius + 180}
           y={firstPile.y - 180}
-        >
-          {object.metadata.wallId}
-        </text>
+        />
       ) : null}
     </g>
   );

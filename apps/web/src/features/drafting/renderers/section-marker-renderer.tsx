@@ -7,6 +7,7 @@ import {
   resolveRendererVectorEffect,
   type DraftingSectionMarkerRendererProps,
 } from './renderer-types';
+import { resolveEffectiveLabelMode, shouldShowSecondaryCanvasLabel } from './label-policy';
 
 export function SectionMarkerRenderer({
   drawingSetup,
@@ -14,7 +15,9 @@ export function SectionMarkerRenderer({
   layer,
   object,
   onPointerDown,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingSectionMarkerRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -27,6 +30,14 @@ export function SectionMarkerRenderer({
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
   const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
   const vectorEffect = resolveRendererVectorEffect(surface);
+  const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
+  const showSecondary = shouldShowSecondaryCanvasLabel({
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
   const midpoint = {
     x: (object.geometry.startPoint.x + object.geometry.endPoint.x) / 2,
     y: (object.geometry.startPoint.y + object.geometry.endPoint.y) / 2,
@@ -91,7 +102,9 @@ export function SectionMarkerRenderer({
         </g>
       ))}
 
-      {object.parameters.sectionId !== object.parameters.sectionLabel ? (
+      {effectiveLabelMode !== 'minimal' &&
+      showSecondary &&
+      object.parameters.sectionId !== object.parameters.sectionLabel ? (
         <text
           fill={stroke}
           fontSize={textSize * 0.75}
@@ -103,7 +116,7 @@ export function SectionMarkerRenderer({
           {object.parameters.sectionId}
         </text>
       ) : null}
-      {object.parameters.sheetReference ? (
+      {showSecondary && object.parameters.sheetReference ? (
         <text
           fill={stroke}
           fontSize={textSize * 0.75}

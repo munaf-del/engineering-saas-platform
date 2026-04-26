@@ -9,6 +9,8 @@ import {
   resolveTechnicalStroke,
   type DraftingMonitoringPointRendererProps,
 } from './renderer-types';
+import { DraftingCanvasLabel } from './label-components';
+import { buildDraftingObjectLabelLines } from './label-policy';
 
 export function MonitoringPointRenderer({
   drawingSetup,
@@ -16,7 +18,10 @@ export function MonitoringPointRenderer({
   layer,
   object,
   onPointerDown,
+  allObjects,
+  labelMode,
   surface,
+  viewScale,
 }: DraftingMonitoringPointRendererProps) {
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
@@ -30,6 +35,14 @@ export function MonitoringPointRenderer({
   const { x, y } = object.geometry.point;
   const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
   const vectorEffect = resolveRendererVectorEffect(surface);
+  const labelLines = buildDraftingObjectLabelLines({
+    allObjects,
+    isSelected,
+    labelMode,
+    object,
+    surface,
+    viewScale,
+  });
 
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
@@ -72,17 +85,13 @@ export function MonitoringPointRenderer({
         y1={y - 300}
         y2={y + 300}
       />
-      <text
-        fill={stroke}
-        fontSize={textSize}
-        paintOrder="stroke"
-        stroke="#ffffff"
-        strokeWidth={34}
+      <DraftingCanvasLabel
+        lines={labelLines}
+        stroke={stroke}
+        textSize={textSize}
         x={x + 320}
         y={y - 140}
-      >
-        {object.metadata.pointId}
-      </text>
+      />
     </g>
   );
 }
