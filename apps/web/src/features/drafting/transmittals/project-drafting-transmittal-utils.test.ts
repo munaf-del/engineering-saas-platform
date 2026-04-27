@@ -3,10 +3,12 @@ import type { DraftingProjectTransmittal } from '@eng/shared';
 import {
   buildProjectDraftingTransmittalManifest,
   countProjectTransmittalProfileAuditProvenance,
+  filterProjectTransmittalsByAuditCoverage,
   hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
   resolveProjectTransmittalProfileAuditStatus,
   serializeProjectDraftingTransmittalManifestJson,
+  sortProjectTransmittalsByAuditCoverage,
 } from './project-drafting-transmittal-utils';
 
 describe('project drafting transmittal helpers', () => {
@@ -108,6 +110,69 @@ describe('project drafting transmittal helpers', () => {
     expect(hasProjectTransmittalProfileAuditCoverageWarning(summary)).toBe(true);
     expect(JSON.stringify(transmittal.payload.includedItems)).toBe(before);
   });
+
+  it('filters project transmittals by profile audit coverage', () => {
+    const transmittals = createCoverageTransmittals();
+
+    expect(
+      filterProjectTransmittalsByAuditCoverage(transmittals, 'all').map((item) => item.id),
+    ).toEqual(['frozen', 'fallback', 'missing', 'mixed']);
+    expect(
+      filterProjectTransmittalsByAuditCoverage(transmittals, 'needs_review').map((item) => item.id),
+    ).toEqual(['fallback', 'missing', 'mixed']);
+    expect(
+      filterProjectTransmittalsByAuditCoverage(transmittals, 'frozen_only').map((item) => item.id),
+    ).toEqual(['frozen']);
+    expect(
+      filterProjectTransmittalsByAuditCoverage(transmittals, 'fallback_resolved').map(
+        (item) => item.id,
+      ),
+    ).toEqual(['fallback', 'mixed']);
+    expect(
+      filterProjectTransmittalsByAuditCoverage(transmittals, 'missing_audit').map(
+        (item) => item.id,
+      ),
+    ).toEqual(['missing', 'mixed']);
+  });
+
+  it('sorts project transmittals by date and audit review priority without mutating records', () => {
+    const transmittals = createCoverageTransmittals();
+    const before = JSON.stringify(transmittals);
+
+    expect(
+      sortProjectTransmittalsByAuditCoverage(transmittals, 'newest').map((item) => item.id),
+    ).toEqual(['fallback', 'missing', 'frozen', 'mixed']);
+    expect(
+      sortProjectTransmittalsByAuditCoverage(transmittals, 'oldest').map((item) => item.id),
+    ).toEqual(['mixed', 'frozen', 'missing', 'fallback']);
+    expect(
+      sortProjectTransmittalsByAuditCoverage(transmittals, 'audit_review').map((item) => item.id),
+    ).toEqual(['mixed', 'missing', 'fallback', 'frozen']);
+    expect(JSON.stringify(transmittals)).toBe(before);
+    expect(sortProjectTransmittalsByAuditCoverage(transmittals, 'newest')).not.toBe(transmittals);
+  });
+
+  it('treats legacy project transmittal payloads as missing audit coverage for filters', () => {
+    const legacy = createProjectTransmittal();
+    legacy.id = 'legacy';
+    legacy.payload.includedItems = legacy.payload.includedItems.map((item) => ({
+      drawingId: item.drawingId,
+      drawingName: item.drawingName,
+      drawingNumber: item.drawingNumber,
+      drawingSheetIssueId: item.drawingSheetIssueId,
+      issueDate: item.issueDate,
+      issueNumber: item.issueNumber,
+      revision: item.revision,
+      sheetId: item.sheetId,
+      sheetNumber: item.sheetNumber,
+      sheetTitle: item.sheetTitle,
+      snapshotLabel: item.snapshotLabel,
+      status: item.status,
+    }));
+
+    expect(filterProjectTransmittalsByAuditCoverage([legacy], 'missing_audit')).toHaveLength(1);
+    expect(filterProjectTransmittalsByAuditCoverage([legacy], 'frozen_only')).toHaveLength(0);
+  });
 });
 
 function createProjectTransmittal(): DraftingProjectTransmittal {
@@ -185,6 +250,53 @@ function createProjectTransmittal(): DraftingProjectTransmittal {
     createdAt: '2026-04-24T00:00:00.000Z',
     updatedAt: '2026-04-24T01:00:00.000Z',
   };
+}
+
+function createCoverageTransmittals(): DraftingProjectTransmittal[] {
+  const source = createProjectTransmittal();
+  const frozenItem = source.payload.includedItems[0]!;
+  const missingItem = source.payload.includedItems[1]!;
+  const fallbackItem = {
+    ...missingItem,
+    drawingId: 'drawing-fallback',
+    drawingSheetIssueId: 'issue-fallback',
+    profileAuditProvenance: {
+      source: 'fallback_resolved' as const,
+      status: 'fallback_resolved' as const,
+      drawingId: 'drawing-fallback',
+      sheetId: 'sheet-fallback',
+      sourceIssueId: 'issue-fallback',
+    },
+    sheetId: 'sheet-fallback',
+  };
+
+  return [
+    transmittalWithItems('frozen', 'TRN-001', '2026-04-24T01:00:00.000Z', [frozenItem]),
+    transmittalWithItems('fallback', 'TRN-002', '2026-04-26T01:00:00.000Z', [fallbackItem]),
+    transmittalWithItems('missing', 'TRN-003', '2026-04-25T01:00:00.000Z', [missingItem]),
+    transmittalWithItems('mixed', 'TRN-004', '2026-04-23T01:00:00.000Z', [
+      frozenItem,
+      fallbackItem,
+      missingItem,
+    ]),
+  ];
+}
+
+function transmittalWithItems(
+  id: string,
+  transmittalNumber: string,
+  updatedAt: string,
+  includedItems: DraftingProjectTransmittal['payload']['includedItems'],
+): DraftingProjectTransmittal {
+  const transmittal = createProjectTransmittal();
+  transmittal.id = id;
+  transmittal.transmittalNumber = transmittalNumber;
+  transmittal.updatedAt = updatedAt;
+  transmittal.payload = {
+    ...transmittal.payload,
+    includedItems: includedItems.map((item) => ({ ...item })),
+  };
+  return transmittal;
 }
 
 function profileAuditFixture(includeProvenance = true) {

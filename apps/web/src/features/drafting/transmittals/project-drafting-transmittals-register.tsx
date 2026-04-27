@@ -13,6 +13,13 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useCreateProjectDraftingTransmittal,
@@ -24,8 +31,12 @@ import { api } from '@/lib/api-client';
 import {
   countProjectTransmittalProfileAuditProvenance,
   downloadProjectDraftingTransmittalManifestJson,
+  filterProjectTransmittalsByAuditCoverage,
   hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
+  sortProjectTransmittalsByAuditCoverage,
+  type ProjectTransmittalAuditCoverageFilter,
+  type ProjectTransmittalSortMode,
 } from './project-drafting-transmittal-utils';
 
 type ItemRef = {
@@ -84,8 +95,19 @@ export function ProjectDraftingTransmittalsRegister({
     projectId,
     selectedTransmittal?.id ?? '',
   );
+  const [auditFilter, setAuditFilter] =
+    React.useState<ProjectTransmittalAuditCoverageFilter>('all');
+  const [sortMode, setSortMode] = React.useState<ProjectTransmittalSortMode>('newest');
   const [form, setForm] = React.useState<FormState>(emptyForm);
   const [selectedItems, setSelectedItems] = React.useState<ItemRef[]>([]);
+  const visibleTransmittals = React.useMemo(
+    () =>
+      sortProjectTransmittalsByAuditCoverage(
+        filterProjectTransmittalsByAuditCoverage(transmittals, auditFilter),
+        sortMode,
+      ),
+    [auditFilter, sortMode, transmittals],
+  );
 
   React.useEffect(() => {
     if (!selectedTransmittal) {
@@ -209,7 +231,13 @@ export function ProjectDraftingTransmittalsRegister({
 
       <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className="space-y-3">
-          {transmittals.map((transmittal) => (
+          <ProjectTransmittalRegisterAuditControls
+            auditFilter={auditFilter}
+            onAuditFilterChange={setAuditFilter}
+            onSortModeChange={setSortMode}
+            sortMode={sortMode}
+          />
+          {visibleTransmittals.map((transmittal) => (
             <Card
               className={selectedId === transmittal.id ? 'border-primary' : ''}
               key={transmittal.id}
@@ -252,6 +280,10 @@ export function ProjectDraftingTransmittalsRegister({
           {transmittals.length === 0 ? (
             <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
               No project transmittals yet.
+            </div>
+          ) : visibleTransmittals.length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+              No transmittals match this audit filter.
             </div>
           ) : null}
         </section>
@@ -459,6 +491,59 @@ export function ProjectDraftingTransmittalsRegister({
         </section>
       </div>
     </>
+  );
+}
+
+export function ProjectTransmittalRegisterAuditControls({
+  auditFilter,
+  onAuditFilterChange,
+  onSortModeChange,
+  sortMode,
+}: {
+  auditFilter: ProjectTransmittalAuditCoverageFilter;
+  onAuditFilterChange: (value: ProjectTransmittalAuditCoverageFilter) => void;
+  onSortModeChange: (value: ProjectTransmittalSortMode) => void;
+  sortMode: ProjectTransmittalSortMode;
+}) {
+  return (
+    <div className="grid gap-3 rounded-md border bg-card p-3 text-sm sm:grid-cols-2">
+      <div className="space-y-1.5">
+        <Label htmlFor="project-transmittal-audit-filter">Audit filter</Label>
+        <Select
+          onValueChange={(value) =>
+            onAuditFilterChange(value as ProjectTransmittalAuditCoverageFilter)
+          }
+          value={auditFilter}
+        >
+          <SelectTrigger id="project-transmittal-audit-filter">
+            <SelectValue placeholder="All transmittals" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All transmittals</SelectItem>
+            <SelectItem value="needs_review">Needs audit review</SelectItem>
+            <SelectItem value="frozen_only">Frozen only</SelectItem>
+            <SelectItem value="fallback_resolved">Fallback resolved</SelectItem>
+            <SelectItem value="missing_audit">Missing audit</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="project-transmittal-audit-sort">Sort</Label>
+        <Select
+          onValueChange={(value) => onSortModeChange(value as ProjectTransmittalSortMode)}
+          value={sortMode}
+        >
+          <SelectTrigger id="project-transmittal-audit-sort">
+            <SelectValue placeholder="Newest first" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="oldest">Oldest first</SelectItem>
+            <SelectItem value="audit_review">Audit review first</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   );
 }
 

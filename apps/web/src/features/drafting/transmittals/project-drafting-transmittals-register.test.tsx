@@ -2,7 +2,10 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { DraftingProjectTransmittal } from '@eng/shared';
-import { ProjectTransmittalProfileAuditCoverage } from './project-drafting-transmittals-register';
+import {
+  ProjectTransmittalProfileAuditCoverage,
+  ProjectTransmittalRegisterAuditControls,
+} from './project-drafting-transmittals-register';
 
 describe('project drafting transmittal register profile audit coverage', () => {
   it('shows frozen, fallback, and missing coverage counts with a warning indicator', () => {
@@ -78,6 +81,22 @@ describe('project drafting transmittal register profile audit coverage', () => {
     expect(markup).toContain('Fallback: 0');
     expect(markup).toContain('Missing: 0');
     expect(markup).not.toContain('Review audit coverage');
+  });
+
+  it('renders compact audit filter and sort controls', () => {
+    const markup = renderToStaticMarkup(
+      <ProjectTransmittalRegisterAuditControls
+        auditFilter="needs_review"
+        onAuditFilterChange={() => undefined}
+        onSortModeChange={() => undefined}
+        sortMode="audit_review"
+      />,
+    );
+
+    expect(markup).toContain('Audit filter');
+    expect(markup).toContain('project-transmittal-audit-filter');
+    expect(markup).toContain('Sort');
+    expect(markup).toContain('project-transmittal-audit-sort');
   });
 });
 

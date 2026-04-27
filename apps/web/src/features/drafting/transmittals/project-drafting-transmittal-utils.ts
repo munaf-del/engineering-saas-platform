@@ -116,6 +116,15 @@ export type ProjectTransmittalProfileAuditSummary = {
   missing: number;
 };
 
+export type ProjectTransmittalAuditCoverageFilter =
+  | 'all'
+  | 'needs_review'
+  | 'frozen_only'
+  | 'fallback_resolved'
+  | 'missing_audit';
+
+export type ProjectTransmittalSortMode = 'newest' | 'oldest' | 'audit_review';
+
 export function countProjectTransmittalProfileAuditProvenance(
   items: DraftingProjectTransmittalItem[],
 ): ProjectTransmittalProfileAuditSummary {
@@ -158,6 +167,77 @@ export function hasProjectTransmittalProfileAuditCoverageWarning(
   summary: ProjectTransmittalProfileAuditSummary,
 ) {
   return summary.fallbackResolved > 0 || summary.missing > 0;
+}
+
+export function matchesProjectTransmittalAuditCoverageFilter(
+  transmittal: DraftingProjectTransmittal,
+  filter: ProjectTransmittalAuditCoverageFilter,
+) {
+  const summary = countProjectTransmittalProfileAuditProvenance(transmittal.payload.includedItems);
+
+  if (filter === 'all') {
+    return true;
+  }
+  if (filter === 'needs_review') {
+    return hasProjectTransmittalProfileAuditCoverageWarning(summary);
+  }
+  if (filter === 'frozen_only') {
+    return summary.frozen > 0 && summary.fallbackResolved === 0 && summary.missing === 0;
+  }
+  if (filter === 'fallback_resolved') {
+    return summary.fallbackResolved > 0;
+  }
+  return summary.missing > 0;
+}
+
+export function filterProjectTransmittalsByAuditCoverage(
+  transmittals: DraftingProjectTransmittal[],
+  filter: ProjectTransmittalAuditCoverageFilter,
+) {
+  return transmittals.filter((transmittal) =>
+    matchesProjectTransmittalAuditCoverageFilter(transmittal, filter),
+  );
+}
+
+export function sortProjectTransmittalsByAuditCoverage(
+  transmittals: DraftingProjectTransmittal[],
+  sortMode: ProjectTransmittalSortMode,
+) {
+  return [...transmittals].sort((left, right) => {
+    if (sortMode === 'audit_review') {
+      const leftSummary = countProjectTransmittalProfileAuditProvenance(left.payload.includedItems);
+      const rightSummary = countProjectTransmittalProfileAuditProvenance(
+        right.payload.includedItems,
+      );
+      const leftNeedsReview = hasProjectTransmittalProfileAuditCoverageWarning(leftSummary);
+      const rightNeedsReview = hasProjectTransmittalProfileAuditCoverageWarning(rightSummary);
+
+      if (leftNeedsReview !== rightNeedsReview) {
+        return leftNeedsReview ? -1 : 1;
+      }
+
+      const reviewScore = auditReviewScore(rightSummary) - auditReviewScore(leftSummary);
+      if (reviewScore !== 0) {
+        return reviewScore;
+      }
+    }
+
+    const newestFirst = sortMode !== 'oldest';
+    const dateComparison = projectTransmittalTimestamp(right) - projectTransmittalTimestamp(left);
+    if (dateComparison !== 0) {
+      return newestFirst ? dateComparison : -dateComparison;
+    }
+    return left.transmittalNumber.localeCompare(right.transmittalNumber);
+  });
+}
+
+function auditReviewScore(summary: ProjectTransmittalProfileAuditSummary) {
+  return summary.missing * 2 + summary.fallbackResolved;
+}
+
+function projectTransmittalTimestamp(transmittal: DraftingProjectTransmittal) {
+  const value = Date.parse(transmittal.updatedAt || transmittal.createdAt);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function sanitizeManifestValue(value: unknown): unknown {
