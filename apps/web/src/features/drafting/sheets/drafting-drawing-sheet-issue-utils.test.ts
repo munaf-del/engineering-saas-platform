@@ -38,6 +38,10 @@ describe('drafting drawing sheet issue snapshots', () => {
       layerFilter: {
         hiddenLayerIds: ['notes'],
       },
+      profileAudit: {
+        activeProfileId: 'as1100-general',
+        schemaVersion: 'drafting.profile-audit.v1',
+      },
       viewport: {
         center: { x: 1000, y: 1000 },
         fitMode: 'manual',
@@ -207,6 +211,13 @@ describe('drafting drawing sheet issue snapshots', () => {
       revision: 'B',
     });
     expect(manifest.lockedDrawingSheets[0]).toMatchObject({ id: 'sheet-1' });
+    expect(manifest.lockedProfileAudits[0]).toMatchObject({
+      sheetId: 'sheet-1',
+      profileAudit: {
+        activeProfileId: 'as1100-general',
+        warning: 'AS1100-informed profile; not a certification or full compliance claim.',
+      },
+    });
     expect(manifest.lockedObjects[0]).not.toHaveProperty('renderedState');
     expect(manifest.lockedUnderlays[0]).toMatchObject({ underlayId: 'underlay-1' });
     expect(manifest.comparison.hasDrift).toBe(false);

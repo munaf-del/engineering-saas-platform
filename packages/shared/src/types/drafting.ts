@@ -603,7 +603,54 @@ export type DraftingDrawingSheetTemplateSnapshot = {
   renderDefinition: Record<string, unknown>;
 };
 
+export type DraftingSheetProfileAudit = {
+  schemaVersion: 'drafting.profile-audit.v1';
+  warning: string;
+  activeProfileId: DraftingStandardProfileId;
+  profileName: string;
+  profileVersion: string;
+  disciplineProfileId: DraftingDisciplineProfileId;
+  lineWeightTableId: string;
+  lineStyleTableId: string;
+  sheetSize: string;
+  plottedScale: string;
+  lineWeightScale: number;
+  textScaleMode: DraftingTextScaleMode;
+  lineRoles: Array<{
+    role: string;
+    resolvedRole: string;
+    lineType: string;
+    editorStrokeWidthPx: number;
+    sheetLineWeightMm: number;
+  }>;
+  textPresets: Array<{
+    preset: string;
+    textRole: string;
+    paperHeightMm: number;
+    editorFontSizeModelUnits: number;
+    sheetFontSizeMm: number;
+  }>;
+  dimensionStyle: {
+    extensionRole: string;
+    labelGapModelUnits: number;
+    lineRole: string;
+    sheetLineWeightMm: number;
+    textHeightMm: number;
+    textPreset: string;
+    tickLengthModelUnits: number;
+  };
+  leaderStyle: {
+    colorRole: string;
+    lineRole: string;
+    maxLeaderOpacity: number;
+    sheetLineWeightMm: number;
+    textHeightMm: number;
+    textPreset: string;
+  };
+};
+
 export type DraftingLockedDrawingSheetDefinition = DraftingDrawingSheetDefinition & {
+  profileAudit?: DraftingSheetProfileAudit;
   templateSnapshot?: DraftingDrawingSheetTemplateSnapshot;
 };
 
@@ -1260,6 +1307,7 @@ export type DraftingProjectTransmittalItem = {
   sheetTitle: string;
   snapshotLabel: string;
   status: DraftingDrawingSheetIssueStatus;
+  profileAudit?: DraftingSheetProfileAudit;
 };
 
 export type DraftingProjectTransmittalPayload = {

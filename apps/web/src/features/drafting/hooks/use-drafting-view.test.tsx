@@ -106,7 +106,7 @@ describe('useDraftingView', () => {
     expect(hook.current.currentView.scale).toBeGreaterThan(model.view.scale);
     expect(hook.current.currentView.mode).toBe('custom');
     expect(model.view).toEqual({ scale: 0.05, offsetX: 160, offsetY: 160 });
-    expect(JSON.parse(serializeDraftingModelJson(model)).view).toEqual({
+    expect(JSON.parse(serializeDraftingModelJson(model)).model.view).toEqual({
       scale: 0.05,
       offsetX: 160,
       offsetY: 160,

@@ -934,6 +934,7 @@ export class DraftingService {
         sheetTitle: sheet.title || sheet.name,
         snapshotLabel: `${issue.issueNumber} Rev ${issue.revision} - ${sheet.sheetNumber} ${sheet.title || sheet.name}`,
         status: issue.status,
+        ...(sheet.profileAudit ? { profileAudit: sheet.profileAudit } : {}),
       });
       if (!sheet.templateSnapshot) {
         warningSummary.push(

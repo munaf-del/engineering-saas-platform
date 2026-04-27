@@ -370,6 +370,13 @@ describe('drafting transmittal helpers', () => {
       drawingTitle: 'Retention Plan',
       projectName: 'NORTH SYDNEY',
     });
+    expect(manifest.issueManifests[0]?.lockedProfileAudits[0]).toMatchObject({
+      sheetId: 'sheet-1',
+      profileAudit: {
+        activeProfileId: 'as1100-general',
+        schemaVersion: 'drafting.profile-audit.v1',
+      },
+    });
     expect(manifest.issueManifests[0]?.objectProvenanceSummary[0]).toMatchObject({
       objectId: 'pile-1',
       provenance: {

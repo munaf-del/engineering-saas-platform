@@ -34,8 +34,7 @@ import {
   resolveDraftingPaperLineStyle,
   resolveDraftingTextStyle,
 } from '../standards/drafting-style-resolver';
-
-const PROFILE_WARNING = 'AS1100-informed profile; not a certification or full compliance claim.';
+import { DRAFTING_PROFILE_AUDIT_WARNING } from '../standards/drafting-profile-audit';
 
 export function DraftingStandardsProfilePanel({
   model,
@@ -77,7 +76,7 @@ export function DraftingStandardsProfilePanel({
         </div>
 
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          {PROFILE_WARNING}
+          {DRAFTING_PROFILE_AUDIT_WARNING}
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

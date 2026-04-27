@@ -142,6 +142,49 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('stroke-width="0.35"');
   });
 
+  it('renders profile audit metadata and the AS1100-informed warning in sheet preview', () => {
+    const drawing = createDrawing();
+    drawing.model.drawingSetup = {
+      ...drawing.model.drawingSetup!,
+      activeStandardProfileId: 'as1100-structural',
+      disciplineProfileId: 'structural',
+      outputLineWeightScale: 1.25,
+    };
+    drawing.model.drawingSheets = [
+      {
+        ...createDraftingDrawingSheetDefinition({
+          id: 'drawing-sheet-1',
+        }),
+        id: 'drawing-sheet-1',
+        pageSize: 'a3',
+        scaleLabel: '1:50',
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPreview
+        drawing={drawing}
+        onModeChange={() => {}}
+        onSelectedSheetIdChange={() => {}}
+        previewMode="sheet"
+        project={project}
+        projectId={project.id}
+        rootTemplates={[]}
+        selectedSheetId="drawing-sheet-1"
+      />,
+    );
+
+    expect(markup).toContain('data-testid="drafting-sheet-profile-audit"');
+    expect(markup).toContain('Profile Audit');
+    expect(markup).toContain(
+      'AS1100-informed profile; not a certification or full compliance claim.',
+    );
+    expect(markup).toContain('as1100-structural');
+    expect(markup).toContain('Resolved Line Roles');
+    expect(markup).toContain('Resolved Text Presets');
+    expect(drawing.model.objects).toHaveLength(0);
+  });
+
   it('uses plotted paper line weights and linework-first pile wall objects', () => {
     const drawing = createDrawing();
     const secantWall = createDraftingObject('secant_pile_wall', { x: 0, y: 0 }, drawing.model);

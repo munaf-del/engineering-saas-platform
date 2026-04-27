@@ -31,9 +31,20 @@ import {
   serializeDraftingScheduleGroupCsv,
   serializeDraftingSchedulesJson,
 } from './schedules/drafting-schedule-utils';
+import { buildDraftingSheetProfileAudit } from './standards/drafting-profile-audit';
 
 export function serializeDraftingModelJson(model: DraftingModel) {
-  return JSON.stringify(model, null, 2);
+  return JSON.stringify(
+    {
+      exportSchemaVersion: 'drafting.model-export.v2',
+      binaryPolicy:
+        'Metadata only. No PDF bytes, rendered images, tokens, secrets, passwords, sessions, or unrelated document content.',
+      profileAudit: buildDraftingSheetProfileAudit({ model }),
+      model,
+    },
+    null,
+    2,
+  );
 }
 
 export function downloadDraftingModelJson(model: DraftingModel, title: string) {

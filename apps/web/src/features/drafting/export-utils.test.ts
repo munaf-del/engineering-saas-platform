@@ -145,7 +145,12 @@ describe('drafting export utils', () => {
     const exported = serializeDraftingModelJson(model);
     const parsed = JSON.parse(exported);
 
-    expect(parsed).toEqual(model);
+    expect(parsed.model).toEqual(model);
+    expect(parsed.profileAudit).toMatchObject({
+      activeProfileId: 'as1100-general',
+      schemaVersion: 'drafting.profile-audit.v1',
+      warning: 'AS1100-informed profile; not a certification or full compliance claim.',
+    });
     expect(exported).toContain('"type": "secant_pile_wall"');
     expect(exported).toContain('"wallId": "SEC1"');
     expect(exported).toContain('"type": "dimension_chain"');
@@ -182,12 +187,12 @@ describe('drafting export utils', () => {
     };
     const parsed = JSON.parse(serializeDraftingModelJson(model));
 
-    expect(parsed.titleBlock).toMatchObject({
+    expect(parsed.model.titleBlock).toMatchObject({
       drawingNumber: 'S-1001',
       drawingTitle: 'Retention Wall General Arrangement',
       status: 'for_review',
     });
-    expect(parsed.revisionBlock).toMatchObject({
+    expect(parsed.model.revisionBlock).toMatchObject({
       currentRevision: 'B',
       revisions: [expect.objectContaining({ revision: 'B' })],
     });
@@ -221,8 +226,8 @@ describe('drafting export utils', () => {
 
     const parsed = JSON.parse(serializeDraftingModelJson(model));
 
-    expect(parsed.drawingSheets).toHaveLength(1);
-    expect(parsed.drawingSheets[0]).toMatchObject({
+    expect(parsed.model.drawingSheets).toHaveLength(1);
+    expect(parsed.model.drawingSheets[0]).toMatchObject({
       id: 'drawing-sheet-1',
       includeUnderlays: true,
       rootSheetTemplateId: 'root-template-1',

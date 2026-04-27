@@ -7,6 +7,7 @@ import type {
   DraftingDrawing,
   DraftingDrawingSheetDefinition,
   DraftingDrawingSheetTemplateSnapshot,
+  DraftingSheetProfileAudit,
   Project,
 } from '@eng/shared';
 import { PageLoading } from '@/components/loading';
@@ -44,6 +45,10 @@ import {
   resolveDraftingTextStyle,
 } from '../standards/drafting-style-resolver';
 import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
+import {
+  buildDraftingSheetProfileAudit,
+  DRAFTING_PROFILE_AUDIT_WARNING,
+} from '../standards/drafting-profile-audit';
 import {
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
@@ -304,6 +309,17 @@ export function DraftingDrawingSheetPreview({
         </div>
       ) : null}
 
+      {selectedSheet ? (
+        <ProfileAuditSection
+          audit={
+            selectedIssue
+              ? (issueLockedSheetsById.get(selectedSheet.id)?.profileAudit ??
+                buildDraftingSheetProfileAudit({ model: previewModel, sheet: selectedSheet }))
+              : buildDraftingSheetProfileAudit({ model: previewModel, sheet: selectedSheet })
+          }
+        />
+      ) : null}
+
       {sheetsToRender.length === 0 ? (
         <div className="rounded-md border border-dashed bg-white px-6 py-12 text-center text-sm text-muted-foreground print:hidden">
           No saved drawing sheet definitions are available for this preview.
@@ -516,6 +532,145 @@ export function DraftingDrawingSheetPage({
         sheet={sheet}
       />
     </article>
+  );
+}
+
+function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
+  return (
+    <section
+      className="space-y-3 rounded-md border bg-white p-4 text-sm print:hidden"
+      data-testid="drafting-sheet-profile-audit"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-medium">Profile Audit</div>
+          <div className="text-xs text-muted-foreground">
+            Resolved presentation metadata used by this plotted sheet preview.
+          </div>
+        </div>
+        <Badge variant="outline">{audit.schemaVersion}</Badge>
+      </div>
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        {DRAFTING_PROFILE_AUDIT_WARNING}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <AuditMetric
+          label="Active profile"
+          value={`${audit.activeProfileId} · ${audit.profileName}`}
+        />
+        <AuditMetric label="Version" value={audit.profileVersion} />
+        <AuditMetric label="Discipline" value={audit.disciplineProfileId} />
+        <AuditMetric label="Sheet / scale" value={`${audit.sheetSize} · ${audit.plottedScale}`} />
+        <AuditMetric label="Line weight scale" value={String(audit.lineWeightScale)} />
+        <AuditMetric label="Text scale mode" value={audit.textScaleMode} />
+        <AuditMetric label="Line table" value={audit.lineWeightTableId} />
+        <AuditMetric label="Style table" value={audit.lineStyleTableId} />
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <AuditSummaryTable
+          columns={['Role', 'Type', 'Sheet mm']}
+          rows={audit.lineRoles.map((role) => [
+            role.role,
+            role.lineType,
+            role.sheetLineWeightMm.toFixed(2),
+          ])}
+          title="Resolved Line Roles"
+        />
+        <AuditSummaryTable
+          columns={['Preset', 'Text role', 'Paper height']}
+          rows={audit.textPresets.map((preset) => [
+            preset.preset,
+            preset.textRole,
+            `${preset.paperHeightMm.toFixed(1)} mm`,
+          ])}
+          title="Resolved Text Presets"
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <AuditSummaryCard
+          rows={[
+            ['Line role', audit.dimensionStyle.lineRole],
+            ['Extension role', audit.dimensionStyle.extensionRole],
+            ['Text preset', audit.dimensionStyle.textPreset],
+            ['Sheet weight', `${audit.dimensionStyle.sheetLineWeightMm.toFixed(2)} mm`],
+            ['Text height', `${audit.dimensionStyle.textHeightMm.toFixed(1)} mm`],
+          ]}
+          title="Dimension Style"
+        />
+        <AuditSummaryCard
+          rows={[
+            ['Line role', audit.leaderStyle.lineRole],
+            ['Colour role', audit.leaderStyle.colorRole],
+            ['Text preset', audit.leaderStyle.textPreset],
+            ['Sheet weight', `${audit.leaderStyle.sheetLineWeightMm.toFixed(2)} mm`],
+            ['Max opacity', audit.leaderStyle.maxLeaderOpacity.toFixed(2)],
+          ]}
+          title="Leader Style"
+        />
+      </div>
+    </section>
+  );
+}
+
+function AuditMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2">
+      <div className="text-[10px] font-medium uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-xs font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function AuditSummaryTable({
+  columns,
+  rows,
+  title,
+}: {
+  columns: string[];
+  rows: string[][];
+  title: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <div className="border-b bg-muted/60 px-3 py-2 text-xs font-medium">{title}</div>
+      <div
+        className="grid bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase text-muted-foreground"
+        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+      >
+        {columns.map((column) => (
+          <div key={column}>{column}</div>
+        ))}
+      </div>
+      {rows.map((row) => (
+        <div
+          className="grid border-t px-3 py-1.5 text-xs"
+          key={row.join(':')}
+          style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+        >
+          {row.map((cell, index) => (
+            <div className="break-words" key={`${cell}-${index}`}>
+              {cell}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AuditSummaryCard({ rows, title }: { rows: string[][]; title: string }) {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{title}</div>
+      <dl className="mt-2 grid gap-1 text-xs">
+        {rows.map(([label, value]) => (
+          <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-2" key={label}>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="break-words font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 

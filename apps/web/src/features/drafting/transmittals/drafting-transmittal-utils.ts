@@ -83,6 +83,9 @@ export type DraftingTransmittalManifest = {
     lockedTemplateMetadata: ReturnType<
       typeof buildDraftingDrawingSheetIssueManifest
     >['lockedTemplateMetadata'];
+    lockedProfileAudits: ReturnType<
+      typeof buildDraftingDrawingSheetIssueManifest
+    >['lockedProfileAudits'];
     lockedUnderlays: ReturnType<typeof buildDraftingDrawingSheetIssueManifest>['lockedUnderlays'];
     objectProvenanceSummary: Array<{
       label?: string;
@@ -545,6 +548,7 @@ export function buildDraftingTransmittalManifest(args: {
         comparison: manifest.comparison,
         drawingSheetIssueId: issue.id,
         issue: manifest.issue,
+        lockedProfileAudits: manifest.lockedProfileAudits,
         lockedTemplateMetadata: manifest.lockedTemplateMetadata,
         lockedUnderlays: manifest.lockedUnderlays,
         objectProvenanceSummary: manifest.lockedObjects.map((object) => ({

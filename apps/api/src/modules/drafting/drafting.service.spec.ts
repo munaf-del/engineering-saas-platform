@@ -671,6 +671,10 @@ describe('DraftingService', () => {
       }),
     );
     expect(result.payload.includedItems).toHaveLength(2);
+    expect(result.payload.includedItems[0]?.profileAudit).toMatchObject({
+      activeProfileId: 'as1100-structural',
+      schemaVersion: 'drafting.profile-audit.v1',
+    });
     expect(result.payload.provenanceSummary.drawingCount).toBe(2);
     expect(result.payload.manifestSignature).toMatch(/^sig-[0-9a-f]{8}$/);
   });
@@ -1033,6 +1037,7 @@ function issuedSheetModel(
             includeUnderlays: true,
             includeGrid: true,
             includeObjectLabels: true,
+            profileAudit: profileAuditFixture(),
             createdAt: '2026-04-24T00:00:00.000Z',
             updatedAt: '2026-04-24T00:00:00.000Z',
           },
@@ -1043,6 +1048,58 @@ function issuedSheetModel(
         updatedAt: '2026-04-24T00:00:00.000Z',
       },
     ],
+  };
+}
+
+function profileAuditFixture() {
+  return {
+    schemaVersion: 'drafting.profile-audit.v1' as const,
+    warning: 'AS1100-informed profile; not a certification or full compliance claim.',
+    activeProfileId: 'as1100-structural' as const,
+    profileName: 'AS/NZS 1100 Structural',
+    profileVersion: '2026-04-as1100-style-v1',
+    disciplineProfileId: 'structural' as const,
+    lineWeightTableId: 'as1100-style-lineweights-v1',
+    lineStyleTableId: 'as1100-style-lines-v1',
+    sheetSize: 'A3',
+    plottedScale: '1:100',
+    lineWeightScale: 1,
+    textScaleMode: 'model' as const,
+    lineRoles: [
+      {
+        role: 'OBJECT_OUTLINE',
+        resolvedRole: 'objectVisible',
+        lineType: 'solid',
+        editorStrokeWidthPx: 1.4,
+        sheetLineWeightMm: 0.35,
+      },
+    ],
+    textPresets: [
+      {
+        preset: 'DIMENSION',
+        textRole: 'dimension',
+        paperHeightMm: 2.5,
+        editorFontSizeModelUnits: 175,
+        sheetFontSizeMm: 2.5,
+      },
+    ],
+    dimensionStyle: {
+      extensionRole: 'dimension',
+      labelGapModelUnits: 340,
+      lineRole: 'dimensionLine',
+      sheetLineWeightMm: 0.18,
+      textHeightMm: 2.5,
+      textPreset: 'DIMENSION',
+      tickLengthModelUnits: 210,
+    },
+    leaderStyle: {
+      colorRole: 'leaderLine',
+      lineRole: 'leaderLine',
+      maxLeaderOpacity: 0.68,
+      sheetLineWeightMm: 0.18,
+      textHeightMm: 2.5,
+      textPreset: 'ANNOTATION',
+    },
   };
 }
 

@@ -23,6 +23,7 @@ import {
   getDrawingSheetVisibleObjects,
   getDrawingSheetVisibleUnderlays,
 } from './drafting-drawing-sheet-utils';
+import { buildDraftingSheetProfileAudit } from '../standards/drafting-profile-audit';
 
 export type CreateDraftingDrawingSheetIssueSnapshotArgs = {
   id: string;
@@ -93,6 +94,13 @@ export type DraftingDrawingSheetIssueManifest = {
     sheetName: string;
     templateSnapshot: DraftingDrawingSheetTemplateSnapshot | null;
   }>;
+  lockedProfileAudits: Array<{
+    profileAudit: NonNullable<
+      DraftingDrawingSheetIssue['lockedDrawingSheets'][number]['profileAudit']
+    >;
+    sheetId: string;
+    sheetName: string;
+  }>;
   lockedTitleBlock: DraftingTitleBlockMetadata;
   lockedUnderlays: DraftingDrawingSheetIssue['lockedUnderlays'];
 };
@@ -123,7 +131,7 @@ export function createDraftingDrawingSheetIssueSnapshot(
   const sheetIdSet = new Set(sheetIds);
   const lockedDrawingSheets = getDrawingSheetDefinitions(model)
     .filter((sheet) => sheetIdSet.has(sheet.id))
-    .map((sheet) => cloneDrawingSheetDefinition(sheet, args.rootTemplatesById));
+    .map((sheet) => cloneDrawingSheetDefinition(model, sheet, args.rootTemplatesById));
   const lockedObjects = collectLockedObjects(model, lockedDrawingSheets);
   const lockedUnderlays = collectLockedUnderlays(model, lockedDrawingSheets);
 
@@ -317,6 +325,16 @@ export function buildDraftingDrawingSheetIssueManifest(args: {
       sheetName: sheet.name,
       templateSnapshot: sheet.templateSnapshot ?? null,
     })),
+    lockedProfileAudits: args.issue.lockedDrawingSheets.map((sheet) => ({
+      profileAudit:
+        sheet.profileAudit ??
+        buildDraftingSheetProfileAudit({
+          model: args.model,
+          sheet,
+        }),
+      sheetId: sheet.id,
+      sheetName: sheet.name,
+    })),
     lockedTitleBlock: args.issue.lockedTitleBlock,
     lockedUnderlays: args.issue.lockedUnderlays,
   };
@@ -375,11 +393,13 @@ function collectLockedUnderlays(
 }
 
 function cloneDrawingSheetDefinition(
+  model: DraftingModel,
   sheet: DraftingDrawingSheetDefinition,
   rootTemplatesById: ReadonlyMap<string, RootSheetTemplate> = new Map(),
 ) {
   return {
     ...clonePlain(sheet),
+    profileAudit: buildDraftingSheetProfileAudit({ model, sheet }),
     templateSnapshot: resolveDrawingSheetTemplateSnapshot(sheet, rootTemplatesById),
   };
 }

@@ -129,6 +129,56 @@ const DraftingDisciplineProfileIdSchema = z.enum(['general', 'structural', 'surv
 
 const DraftingSheetSizePresetSchema = z.enum(['A0', 'A1', 'A2', 'A3', 'A4']);
 
+const DraftingSheetProfileAuditSchema = z.object({
+  schemaVersion: z.literal('drafting.profile-audit.v1'),
+  warning: z.string().min(1),
+  activeProfileId: DraftingStandardProfileIdSchema,
+  profileName: z.string().min(1),
+  profileVersion: z.string().min(1),
+  disciplineProfileId: DraftingDisciplineProfileIdSchema,
+  lineWeightTableId: z.string().min(1),
+  lineStyleTableId: z.string().min(1),
+  sheetSize: z.string().min(1),
+  plottedScale: z.string().min(1),
+  lineWeightScale: z.number().positive(),
+  textScaleMode: z.enum(DRAFTING_TEXT_SCALE_MODES),
+  lineRoles: z.array(
+    z.object({
+      role: z.string().min(1),
+      resolvedRole: z.string().min(1),
+      lineType: z.string().min(1),
+      editorStrokeWidthPx: z.number().positive(),
+      sheetLineWeightMm: z.number().positive(),
+    }),
+  ),
+  textPresets: z.array(
+    z.object({
+      preset: z.string().min(1),
+      textRole: z.string().min(1),
+      paperHeightMm: z.number().positive(),
+      editorFontSizeModelUnits: z.number().positive(),
+      sheetFontSizeMm: z.number().positive(),
+    }),
+  ),
+  dimensionStyle: z.object({
+    extensionRole: z.string().min(1),
+    labelGapModelUnits: z.number().positive(),
+    lineRole: z.string().min(1),
+    sheetLineWeightMm: z.number().positive(),
+    textHeightMm: z.number().positive(),
+    textPreset: z.string().min(1),
+    tickLengthModelUnits: z.number().positive(),
+  }),
+  leaderStyle: z.object({
+    colorRole: z.string().min(1),
+    lineRole: z.string().min(1),
+    maxLeaderOpacity: z.number().min(0).max(1),
+    sheetLineWeightMm: z.number().positive(),
+    textHeightMm: z.number().positive(),
+    textPreset: z.string().min(1),
+  }),
+});
+
 const DraftingDrawingSetupSchema = z.object({
   modelUnits: z.enum(DRAFTING_MODEL_UNITS),
   displayUnits: z.enum(DRAFTING_DISPLAY_UNITS),
@@ -379,6 +429,7 @@ export const DraftingDrawingSheetTemplateSnapshotSchema = z.object({
 
 export const DraftingLockedDrawingSheetDefinitionSchema =
   DraftingDrawingSheetDefinitionSchema.extend({
+    profileAudit: DraftingSheetProfileAuditSchema.optional(),
     templateSnapshot: DraftingDrawingSheetTemplateSnapshotSchema.optional(),
   });
 
@@ -1048,6 +1099,7 @@ export const DraftingProjectTransmittalItemSchema = z.object({
   sheetTitle: z.string().min(1),
   snapshotLabel: z.string().min(1),
   status: z.enum(DRAFTING_DRAWING_SHEET_ISSUE_STATUSES),
+  profileAudit: DraftingSheetProfileAuditSchema.optional(),
 });
 
 export const DraftingProjectTransmittalPayloadSchema = z.object({
