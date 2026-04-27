@@ -462,6 +462,7 @@ export function DraftingObjectHandles({
           key={handle.id}
           data-drafting-handle="true"
           data-handle-id={handle.id}
+          data-testid={`drafting-handle-${object.id}-${handle.id}`}
           onPointerDown={(event) => onHandlePointerDown(event, object, handle.id)}
           style={{ cursor: handle.cursor ?? 'grab' }}
           transform={`translate(${handle.point.x} ${handle.point.y}) scale(${1 / safeScale})`}

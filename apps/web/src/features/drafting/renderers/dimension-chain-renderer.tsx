@@ -90,6 +90,8 @@ export function DimensionChainRenderer({
     <g
       data-dimension-id={object.parameters.dimensionId}
       data-drafting-object="true"
+      data-drafting-object-id={object.id}
+      data-testid={`drafting-object-${object.id}`}
       onPointerDown={onPointerDown}
     >
       {isSelected ? (
@@ -180,6 +182,7 @@ export function DimensionChainRenderer({
                 )}
                 point={labelPoint}
                 stroke={stroke}
+                testId={`drafting-dimension-label-${object.id}-segment-${index}`}
                 textSize={textSize}
                 textStyle={dimensionStyle.textStyle}
               />
@@ -245,6 +248,7 @@ export function DimensionChainRenderer({
                   label={totalLabel}
                   point={totalLabelPoint}
                   stroke={stroke}
+                  testId={`drafting-dimension-label-${object.id}-total`}
                   textSize={textSize}
                   textStyle={dimensionStyle.textStyle}
                 />
@@ -307,6 +311,7 @@ function DimensionLabel({
   label,
   point,
   stroke,
+  testId,
   textSize,
   textStyle,
 }: {
@@ -314,11 +319,13 @@ function DimensionLabel({
   label: string;
   point: DraftingPoint;
   stroke: string;
+  testId?: string;
   textSize: number;
   textStyle: ReturnType<typeof resolveDraftingDimensionStyle>['textStyle'];
 }) {
   return (
     <text
+      data-testid={testId}
       dominantBaseline="middle"
       fill={stroke}
       fontSize={textSize}

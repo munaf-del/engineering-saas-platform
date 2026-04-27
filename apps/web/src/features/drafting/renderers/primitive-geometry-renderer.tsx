@@ -27,7 +27,12 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const anchor = midpoint([props.object.geometry.startPoint, props.object.geometry.endPoint]);
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <line
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeWidth={style.strokeWidth}
@@ -47,7 +52,12 @@ export function DraftPolylineRenderer(props: DraftingRendererProps<DraftingPolyl
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const anchor = midpoint(props.object.geometry.points);
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <polyline
         fill="none"
         points={pointsAttribute(props.object.geometry.points)}
@@ -72,7 +82,12 @@ export function DraftRectangleRenderer(props: DraftingRendererProps<DraftingRect
   const anchor = midpoint([cornerA, cornerB]);
 
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <rect
         fill="none"
         height={height}
@@ -92,7 +107,12 @@ export function DraftCircleRenderer(props: DraftingRendererProps<DraftingCircleO
   const style = usePrimitiveStyle(props);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <circle
         cx={props.object.geometry.centre.x}
         cy={props.object.geometry.centre.y}
@@ -126,7 +146,12 @@ export function DraftPolygonRenderer(props: DraftingRendererProps<DraftingPolygo
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const anchor = midpoint(props.object.geometry.points);
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <polygon
         fill={resolveTechnicalFill(props.object.style?.fill, 'none')}
         points={pointsAttribute(props.object.geometry.points)}
@@ -167,7 +192,12 @@ export function StructuralJointRenderer(
     ].some((value) => Number.isFinite(value));
 
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       <circle
         cx={point.x}
         cy={point.y}
@@ -252,7 +282,12 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
   });
 
   return (
-    <g data-drafting-object="true" onPointerDown={props.onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={props.object.id}
+      data-testid={`drafting-object-${props.object.id}`}
+      onPointerDown={props.onPointerDown}
+    >
       {props.object.geometry.breaklines?.map((line, index) => (
         <polyline
           fill="none"

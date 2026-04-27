@@ -53,14 +53,33 @@ export async function getAuthToken(email: string, password: string): Promise<str
   });
   if (!res.ok) throw new Error(`Login failed: ${res.status}`);
   const data = await res.json();
-  return data.accessToken;
+  if (data.user?.organisationId) {
+    return data.accessToken;
+  }
+
+  const organisationId = data.organisations?.[0]?.id;
+  if (!organisationId) {
+    return data.accessToken;
+  }
+
+  const switchRes = await fetch(`${API_BASE}/api/v1/auth/switch-org`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${data.accessToken}`,
+    },
+    body: JSON.stringify({ organisationId }),
+  });
+  if (!switchRes.ok) throw new Error(`Switch organisation failed: ${switchRes.status}`);
+  const switched = await switchRes.json();
+  return switched.accessToken;
 }
 
-export async function apiRequest(
+export async function apiRequest<T = unknown>(
   token: string,
   path: string,
   opts: { method?: string; body?: unknown } = {},
-) {
+): Promise<T> {
   const res = await fetch(`${API_BASE}/api/v1${path}`, {
     method: opts.method ?? 'GET',
     headers: {
@@ -73,6 +92,6 @@ export async function apiRequest(
     const text = await res.text().catch(() => '');
     throw new Error(`API ${res.status} on ${path}: ${text}`);
   }
-  if (res.status === 204) return undefined;
-  return res.json();
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
 }
