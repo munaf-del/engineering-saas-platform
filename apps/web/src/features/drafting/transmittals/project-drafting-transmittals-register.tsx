@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileJson, Plus, Send, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, FileJson, Plus, RotateCcw, Send, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DraftingDrawing, DraftingProjectTransmittal, Project } from '@eng/shared';
 import { useQueries } from '@tanstack/react-query';
@@ -29,12 +29,16 @@ import {
 } from '@/hooks/use-drafting';
 import { api } from '@/lib/api-client';
 import {
+  clearProjectTransmittalAuditViewPreference,
   countProjectTransmittalProfileAuditProvenance,
+  DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
   downloadProjectDraftingTransmittalManifestJson,
   filterProjectTransmittalsByAuditCoverage,
   hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
+  readProjectTransmittalAuditViewPreference,
   sortProjectTransmittalsByAuditCoverage,
+  writeProjectTransmittalAuditViewPreference,
   type ProjectTransmittalAuditCoverageFilter,
   type ProjectTransmittalSortMode,
 } from './project-drafting-transmittal-utils';
@@ -108,6 +112,12 @@ export function ProjectDraftingTransmittalsRegister({
       ),
     [auditFilter, sortMode, transmittals],
   );
+
+  React.useEffect(() => {
+    const storedPreference = readProjectTransmittalAuditViewPreference(projectId);
+    setAuditFilter(storedPreference.auditFilter);
+    setSortMode(storedPreference.auditSort);
+  }, [projectId]);
 
   React.useEffect(() => {
     if (!selectedTransmittal) {
@@ -200,6 +210,28 @@ export function ProjectDraftingTransmittalsRegister({
     }
   }
 
+  function updateAuditFilter(value: ProjectTransmittalAuditCoverageFilter) {
+    setAuditFilter(value);
+    writeProjectTransmittalAuditViewPreference(projectId, {
+      auditFilter: value,
+      auditSort: sortMode,
+    });
+  }
+
+  function updateSortMode(value: ProjectTransmittalSortMode) {
+    setSortMode(value);
+    writeProjectTransmittalAuditViewPreference(projectId, {
+      auditFilter,
+      auditSort: value,
+    });
+  }
+
+  function resetAuditViewPreference() {
+    clearProjectTransmittalAuditViewPreference(projectId);
+    setAuditFilter(DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW.auditFilter);
+    setSortMode(DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW.auditSort);
+  }
+
   return (
     <>
       <PageHeader
@@ -233,8 +265,9 @@ export function ProjectDraftingTransmittalsRegister({
         <section className="space-y-3">
           <ProjectTransmittalRegisterAuditControls
             auditFilter={auditFilter}
-            onAuditFilterChange={setAuditFilter}
-            onSortModeChange={setSortMode}
+            onAuditFilterChange={updateAuditFilter}
+            onResetView={resetAuditViewPreference}
+            onSortModeChange={updateSortMode}
             sortMode={sortMode}
           />
           {visibleTransmittals.map((transmittal) => (
@@ -497,52 +530,60 @@ export function ProjectDraftingTransmittalsRegister({
 export function ProjectTransmittalRegisterAuditControls({
   auditFilter,
   onAuditFilterChange,
+  onResetView,
   onSortModeChange,
   sortMode,
 }: {
   auditFilter: ProjectTransmittalAuditCoverageFilter;
   onAuditFilterChange: (value: ProjectTransmittalAuditCoverageFilter) => void;
+  onResetView: () => void;
   onSortModeChange: (value: ProjectTransmittalSortMode) => void;
   sortMode: ProjectTransmittalSortMode;
 }) {
   return (
-    <div className="grid gap-3 rounded-md border bg-card p-3 text-sm sm:grid-cols-2">
-      <div className="space-y-1.5">
-        <Label htmlFor="project-transmittal-audit-filter">Audit filter</Label>
-        <Select
-          onValueChange={(value) =>
-            onAuditFilterChange(value as ProjectTransmittalAuditCoverageFilter)
-          }
-          value={auditFilter}
-        >
-          <SelectTrigger id="project-transmittal-audit-filter">
-            <SelectValue placeholder="All transmittals" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All transmittals</SelectItem>
-            <SelectItem value="needs_review">Needs audit review</SelectItem>
-            <SelectItem value="frozen_only">Frozen only</SelectItem>
-            <SelectItem value="fallback_resolved">Fallback resolved</SelectItem>
-            <SelectItem value="missing_audit">Missing audit</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="space-y-3 rounded-md border bg-card p-3 text-sm">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="project-transmittal-audit-filter">Audit filter</Label>
+          <Select
+            onValueChange={(value) =>
+              onAuditFilterChange(value as ProjectTransmittalAuditCoverageFilter)
+            }
+            value={auditFilter}
+          >
+            <SelectTrigger id="project-transmittal-audit-filter">
+              <SelectValue placeholder="All transmittals" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All transmittals</SelectItem>
+              <SelectItem value="needs_review">Needs audit review</SelectItem>
+              <SelectItem value="frozen_only">Frozen only</SelectItem>
+              <SelectItem value="fallback_resolved">Fallback resolved</SelectItem>
+              <SelectItem value="missing_audit">Missing audit</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="project-transmittal-audit-sort">Sort</Label>
+          <Select
+            onValueChange={(value) => onSortModeChange(value as ProjectTransmittalSortMode)}
+            value={sortMode}
+          >
+            <SelectTrigger id="project-transmittal-audit-sort">
+              <SelectValue placeholder="Newest first" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="audit_review">Audit review first</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="project-transmittal-audit-sort">Sort</Label>
-        <Select
-          onValueChange={(value) => onSortModeChange(value as ProjectTransmittalSortMode)}
-          value={sortMode}
-        >
-          <SelectTrigger id="project-transmittal-audit-sort">
-            <SelectValue placeholder="Newest first" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest first</SelectItem>
-            <SelectItem value="oldest">Oldest first</SelectItem>
-            <SelectItem value="audit_review">Audit review first</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Button className="h-8 px-2 text-xs" onClick={onResetView} type="button" variant="ghost">
+        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+        Reset view
+      </Button>
     </div>
   );
 }

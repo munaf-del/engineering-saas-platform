@@ -88,6 +88,7 @@ describe('project drafting transmittal register profile audit coverage', () => {
       <ProjectTransmittalRegisterAuditControls
         auditFilter="needs_review"
         onAuditFilterChange={() => undefined}
+        onResetView={() => undefined}
         onSortModeChange={() => undefined}
         sortMode="audit_review"
       />,
@@ -97,6 +98,33 @@ describe('project drafting transmittal register profile audit coverage', () => {
     expect(markup).toContain('project-transmittal-audit-filter');
     expect(markup).toContain('Sort');
     expect(markup).toContain('project-transmittal-audit-sort');
+    expect(markup).toContain('Reset view');
+  });
+
+  it('does not trigger mutation callbacks while rendering view controls', () => {
+    let auditFilterChanges = 0;
+    let sortChanges = 0;
+    let resets = 0;
+
+    renderToStaticMarkup(
+      <ProjectTransmittalRegisterAuditControls
+        auditFilter="all"
+        onAuditFilterChange={() => {
+          auditFilterChanges += 1;
+        }}
+        onResetView={() => {
+          resets += 1;
+        }}
+        onSortModeChange={() => {
+          sortChanges += 1;
+        }}
+        sortMode="newest"
+      />,
+    );
+
+    expect(auditFilterChanges).toBe(0);
+    expect(sortChanges).toBe(0);
+    expect(resets).toBe(0);
   });
 });
 

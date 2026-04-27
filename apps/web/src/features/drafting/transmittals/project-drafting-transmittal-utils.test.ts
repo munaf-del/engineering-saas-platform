@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 import type { DraftingProjectTransmittal } from '@eng/shared';
 import {
   buildProjectDraftingTransmittalManifest,
+  clearProjectTransmittalAuditViewPreference,
   countProjectTransmittalProfileAuditProvenance,
+  DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
   filterProjectTransmittalsByAuditCoverage,
+  getProjectTransmittalAuditViewStorageKey,
   hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
+  readProjectTransmittalAuditViewPreference,
   resolveProjectTransmittalProfileAuditStatus,
   serializeProjectDraftingTransmittalManifestJson,
   sortProjectTransmittalsByAuditCoverage,
+  writeProjectTransmittalAuditViewPreference,
 } from './project-drafting-transmittal-utils';
 
 describe('project drafting transmittal helpers', () => {
@@ -173,6 +178,83 @@ describe('project drafting transmittal helpers', () => {
     expect(filterProjectTransmittalsByAuditCoverage([legacy], 'missing_audit')).toHaveLength(1);
     expect(filterProjectTransmittalsByAuditCoverage([legacy], 'frozen_only')).toHaveLength(0);
   });
+
+  it('uses default project transmittal audit view preference when none is stored', () => {
+    const storage = createMemoryStorage();
+
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual(
+      DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
+    );
+  });
+
+  it('restores a stored project transmittal audit view preference', () => {
+    const storage = createMemoryStorage();
+    writeProjectTransmittalAuditViewPreference(
+      'project-1',
+      {
+        auditFilter: 'needs_review',
+        auditSort: 'audit_review',
+      },
+      storage,
+    );
+
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual({
+      auditFilter: 'needs_review',
+      auditSort: 'audit_review',
+    });
+  });
+
+  it('falls back safely when a stored project transmittal audit view preference is invalid', () => {
+    const storage = createMemoryStorage();
+    const storageKey = getProjectTransmittalAuditViewStorageKey('project-1');
+
+    storage.setItem(
+      storageKey,
+      JSON.stringify({
+        auditFilter: 'delete_records',
+        auditSort: 'oldest',
+        version: 1,
+      }),
+    );
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual(
+      DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
+    );
+
+    storage.setItem(storageKey, '{not json');
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual(
+      DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
+    );
+  });
+
+  it('writes and clears project transmittal audit view preference without touching records', () => {
+    const storage = createMemoryStorage();
+    const transmittal = createProjectTransmittal();
+    const before = JSON.stringify(transmittal);
+
+    writeProjectTransmittalAuditViewPreference(
+      'project-1',
+      {
+        auditFilter: 'missing_audit',
+        auditSort: 'oldest',
+      },
+      storage,
+    );
+
+    expect(storage.getItem(getProjectTransmittalAuditViewStorageKey('project-1'))).toContain(
+      'missing_audit',
+    );
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual({
+      auditFilter: 'missing_audit',
+      auditSort: 'oldest',
+    });
+
+    clearProjectTransmittalAuditViewPreference('project-1', storage);
+    expect(storage.getItem(getProjectTransmittalAuditViewStorageKey('project-1'))).toBeNull();
+    expect(readProjectTransmittalAuditViewPreference('project-1', storage)).toEqual(
+      DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW,
+    );
+    expect(JSON.stringify(transmittal)).toBe(before);
+  });
 });
 
 function createProjectTransmittal(): DraftingProjectTransmittal {
@@ -297,6 +379,22 @@ function transmittalWithItems(
     includedItems: includedItems.map((item) => ({ ...item })),
   };
   return transmittal;
+}
+
+function createMemoryStorage(): Pick<Storage, 'getItem' | 'removeItem' | 'setItem'> {
+  const values = new Map<string, string>();
+
+  return {
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    removeItem(key: string) {
+      values.delete(key);
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    },
+  };
 }
 
 function profileAuditFixture(includeProvenance = true) {

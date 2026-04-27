@@ -125,6 +125,95 @@ export type ProjectTransmittalAuditCoverageFilter =
 
 export type ProjectTransmittalSortMode = 'newest' | 'oldest' | 'audit_review';
 
+export type ProjectTransmittalAuditViewPreference = {
+  auditFilter: ProjectTransmittalAuditCoverageFilter;
+  auditSort: ProjectTransmittalSortMode;
+};
+
+type ProjectTransmittalAuditViewPreferencePayload = ProjectTransmittalAuditViewPreference & {
+  version: 1;
+};
+
+type BrowserStorage = Pick<Storage, 'getItem' | 'removeItem' | 'setItem'>;
+
+export const DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW: ProjectTransmittalAuditViewPreference = {
+  auditFilter: 'all',
+  auditSort: 'newest',
+};
+
+const PROJECT_TRANSMITTAL_AUDIT_VIEW_STORAGE_VERSION = 1;
+
+export function getProjectTransmittalAuditViewStorageKey(projectId: string) {
+  return `eng.drafting.projectTransmittals.auditView.${projectId}`;
+}
+
+export function readProjectTransmittalAuditViewPreference(
+  projectId: string,
+  storage = getBrowserLocalStorage(),
+): ProjectTransmittalAuditViewPreference {
+  if (!storage) {
+    return DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW;
+  }
+
+  try {
+    const rawValue = storage.getItem(getProjectTransmittalAuditViewStorageKey(projectId));
+    if (!rawValue) {
+      return DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW;
+    }
+    const parsed = JSON.parse(rawValue) as Partial<ProjectTransmittalAuditViewPreferencePayload>;
+    if (
+      parsed.version !== PROJECT_TRANSMITTAL_AUDIT_VIEW_STORAGE_VERSION ||
+      !isProjectTransmittalAuditCoverageFilter(parsed.auditFilter) ||
+      !isProjectTransmittalSortMode(parsed.auditSort)
+    ) {
+      return DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW;
+    }
+    return {
+      auditFilter: parsed.auditFilter,
+      auditSort: parsed.auditSort,
+    };
+  } catch {
+    return DEFAULT_PROJECT_TRANSMITTAL_AUDIT_VIEW;
+  }
+}
+
+export function writeProjectTransmittalAuditViewPreference(
+  projectId: string,
+  preference: ProjectTransmittalAuditViewPreference,
+  storage = getBrowserLocalStorage(),
+) {
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(
+      getProjectTransmittalAuditViewStorageKey(projectId),
+      JSON.stringify({
+        ...preference,
+        version: PROJECT_TRANSMITTAL_AUDIT_VIEW_STORAGE_VERSION,
+      } satisfies ProjectTransmittalAuditViewPreferencePayload),
+    );
+  } catch {
+    // Local reviewer preference persistence is best-effort UI state.
+  }
+}
+
+export function clearProjectTransmittalAuditViewPreference(
+  projectId: string,
+  storage = getBrowserLocalStorage(),
+) {
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.removeItem(getProjectTransmittalAuditViewStorageKey(projectId));
+  } catch {
+    // Local reviewer preference persistence is best-effort UI state.
+  }
+}
+
 export function countProjectTransmittalProfileAuditProvenance(
   items: DraftingProjectTransmittalItem[],
 ): ProjectTransmittalProfileAuditSummary {
@@ -238,6 +327,26 @@ function auditReviewScore(summary: ProjectTransmittalProfileAuditSummary) {
 function projectTransmittalTimestamp(transmittal: DraftingProjectTransmittal) {
   const value = Date.parse(transmittal.updatedAt || transmittal.createdAt);
   return Number.isFinite(value) ? value : 0;
+}
+
+function isProjectTransmittalAuditCoverageFilter(
+  value: unknown,
+): value is ProjectTransmittalAuditCoverageFilter {
+  return (
+    value === 'all' ||
+    value === 'needs_review' ||
+    value === 'frozen_only' ||
+    value === 'fallback_resolved' ||
+    value === 'missing_audit'
+  );
+}
+
+function isProjectTransmittalSortMode(value: unknown): value is ProjectTransmittalSortMode {
+  return value === 'newest' || value === 'oldest' || value === 'audit_review';
+}
+
+function getBrowserLocalStorage(): BrowserStorage | null {
+  return typeof window === 'undefined' ? null : window.localStorage;
 }
 
 function sanitizeManifestValue(value: unknown): unknown {
