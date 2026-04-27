@@ -63,7 +63,10 @@ import {
   type DraftingPileTypeSourceRecord,
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
-import { isDraftingPrimitiveCommandTool } from './commands/drafting-command-session';
+import {
+  isDraftingDimensionCommandTool,
+  isDraftingPrimitiveCommandTool,
+} from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingTool } from './tools/drafting-tool-types';
 import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
@@ -402,21 +405,20 @@ export function DraftingEditor({
       return;
     }
 
-    if (drafting.activeTool === 'dimension_chain') {
-      const points = [...drafting.pendingLinePoints, point];
-      if (points.length < 3) {
-        drafting.setPendingLinePoints(points);
+    if (isDraftingDimensionCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitDimensionCommandPoint(point);
+      if (!commandResult.committed) {
         return;
       }
+
       const nextObject = createDraftingObject(
-        'dimension_chain',
-        points[0]!,
+        commandResult.tool,
+        commandResult.points[0],
         currentModel,
-        points,
+        commandResult.points,
         currentUserName,
       );
       history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
-      drafting.clearPendingLine();
       selection.selectObject(nextObject.id);
       drafting.setActiveTab('properties');
       return;
@@ -892,6 +894,8 @@ export function DraftingEditor({
           onCanvasPointerMove={(point) => {
             if (isDraftingPrimitiveCommandTool(drafting.activeTool)) {
               drafting.updatePrimitiveCommandPreview(point);
+            } else if (isDraftingDimensionCommandTool(drafting.activeTool)) {
+              drafting.updateDimensionCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}

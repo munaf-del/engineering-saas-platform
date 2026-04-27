@@ -233,6 +233,111 @@ test.describe('Drafting connected-edit pointer QA', () => {
     }
   });
 
+  test('authors an anchored dimension from a browser-created line', async ({ page }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+      const lineStartRatio = { xRatio: 0.38, yRatio: 0.42 };
+      const lineEndRatio = { xRatio: 0.58, yRatio: 0.42 };
+      const dimensionOffsetRatio = { xRatio: 0.38, yRatio: 0.32 };
+
+      await authorTwoPointPrimitive({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-line',
+        start: lineStartRatio,
+        end: lineEndRatio,
+        toolLabel: 'Line',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredLineId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredLineId).toBeTruthy();
+
+      await authorDimensionChain({
+        canvas,
+        firstWitness: lineStartRatio,
+        offset: dimensionOffsetRatio,
+        page,
+        secondWitness: lineEndRatio,
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredDimension = reloadedDrawing.model.objects.find(
+        (object): object is DraftingDimensionChainObject => object.type === 'dimension_chain',
+      );
+      expect(authoredDimension).toBeDefined();
+      expect(authoredDimension!.geometry.points).toHaveLength(2);
+      expect(authoredDimension!.metadata.witnessAnchorRefs).toHaveLength(2);
+      expect(authoredDimension!.metadata.witnessAnchorRefs?.[0]?.sourceObjectId).toBe(
+        authoredLineId,
+      );
+      expect(authoredDimension!.metadata.witnessAnchorRefs?.[1]?.sourceObjectId).toBe(
+        authoredLineId,
+      );
+      const resolvedDimension = resolveDraftingDimensionAnchoredObject(
+        authoredDimension!,
+        reloadedDrawing.model.objects,
+      );
+      expect(calculateDimensionChainTotal(resolvedDimension.geometry.points)).toBeGreaterThan(0);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      expect(exportedJson).toContain(authoredDimension!.id);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
   test('updates an anchored dimension after dragging a line endpoint in the live canvas', async ({
     page,
   }) => {
@@ -427,6 +532,40 @@ async function startPrimitivePreview({
   await page.mouse.click(startPoint.x, startPoint.y);
   await page.mouse.move(endPoint.x, endPoint.y, { steps: 6 });
   await expect(page.getByTestId(previewTestId)).toHaveCount(1);
+}
+
+async function authorDimensionChain({
+  canvas,
+  firstWitness,
+  offset,
+  page,
+  secondWitness,
+}: {
+  canvas: Locator;
+  firstWitness: { xRatio: number; yRatio: number };
+  offset: { xRatio: number; yRatio: number };
+  page: Page;
+  secondWitness: { xRatio: number; yRatio: number };
+}) {
+  const toolButton = page.getByRole('button', { exact: true, name: 'Dimension chain' });
+  await toolButton.click();
+  await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+  await canvas.scrollIntoViewIfNeeded();
+  const firstWitnessPoint = await pointInLocator(canvas, firstWitness);
+  const secondWitnessPoint = await pointInLocator(canvas, secondWitness);
+  const offsetPoint = await pointInLocator(canvas, offset);
+
+  await page.mouse.move(firstWitnessPoint.x, firstWitnessPoint.y);
+  await page.mouse.click(firstWitnessPoint.x, firstWitnessPoint.y);
+  await expect(page.getByText('Pick next witness point', { exact: false })).toBeVisible();
+  await page.mouse.move(secondWitnessPoint.x, secondWitnessPoint.y, { steps: 6 });
+  await expect(page.getByTestId('drafting-command-preview-dimension-chain')).toHaveCount(1);
+  await page.mouse.click(secondWitnessPoint.x, secondWitnessPoint.y);
+  await expect(page.getByText('Pick dimension offset', { exact: false })).toBeVisible();
+  await page.mouse.move(offsetPoint.x, offsetPoint.y, { steps: 6 });
+  await expect(page.getByTestId('drafting-command-preview-dimension-chain')).toHaveCount(1);
+  await page.mouse.click(offsetPoint.x, offsetPoint.y);
+  await expect(page.getByTestId('drafting-command-preview-dimension-chain')).toHaveCount(0);
 }
 
 async function pointInLocator(locator: Locator, ratios: { xRatio: number; yRatio: number }) {

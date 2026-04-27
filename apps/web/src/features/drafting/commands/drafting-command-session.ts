@@ -1,6 +1,8 @@
 import type { DraftingPoint } from '@eng/shared';
 
 export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
+export type DraftingDimensionCommandTool = 'dimension_chain';
+export type DraftingCommandTool = DraftingPrimitiveCommandTool | DraftingDimensionCommandTool;
 
 export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
   'draft_line',
@@ -8,7 +10,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
   'draft_circle',
 ] as const satisfies DraftingPrimitiveCommandTool[];
 
-export type DraftingPrimitiveCommandSession =
+export type DraftingCommandSession =
   | {
       tool: 'idle';
     }
@@ -17,25 +19,49 @@ export type DraftingPrimitiveCommandSession =
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
       tool: DraftingPrimitiveCommandTool;
+    }
+  | {
+      phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingDimensionCommandTool;
     };
+
+export type DraftingPrimitiveCommandSession = DraftingCommandSession;
 type ActiveDraftingPrimitiveCommandSession = Extract<
-  DraftingPrimitiveCommandSession,
+  DraftingCommandSession,
   { tool: DraftingPrimitiveCommandTool }
+>;
+type ActiveDraftingDimensionCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingDimensionCommandTool }
 >;
 
 export type DraftingPrimitiveCommandCommit =
   | {
       committed: false;
-      session: DraftingPrimitiveCommandSession;
+      session: DraftingCommandSession;
     }
   | {
       committed: true;
       points: [DraftingPoint, DraftingPoint];
-      session: DraftingPrimitiveCommandSession;
+      session: DraftingCommandSession;
       tool: DraftingPrimitiveCommandTool;
     };
 
-export const IDLE_DRAFTING_COMMAND_SESSION: DraftingPrimitiveCommandSession = { tool: 'idle' };
+export type DraftingDimensionCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      points: [DraftingPoint, DraftingPoint, DraftingPoint];
+      session: DraftingCommandSession;
+      tool: DraftingDimensionCommandTool;
+    };
+
+export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
 
 export function startDraftingPrimitiveCommand(
   tool: DraftingPrimitiveCommandTool,
@@ -52,22 +78,45 @@ export function startDraftingLineCommand(): ActiveDraftingPrimitiveCommandSessio
   return startDraftingPrimitiveCommand('draft_line');
 }
 
+export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
+  return {
+    phase: 'waiting_first_witness',
+    points: [],
+    previewPoint: null,
+    tool: 'dimension_chain',
+  };
+}
+
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
   return DRAFTING_PRIMITIVE_COMMAND_TOOLS.includes(tool as DraftingPrimitiveCommandTool);
 }
 
+export function isDraftingDimensionCommandTool(tool: string): tool is DraftingDimensionCommandTool {
+  return tool === 'dimension_chain';
+}
+
+export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool {
+  return isDraftingPrimitiveCommandTool(tool) || isDraftingDimensionCommandTool(tool);
+}
+
 export function ensureDraftingPrimitiveCommand(
-  session: DraftingPrimitiveCommandSession,
+  session: DraftingCommandSession,
   tool: DraftingPrimitiveCommandTool,
 ): ActiveDraftingPrimitiveCommandSession {
   return session.tool === tool ? session : startDraftingPrimitiveCommand(tool);
 }
 
+export function ensureDraftingDimensionCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingDimensionCommandSession {
+  return session.tool === 'dimension_chain' ? session : startDraftingDimensionCommand();
+}
+
 export function updateDraftingPrimitiveCommandPreview(
-  session: DraftingPrimitiveCommandSession,
+  session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
-): DraftingPrimitiveCommandSession {
-  if (session.tool === 'idle' || !point) {
+): DraftingCommandSession {
+  if (session.tool === 'idle' || session.tool === 'dimension_chain' || !point) {
     return session;
   }
 
@@ -78,9 +127,9 @@ export function updateDraftingPrimitiveCommandPreview(
 }
 
 export function updateDraftingLineCommandPreview(
-  session: DraftingPrimitiveCommandSession,
+  session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
-): DraftingPrimitiveCommandSession {
+): DraftingCommandSession {
   if (session.tool !== 'draft_line') {
     return session;
   }
@@ -88,8 +137,22 @@ export function updateDraftingLineCommandPreview(
   return updateDraftingPrimitiveCommandPreview(session, point);
 }
 
+export function updateDraftingDimensionCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'dimension_chain' || session.points.length === 0 || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function commitDraftingPrimitiveCommandPoint(
-  session: DraftingPrimitiveCommandSession,
+  session: DraftingCommandSession,
   tool: DraftingPrimitiveCommandTool,
   point: DraftingPoint | null | undefined,
 ): DraftingPrimitiveCommandCommit {
@@ -131,25 +194,75 @@ export function commitDraftingPrimitiveCommandPoint(
 }
 
 export function commitDraftingLineCommandPoint(
-  session: DraftingPrimitiveCommandSession,
+  session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
 ): DraftingPrimitiveCommandCommit {
   return commitDraftingPrimitiveCommandPoint(session, 'draft_line', point);
 }
 
-export function cancelDraftingCommandSession(): DraftingPrimitiveCommandSession {
+export function commitDraftingDimensionCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingDimensionCommandCommit {
+  const activeSession = ensureDraftingDimensionCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  const nextPoint = cloneDraftingPoint(point);
+  if (activeSession.points.length === 0) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        phase: 'waiting_second_witness',
+        points: [nextPoint],
+        previewPoint: null,
+      },
+    };
+  }
+
+  if (activeSession.points.length === 1) {
+    const firstWitnessPoint = activeSession.points[0]!;
+    if (areDraftingPointsCoincident(firstWitnessPoint, nextPoint)) {
+      return {
+        committed: false,
+        session: {
+          ...activeSession,
+          previewPoint: null,
+        },
+      };
+    }
+
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        phase: 'waiting_offset',
+        points: [firstWitnessPoint, nextPoint],
+        previewPoint: null,
+      },
+    };
+  }
+
+  const [firstWitnessPoint, secondWitnessPoint] = activeSession.points;
+  return {
+    committed: true,
+    points: [firstWitnessPoint!, secondWitnessPoint!, nextPoint],
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'dimension_chain',
+  };
+}
+
+export function cancelDraftingCommandSession(): DraftingCommandSession {
   return IDLE_DRAFTING_COMMAND_SESSION;
 }
 
-export function getDraftingCommandPoints(
-  session: DraftingPrimitiveCommandSession,
-): DraftingPoint[] {
+export function getDraftingCommandPoints(session: DraftingCommandSession): DraftingPoint[] {
   return session.tool !== 'idle' ? session.points : [];
 }
 
-export function getDraftingCommandPreviewPoints(
-  session: DraftingPrimitiveCommandSession,
-): DraftingPoint[] {
+export function getDraftingCommandPreviewPoints(session: DraftingCommandSession): DraftingPoint[] {
   if (session.tool === 'idle' || session.points.length === 0) {
     return [];
   }
@@ -158,8 +271,8 @@ export function getDraftingCommandPreviewPoints(
 }
 
 export function getDraftingCommandTool(
-  session: DraftingPrimitiveCommandSession,
-): DraftingPrimitiveCommandTool | null {
+  session: DraftingCommandSession,
+): DraftingCommandTool | null {
   return session.tool === 'idle' ? null : session.tool;
 }
 

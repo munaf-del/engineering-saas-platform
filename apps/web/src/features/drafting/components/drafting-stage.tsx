@@ -50,7 +50,7 @@ import {
   resolveDraftingTextStyle,
 } from '../standards/drafting-style-resolver';
 import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
-import type { DraftingPrimitiveCommandTool } from '../commands/drafting-command-session';
+import type { DraftingCommandTool } from '../commands/drafting-command-session';
 import {
   DRAFTING_CANVAS_LABEL_MODES,
   type DraftingCanvasLabelMode,
@@ -130,7 +130,7 @@ export function DraftingStage({
   ) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  pendingCommandPreviewTool?: DraftingPrimitiveCommandTool | null;
+  pendingCommandPreviewTool?: DraftingCommandTool | null;
   pendingLinePoints: DraftingPoint[];
   pendingLinePreviewPoints?: DraftingPoint[];
   snapSettings?: DraftingSnapSettings;
@@ -607,13 +607,31 @@ function PendingCommandPreview({
   stroke: string;
   strokeDasharray?: string;
   strokeWidth: number;
-  tool?: DraftingPrimitiveCommandTool | null;
+  tool?: DraftingCommandTool | null;
 }) {
   if (points.length === 0) {
     return null;
   }
 
   const [startPoint, previewPoint] = points;
+  if (tool === 'dimension_chain') {
+    if (!previewPoint) {
+      return null;
+    }
+
+    return (
+      <polyline
+        data-testid="drafting-command-preview-dimension-chain"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline
