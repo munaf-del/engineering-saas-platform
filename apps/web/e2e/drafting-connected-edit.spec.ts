@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import type { DraftingDimensionChainObject, DraftingDrawing, Project } from '@eng/shared';
+import type {
+  DraftingDimensionChainObject,
+  DraftingDrawing,
+  DraftingLineObject,
+  Project,
+} from '@eng/shared';
 import { calculateDimensionChainTotal } from '../src/features/drafting/semantic-object-utils';
 import { resolveDraftingDimensionAnchoredObject } from '../src/features/drafting/anchors/drafting-anchor-resolution';
 import {
@@ -16,6 +21,97 @@ const QA_LINE_ID = 'qa-line-1';
 const QA_LINE_DIMENSION_ID = 'qa-line-dimension-1';
 
 test.describe('Drafting connected-edit pointer QA', () => {
+  test('authors a line from a blank temporary sketch through live canvas pointer input', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await page.getByRole('button', { exact: true, name: 'Line' }).click();
+      await expect(page.getByText('Active Line')).toBeVisible();
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+      const start = await pointInLocator(canvas, { xRatio: 0.42, yRatio: 0.32 });
+      const end = await pointInLocator(canvas, { xRatio: 0.58, yRatio: 0.32 });
+
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.click(start.x, start.y);
+      await page.mouse.move(end.x, end.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-line')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(end.x, end.y);
+
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredLineId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredLineId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredLineId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredLine = reloadedDrawing.model.objects.find(
+        (object): object is DraftingLineObject =>
+          object.id === authoredLineId && object.type === 'draft_line',
+      );
+      expect(authoredLine).toBeDefined();
+      expect(authoredLine!.geometry.startPoint).not.toEqual(authoredLine!.geometry.endPoint);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      expect(exportedJson).toContain(authoredLineId!);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
   test('updates an anchored dimension after dragging a line endpoint in the live canvas', async ({
     page,
   }) => {
@@ -170,6 +266,15 @@ async function dragLocatorBy(page: Page, locator: Locator, delta: { x: number; y
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 6 });
   await page.mouse.up();
+}
+
+async function pointInLocator(locator: Locator, ratios: { xRatio: number; yRatio: number }) {
+  const box = await locator.boundingBox();
+  expect(box).toBeTruthy();
+  return {
+    x: box!.x + box!.width * ratios.xRatio,
+    y: box!.y + box!.height * ratios.yRatio,
+  };
 }
 
 async function readDownloadedText(path: string) {

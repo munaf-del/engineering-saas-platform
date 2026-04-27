@@ -359,6 +359,25 @@ export function DraftingEditor({
       return;
     }
 
+    if (drafting.activeTool === 'draft_line') {
+      const commandResult = drafting.commitLineCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        'draft_line',
+        commandResult.points[0],
+        currentModel,
+        commandResult.points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
     if (PATH_AUTHORING_TOOLS.has(drafting.activeTool)) {
       drafting.addPendingLinePoint(point);
       return;
@@ -872,6 +891,11 @@ export function DraftingEditor({
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
+          onCanvasPointerMove={(point) => {
+            if (drafting.activeTool === 'draft_line') {
+              drafting.updateLineCommandPreview(point);
+            }
+          }}
           onCanvasWheel={view.handleCanvasWheel}
           onCenterReference={handleCenterViewOnReference}
           onFitModel={view.handleFitView}
@@ -888,6 +912,7 @@ export function DraftingEditor({
           onZoomIn={view.handleZoomIn}
           onZoomOut={view.handleZoomOut}
           pendingLinePoints={drafting.pendingLinePoints}
+          pendingLinePreviewPoints={drafting.commandPreviewPoints}
           snapSettings={drafting.snapSettings}
           selectedDrawingSheet={selectedDrawingSheet}
           selectedObjectId={selection.selectedObjectId}

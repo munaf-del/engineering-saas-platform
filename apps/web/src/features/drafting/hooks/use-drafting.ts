@@ -6,6 +6,17 @@ import {
   type DraftingSnapSettings,
 } from '../snapping/drafting-snap-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
+import {
+  cancelDraftingCommandSession,
+  commitDraftingLineCommandPoint,
+  getDraftingCommandPoints,
+  getDraftingCommandPreviewPoints,
+  IDLE_DRAFTING_COMMAND_SESSION,
+  startDraftingLineCommand,
+  updateDraftingLineCommandPreview,
+  type DraftingLineCommandCommit,
+  type DraftingLineCommandSession,
+} from '../commands/drafting-command-session';
 
 export type DraftingInspectorTab =
   | 'setup'
@@ -20,6 +31,9 @@ export type DraftingInspectorTab =
 
 export function useDrafting() {
   const [activeTool, setActiveTool] = useState<DraftingTool>('select');
+  const [commandSession, setCommandSession] = useState<DraftingLineCommandSession>(
+    IDLE_DRAFTING_COMMAND_SESSION,
+  );
   const [pendingLinePoints, setPendingLinePoints] = useState<DraftingPoint[]>([]);
   const [snapSettings, setSnapSettings] = useState<DraftingSnapSettings>(
     DEFAULT_DRAFTING_SNAP_SETTINGS,
@@ -32,11 +46,25 @@ export function useDrafting() {
 
   function clearPendingLine() {
     setPendingLinePoints([]);
+    setCommandSession(cancelDraftingCommandSession());
   }
 
   function changeActiveTool(tool: DraftingTool) {
     setActiveTool(tool);
     setPendingLinePoints([]);
+    setCommandSession(
+      tool === 'draft_line' ? startDraftingLineCommand() : cancelDraftingCommandSession(),
+    );
+  }
+
+  function commitLineCommandPoint(point: DraftingPoint | null): DraftingLineCommandCommit {
+    const result = commitDraftingLineCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateLineCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingLineCommandPreview(current, point));
   }
 
   function toggleSnapEnabled() {
@@ -58,7 +86,10 @@ export function useDrafting() {
     activeTool,
     addPendingLinePoint,
     clearPendingLine,
-    pendingLinePoints,
+    commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
+    commitLineCommandPoint,
+    pendingLinePoints:
+      activeTool === 'draft_line' ? getDraftingCommandPoints(commandSession) : pendingLinePoints,
     setActiveTab,
     setActiveTool: changeActiveTool,
     setPendingLinePoints,
@@ -66,5 +97,6 @@ export function useDrafting() {
     snapSettings,
     toggleSnapEnabled,
     toggleSnapMode,
+    updateLineCommandPreview,
   };
 }

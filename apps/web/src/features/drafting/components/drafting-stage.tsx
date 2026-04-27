@@ -65,6 +65,7 @@ export function DraftingStage({
   labelMode = 'minimal',
   onBackgroundPointerDown,
   onCanvasClick,
+  onCanvasPointerMove,
   onCanvasWheel,
   onCenterReference,
   onFitModel,
@@ -81,6 +82,7 @@ export function DraftingStage({
   onZoomIn,
   onZoomOut,
   pendingLinePoints,
+  pendingLinePreviewPoints,
   snapSettings,
   selectedDrawingSheet,
   selectedUnderlayId,
@@ -102,6 +104,7 @@ export function DraftingStage({
   labelMode?: DraftingCanvasLabelMode;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onCanvasClick: (event: React.MouseEvent<SVGSVGElement>) => void;
+  onCanvasPointerMove?: (point: DraftingPoint | null) => void;
   onCanvasWheel: (event: React.WheelEvent<SVGSVGElement>) => void;
   onCenterReference: () => void;
   onFitModel: () => void;
@@ -126,6 +129,7 @@ export function DraftingStage({
   onZoomIn: () => void;
   onZoomOut: () => void;
   pendingLinePoints: DraftingPoint[];
+  pendingLinePreviewPoints?: DraftingPoint[];
   snapSettings?: DraftingSnapSettings;
   selectedDrawingSheet: DraftingDrawingSheetDefinition | null;
   selectedUnderlayId: string | null;
@@ -201,18 +205,20 @@ export function DraftingStage({
       view,
     );
     setCursorPoint(worldPoint);
-    setSnapPreview(
-      resolveDraftingSnapPoint({
-        gridStepMm: gridStep,
-        model,
-        objects: visibleObjects,
-        orthogonalOrigin: pendingLinePoints.at(-1) ?? null,
-        point: worldPoint,
-        scale: view.scale,
-        settings: activeSnapSettings,
-      }),
-    );
+    const resolvedSnap = resolveDraftingSnapPoint({
+      gridStepMm: gridStep,
+      model,
+      objects: visibleObjects,
+      orthogonalOrigin: pendingLinePoints.at(-1) ?? null,
+      point: worldPoint,
+      scale: view.scale,
+      settings: activeSnapSettings,
+    });
+    setSnapPreview(resolvedSnap);
+    onCanvasPointerMove?.(resolvedSnap.point);
   }
+
+  const renderedPendingLinePoints = pendingLinePreviewPoints ?? pendingLinePoints;
 
   return (
     <Card data-testid="drafting-canvas-stage">
@@ -262,6 +268,7 @@ export function DraftingStage({
           />
           <svg
             className="h-full w-full touch-none"
+            data-testid="drafting-canvas-svg"
             onWheel={onCanvasWheel}
             onClick={onCanvasClick}
             onPointerMove={handlePointerMove}
@@ -342,10 +349,13 @@ export function DraftingStage({
                 setup={setup}
               />
 
-              {pendingLinePoints.length > 0 ? (
+              {renderedPendingLinePoints.length > 0 ? (
                 <polyline
+                  data-testid="drafting-command-preview-line"
                   fill="none"
-                  points={pendingLinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
+                  points={renderedPendingLinePoints
+                    .map((point) => `${point.x},${point.y}`)
+                    .join(' ')}
                   stroke={pendingLineStyle.color}
                   strokeDasharray={pendingLineStyle.dashArray}
                   strokeWidth={pendingLineStyle.editorStrokeWidth}
