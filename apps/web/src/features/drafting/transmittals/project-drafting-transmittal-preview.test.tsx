@@ -30,7 +30,7 @@ describe('project drafting transmittal preview', () => {
     expect(markup).toContain('Frozen: 1');
     expect(markup).toContain('Fallback: 1');
     expect(markup).toContain('Missing: 1');
-    expect(markup).toContain('fallback-resolved profile audit metadata');
+    expect(markup).toContain('fallback-resolved or missing profile audit metadata');
   });
 
   it('shows draft project transmittals as editable', () => {

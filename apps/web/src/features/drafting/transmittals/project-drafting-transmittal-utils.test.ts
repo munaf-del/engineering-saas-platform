@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { DraftingProjectTransmittal } from '@eng/shared';
 import {
   buildProjectDraftingTransmittalManifest,
+  countProjectTransmittalProfileAuditProvenance,
+  hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
+  resolveProjectTransmittalProfileAuditStatus,
   serializeProjectDraftingTransmittalManifestJson,
 } from './project-drafting-transmittal-utils';
 
@@ -63,6 +66,47 @@ describe('project drafting transmittal helpers', () => {
 
   it('suggests the next project transmittal number', () => {
     expect(nextProjectTransmittalNumber([createProjectTransmittal()])).toBe('TRN-002');
+  });
+
+  it('summarises profile audit provenance without mutating included items', () => {
+    const transmittal = createProjectTransmittal();
+    const legacyProfileAudit = profileAuditFixture(false);
+    transmittal.payload.includedItems.push({
+      drawingId: 'drawing-3',
+      drawingName: 'Legacy profile audit',
+      drawingSheetIssueId: 'issue-3',
+      issueDate: '2026-04-24T00:00:00.000Z',
+      issueNumber: 'ISS-003',
+      revision: 'A',
+      sheetId: 'sheet-3',
+      sheetNumber: 'S-301',
+      sheetTitle: 'Legacy',
+      snapshotLabel: 'ISS-003 Rev A - S-301 Legacy',
+      status: 'issued',
+      profileAudit: legacyProfileAudit,
+    });
+    const before = JSON.stringify(transmittal.payload.includedItems);
+
+    expect(resolveProjectTransmittalProfileAuditStatus(transmittal.payload.includedItems[0]!)).toBe(
+      'frozen',
+    );
+    expect(resolveProjectTransmittalProfileAuditStatus(transmittal.payload.includedItems[1]!)).toBe(
+      'missing',
+    );
+    expect(resolveProjectTransmittalProfileAuditStatus(transmittal.payload.includedItems[2]!)).toBe(
+      'frozen',
+    );
+    const summary = countProjectTransmittalProfileAuditProvenance(
+      transmittal.payload.includedItems,
+    );
+
+    expect(summary).toEqual({
+      fallbackResolved: 0,
+      frozen: 2,
+      missing: 1,
+    });
+    expect(hasProjectTransmittalProfileAuditCoverageWarning(summary)).toBe(true);
+    expect(JSON.stringify(transmittal.payload.includedItems)).toBe(before);
   });
 });
 
@@ -143,17 +187,21 @@ function createProjectTransmittal(): DraftingProjectTransmittal {
   };
 }
 
-function profileAuditFixture() {
+function profileAuditFixture(includeProvenance = true) {
   return {
     schemaVersion: 'drafting.profile-audit.v1' as const,
-    provenance: {
-      source: 'frozen' as const,
-      status: 'frozen' as const,
-      drawingId: 'drawing-1',
-      sheetId: 'sheet-1',
-      sourceIssueId: 'issue-1',
-      frozenAt: '2026-04-24T00:00:00.000Z',
-    },
+    ...(includeProvenance
+      ? {
+          provenance: {
+            source: 'frozen' as const,
+            status: 'frozen' as const,
+            drawingId: 'drawing-1',
+            sheetId: 'sheet-1',
+            sourceIssueId: 'issue-1',
+            frozenAt: '2026-04-24T00:00:00.000Z',
+          },
+        }
+      : {}),
     warning: 'AS1100-informed profile; not a certification or full compliance claim.',
     activeProfileId: 'as1100-structural' as const,
     profileName: 'AS/NZS 1100 Structural',

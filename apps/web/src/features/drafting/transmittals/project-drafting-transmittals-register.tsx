@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileJson, Plus, Send } from 'lucide-react';
+import { ArrowLeft, FileJson, Plus, Send, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DraftingDrawing, Project } from '@eng/shared';
+import type { DraftingDrawing, DraftingProjectTransmittal, Project } from '@eng/shared';
 import { useQueries } from '@tanstack/react-query';
 import { PageLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page-header';
@@ -22,7 +22,9 @@ import {
 } from '@/hooks/use-drafting';
 import { api } from '@/lib/api-client';
 import {
+  countProjectTransmittalProfileAuditProvenance,
   downloadProjectDraftingTransmittalManifestJson,
+  hasProjectTransmittalProfileAuditCoverageWarning,
   nextProjectTransmittalNumber,
 } from './project-drafting-transmittal-utils';
 
@@ -223,24 +225,27 @@ export function ProjectDraftingTransmittalsRegister({
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2 pt-0">
-                <Button size="sm" variant="outline" onClick={() => setSelectedId(transmittal.id)}>
-                  Open
-                </Button>
-                <Link
-                  className={buttonVariants({ size: 'sm', variant: 'outline' })}
-                  href={`/projects/${projectId}/drafting/transmittals/${transmittal.id}/preview`}
-                >
-                  Preview
-                </Link>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => downloadProjectDraftingTransmittalManifestJson(transmittal)}
-                >
-                  <FileJson className="mr-2 h-4 w-4" />
-                  Manifest
-                </Button>
+              <CardContent className="space-y-3 pt-0">
+                <ProjectTransmittalProfileAuditCoverage transmittal={transmittal} />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setSelectedId(transmittal.id)}>
+                    Open
+                  </Button>
+                  <Link
+                    className={buttonVariants({ size: 'sm', variant: 'outline' })}
+                    href={`/projects/${projectId}/drafting/transmittals/${transmittal.id}/preview`}
+                  >
+                    Preview
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => downloadProjectDraftingTransmittalManifestJson(transmittal)}
+                  >
+                    <FileJson className="mr-2 h-4 w-4" />
+                    Manifest
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -454,6 +459,40 @@ export function ProjectDraftingTransmittalsRegister({
         </section>
       </div>
     </>
+  );
+}
+
+export function ProjectTransmittalProfileAuditCoverage({
+  transmittal,
+}: {
+  transmittal: DraftingProjectTransmittal;
+}) {
+  const summary = countProjectTransmittalProfileAuditProvenance(transmittal.payload.includedItems);
+  const hasWarning = hasProjectTransmittalProfileAuditCoverageWarning(summary);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      <ProfileAuditCoverageChip label="Frozen" value={summary.frozen} />
+      <ProfileAuditCoverageChip label="Fallback" value={summary.fallbackResolved} />
+      <ProfileAuditCoverageChip label="Missing" value={summary.missing} />
+      {hasWarning ? (
+        <span
+          className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900"
+          title="Some included sheets rely on fallback-resolved or missing profile audit metadata. Open preview for details."
+        >
+          <TriangleAlert className="h-3 w-3" />
+          Review audit coverage
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileAuditCoverageChip({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-sm border bg-muted/40 px-2 py-1 text-muted-foreground">
+      {label}: {value}
+    </span>
   );
 }
 

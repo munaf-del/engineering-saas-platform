@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { ArrowLeft, FileJson, Printer, TriangleAlert } from 'lucide-react';
 import type {
   DraftingProjectTransmittal,
-  DraftingProjectTransmittalItem,
   DraftingSheetProfileAuditProvenance,
   Project,
 } from '@eng/shared';
@@ -15,7 +14,10 @@ import { Button } from '@/components/ui/button';
 import { useProjectDraftingTransmittal } from '@/hooks/use-drafting';
 import {
   buildProjectDraftingTransmittalManifest,
+  countProjectTransmittalProfileAuditProvenance,
   downloadProjectDraftingTransmittalManifestJson,
+  hasProjectTransmittalProfileAuditCoverageWarning,
+  resolveProjectTransmittalProfileAuditStatus,
 } from './project-drafting-transmittal-utils';
 
 export function ProjectDraftingTransmittalPreviewPage({
@@ -68,10 +70,11 @@ export function ProjectDraftingTransmittalPreview({
   );
   const isLocked = transmittal.status !== 'draft';
   const profileAuditSummary = React.useMemo(
-    () => countProfileAuditProvenance(transmittal.payload.includedItems),
+    () => countProjectTransmittalProfileAuditProvenance(transmittal.payload.includedItems),
     [transmittal.payload.includedItems],
   );
-  const hasFallbackProfileAudit = profileAuditSummary.fallbackResolved > 0;
+  const hasProfileAuditCoverageWarning =
+    hasProjectTransmittalProfileAuditCoverageWarning(profileAuditSummary);
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none print:space-y-4">
@@ -157,8 +160,8 @@ export function ProjectDraftingTransmittalPreview({
         {transmittal.payload.warningSummary.map((warning) => (
           <WarningLine key={warning} message={warning} />
         ))}
-        {hasFallbackProfileAudit ? (
-          <WarningLine message="Some included sheets show fallback-resolved profile audit metadata; values may differ from the original issued output." />
+        {hasProfileAuditCoverageWarning ? (
+          <WarningLine message="Some included sheets rely on fallback-resolved or missing profile audit metadata. Open preview for details." />
         ) : null}
 
         <div>
@@ -191,7 +194,7 @@ export function ProjectDraftingTransmittalPreview({
             </thead>
             <tbody>
               {transmittal.payload.includedItems.map((item) => {
-                const profileAuditStatus = resolveProfileAuditStatus(item);
+                const profileAuditStatus = resolveProjectTransmittalProfileAuditStatus(item);
                 return (
                   <tr
                     className="border-b"
@@ -244,42 +247,6 @@ export function ProjectDraftingTransmittalPreview({
       </section>
     </div>
   );
-}
-
-function countProfileAuditProvenance(items: DraftingProjectTransmittalItem[]) {
-  return items.reduce(
-    (summary, item) => {
-      const status = resolveProfileAuditStatus(item);
-      if (status === 'frozen') {
-        summary.frozen += 1;
-      } else if (status === 'fallback_resolved') {
-        summary.fallbackResolved += 1;
-      } else {
-        summary.missing += 1;
-      }
-      return summary;
-    },
-    {
-      fallbackResolved: 0,
-      frozen: 0,
-      missing: 0,
-    },
-  );
-}
-
-function resolveProfileAuditStatus(
-  item: DraftingProjectTransmittalItem,
-): DraftingSheetProfileAuditProvenance['status'] {
-  if (item.profileAuditProvenance?.status) {
-    return item.profileAuditProvenance.status;
-  }
-  if (item.profileAudit?.provenance?.status) {
-    return item.profileAudit.provenance.status;
-  }
-  if (item.profileAudit) {
-    return 'frozen';
-  }
-  return 'missing';
 }
 
 function ProfileAuditCountBadge({ label, value }: { label: string; value: number }) {

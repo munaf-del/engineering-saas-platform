@@ -2,6 +2,7 @@ import type {
   DraftingProjectTransmittal,
   DraftingProjectTransmittalInput,
   DraftingProjectTransmittalItem,
+  DraftingSheetProfileAuditProvenance,
 } from '@eng/shared';
 
 export type ProjectDraftingTransmittalManifest = {
@@ -107,6 +108,56 @@ export function toProjectTransmittalInput(
     title: transmittal.payload.title,
     transmittalNumber: transmittal.transmittalNumber,
   };
+}
+
+export type ProjectTransmittalProfileAuditSummary = {
+  fallbackResolved: number;
+  frozen: number;
+  missing: number;
+};
+
+export function countProjectTransmittalProfileAuditProvenance(
+  items: DraftingProjectTransmittalItem[],
+): ProjectTransmittalProfileAuditSummary {
+  return items.reduce(
+    (summary, item) => {
+      const status = resolveProjectTransmittalProfileAuditStatus(item);
+      if (status === 'frozen') {
+        summary.frozen += 1;
+      } else if (status === 'fallback_resolved') {
+        summary.fallbackResolved += 1;
+      } else {
+        summary.missing += 1;
+      }
+      return summary;
+    },
+    {
+      fallbackResolved: 0,
+      frozen: 0,
+      missing: 0,
+    },
+  );
+}
+
+export function resolveProjectTransmittalProfileAuditStatus(
+  item: DraftingProjectTransmittalItem,
+): DraftingSheetProfileAuditProvenance['status'] {
+  if (item.profileAuditProvenance?.status) {
+    return item.profileAuditProvenance.status;
+  }
+  if (item.profileAudit?.provenance?.status) {
+    return item.profileAudit.provenance.status;
+  }
+  if (item.profileAudit) {
+    return 'frozen';
+  }
+  return 'missing';
+}
+
+export function hasProjectTransmittalProfileAuditCoverageWarning(
+  summary: ProjectTransmittalProfileAuditSummary,
+) {
+  return summary.fallbackResolved > 0 || summary.missing > 0;
 }
 
 function sanitizeManifestValue(value: unknown): unknown {
