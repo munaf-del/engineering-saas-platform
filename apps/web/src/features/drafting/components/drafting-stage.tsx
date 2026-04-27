@@ -50,6 +50,7 @@ import {
   resolveDraftingTextStyle,
 } from '../standards/drafting-style-resolver';
 import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
+import type { DraftingPrimitiveCommandTool } from '../commands/drafting-command-session';
 import {
   DRAFTING_CANVAS_LABEL_MODES,
   type DraftingCanvasLabelMode,
@@ -81,6 +82,7 @@ export function DraftingStage({
   onUnderlayPointerDown,
   onZoomIn,
   onZoomOut,
+  pendingCommandPreviewTool,
   pendingLinePoints,
   pendingLinePreviewPoints,
   snapSettings,
@@ -128,6 +130,7 @@ export function DraftingStage({
   ) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  pendingCommandPreviewTool?: DraftingPrimitiveCommandTool | null;
   pendingLinePoints: DraftingPoint[];
   pendingLinePreviewPoints?: DraftingPoint[];
   snapSettings?: DraftingSnapSettings;
@@ -349,19 +352,13 @@ export function DraftingStage({
                 setup={setup}
               />
 
-              {renderedPendingLinePoints.length > 0 ? (
-                <polyline
-                  data-testid="drafting-command-preview-line"
-                  fill="none"
-                  points={renderedPendingLinePoints
-                    .map((point) => `${point.x},${point.y}`)
-                    .join(' ')}
-                  stroke={pendingLineStyle.color}
-                  strokeDasharray={pendingLineStyle.dashArray}
-                  strokeWidth={pendingLineStyle.editorStrokeWidth}
-                  vectorEffect="non-scaling-stroke"
-                />
-              ) : null}
+              <PendingCommandPreview
+                points={renderedPendingLinePoints}
+                stroke={pendingLineStyle.color}
+                strokeDasharray={pendingLineStyle.dashArray}
+                strokeWidth={pendingLineStyle.editorStrokeWidth}
+                tool={pendingCommandPreviewTool}
+              />
 
               {snapPreview?.candidate ? (
                 <SnapPreviewMarker scale={view.scale} snapPreview={snapPreview} />
@@ -596,6 +593,76 @@ function DraftingCanvasZoomControls({
         {snapSettings.enabled ? 'on' : 'off'}
       </div>
     </div>
+  );
+}
+
+function PendingCommandPreview({
+  points,
+  stroke,
+  strokeDasharray,
+  strokeWidth,
+  tool,
+}: {
+  points: DraftingPoint[];
+  stroke: string;
+  strokeDasharray?: string;
+  strokeWidth: number;
+  tool?: DraftingPrimitiveCommandTool | null;
+}) {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const [startPoint, previewPoint] = points;
+  if (!tool || tool === 'draft_line' || !previewPoint) {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-line"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
+  if (tool === 'draft_rectangle') {
+    const x = Math.min(startPoint!.x, previewPoint.x);
+    const y = Math.min(startPoint!.y, previewPoint.y);
+    const width = Math.abs(previewPoint.x - startPoint!.x);
+    const height = Math.abs(previewPoint.y - startPoint!.y);
+
+    return (
+      <rect
+        data-testid="drafting-command-preview-rectangle"
+        fill="none"
+        height={height}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+        width={width}
+        x={x}
+        y={y}
+      />
+    );
+  }
+
+  const radius = Math.hypot(previewPoint.x - startPoint!.x, previewPoint.y - startPoint!.y);
+  return (
+    <circle
+      cx={startPoint!.x}
+      cy={startPoint!.y}
+      data-testid="drafting-command-preview-circle"
+      fill="none"
+      r={radius}
+      stroke={stroke}
+      strokeDasharray={strokeDasharray}
+      strokeWidth={strokeWidth}
+      vectorEffect="non-scaling-stroke"
+    />
   );
 }
 

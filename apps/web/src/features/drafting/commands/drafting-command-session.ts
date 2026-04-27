@@ -1,50 +1,73 @@
 import type { DraftingPoint } from '@eng/shared';
 
-export type DraftingLineCommandSession =
+export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
+
+export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
+  'draft_line',
+  'draft_rectangle',
+  'draft_circle',
+] as const satisfies DraftingPrimitiveCommandTool[];
+
+export type DraftingPrimitiveCommandSession =
   | {
       tool: 'idle';
     }
   | {
-      phase: 'waiting_first_point' | 'waiting_next_point';
+      phase: 'waiting_first_point' | 'waiting_second_point';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
-      tool: 'draft_line';
+      tool: DraftingPrimitiveCommandTool;
     };
-type ActiveDraftingLineCommandSession = Extract<DraftingLineCommandSession, { tool: 'draft_line' }>;
+type ActiveDraftingPrimitiveCommandSession = Extract<
+  DraftingPrimitiveCommandSession,
+  { tool: DraftingPrimitiveCommandTool }
+>;
 
-export type DraftingLineCommandCommit =
+export type DraftingPrimitiveCommandCommit =
   | {
       committed: false;
-      session: DraftingLineCommandSession;
+      session: DraftingPrimitiveCommandSession;
     }
   | {
       committed: true;
       points: [DraftingPoint, DraftingPoint];
-      session: DraftingLineCommandSession;
+      session: DraftingPrimitiveCommandSession;
+      tool: DraftingPrimitiveCommandTool;
     };
 
-export const IDLE_DRAFTING_COMMAND_SESSION: DraftingLineCommandSession = { tool: 'idle' };
+export const IDLE_DRAFTING_COMMAND_SESSION: DraftingPrimitiveCommandSession = { tool: 'idle' };
 
-export function startDraftingLineCommand(): ActiveDraftingLineCommandSession {
+export function startDraftingPrimitiveCommand(
+  tool: DraftingPrimitiveCommandTool,
+): ActiveDraftingPrimitiveCommandSession {
   return {
     phase: 'waiting_first_point',
     points: [],
     previewPoint: null,
-    tool: 'draft_line',
+    tool,
   };
 }
 
-export function ensureDraftingLineCommand(
-  session: DraftingLineCommandSession,
-): ActiveDraftingLineCommandSession {
-  return session.tool === 'draft_line' ? session : startDraftingLineCommand();
+export function startDraftingLineCommand(): ActiveDraftingPrimitiveCommandSession {
+  return startDraftingPrimitiveCommand('draft_line');
 }
 
-export function updateDraftingLineCommandPreview(
-  session: DraftingLineCommandSession,
+export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
+  return DRAFTING_PRIMITIVE_COMMAND_TOOLS.includes(tool as DraftingPrimitiveCommandTool);
+}
+
+export function ensureDraftingPrimitiveCommand(
+  session: DraftingPrimitiveCommandSession,
+  tool: DraftingPrimitiveCommandTool,
+): ActiveDraftingPrimitiveCommandSession {
+  return session.tool === tool ? session : startDraftingPrimitiveCommand(tool);
+}
+
+export function updateDraftingPrimitiveCommandPreview(
+  session: DraftingPrimitiveCommandSession,
   point: DraftingPoint | null | undefined,
-): DraftingLineCommandSession {
-  if (session.tool !== 'draft_line' || !point) {
+): DraftingPrimitiveCommandSession {
+  if (session.tool === 'idle' || !point) {
     return session;
   }
 
@@ -54,11 +77,23 @@ export function updateDraftingLineCommandPreview(
   };
 }
 
-export function commitDraftingLineCommandPoint(
-  session: DraftingLineCommandSession,
+export function updateDraftingLineCommandPreview(
+  session: DraftingPrimitiveCommandSession,
   point: DraftingPoint | null | undefined,
-): DraftingLineCommandCommit {
-  const activeSession = ensureDraftingLineCommand(session);
+): DraftingPrimitiveCommandSession {
+  if (session.tool !== 'draft_line') {
+    return session;
+  }
+
+  return updateDraftingPrimitiveCommandPreview(session, point);
+}
+
+export function commitDraftingPrimitiveCommandPoint(
+  session: DraftingPrimitiveCommandSession,
+  tool: DraftingPrimitiveCommandTool,
+  point: DraftingPoint | null | undefined,
+): DraftingPrimitiveCommandCommit {
+  const activeSession = ensureDraftingPrimitiveCommand(session, tool);
   if (!point) {
     return { committed: false, session: activeSession };
   }
@@ -69,7 +104,7 @@ export function commitDraftingLineCommandPoint(
       committed: false,
       session: {
         ...activeSession,
-        phase: 'waiting_next_point',
+        phase: 'waiting_second_point',
         points: [nextPoint],
         previewPoint: null,
       },
@@ -91,25 +126,41 @@ export function commitDraftingLineCommandPoint(
     committed: true,
     points: [startPoint, nextPoint],
     session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: activeSession.tool,
   };
 }
 
-export function cancelDraftingCommandSession(): DraftingLineCommandSession {
+export function commitDraftingLineCommandPoint(
+  session: DraftingPrimitiveCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingPrimitiveCommandCommit {
+  return commitDraftingPrimitiveCommandPoint(session, 'draft_line', point);
+}
+
+export function cancelDraftingCommandSession(): DraftingPrimitiveCommandSession {
   return IDLE_DRAFTING_COMMAND_SESSION;
 }
 
-export function getDraftingCommandPoints(session: DraftingLineCommandSession): DraftingPoint[] {
-  return session.tool === 'draft_line' ? session.points : [];
+export function getDraftingCommandPoints(
+  session: DraftingPrimitiveCommandSession,
+): DraftingPoint[] {
+  return session.tool !== 'idle' ? session.points : [];
 }
 
 export function getDraftingCommandPreviewPoints(
-  session: DraftingLineCommandSession,
+  session: DraftingPrimitiveCommandSession,
 ): DraftingPoint[] {
-  if (session.tool !== 'draft_line' || session.points.length === 0) {
+  if (session.tool === 'idle' || session.points.length === 0) {
     return [];
   }
 
   return session.previewPoint ? [...session.points, session.previewPoint] : session.points;
+}
+
+export function getDraftingCommandTool(
+  session: DraftingPrimitiveCommandSession,
+): DraftingPrimitiveCommandTool | null {
+  return session.tool === 'idle' ? null : session.tool;
 }
 
 function areDraftingPointsCoincident(pointA: DraftingPoint, pointB: DraftingPoint) {

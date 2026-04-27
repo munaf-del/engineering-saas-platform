@@ -63,6 +63,7 @@ import {
   type DraftingPileTypeSourceRecord,
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
+import { isDraftingPrimitiveCommandTool } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingTool } from './tools/drafting-tool-types';
 import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
@@ -74,9 +75,6 @@ const TWO_POINT_AUTHORING_TOOLS = new Set([
   'soldier_pile_wall',
   'anchor_tieback',
   'section_marker',
-  'draft_line',
-  'draft_rectangle',
-  'draft_circle',
 ]);
 
 const PATH_AUTHORING_TOOLS = new Set([
@@ -359,14 +357,14 @@ export function DraftingEditor({
       return;
     }
 
-    if (drafting.activeTool === 'draft_line') {
-      const commandResult = drafting.commitLineCommandPoint(point);
+    if (isDraftingPrimitiveCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitPrimitiveCommandPoint(drafting.activeTool, point);
       if (!commandResult.committed) {
         return;
       }
 
       const nextObject = createDraftingObject(
-        'draft_line',
+        commandResult.tool,
         commandResult.points[0],
         currentModel,
         commandResult.points,
@@ -892,8 +890,8 @@ export function DraftingEditor({
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
           onCanvasPointerMove={(point) => {
-            if (drafting.activeTool === 'draft_line') {
-              drafting.updateLineCommandPreview(point);
+            if (isDraftingPrimitiveCommandTool(drafting.activeTool)) {
+              drafting.updatePrimitiveCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -911,6 +909,7 @@ export function DraftingEditor({
           onUnderlayPointerDown={underlays.handleUnderlayPointerDown}
           onZoomIn={view.handleZoomIn}
           onZoomOut={view.handleZoomOut}
+          pendingCommandPreviewTool={drafting.commandPreviewTool}
           pendingLinePoints={drafting.pendingLinePoints}
           pendingLinePreviewPoints={drafting.commandPreviewPoints}
           snapSettings={drafting.snapSettings}
@@ -1204,6 +1203,13 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 }
 
 function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number) {
+  if (isDraftingPrimitiveCommandTool(tool)) {
+    if (tool === 'draft_circle') {
+      return pendingPointCount === 0 ? 'Pick centre point' : 'Pick radius point';
+    }
+    return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
+  }
+
   if (TWO_POINT_AUTHORING_TOOLS.has(tool)) {
     return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
   }

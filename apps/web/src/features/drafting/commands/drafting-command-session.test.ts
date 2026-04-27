@@ -3,11 +3,15 @@ import type { DraftingPoint } from '@eng/shared';
 import {
   cancelDraftingCommandSession,
   commitDraftingLineCommandPoint,
+  commitDraftingPrimitiveCommandPoint,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
+  getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  startDraftingPrimitiveCommand,
   startDraftingLineCommand,
   updateDraftingLineCommandPreview,
+  updateDraftingPrimitiveCommandPreview,
 } from './drafting-command-session';
 
 describe('drafting command session', () => {
@@ -30,7 +34,7 @@ describe('drafting command session', () => {
 
     expect(result.committed).toBe(false);
     expect(result.session).toMatchObject({
-      phase: 'waiting_next_point',
+      phase: 'waiting_second_point',
       points: [{ x: 100, y: 200 }],
       previewPoint: null,
       tool: 'draft_line',
@@ -58,7 +62,86 @@ describe('drafting command session', () => {
         { x: 2400, y: 0 },
       ]);
       expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(result.tool).toBe('draft_line');
     }
+  });
+
+  it('accepts, previews, and commits rectangle points', () => {
+    const firstPoint = commitDraftingPrimitiveCommandPoint(
+      startDraftingPrimitiveCommand('draft_rectangle'),
+      'draft_rectangle',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPrimitiveCommandPreview(firstPoint.session, { x: 2000, y: 1200 });
+    expect(getDraftingCommandTool(preview)).toBe('draft_rectangle');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 2000, y: 1200 },
+    ]);
+
+    const result = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 2000,
+      y: 1200,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('draft_rectangle');
+      expect(result.points).toEqual([
+        { x: 0, y: 0 },
+        { x: 2000, y: 1200 },
+      ]);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('accepts, previews, and commits circle centre/radius points', () => {
+    const firstPoint = commitDraftingPrimitiveCommandPoint(
+      startDraftingPrimitiveCommand('draft_circle'),
+      'draft_circle',
+      { x: 100, y: 100 },
+    );
+    const preview = updateDraftingPrimitiveCommandPreview(firstPoint.session, { x: 1600, y: 100 });
+
+    expect(getDraftingCommandTool(preview)).toBe('draft_circle');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 100, y: 100 },
+      { x: 1600, y: 100 },
+    ]);
+
+    const result = commitDraftingPrimitiveCommandPoint(preview, 'draft_circle', {
+      x: 1600,
+      y: 100,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('draft_circle');
+      expect(result.points).toEqual([
+        { x: 100, y: 100 },
+        { x: 1600, y: 100 },
+      ]);
+    }
+  });
+
+  it('switches primitive tools by cancelling the incomplete command', () => {
+    const firstPoint = commitDraftingPrimitiveCommandPoint(
+      startDraftingPrimitiveCommand('draft_rectangle'),
+      'draft_rectangle',
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_circle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_circle',
+    });
   });
 
   it('cancels without committing', () => {
@@ -66,6 +149,7 @@ describe('drafting command session', () => {
 
     expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
     expect(getDraftingCommandPoints(firstPoint.session)).toHaveLength(1);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
   });
 
   it('ignores invalid/no-op pointer commits without crashing', () => {
@@ -78,6 +162,7 @@ describe('drafting command session', () => {
 
     expect(duplicate.committed).toBe(false);
     expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
   });
 
   it('preserves optional z and rl point metadata', () => {

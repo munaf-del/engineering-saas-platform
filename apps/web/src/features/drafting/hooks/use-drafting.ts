@@ -8,14 +8,17 @@ import {
 import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
-  commitDraftingLineCommandPoint,
+  commitDraftingPrimitiveCommandPoint,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
+  getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
-  startDraftingLineCommand,
-  updateDraftingLineCommandPreview,
-  type DraftingLineCommandCommit,
-  type DraftingLineCommandSession,
+  isDraftingPrimitiveCommandTool,
+  startDraftingPrimitiveCommand,
+  updateDraftingPrimitiveCommandPreview,
+  type DraftingPrimitiveCommandCommit,
+  type DraftingPrimitiveCommandSession,
+  type DraftingPrimitiveCommandTool,
 } from '../commands/drafting-command-session';
 
 export type DraftingInspectorTab =
@@ -31,7 +34,7 @@ export type DraftingInspectorTab =
 
 export function useDrafting() {
   const [activeTool, setActiveTool] = useState<DraftingTool>('select');
-  const [commandSession, setCommandSession] = useState<DraftingLineCommandSession>(
+  const [commandSession, setCommandSession] = useState<DraftingPrimitiveCommandSession>(
     IDLE_DRAFTING_COMMAND_SESSION,
   );
   const [pendingLinePoints, setPendingLinePoints] = useState<DraftingPoint[]>([]);
@@ -53,18 +56,23 @@ export function useDrafting() {
     setActiveTool(tool);
     setPendingLinePoints([]);
     setCommandSession(
-      tool === 'draft_line' ? startDraftingLineCommand() : cancelDraftingCommandSession(),
+      isDraftingPrimitiveCommandTool(tool)
+        ? startDraftingPrimitiveCommand(tool)
+        : cancelDraftingCommandSession(),
     );
   }
 
-  function commitLineCommandPoint(point: DraftingPoint | null): DraftingLineCommandCommit {
-    const result = commitDraftingLineCommandPoint(commandSession, point);
+  function commitPrimitiveCommandPoint(
+    tool: DraftingPrimitiveCommandTool,
+    point: DraftingPoint | null,
+  ): DraftingPrimitiveCommandCommit {
+    const result = commitDraftingPrimitiveCommandPoint(commandSession, tool, point);
     setCommandSession(result.session);
     return result;
   }
 
-  function updateLineCommandPreview(point: DraftingPoint | null) {
-    setCommandSession((current) => updateDraftingLineCommandPreview(current, point));
+  function updatePrimitiveCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingPrimitiveCommandPreview(current, point));
   }
 
   function toggleSnapEnabled() {
@@ -86,10 +94,12 @@ export function useDrafting() {
     activeTool,
     addPendingLinePoint,
     clearPendingLine,
+    commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
-    commitLineCommandPoint,
-    pendingLinePoints:
-      activeTool === 'draft_line' ? getDraftingCommandPoints(commandSession) : pendingLinePoints,
+    commitPrimitiveCommandPoint,
+    pendingLinePoints: isDraftingPrimitiveCommandTool(activeTool)
+      ? getDraftingCommandPoints(commandSession)
+      : pendingLinePoints,
     setActiveTab,
     setActiveTool: changeActiveTool,
     setPendingLinePoints,
@@ -97,6 +107,6 @@ export function useDrafting() {
     snapSettings,
     toggleSnapEnabled,
     toggleSnapMode,
-    updateLineCommandPreview,
+    updatePrimitiveCommandPreview,
   };
 }

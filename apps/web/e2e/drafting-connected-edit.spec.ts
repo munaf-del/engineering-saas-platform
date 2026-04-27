@@ -1,8 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type {
+  DraftingCircleObject,
   DraftingDimensionChainObject,
   DraftingDrawing,
   DraftingLineObject,
+  DraftingRectangleObject,
   Project,
 } from '@eng/shared';
 import { calculateDimensionChainTotal } from '../src/features/drafting/semantic-object-utils';
@@ -21,6 +23,125 @@ const QA_LINE_ID = 'qa-line-1';
 const QA_LINE_DIMENSION_ID = 'qa-line-dimension-1';
 
 test.describe('Drafting connected-edit pointer QA', () => {
+  test('authors rectangle and circle primitives with cancel-safe command lifecycle', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPrimitivePreview({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-rectangle',
+        start: { xRatio: 0.34, yRatio: 0.55 },
+        end: { xRatio: 0.48, yRatio: 0.66 },
+        toolLabel: 'Rectangle',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-rectangle')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await authorTwoPointPrimitive({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-rectangle',
+        start: { xRatio: 0.34, yRatio: 0.55 },
+        end: { xRatio: 0.5, yRatio: 0.68 },
+        toolLabel: 'Rectangle',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+
+      await startPrimitivePreview({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-circle',
+        start: { xRatio: 0.62, yRatio: 0.58 },
+        end: { xRatio: 0.7, yRatio: 0.58 },
+        toolLabel: 'Circle',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-circle')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+
+      await authorTwoPointPrimitive({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-circle',
+        start: { xRatio: 0.64, yRatio: 0.6 },
+        end: { xRatio: 0.72, yRatio: 0.6 },
+        toolLabel: 'Circle',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredRectangle = reloadedDrawing.model.objects.find(
+        (object): object is DraftingRectangleObject => object.type === 'draft_rectangle',
+      );
+      const authoredCircle = reloadedDrawing.model.objects.find(
+        (object): object is DraftingCircleObject => object.type === 'draft_circle',
+      );
+      expect(authoredRectangle).toBeDefined();
+      expect(authoredCircle).toBeDefined();
+      expect(authoredRectangle!.geometry.cornerA).not.toEqual(authoredRectangle!.geometry.cornerB);
+      expect(authoredCircle!.geometry.radiusMm).toBeGreaterThan(0);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      expect(exportedJson).toContain(authoredRectangle!.id);
+      expect(exportedJson).toContain(authoredCircle!.id);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
   test('authors a line from a blank temporary sketch through live canvas pointer input', async ({
     page,
   }) => {
@@ -266,6 +387,46 @@ async function dragLocatorBy(page: Page, locator: Locator, delta: { x: number; y
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 6 });
   await page.mouse.up();
+}
+
+async function authorTwoPointPrimitive(args: {
+  canvas: Locator;
+  end: { xRatio: number; yRatio: number };
+  page: Page;
+  previewTestId: string;
+  start: { xRatio: number; yRatio: number };
+  toolLabel: string;
+}) {
+  await startPrimitivePreview(args);
+  const end = await pointInLocator(args.canvas, args.end);
+  await args.page.mouse.click(end.x, end.y);
+}
+
+async function startPrimitivePreview({
+  canvas,
+  end,
+  page,
+  previewTestId,
+  start,
+  toolLabel,
+}: {
+  canvas: Locator;
+  end: { xRatio: number; yRatio: number };
+  page: Page;
+  previewTestId: string;
+  start: { xRatio: number; yRatio: number };
+  toolLabel: string;
+}) {
+  const toolButton = page.getByRole('button', { exact: true, name: toolLabel });
+  await toolButton.click();
+  await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+  await canvas.scrollIntoViewIfNeeded();
+  const startPoint = await pointInLocator(canvas, start);
+  const endPoint = await pointInLocator(canvas, end);
+  await page.mouse.move(startPoint.x, startPoint.y);
+  await page.mouse.click(startPoint.x, startPoint.y);
+  await page.mouse.move(endPoint.x, endPoint.y, { steps: 6 });
+  await expect(page.getByTestId(previewTestId)).toHaveCount(1);
 }
 
 async function pointInLocator(locator: Locator, ratios: { xRatio: number; yRatio: number }) {
