@@ -15,6 +15,7 @@ import {
   Lock,
   Maximize2,
   Plus,
+  RefreshCw,
   RotateCcw,
   Target,
   Trash2,
@@ -54,6 +55,7 @@ import {
   addDrawingSheetIssue,
   compareDraftingDrawingSheetIssue,
   createDraftingDrawingSheetIssueSnapshot,
+  createRefreshedDraftingDrawingSheetIssueSnapshot,
   getDrawingSheetIssues,
 } from '../sheets/drafting-drawing-sheet-issue-utils';
 
@@ -324,6 +326,23 @@ export function DraftingDrawingSheetsPanel({
     onModelChange(addDrawingSheetIssue(model, issue));
     setSelectedIssueId(issue.id);
     setIssueNumber(nextIssueNumber(issue.issueNumber, issues.length + 2));
+  }
+
+  function handleCreateRefreshedIssueSnapshot() {
+    if (!selectedIssue) {
+      return;
+    }
+    const issue = createRefreshedDraftingDrawingSheetIssueSnapshot({
+      currentUserName,
+      id: crypto.randomUUID(),
+      issueNumber: nextIssueNumber(selectedIssue.issueNumber, issues.length + 2),
+      model,
+      rootTemplatesById,
+      sourceIssue: selectedIssue,
+    });
+    onModelChange(addDrawingSheetIssue(model, issue));
+    setSelectedIssueId(issue.id);
+    setIssueNumber(nextIssueNumber(issue.issueNumber, issues.length + 3));
   }
 
   const selectedIssue = issues.find((issue) => issue.id === selectedIssueId) ?? issues.at(-1);
@@ -810,6 +829,15 @@ export function DraftingDrawingSheetsPanel({
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open issued preview
                   </Link>
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    onClick={handleCreateRefreshedIssueSnapshot}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Create refreshed issue snapshot
+                  </Button>
                   <Button
                     size="sm"
                     type="button"

@@ -673,7 +673,15 @@ describe('DraftingService', () => {
     expect(result.payload.includedItems).toHaveLength(2);
     expect(result.payload.includedItems[0]?.profileAudit).toMatchObject({
       activeProfileId: 'as1100-structural',
+      provenance: {
+        source: 'frozen',
+        status: 'frozen',
+      },
       schemaVersion: 'drafting.profile-audit.v1',
+    });
+    expect(result.payload.includedItems[1]?.profileAuditProvenance).toMatchObject({
+      source: 'frozen',
+      status: 'frozen',
     });
     expect(result.payload.provenanceSummary.drawingCount).toBe(2);
     expect(result.payload.manifestSignature).toMatch(/^sig-[0-9a-f]{8}$/);
@@ -1054,6 +1062,14 @@ function issuedSheetModel(
 function profileAuditFixture() {
   return {
     schemaVersion: 'drafting.profile-audit.v1' as const,
+    provenance: {
+      source: 'frozen' as const,
+      status: 'frozen' as const,
+      drawingId: 'drawing-1',
+      sheetId: 'sheet-1',
+      sourceIssueId: 'issue-1',
+      frozenAt: '2026-04-24T00:00:00.000Z',
+    },
     warning: 'AS1100-informed profile; not a certification or full compliance claim.',
     activeProfileId: 'as1100-structural' as const,
     profileName: 'AS/NZS 1100 Structural',

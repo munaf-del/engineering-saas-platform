@@ -4,6 +4,7 @@ import {
   type DraftingDrawingSetup,
   type DraftingModel,
   type DraftingSheetProfileAudit,
+  type DraftingSheetProfileAuditProvenance,
   type DraftingSheetSizePreset,
 } from '@eng/shared';
 import {
@@ -24,9 +25,13 @@ import {
 export const DRAFTING_PROFILE_AUDIT_WARNING =
   'AS1100-informed profile; not a certification or full compliance claim.';
 
+export const DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING =
+  'Fallback-resolved profile audit may differ from the original issued output.';
+
 export function buildDraftingSheetProfileAudit(args: {
-  model: Pick<DraftingModel, 'drawingSetup'>;
-  sheet?: Pick<DraftingDrawingSheetDefinition, 'pageSize' | 'scaleLabel'> | null;
+  model: Pick<DraftingModel, 'drawingSetup'> & Partial<Pick<DraftingModel, 'drawingId'>>;
+  provenance?: DraftingSheetProfileAuditProvenance;
+  sheet?: Pick<DraftingDrawingSheetDefinition, 'id' | 'pageSize' | 'scaleLabel'> | null;
 }): DraftingSheetProfileAudit {
   const setup = args.model.drawingSetup ?? createDefaultDraftingDrawingSetup();
   const profile = getDraftingStandardProfile(setup.activeStandardProfileId);
@@ -36,6 +41,12 @@ export function buildDraftingSheetProfileAudit(args: {
 
   return {
     schemaVersion: 'drafting.profile-audit.v1',
+    provenance: args.provenance ?? {
+      status: 'fallback_resolved',
+      source: 'fallback_resolved',
+      ...(args.model.drawingId ? { drawingId: args.model.drawingId } : {}),
+      ...(args.sheet?.id ? { sheetId: args.sheet.id } : {}),
+    },
     warning: DRAFTING_PROFILE_AUDIT_WARNING,
     activeProfileId: profile.id,
     profileName: profile.label,
@@ -78,6 +89,52 @@ export function buildDraftingSheetProfileAudit(args: {
       textHeightMm: roundAuditNumber(leaderStyle.textStyle.textHeightMm),
       textPreset: leaderStyle.textPreset,
     },
+  };
+}
+
+export function resolveDraftingSheetProfileAuditForIssue(args: {
+  issue: { createdAt?: string; id: string; issueDate?: string };
+  lockedProfileAudit?: DraftingSheetProfileAudit;
+  model: Pick<DraftingModel, 'drawingId' | 'drawingSetup'>;
+  sheet: Pick<DraftingDrawingSheetDefinition, 'id' | 'pageSize' | 'scaleLabel'>;
+}): DraftingSheetProfileAudit {
+  if (args.lockedProfileAudit) {
+    const frozenAt =
+      args.lockedProfileAudit.provenance?.frozenAt ?? args.issue.createdAt ?? args.issue.issueDate;
+    return withDraftingProfileAuditProvenance(args.lockedProfileAudit, {
+      status: 'frozen',
+      source: 'frozen',
+      drawingId: args.model.drawingId,
+      ...(frozenAt ? { frozenAt } : {}),
+      sheetId: args.sheet.id,
+      sourceIssueId: args.issue.id,
+      ...(args.lockedProfileAudit.provenance?.warning
+        ? { warning: args.lockedProfileAudit.provenance.warning }
+        : {}),
+    });
+  }
+
+  return buildDraftingSheetProfileAudit({
+    model: args.model,
+    provenance: {
+      status: 'fallback_resolved',
+      source: 'fallback_resolved',
+      drawingId: args.model.drawingId,
+      sheetId: args.sheet.id,
+      sourceIssueId: args.issue.id,
+      warning: DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING,
+    },
+    sheet: args.sheet,
+  });
+}
+
+export function withDraftingProfileAuditProvenance(
+  audit: DraftingSheetProfileAudit,
+  provenance: DraftingSheetProfileAuditProvenance,
+): DraftingSheetProfileAudit {
+  return {
+    ...audit,
+    provenance,
   };
 }
 

@@ -131,6 +131,18 @@ const DraftingSheetSizePresetSchema = z.enum(['A0', 'A1', 'A2', 'A3', 'A4']);
 
 const DraftingSheetProfileAuditSchema = z.object({
   schemaVersion: z.literal('drafting.profile-audit.v1'),
+  provenance: z
+    .object({
+      status: z.enum(['frozen', 'fallback_resolved', 'missing']),
+      source: z.enum(['frozen', 'fallback_resolved', 'missing']),
+      drawingId: z.string().min(1).optional(),
+      frozenAt: z.string().datetime().optional(),
+      resolvedAt: z.string().datetime().optional(),
+      sheetId: z.string().min(1).optional(),
+      sourceIssueId: z.string().min(1).optional(),
+      warning: z.string().min(1).optional(),
+    })
+    .optional(),
   warning: z.string().min(1),
   activeProfileId: DraftingStandardProfileIdSchema,
   profileName: z.string().min(1),
@@ -1100,6 +1112,18 @@ export const DraftingProjectTransmittalItemSchema = z.object({
   snapshotLabel: z.string().min(1),
   status: z.enum(DRAFTING_DRAWING_SHEET_ISSUE_STATUSES),
   profileAudit: DraftingSheetProfileAuditSchema.optional(),
+  profileAuditProvenance: z
+    .object({
+      status: z.enum(['frozen', 'fallback_resolved', 'missing']),
+      source: z.enum(['frozen', 'fallback_resolved', 'missing']),
+      drawingId: z.string().min(1).optional(),
+      frozenAt: z.string().datetime().optional(),
+      resolvedAt: z.string().datetime().optional(),
+      sheetId: z.string().min(1).optional(),
+      sourceIssueId: z.string().min(1).optional(),
+      warning: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export const DraftingProjectTransmittalPayloadSchema = z.object({

@@ -34,6 +34,14 @@ describe('project drafting transmittal helpers', () => {
       activeProfileId: 'as1100-structural',
       schemaVersion: 'drafting.profile-audit.v1',
     });
+    expect(manifest.includedItems[0]?.profileAuditProvenance).toMatchObject({
+      source: 'frozen',
+      status: 'frozen',
+    });
+    expect(manifest.includedItems[1]?.profileAuditProvenance).toMatchObject({
+      source: 'missing',
+      status: 'missing',
+    });
   });
 
   it('manifest JSON excludes sensitive and binary-like fields', () => {
@@ -82,6 +90,14 @@ function createProjectTransmittal(): DraftingProjectTransmittal {
           snapshotLabel: 'ISS-001 Rev B - S-101 Plan',
           status: 'issued',
           profileAudit: profileAuditFixture(),
+          profileAuditProvenance: {
+            source: 'frozen',
+            status: 'frozen',
+            drawingId: 'drawing-1',
+            sheetId: 'sheet-1',
+            sourceIssueId: 'issue-1',
+            frozenAt: '2026-04-24T00:00:00.000Z',
+          },
         },
         {
           drawingId: 'drawing-2',
@@ -96,6 +112,14 @@ function createProjectTransmittal(): DraftingProjectTransmittal {
           sheetTitle: 'Details',
           snapshotLabel: 'ISS-002 Rev A - S-201 Details',
           status: 'issued',
+          profileAuditProvenance: {
+            source: 'missing',
+            status: 'missing',
+            drawingId: 'drawing-2',
+            sheetId: 'sheet-2',
+            sourceIssueId: 'issue-2',
+            warning: 'No frozen profile audit metadata is stored on this issued sheet snapshot.',
+          },
         },
       ],
       issuedAt: '2026-04-24T01:00:00.000Z',
@@ -122,6 +146,14 @@ function createProjectTransmittal(): DraftingProjectTransmittal {
 function profileAuditFixture() {
   return {
     schemaVersion: 'drafting.profile-audit.v1' as const,
+    provenance: {
+      source: 'frozen' as const,
+      status: 'frozen' as const,
+      drawingId: 'drawing-1',
+      sheetId: 'sheet-1',
+      sourceIssueId: 'issue-1',
+      frozenAt: '2026-04-24T00:00:00.000Z',
+    },
     warning: 'AS1100-informed profile; not a certification or full compliance claim.',
     activeProfileId: 'as1100-structural' as const,
     profileName: 'AS/NZS 1100 Structural',

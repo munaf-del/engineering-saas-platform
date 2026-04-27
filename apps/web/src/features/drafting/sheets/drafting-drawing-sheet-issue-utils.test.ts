@@ -7,6 +7,7 @@ import {
   buildIssuedDrawingModel,
   compareDraftingDrawingSheetIssue,
   createDraftingDrawingSheetIssueSnapshot,
+  createRefreshedDraftingDrawingSheetIssueSnapshot,
 } from './drafting-drawing-sheet-issue-utils';
 
 const now = '2026-04-24T00:00:00.000Z';
@@ -40,6 +41,12 @@ describe('drafting drawing sheet issue snapshots', () => {
       },
       profileAudit: {
         activeProfileId: 'as1100-general',
+        provenance: {
+          frozenAt: now,
+          source: 'frozen',
+          sourceIssueId: 'issue-1',
+          status: 'frozen',
+        },
         schemaVersion: 'drafting.profile-audit.v1',
       },
       viewport: {
@@ -215,12 +222,100 @@ describe('drafting drawing sheet issue snapshots', () => {
       sheetId: 'sheet-1',
       profileAudit: {
         activeProfileId: 'as1100-general',
+        provenance: {
+          source: 'frozen',
+          status: 'frozen',
+        },
         warning: 'AS1100-informed profile; not a certification or full compliance claim.',
+      },
+      provenance: {
+        source: 'frozen',
+        status: 'frozen',
       },
     });
     expect(manifest.lockedObjects[0]).not.toHaveProperty('renderedState');
     expect(manifest.lockedUnderlays[0]).toMatchObject({ underlayId: 'underlay-1' });
     expect(manifest.comparison.hasDrift).toBe(false);
+  });
+
+  it('marks legacy issue manifests without stored profileAudit as fallback resolved', () => {
+    const model = createIssueModel();
+    const issue = createDraftingDrawingSheetIssueSnapshot(model, {
+      id: 'issue-legacy',
+      issueDate: now,
+      issueNumber: 'ISS-000',
+      purpose: 'For review',
+      revision: 'A',
+      sheetIds: ['sheet-1'],
+    });
+    const legacyIssue = {
+      ...issue,
+      lockedDrawingSheets: issue.lockedDrawingSheets.map((sheet) => {
+        const legacySheet = { ...sheet };
+        delete legacySheet.profileAudit;
+        return legacySheet;
+      }),
+    };
+
+    const manifest = buildDraftingDrawingSheetIssueManifest({
+      issue: legacyIssue,
+      model,
+    });
+
+    expect(legacyIssue.lockedDrawingSheets[0]).not.toHaveProperty('profileAudit');
+    expect(manifest.lockedProfileAudits[0]).toMatchObject({
+      profileAudit: {
+        provenance: {
+          source: 'fallback_resolved',
+          sourceIssueId: 'issue-legacy',
+          status: 'fallback_resolved',
+        },
+      },
+      provenance: {
+        source: 'fallback_resolved',
+        status: 'fallback_resolved',
+      },
+    });
+    expect(legacyIssue.lockedDrawingSheets[0]).not.toHaveProperty('profileAudit');
+  });
+
+  it('creates a refreshed issue snapshot without mutating the source issue', () => {
+    const model = createIssueModel();
+    const sourceIssue = createDraftingDrawingSheetIssueSnapshot(model, {
+      id: 'issue-1',
+      issueDate: now,
+      issueNumber: 'ISS-001',
+      notes: 'Original package.',
+      purpose: 'For review',
+      revision: 'A',
+      sheetIds: ['sheet-1'],
+    });
+
+    const refreshed = createRefreshedDraftingDrawingSheetIssueSnapshot({
+      currentUserName: 'Avery Drafter',
+      id: 'issue-2',
+      issueNumber: 'ISS-002',
+      model,
+      sourceIssue,
+    });
+
+    expect(refreshed).toMatchObject({
+      id: 'issue-2',
+      issueNumber: 'ISS-002',
+      notes: 'Refreshed from ISS-001. Original package.',
+      purpose: 'For review',
+      revision: 'A',
+    });
+    expect(refreshed.lockedDrawingSheets[0]?.profileAudit?.provenance).toMatchObject({
+      source: 'frozen',
+      sourceIssueId: 'issue-2',
+      status: 'frozen',
+    });
+    expect(sourceIssue).toMatchObject({
+      id: 'issue-1',
+      issueNumber: 'ISS-001',
+      notes: 'Original package.',
+    });
   });
 });
 

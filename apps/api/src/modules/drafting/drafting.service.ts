@@ -934,7 +934,39 @@ export class DraftingService {
         sheetTitle: sheet.title || sheet.name,
         snapshotLabel: `${issue.issueNumber} Rev ${issue.revision} - ${sheet.sheetNumber} ${sheet.title || sheet.name}`,
         status: issue.status,
-        ...(sheet.profileAudit ? { profileAudit: sheet.profileAudit } : {}),
+        ...(sheet.profileAudit
+          ? {
+              profileAudit: {
+                ...sheet.profileAudit,
+                provenance: sheet.profileAudit.provenance ?? {
+                  status: 'frozen',
+                  source: 'frozen',
+                  drawingId: drawing.id,
+                  frozenAt: issue.createdAt ?? issue.issueDate,
+                  sheetId: sheet.id,
+                  sourceIssueId: issue.id,
+                },
+              },
+              profileAuditProvenance: sheet.profileAudit.provenance ?? {
+                status: 'frozen',
+                source: 'frozen',
+                drawingId: drawing.id,
+                frozenAt: issue.createdAt ?? issue.issueDate,
+                sheetId: sheet.id,
+                sourceIssueId: issue.id,
+              },
+            }
+          : {
+              profileAuditProvenance: {
+                status: 'missing',
+                source: 'missing',
+                drawingId: drawing.id,
+                sheetId: sheet.id,
+                sourceIssueId: issue.id,
+                warning:
+                  'No frozen profile audit metadata is stored on this issued sheet snapshot.',
+              },
+            }),
       });
       if (!sheet.templateSnapshot) {
         warningSummary.push(

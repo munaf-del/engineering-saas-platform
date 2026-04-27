@@ -3,7 +3,9 @@ import { createEmptyDraftingModel } from '@eng/shared';
 import { createDraftingDrawingSheetDefinition } from '../sheets/drafting-drawing-sheet-utils';
 import {
   buildDraftingSheetProfileAudit,
+  DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING,
   DRAFTING_PROFILE_AUDIT_WARNING,
+  resolveDraftingSheetProfileAuditForIssue,
 } from './drafting-profile-audit';
 
 describe('drafting profile audit metadata', () => {
@@ -22,6 +24,10 @@ describe('drafting profile audit metadata', () => {
     expect(audit.textPresets.map((preset) => preset.preset)).toContain('DIMENSION');
     expect(audit.dimensionStyle.sheetLineWeightMm).toBeGreaterThan(0);
     expect(audit.leaderStyle.sheetLineWeightMm).toBeGreaterThan(0);
+    expect(audit.provenance).toMatchObject({
+      source: 'fallback_resolved',
+      status: 'fallback_resolved',
+    });
   });
 
   it('reflects drawing setup overrides and sheet scale metadata', () => {
@@ -57,5 +63,52 @@ describe('drafting profile audit metadata', () => {
     expect(audit.lineRoles.find((role) => role.role === 'OBJECT_OUTLINE')?.sheetLineWeightMm).toBe(
       0.525,
     );
+  });
+
+  it('marks stored issue audits as frozen provenance', () => {
+    const model = createEmptyDraftingModel('profile-audit-frozen');
+    const sheet = createDraftingDrawingSheetDefinition({ id: 'sheet-audit' });
+    const lockedProfileAudit = buildDraftingSheetProfileAudit({ model, sheet });
+
+    const audit = resolveDraftingSheetProfileAuditForIssue({
+      issue: {
+        createdAt: '2026-04-24T00:00:00.000Z',
+        id: 'issue-1',
+        issueDate: '2026-04-24T00:00:00.000Z',
+      },
+      lockedProfileAudit,
+      model,
+      sheet,
+    });
+
+    expect(audit.provenance).toMatchObject({
+      frozenAt: '2026-04-24T00:00:00.000Z',
+      sheetId: 'sheet-audit',
+      source: 'frozen',
+      sourceIssueId: 'issue-1',
+      status: 'frozen',
+    });
+  });
+
+  it('marks legacy issue audits as fallback resolved provenance without mutating the issue', () => {
+    const model = createEmptyDraftingModel('profile-audit-legacy');
+    const sheet = createDraftingDrawingSheetDefinition({ id: 'legacy-sheet' });
+
+    const audit = resolveDraftingSheetProfileAuditForIssue({
+      issue: {
+        id: 'legacy-issue',
+        issueDate: '2026-04-24T00:00:00.000Z',
+      },
+      model,
+      sheet,
+    });
+
+    expect(audit.provenance).toMatchObject({
+      sheetId: 'legacy-sheet',
+      source: 'fallback_resolved',
+      sourceIssueId: 'legacy-issue',
+      status: 'fallback_resolved',
+      warning: DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING,
+    });
   });
 });

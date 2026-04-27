@@ -148,6 +148,10 @@ describe('drafting export utils', () => {
     expect(parsed.model).toEqual(model);
     expect(parsed.profileAudit).toMatchObject({
       activeProfileId: 'as1100-general',
+      provenance: {
+        source: 'fallback_resolved',
+        status: 'fallback_resolved',
+      },
       schemaVersion: 'drafting.profile-audit.v1',
       warning: 'AS1100-informed profile; not a certification or full compliance claim.',
     });

@@ -605,6 +605,7 @@ export type DraftingDrawingSheetTemplateSnapshot = {
 
 export type DraftingSheetProfileAudit = {
   schemaVersion: 'drafting.profile-audit.v1';
+  provenance?: DraftingSheetProfileAuditProvenance;
   warning: string;
   activeProfileId: DraftingStandardProfileId;
   profileName: string;
@@ -647,6 +648,17 @@ export type DraftingSheetProfileAudit = {
     textHeightMm: number;
     textPreset: string;
   };
+};
+
+export type DraftingSheetProfileAuditProvenance = {
+  status: 'frozen' | 'fallback_resolved' | 'missing';
+  source: 'frozen' | 'fallback_resolved' | 'missing';
+  drawingId?: string;
+  frozenAt?: string;
+  resolvedAt?: string;
+  sheetId?: string;
+  sourceIssueId?: string;
+  warning?: string;
 };
 
 export type DraftingLockedDrawingSheetDefinition = DraftingDrawingSheetDefinition & {
@@ -1308,6 +1320,7 @@ export type DraftingProjectTransmittalItem = {
   snapshotLabel: string;
   status: DraftingDrawingSheetIssueStatus;
   profileAudit?: DraftingSheetProfileAudit;
+  profileAuditProvenance?: DraftingSheetProfileAuditProvenance;
 };
 
 export type DraftingProjectTransmittalPayload = {

@@ -374,7 +374,15 @@ describe('drafting transmittal helpers', () => {
       sheetId: 'sheet-1',
       profileAudit: {
         activeProfileId: 'as1100-general',
+        provenance: {
+          source: 'frozen',
+          status: 'frozen',
+        },
         schemaVersion: 'drafting.profile-audit.v1',
+      },
+      provenance: {
+        source: 'frozen',
+        status: 'frozen',
       },
     });
     expect(manifest.issueManifests[0]?.objectProvenanceSummary[0]).toMatchObject({

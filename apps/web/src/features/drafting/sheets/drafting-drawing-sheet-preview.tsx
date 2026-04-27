@@ -47,7 +47,9 @@ import {
 import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
 import {
   buildDraftingSheetProfileAudit,
+  DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING,
   DRAFTING_PROFILE_AUDIT_WARNING,
+  resolveDraftingSheetProfileAuditForIssue,
 } from '../standards/drafting-profile-audit';
 import {
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
@@ -313,8 +315,12 @@ export function DraftingDrawingSheetPreview({
         <ProfileAuditSection
           audit={
             selectedIssue
-              ? (issueLockedSheetsById.get(selectedSheet.id)?.profileAudit ??
-                buildDraftingSheetProfileAudit({ model: previewModel, sheet: selectedSheet }))
+              ? resolveDraftingSheetProfileAuditForIssue({
+                  issue: selectedIssue,
+                  lockedProfileAudit: issueLockedSheetsById.get(selectedSheet.id)?.profileAudit,
+                  model: drawing.model,
+                  sheet: selectedSheet,
+                })
               : buildDraftingSheetProfileAudit({ model: previewModel, sheet: selectedSheet })
           }
         />
@@ -543,7 +549,12 @@ function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">Profile Audit</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="font-medium">Profile Audit</div>
+            <Badge variant={audit.provenance?.status === 'frozen' ? 'secondary' : 'outline'}>
+              {formatProfileAuditProvenanceLabel(audit.provenance?.status)}
+            </Badge>
+          </div>
           <div className="text-xs text-muted-foreground">
             Resolved presentation metadata used by this plotted sheet preview.
           </div>
@@ -553,10 +564,19 @@ function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
       <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
         {DRAFTING_PROFILE_AUDIT_WARNING}
       </div>
+      {audit.provenance?.status === 'fallback_resolved' ? (
+        <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
+          {audit.provenance.warning ?? DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING}
+        </div>
+      ) : null}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <AuditMetric
           label="Active profile"
           value={`${audit.activeProfileId} · ${audit.profileName}`}
+        />
+        <AuditMetric
+          label="Audit source"
+          value={formatProfileAuditProvenanceLabel(audit.provenance?.status)}
         />
         <AuditMetric label="Version" value={audit.profileVersion} />
         <AuditMetric label="Discipline" value={audit.disciplineProfileId} />
@@ -565,6 +585,12 @@ function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
         <AuditMetric label="Text scale mode" value={audit.textScaleMode} />
         <AuditMetric label="Line table" value={audit.lineWeightTableId} />
         <AuditMetric label="Style table" value={audit.lineStyleTableId} />
+        {audit.provenance?.frozenAt ? (
+          <AuditMetric label="Frozen at" value={formatIssueDate(audit.provenance.frozenAt)} />
+        ) : null}
+        {audit.provenance?.sourceIssueId ? (
+          <AuditMetric label="Source issue" value={audit.provenance.sourceIssueId} />
+        ) : null}
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <AuditSummaryTable
@@ -610,6 +636,18 @@ function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
       </div>
     </section>
   );
+}
+
+function formatProfileAuditProvenanceLabel(
+  status: NonNullable<DraftingSheetProfileAudit['provenance']>['status'] | undefined,
+) {
+  if (status === 'frozen') {
+    return 'Frozen profile audit';
+  }
+  if (status === 'fallback_resolved') {
+    return 'Fallback resolved profile audit';
+  }
+  return 'Missing profile audit';
 }
 
 function AuditMetric({ label, value }: { label: string; value: string }) {

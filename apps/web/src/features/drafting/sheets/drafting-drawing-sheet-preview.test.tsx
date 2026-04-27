@@ -484,12 +484,57 @@ describe('drafting drawing sheet preview', () => {
     );
 
     expect(markup).toContain('Frozen issued snapshot');
+    expect(markup).toContain('Frozen profile audit');
     expect(markup).toContain('Locked Retention Plan');
     expect(markup).toContain('Locked Drawing Title');
     expect(markup).toContain('P-LOCKED');
     expect(markup).not.toContain('Changed Live Sheet');
     expect(markup).not.toContain('Changed Live Drawing Title');
     expect(markup).not.toContain('P-LIVE');
+  });
+
+  it('shows fallback profile audit provenance for legacy issued sheets', () => {
+    const drawing = createDrawing();
+    const sheet = createDraftingDrawingSheetDefinition({
+      id: 'drawing-sheet-1',
+      name: 'Locked Retention Plan',
+    });
+    drawing.model.drawingSheets = [sheet];
+    const issue = createDraftingDrawingSheetIssueSnapshot(drawing.model, {
+      id: 'issue-legacy',
+      issueDate: '2026-04-24T00:00:00.000Z',
+      issueNumber: 'ISS-000',
+      purpose: 'For review',
+      revision: 'A',
+      sheetIds: ['drawing-sheet-1'],
+    });
+    const legacyIssue = {
+      ...issue,
+      lockedDrawingSheets: issue.lockedDrawingSheets.map((lockedSheet) => {
+        const nextSheet = { ...lockedSheet };
+        delete nextSheet.profileAudit;
+        return nextSheet;
+      }),
+    };
+    drawing.model = addDrawingSheetIssue(drawing.model, legacyIssue);
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPreview
+        drawing={drawing}
+        onModeChange={() => {}}
+        onSelectedSheetIdChange={() => {}}
+        previewMode="sheet"
+        project={project}
+        projectId={project.id}
+        rootTemplates={[]}
+        selectedIssueId="issue-legacy"
+        selectedSheetId="drawing-sheet-1"
+      />,
+    );
+
+    expect(markup).toContain('Fallback resolved profile audit');
+    expect(markup).toContain('may differ from the original issued output');
+    expect(legacyIssue.lockedDrawingSheets[0]).not.toHaveProperty('profileAudit');
   });
 });
 
