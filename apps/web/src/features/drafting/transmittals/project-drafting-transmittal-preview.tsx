@@ -3,7 +3,12 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileJson, Printer, TriangleAlert } from 'lucide-react';
-import type { DraftingProjectTransmittal, Project } from '@eng/shared';
+import type {
+  DraftingProjectTransmittal,
+  DraftingProjectTransmittalItem,
+  DraftingSheetProfileAuditProvenance,
+  Project,
+} from '@eng/shared';
 import { PageLoading } from '@/components/loading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +67,11 @@ export function ProjectDraftingTransmittalPreview({
     [transmittal],
   );
   const isLocked = transmittal.status !== 'draft';
+  const profileAuditSummary = React.useMemo(
+    () => countProfileAuditProvenance(transmittal.payload.includedItems),
+    [transmittal.payload.includedItems],
+  );
+  const hasFallbackProfileAudit = profileAuditSummary.fallbackResolved > 0;
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none print:space-y-4">
@@ -147,9 +157,25 @@ export function ProjectDraftingTransmittalPreview({
         {transmittal.payload.warningSummary.map((warning) => (
           <WarningLine key={warning} message={warning} />
         ))}
+        {hasFallbackProfileAudit ? (
+          <WarningLine message="Some included sheets show fallback-resolved profile audit metadata; values may differ from the original issued output." />
+        ) : null}
 
         <div>
-          <h3 className="mb-2 text-lg font-semibold">Included Drawing Sheet Snapshots</h3>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold">Included Drawing Sheet Snapshots</h3>
+            <div
+              className="flex flex-wrap gap-2 text-xs"
+              aria-label="Profile audit provenance summary"
+            >
+              <ProfileAuditCountBadge label="Frozen" value={profileAuditSummary.frozen} />
+              <ProfileAuditCountBadge
+                label="Fallback"
+                value={profileAuditSummary.fallbackResolved}
+              />
+              <ProfileAuditCountBadge label="Missing" value={profileAuditSummary.missing} />
+            </div>
+          </div>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b bg-slate-100">
@@ -160,27 +186,37 @@ export function ProjectDraftingTransmittalPreview({
                 <th className="p-2 text-left">Status</th>
                 <th className="p-2 text-left">Issue</th>
                 <th className="p-2 text-left">Snapshot</th>
+                <th className="p-2 text-left">Profile Audit</th>
               </tr>
             </thead>
             <tbody>
-              {transmittal.payload.includedItems.map((item) => (
-                <tr
-                  className="border-b"
-                  key={`${item.drawingId}-${item.drawingSheetIssueId}-${item.sheetId}`}
-                >
-                  <td className="p-2">{item.drawingName}</td>
-                  <td className="p-2">{item.drawingNumber ?? '-'}</td>
-                  <td className="p-2">
-                    {item.sheetNumber} · {item.sheetTitle}
-                  </td>
-                  <td className="p-2">{item.revision}</td>
-                  <td className="p-2">{item.status}</td>
-                  <td className="p-2">
-                    {item.issueNumber} · {formatDate(item.issueDate)}
-                  </td>
-                  <td className="p-2">Frozen</td>
-                </tr>
-              ))}
+              {transmittal.payload.includedItems.map((item) => {
+                const profileAuditStatus = resolveProfileAuditStatus(item);
+                return (
+                  <tr
+                    className="border-b"
+                    key={`${item.drawingId}-${item.drawingSheetIssueId}-${item.sheetId}`}
+                  >
+                    <td className="p-2">{item.drawingName}</td>
+                    <td className="p-2">{item.drawingNumber ?? '-'}</td>
+                    <td className="p-2">
+                      {item.sheetNumber} · {item.sheetTitle}
+                    </td>
+                    <td className="p-2">{item.revision}</td>
+                    <td className="p-2">{item.status}</td>
+                    <td className="p-2">
+                      {item.issueNumber} · {formatDate(item.issueDate)}
+                    </td>
+                    <td className="p-2">Frozen</td>
+                    <td className="p-2">
+                      <ProfileAuditStatusBadge
+                        status={profileAuditStatus}
+                        warning={item.profileAuditProvenance?.warning}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -208,6 +244,86 @@ export function ProjectDraftingTransmittalPreview({
       </section>
     </div>
   );
+}
+
+function countProfileAuditProvenance(items: DraftingProjectTransmittalItem[]) {
+  return items.reduce(
+    (summary, item) => {
+      const status = resolveProfileAuditStatus(item);
+      if (status === 'frozen') {
+        summary.frozen += 1;
+      } else if (status === 'fallback_resolved') {
+        summary.fallbackResolved += 1;
+      } else {
+        summary.missing += 1;
+      }
+      return summary;
+    },
+    {
+      fallbackResolved: 0,
+      frozen: 0,
+      missing: 0,
+    },
+  );
+}
+
+function resolveProfileAuditStatus(
+  item: DraftingProjectTransmittalItem,
+): DraftingSheetProfileAuditProvenance['status'] {
+  if (item.profileAuditProvenance?.status) {
+    return item.profileAuditProvenance.status;
+  }
+  if (item.profileAudit?.provenance?.status) {
+    return item.profileAudit.provenance.status;
+  }
+  if (item.profileAudit) {
+    return 'frozen';
+  }
+  return 'missing';
+}
+
+function ProfileAuditCountBadge({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-sm border bg-slate-50 px-2 py-1 text-slate-700">
+      {label}: {value}
+    </span>
+  );
+}
+
+function ProfileAuditStatusBadge({
+  status,
+  warning,
+}: {
+  status: DraftingSheetProfileAuditProvenance['status'];
+  warning?: string;
+}) {
+  const label = formatProfileAuditStatus(status);
+  const helper = warning ?? profileAuditStatusHelper(status);
+  return (
+    <Badge title={helper} variant={status === 'frozen' ? 'secondary' : 'outline'}>
+      {label}
+    </Badge>
+  );
+}
+
+function formatProfileAuditStatus(status: DraftingSheetProfileAuditProvenance['status']) {
+  if (status === 'frozen') {
+    return 'Frozen profile audit';
+  }
+  if (status === 'fallback_resolved') {
+    return 'Fallback resolved profile audit';
+  }
+  return 'Missing profile audit';
+}
+
+function profileAuditStatusHelper(status: DraftingSheetProfileAuditProvenance['status']) {
+  if (status === 'frozen') {
+    return 'Stored profile audit metadata was frozen with the issued sheet snapshot.';
+  }
+  if (status === 'fallback_resolved') {
+    return 'Profile audit metadata was resolved from current model/profile data and may differ from original issued output.';
+  }
+  return 'No profile audit metadata is stored on this included sheet item.';
 }
 
 function BackLink({ projectId }: { projectId: string }) {
