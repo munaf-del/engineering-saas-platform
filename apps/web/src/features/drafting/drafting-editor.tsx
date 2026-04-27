@@ -65,6 +65,7 @@ import {
 } from './source-binding-utils';
 import {
   isDraftingDimensionCommandTool,
+  isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
 } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
@@ -379,6 +380,11 @@ export function DraftingEditor({
       return;
     }
 
+    if (isDraftingPathCommandTool(drafting.activeTool)) {
+      drafting.commitPathCommandPoint(drafting.activeTool, point);
+      return;
+    }
+
     if (PATH_AUTHORING_TOOLS.has(drafting.activeTool)) {
       drafting.addPendingLinePoint(point);
       return;
@@ -526,6 +532,26 @@ export function DraftingEditor({
   }
 
   function handleFinishPendingPath() {
+    if (isDraftingPathCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.finishPathCommand();
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.points[0]!,
+        currentModel,
+        commandResult.points,
+        currentUserName,
+      );
+
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
     if (drafting.pendingLinePoints.length < 2) {
       return;
     }
@@ -896,6 +922,8 @@ export function DraftingEditor({
               drafting.updatePrimitiveCommandPreview(point);
             } else if (isDraftingDimensionCommandTool(drafting.activeTool)) {
               drafting.updateDimensionCommandPreview(point);
+            } else if (isDraftingPathCommandTool(drafting.activeTool)) {
+              drafting.updatePathCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1216,6 +1244,12 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
 
   if (TWO_POINT_AUTHORING_TOOLS.has(tool)) {
     return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
+  }
+
+  if (isDraftingPathCommandTool(tool)) {
+    return pendingPointCount === 0
+      ? 'Pick start point'
+      : 'Pick next point · Enter to finish / Esc to cancel';
   }
 
   if (PATH_AUTHORING_TOOLS.has(tool)) {

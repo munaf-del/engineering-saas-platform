@@ -646,6 +646,21 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'draft_polyline') {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-polyline"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (tool === 'draft_rectangle') {
     const x = Math.min(startPoint!.x, previewPoint.x);
     const y = Math.min(startPoint!.y, previewPoint.y);

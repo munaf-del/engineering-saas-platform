@@ -4,6 +4,7 @@ import type {
   DraftingDimensionChainObject,
   DraftingDrawing,
   DraftingLineObject,
+  DraftingPolylineObject,
   DraftingRectangleObject,
   Project,
 } from '@eng/shared';
@@ -213,6 +214,138 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(downloadPath).toBeTruthy();
       const exportedJson = await readDownloadedText(downloadPath!);
       expect(exportedJson).toContain(authoredLineId!);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors an open polyline from a blank temporary sketch through live canvas pointer input', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPolylinePreview({
+        canvas,
+        page,
+        start: { xRatio: 0.34, yRatio: 0.38 },
+        next: { xRatio: 0.42, yRatio: 0.42 },
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPolylinePreview({
+        canvas,
+        page,
+        start: { xRatio: 0.36, yRatio: 0.48 },
+        next: { xRatio: 0.45, yRatio: 0.52 },
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const ratios = [
+        { xRatio: 0.38, yRatio: 0.6 },
+        { xRatio: 0.48, yRatio: 0.54 },
+        { xRatio: 0.58, yRatio: 0.62 },
+      ];
+      await page.getByRole('button', { exact: true, name: 'Polyline' }).click();
+      await expect(page.getByRole('button', { exact: true, name: 'Polyline' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await canvas.scrollIntoViewIfNeeded();
+      const points = await Promise.all(ratios.map((ratio) => pointInLocator(canvas, ratio)));
+      await page.mouse.move(points[0]!.x, points[0]!.y);
+      await page.mouse.click(points[0]!.x, points[0]!.y);
+      await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(points[1]!.x, points[1]!.y);
+      await page.mouse.move(points[2]!.x, points[2]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveAttribute(
+        'points',
+        /.+ .+ .+/,
+      );
+      await page.mouse.click(points[2]!.x, points[2]!.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredPolylineId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredPolylineId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredPolylineId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredPolyline = reloadedDrawing.model.objects.find(
+        (object): object is DraftingPolylineObject =>
+          object.id === authoredPolylineId && object.type === 'draft_polyline',
+      );
+      expect(authoredPolyline).toBeDefined();
+      expect(authoredPolyline!.geometry.points).toHaveLength(3);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedPolyline = exported.model.objects.find(
+        (object): object is DraftingPolylineObject =>
+          object.id === authoredPolylineId && object.type === 'draft_polyline',
+      );
+      expect(exportedPolyline).toBeDefined();
+      expect(exportedPolyline!.geometry.points).toHaveLength(3);
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
@@ -532,6 +665,29 @@ async function startPrimitivePreview({
   await page.mouse.click(startPoint.x, startPoint.y);
   await page.mouse.move(endPoint.x, endPoint.y, { steps: 6 });
   await expect(page.getByTestId(previewTestId)).toHaveCount(1);
+}
+
+async function startPolylinePreview({
+  canvas,
+  next,
+  page,
+  start,
+}: {
+  canvas: Locator;
+  next: { xRatio: number; yRatio: number };
+  page: Page;
+  start: { xRatio: number; yRatio: number };
+}) {
+  const toolButton = page.getByRole('button', { exact: true, name: 'Polyline' });
+  await toolButton.click();
+  await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+  await canvas.scrollIntoViewIfNeeded();
+  const startPoint = await pointInLocator(canvas, start);
+  const nextPoint = await pointInLocator(canvas, next);
+  await page.mouse.move(startPoint.x, startPoint.y);
+  await page.mouse.click(startPoint.x, startPoint.y);
+  await page.mouse.move(nextPoint.x, nextPoint.y, { steps: 6 });
+  await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveCount(1);
 }
 
 async function authorDimensionChain({

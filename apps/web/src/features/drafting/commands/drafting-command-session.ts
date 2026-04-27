@@ -2,13 +2,21 @@ import type { DraftingPoint } from '@eng/shared';
 
 export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
 export type DraftingDimensionCommandTool = 'dimension_chain';
-export type DraftingCommandTool = DraftingPrimitiveCommandTool | DraftingDimensionCommandTool;
+export type DraftingPathCommandTool = 'draft_polyline';
+export type DraftingCommandTool =
+  | DraftingPrimitiveCommandTool
+  | DraftingDimensionCommandTool
+  | DraftingPathCommandTool;
 
 export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
   'draft_line',
   'draft_rectangle',
   'draft_circle',
 ] as const satisfies DraftingPrimitiveCommandTool[];
+
+export const DRAFTING_PATH_COMMAND_TOOLS = [
+  'draft_polyline',
+] as const satisfies DraftingPathCommandTool[];
 
 export type DraftingCommandSession =
   | {
@@ -25,6 +33,12 @@ export type DraftingCommandSession =
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
       tool: DraftingDimensionCommandTool;
+    }
+  | {
+      phase: 'waiting_first_point' | 'collecting_points';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingPathCommandTool;
     };
 
 export type DraftingPrimitiveCommandSession = DraftingCommandSession;
@@ -35,6 +49,10 @@ type ActiveDraftingPrimitiveCommandSession = Extract<
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingDimensionCommandTool }
+>;
+type ActiveDraftingPathCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingPathCommandTool }
 >;
 
 export type DraftingPrimitiveCommandCommit =
@@ -59,6 +77,18 @@ export type DraftingDimensionCommandCommit =
       points: [DraftingPoint, DraftingPoint, DraftingPoint];
       session: DraftingCommandSession;
       tool: DraftingDimensionCommandTool;
+    };
+
+export type DraftingPathCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      points: DraftingPoint[];
+      session: DraftingCommandSession;
+      tool: DraftingPathCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -87,6 +117,21 @@ export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandS
   };
 }
 
+export function startDraftingPathCommand(
+  tool: DraftingPathCommandTool,
+): ActiveDraftingPathCommandSession {
+  return {
+    phase: 'waiting_first_point',
+    points: [],
+    previewPoint: null,
+    tool,
+  };
+}
+
+export function startDraftingPolylineCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('draft_polyline');
+}
+
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
   return DRAFTING_PRIMITIVE_COMMAND_TOOLS.includes(tool as DraftingPrimitiveCommandTool);
 }
@@ -95,8 +140,16 @@ export function isDraftingDimensionCommandTool(tool: string): tool is DraftingDi
   return tool === 'dimension_chain';
 }
 
+export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
+  return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
+}
+
 export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool {
-  return isDraftingPrimitiveCommandTool(tool) || isDraftingDimensionCommandTool(tool);
+  return (
+    isDraftingPrimitiveCommandTool(tool) ||
+    isDraftingDimensionCommandTool(tool) ||
+    isDraftingPathCommandTool(tool)
+  );
 }
 
 export function ensureDraftingPrimitiveCommand(
@@ -112,11 +165,23 @@ export function ensureDraftingDimensionCommand(
   return session.tool === 'dimension_chain' ? session : startDraftingDimensionCommand();
 }
 
+export function ensureDraftingPathCommand(
+  session: DraftingCommandSession,
+  tool: DraftingPathCommandTool,
+): ActiveDraftingPathCommandSession {
+  return session.tool === tool ? session : startDraftingPathCommand(tool);
+}
+
 export function updateDraftingPrimitiveCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
 ): DraftingCommandSession {
-  if (session.tool === 'idle' || session.tool === 'dimension_chain' || !point) {
+  if (
+    session.tool === 'idle' ||
+    session.tool === 'dimension_chain' ||
+    isDraftingPathCommandTool(session.tool) ||
+    !point
+  ) {
     return session;
   }
 
@@ -142,6 +207,20 @@ export function updateDraftingDimensionCommandPreview(
   point: DraftingPoint | null | undefined,
 ): DraftingCommandSession {
   if (session.tool !== 'dimension_chain' || session.points.length === 0 || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
+export function updateDraftingPathCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'draft_polyline' || session.points.length === 0 || !point) {
     return session;
   }
 
@@ -251,6 +330,55 @@ export function commitDraftingDimensionCommandPoint(
     points: [firstWitnessPoint!, secondWitnessPoint!, nextPoint],
     session: IDLE_DRAFTING_COMMAND_SESSION,
     tool: 'dimension_chain',
+  };
+}
+
+export function commitDraftingPathCommandPoint(
+  session: DraftingCommandSession,
+  tool: DraftingPathCommandTool,
+  point: DraftingPoint | null | undefined,
+): DraftingPathCommandCommit {
+  const activeSession = ensureDraftingPathCommand(session, tool);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  const nextPoint = cloneDraftingPoint(point);
+  const previousPoint = activeSession.points.at(-1);
+  if (previousPoint && areDraftingPointsCoincident(previousPoint, nextPoint)) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        previewPoint: null,
+      },
+    };
+  }
+
+  return {
+    committed: false,
+    session: {
+      ...activeSession,
+      phase: 'collecting_points',
+      points: [...activeSession.points, nextPoint],
+      previewPoint: null,
+    },
+  };
+}
+
+export function finishDraftingPathCommand(
+  session: DraftingCommandSession,
+  minimumPointCount = 2,
+): DraftingPathCommandCommit {
+  if (session.tool !== 'draft_polyline' || session.points.length < minimumPointCount) {
+    return { committed: false, session };
+  }
+
+  return {
+    committed: true,
+    points: session.points.map(cloneDraftingPoint),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: session.tool,
   };
 }
 

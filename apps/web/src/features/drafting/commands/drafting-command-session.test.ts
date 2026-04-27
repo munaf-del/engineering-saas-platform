@@ -4,16 +4,21 @@ import {
   cancelDraftingCommandSession,
   commitDraftingDimensionCommandPoint,
   commitDraftingLineCommandPoint,
+  commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
+  finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
   startDraftingDimensionCommand,
+  startDraftingPathCommand,
+  startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
   startDraftingLineCommand,
   updateDraftingDimensionCommandPreview,
   updateDraftingLineCommandPreview,
+  updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
 } from './drafting-command-session';
 
@@ -318,6 +323,176 @@ describe('drafting command session', () => {
     expect(result.committed).toBe(true);
     if (result.committed) {
       expect(result.points).toEqual([start, end, offset]);
+    }
+  });
+
+  it('starts a polyline path command waiting for the first point', () => {
+    expect(startDraftingPolylineCommand()).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'draft_polyline',
+    });
+  });
+
+  it('accepts multiple polyline vertices and keeps collecting points', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polyline'),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polyline', {
+      x: 1000,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'draft_polyline', {
+      x: 1500,
+      y: 600,
+    });
+
+    expect(thirdPoint.committed).toBe(false);
+    expect(thirdPoint.session).toMatchObject({
+      phase: 'collecting_points',
+      points: [
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 1500, y: 600 },
+      ],
+      previewPoint: null,
+      tool: 'draft_polyline',
+    });
+  });
+
+  it('updates polyline preview from the next pointer point', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 900, y: 450 });
+
+    expect(getDraftingCommandTool(preview)).toBe('draft_polyline');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 900, y: 450 },
+    ]);
+  });
+
+  it('finishes a polyline command as an open path with captured vertices', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polyline', {
+      x: 1000,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'draft_polyline', {
+      x: 1500,
+      y: 600,
+    });
+    const result = finishDraftingPathCommand(thirdPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('draft_polyline');
+      expect(result.points).toEqual([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 1500, y: 600 },
+      ]);
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('does not finish a polyline command until the existing two-point minimum is met', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const result = finishDraftingPathCommand(firstPoint.session);
+
+    expect(result.committed).toBe(false);
+    expect(getDraftingCommandPoints(result.session)).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('ignores duplicate/no-op polyline vertices without crashing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 100, y: 100 },
+    );
+    const duplicate = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polyline', {
+      x: 100,
+      y: 100,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+  });
+
+  it('cancels an incomplete polyline command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 1000, y: 0 });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(2);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete polyline command to a primitive command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves polyline snap refs and optional z and rl point metadata', () => {
+    const start: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const end: DraftingPoint = { x: 1000, y: 0, z: 12.6, rl: 12.6 };
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPolylineCommand(),
+      'draft_polyline',
+      start,
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polyline', end);
+    const result = finishDraftingPathCommand(secondPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.points).toEqual([start, end]);
     }
   });
 });

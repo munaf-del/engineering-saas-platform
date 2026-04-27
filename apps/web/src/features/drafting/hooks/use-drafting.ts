@@ -9,20 +9,27 @@ import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
   commitDraftingDimensionCommandPoint,
+  commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
+  finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
   isDraftingCommandTool,
   isDraftingDimensionCommandTool,
+  isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   startDraftingDimensionCommand,
+  startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   updateDraftingDimensionCommandPreview,
+  updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   type DraftingCommandSession,
   type DraftingDimensionCommandCommit,
+  type DraftingPathCommandCommit,
+  type DraftingPathCommandTool,
   type DraftingPrimitiveCommandCommit,
   type DraftingPrimitiveCommandTool,
 } from '../commands/drafting-command-session';
@@ -66,7 +73,9 @@ export function useDrafting() {
         ? startDraftingPrimitiveCommand(tool)
         : isDraftingDimensionCommandTool(tool)
           ? startDraftingDimensionCommand()
-          : cancelDraftingCommandSession(),
+          : isDraftingPathCommandTool(tool)
+            ? startDraftingPathCommand(tool)
+            : cancelDraftingCommandSession(),
     );
   }
 
@@ -95,6 +104,25 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingDimensionCommandPreview(current, point));
   }
 
+  function commitPathCommandPoint(
+    tool: DraftingPathCommandTool,
+    point: DraftingPoint | null,
+  ): DraftingPathCommandCommit {
+    const result = commitDraftingPathCommandPoint(commandSession, tool, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function finishPathCommand(): DraftingPathCommandCommit {
+    const result = finishDraftingPathCommand(commandSession);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updatePathCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingPathCommandPreview(current, point));
+  }
+
   function toggleSnapEnabled() {
     setSnapSettings((current) => ({ ...current, enabled: !current.enabled }));
   }
@@ -117,7 +145,9 @@ export function useDrafting() {
     commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
     commitDimensionCommandPoint,
+    commitPathCommandPoint,
     commitPrimitiveCommandPoint,
+    finishPathCommand,
     pendingLinePoints: isDraftingCommandTool(activeTool)
       ? getDraftingCommandPoints(commandSession)
       : pendingLinePoints,
@@ -129,6 +159,7 @@ export function useDrafting() {
     toggleSnapEnabled,
     toggleSnapMode,
     updateDimensionCommandPreview,
+    updatePathCommandPreview,
     updatePrimitiveCommandPreview,
   };
 }
