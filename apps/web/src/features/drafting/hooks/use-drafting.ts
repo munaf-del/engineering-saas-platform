@@ -9,6 +9,7 @@ import type { DraftingTool } from '../tools/drafting-tool-types';
 
 export type DraftingInspectorTab =
   | 'setup'
+  | 'standards'
   | 'properties'
   | 'layers'
   | 'sources'

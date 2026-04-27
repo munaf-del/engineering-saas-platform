@@ -15,6 +15,7 @@ import { DraftingPropertiesPanel } from './components/drafting-properties-panel'
 import { DraftingSchedulesPanel } from './components/drafting-schedules-panel';
 import { DraftingSetupPanel } from './components/drafting-setup-panel';
 import { DraftingSourceCoveragePanel } from './components/drafting-source-coverage-panel';
+import { DraftingStandardsProfilePanel } from './components/drafting-standards-profile-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
 import { DraftingToolPalette } from './components/drafting-tool-palette';
@@ -933,6 +934,16 @@ export function DraftingEditor({
                     onCenterViewOnReference={handleCenterViewOnReference}
                     onModelChange={history.replaceModel}
                     onSetReferenceToViewCentre={handleSetReferenceToViewCentre}
+                  />
+                </ScrollArea>
+              </TabsContent>
+            ),
+            standards: (
+              <TabsContent className="m-0" forceMount value="standards">
+                <ScrollArea className="h-[320px] pr-3">
+                  <DraftingStandardsProfilePanel
+                    model={currentModel}
+                    onModelChange={history.replaceModel}
                   />
                 </ScrollArea>
               </TabsContent>

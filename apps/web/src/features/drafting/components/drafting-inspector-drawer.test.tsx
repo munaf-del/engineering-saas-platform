@@ -5,6 +5,7 @@ import { DraftingInspectorDrawer } from './drafting-inspector-drawer';
 
 const childrenByTab = {
   setup: <div>Setup compact content</div>,
+  standards: <div>Standards profile preview</div>,
   properties: <div>Selected pile P1 properties</div>,
   layers: <div>Layer controls</div>,
   sources: <div>Source coverage controls</div>,

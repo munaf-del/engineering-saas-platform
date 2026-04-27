@@ -6,6 +6,7 @@ import type { DraftingInspectorTab } from '../hooks/use-drafting';
 
 const INSPECTOR_TABS: Array<{ value: DraftingInspectorTab; label: string }> = [
   { value: 'setup', label: 'Setup' },
+  { value: 'standards', label: 'Standards' },
   { value: 'properties', label: 'Properties' },
   { value: 'layers', label: 'Layers' },
   { value: 'sources', label: 'Sources' },
