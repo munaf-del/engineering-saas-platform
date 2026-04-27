@@ -45,6 +45,7 @@ import {
   rebuildSecantPileWallObject,
   rebuildSoldierPileWallObject,
 } from './semantic-object-utils';
+import { createManualDraftingPointAnchorRef } from './anchors/drafting-anchor-resolution';
 
 const MAX_DRAFTING_OBJECT_CHANGE_EVENTS = 200;
 
@@ -219,9 +220,10 @@ export function createDraftingObject(
             associatedObjectIds: witnessPoints
               .map((entry) => entry.snapRef?.sourceObjectId)
               .filter((entry): entry is string => Boolean(entry)),
-            witnessAnchorRefs: witnessPoints
-              .map((entry) => entry.snapRef)
-              .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+            witnessAnchorRefs: witnessPoints.map(
+              (entry, index) =>
+                entry.snapRef ?? createManualDraftingPointAnchorRef(entry, `Witness ${index + 1}`),
+            ),
           },
         };
       }

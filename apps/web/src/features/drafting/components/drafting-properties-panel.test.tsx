@@ -1,7 +1,11 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { createDefaultDraftingLayers, type DraftingObject } from '@eng/shared';
+import {
+  createDefaultDraftingLayers,
+  type DraftingDimensionChainObject,
+  type DraftingObject,
+} from '@eng/shared';
 import { DraftingPropertiesPanel } from './drafting-properties-panel';
 
 describe('DraftingPropertiesPanel', () => {
@@ -79,6 +83,25 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).not.toContain('Pile type library');
     expect(markup).not.toContain('Manage pile type');
   });
+
+  it('shows resolved dimension witness anchor status for selected dimensions', () => {
+    const line = draftLine();
+    const dimension = anchoredDimension(line.id);
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={createDefaultDraftingLayers()}
+        object={dimension}
+        objects={[line, dimension]}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Live anchors drive rendering');
+    expect(markup).toContain('Resolved');
+    expect(markup).toContain('draft line');
+    expect(markup).toContain('endpoint 2');
+  });
 });
 
 function linkedPile(): DraftingObject {
@@ -136,6 +159,71 @@ function linkedBorehole(): DraftingObject {
       linkedAt: '2026-04-25T00:00:00.000Z',
       status: 'current',
       snapshot: {},
+    },
+    createdAt: '2026-04-25T00:00:00.000Z',
+    updatedAt: '2026-04-25T00:00:00.000Z',
+  };
+}
+
+function draftLine(): DraftingObject {
+  return {
+    id: 'line-1',
+    type: 'draft_line',
+    layerId: 'notes',
+    name: 'Line 1',
+    visible: true,
+    locked: false,
+    geometry: {
+      startPoint: { x: 0, y: 0 },
+      endPoint: { x: 5000, y: 0 },
+    },
+    metadata: {
+      lineId: 'L1',
+    },
+    createdAt: '2026-04-25T00:00:00.000Z',
+    updatedAt: '2026-04-25T00:00:00.000Z',
+  };
+}
+
+function anchoredDimension(sourceObjectId: string): DraftingDimensionChainObject {
+  return {
+    id: 'dim-1',
+    type: 'dimension_chain',
+    layerId: 'dimensions',
+    name: 'Dimension 1',
+    visible: true,
+    locked: false,
+    geometry: {
+      points: [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+      ],
+      offsetDistanceMm: 900,
+    },
+    parameters: {
+      dimensionId: 'DIM1',
+      unit: 'mm',
+      precision: 0,
+      showSegments: true,
+      showTotal: false,
+      textOverride: '',
+    },
+    metadata: {
+      associatedObjectIds: [sourceObjectId],
+      witnessAnchorRefs: [
+        {
+          sourceObjectId,
+          anchorKind: 'endpoint',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 0, y: 0 },
+        },
+        {
+          sourceObjectId,
+          anchorKind: 'endpoint',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 3000, y: 0 },
+        },
+      ],
     },
     createdAt: '2026-04-25T00:00:00.000Z',
     updatedAt: '2026-04-25T00:00:00.000Z',

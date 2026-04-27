@@ -954,6 +954,7 @@ export function DraftingEditor({
                   <DraftingPropertiesPanel
                     layers={currentModel.layers}
                     object={selection.selectedObject}
+                    objects={currentModel.objects}
                     onDelete={selection.deleteSelectedObject}
                     onRefreshSource={handleRefreshSourceObject}
                     onUpdate={(nextObject: DraftingObject) =>

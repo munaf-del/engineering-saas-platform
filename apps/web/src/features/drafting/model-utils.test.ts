@@ -332,6 +332,36 @@ describe('drafting model utils', () => {
     expect(parsed.objects).toHaveLength(6);
   });
 
+  it('keeps dimension witness anchor metadata aligned for partially snapped dimensions', () => {
+    const model = createEmptyDraftingModel('dimension-witness-alignment');
+    const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 4000, y: 0 },
+    ]);
+    const dimensionChain = createDraftingObject('dimension_chain', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      {
+        x: 4000,
+        y: 0,
+        snapRef: {
+          sourceObjectId: line.id,
+          anchorKind: 'endpoint',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 4000, y: 0 },
+        },
+      },
+      { x: 0, y: -1000 },
+    ]);
+
+    if (dimensionChain.type !== 'dimension_chain') {
+      throw new Error('Expected dimension chain');
+    }
+
+    expect(dimensionChain.metadata.witnessAnchorRefs).toHaveLength(2);
+    expect(dimensionChain.metadata.witnessAnchorRefs?.[0]?.anchorKind).toBe('reference');
+    expect(dimensionChain.metadata.witnessAnchorRefs?.[1]?.sourceObjectId).toBe(line.id);
+  });
+
   it('applies layer visibility and lock rules to visible/editable objects', () => {
     const model = createEmptyDraftingModel('drawing-1');
     const pile = createDraftingObject('pile', { x: 1000, y: 1000 }, model);

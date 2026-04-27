@@ -1,10 +1,6 @@
 import * as React from 'react';
-import type {
-  DraftingDimensionChainObject,
-  DraftingObject,
-  DraftingPoint,
-  DraftingPointAnchorRef,
-} from '@eng/shared';
+import type { DraftingDimensionChainObject, DraftingPoint } from '@eng/shared';
+import { resolveDraftingDimensionAnchoredObject } from '../anchors/drafting-anchor-resolution';
 import {
   calculateDimensionChainSegments,
   calculateDimensionChainTotal,
@@ -63,7 +59,7 @@ export function DimensionChainRenderer({
       ? dimensionStyle.textStyle.fontSize
       : Math.min(object.style?.textSize ?? dimensionStyle.textStyle.fontSize, 180);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const resolvedObject = resolveDimensionAnchoredObject(object, allObjects);
+  const resolvedObject = resolveDraftingDimensionAnchoredObject(object, allObjects);
   const offsetPoints = buildDimensionChainOffsetPoints(resolvedObject);
   const offsetVector = resolveDimensionChainOffsetVector(resolvedObject);
   const offsetLength = Math.max(1, Math.hypot(offsetVector.x, offsetVector.y));
@@ -371,111 +367,6 @@ function resolveLocalDimensionTangent(
     return normaliseVector({ x: point.x - previous.x, y: point.y - previous.y });
   }
   return { x: 1, y: 0 };
-}
-
-function resolveDimensionAnchoredObject(
-  object: DraftingDimensionChainObject,
-  allObjects: DraftingObject[],
-): DraftingDimensionChainObject {
-  const witnessAnchorRefs = object.metadata.witnessAnchorRefs;
-  if (!witnessAnchorRefs?.length || !allObjects.length) {
-    return object;
-  }
-
-  const points = object.geometry.points.map((point, index) => {
-    const anchor = witnessAnchorRefs[index];
-    if (!anchor) {
-      return point;
-    }
-    return resolveAnchorPoint(anchor, allObjects) ?? point;
-  });
-
-  return {
-    ...object,
-    geometry: {
-      ...object.geometry,
-      points,
-    },
-  };
-}
-
-function resolveAnchorPoint(anchor: DraftingPointAnchorRef, allObjects: DraftingObject[]) {
-  if (!anchor.sourceObjectId) {
-    return anchor.capturedCoordinate;
-  }
-
-  const source = allObjects.find((candidate) => candidate.id === anchor.sourceObjectId);
-  if (!source) {
-    return anchor.capturedCoordinate;
-  }
-
-  return getObjectAnchorPoint(source, anchor) ?? anchor.capturedCoordinate;
-}
-
-function getObjectAnchorPoint(object: DraftingObject, anchor: DraftingPointAnchorRef) {
-  switch (object.type) {
-    case 'pile':
-      return object.geometry.centre;
-    case 'monitoring_point':
-    case 'borehole':
-      return object.geometry.point;
-    case 'service_crossing':
-      return object.geometry.crossingPoint;
-    case 'structural_joint':
-      return object.geometry.point;
-    case 'draft_circle':
-      return object.geometry.centre;
-    case 'draft_line':
-      return anchor.anchorIndex === 1 ? object.geometry.endPoint : object.geometry.startPoint;
-    case 'anchor_tieback':
-      return anchor.anchorIndex === 1 ? object.geometry.tailPoint : object.geometry.headPoint;
-    case 'section_marker':
-      return anchor.anchorIndex === 1 ? object.geometry.endPoint : object.geometry.startPoint;
-    case 'secant_pile_wall':
-      return resolvePointFromArray(object.geometry.baselinePoints, anchor);
-    case 'soldier_pile_wall':
-      return resolvePointFromArray(object.geometry.baselinePoints, anchor);
-    case 'capping_beam':
-    case 'waler':
-    case 'excavation_line':
-    case 'draft_polyline':
-    case 'draft_polygon':
-      return resolvePointFromArray(object.geometry.points, anchor);
-    case 'service_run':
-      return resolvePointFromArray(object.geometry.path, anchor);
-    case 'draft_rectangle': {
-      const corners = [
-        object.geometry.cornerA,
-        { x: object.geometry.cornerB.x, y: object.geometry.cornerA.y },
-        object.geometry.cornerB,
-        { x: object.geometry.cornerA.x, y: object.geometry.cornerB.y },
-      ];
-      return resolvePointFromArray(corners, anchor);
-    }
-    case 'dimension_chain':
-      return resolvePointFromArray(object.geometry.points, anchor);
-    default:
-      return undefined;
-  }
-}
-
-function resolvePointFromArray(points: DraftingPoint[], anchor: DraftingPointAnchorRef) {
-  if (anchor.anchorKind === 'midpoint' && anchor.anchorIndex !== undefined) {
-    const start = points[anchor.anchorIndex];
-    const end = points[anchor.anchorIndex + 1];
-    return start && end ? midpoint(start, end) : undefined;
-  }
-
-  if (anchor.anchorKind === 'centre') {
-    const xs = points.map((point) => point.x);
-    const ys = points.map((point) => point.y);
-    return {
-      x: (Math.min(...xs) + Math.max(...xs)) / 2,
-      y: (Math.min(...ys) + Math.max(...ys)) / 2,
-    };
-  }
-
-  return anchor.anchorIndex !== undefined ? points[anchor.anchorIndex] : undefined;
 }
 
 function midpoint(start: DraftingPoint, end: DraftingPoint) {

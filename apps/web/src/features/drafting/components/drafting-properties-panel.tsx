@@ -27,6 +27,7 @@ import { WalerProperties } from '../properties/waler-properties';
 export function DraftingPropertiesPanel({
   layers,
   object,
+  objects = [],
   onDelete,
   onRefreshSource,
   onUpdate,
@@ -36,6 +37,7 @@ export function DraftingPropertiesPanel({
 }: {
   layers: DraftingLayer[];
   object: DraftingObject | null;
+  objects?: DraftingObject[];
   onDelete: () => void;
   onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
@@ -105,7 +107,7 @@ export function DraftingPropertiesPanel({
               <ExcavationLineProperties object={object} onUpdate={onUpdate} />
             ) : null}
             {object.type === 'dimension_chain' ? (
-              <DimensionChainProperties object={object} onUpdate={onUpdate} />
+              <DimensionChainProperties objects={objects} object={object} onUpdate={onUpdate} />
             ) : null}
             {object.type === 'callout' ? (
               <CalloutProperties object={object} onUpdate={onUpdate} />

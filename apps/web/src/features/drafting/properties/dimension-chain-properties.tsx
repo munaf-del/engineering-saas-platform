@@ -1,7 +1,12 @@
 import * as React from 'react';
-import { DRAFTING_DIMENSION_UNITS, type DraftingDimensionChainObject } from '@eng/shared';
+import {
+  DRAFTING_DIMENSION_UNITS,
+  type DraftingDimensionChainObject,
+  type DraftingObject,
+} from '@eng/shared';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { resolveDraftingDimensionWitnessAnchors } from '../anchors/drafting-anchor-resolution';
 import {
   Select,
   SelectContent,
@@ -12,13 +17,19 @@ import {
 import { Field, NumberField } from './common-object-properties';
 
 export function DimensionChainProperties({
+  objects = [],
   object,
   onUpdate,
 }: {
+  objects?: DraftingObject[];
   object: DraftingDimensionChainObject;
   onUpdate: (nextObject: DraftingDimensionChainObject) => void;
 }) {
-  const witnessAnchorCount = object.metadata.witnessAnchorRefs?.length ?? 0;
+  const witnessAnchors = resolveDraftingDimensionWitnessAnchors(object, objects);
+  const linkedAnchorCount = witnessAnchors.filter((anchor) => anchor.anchorRef).length;
+  const warningAnchorCount = witnessAnchors.filter(
+    (anchor) => anchor.anchorRef?.sourceObjectId && anchor.status !== 'resolved',
+  ).length;
 
   function updateObject(nextObject: DraftingDimensionChainObject) {
     onUpdate({
@@ -140,10 +151,34 @@ export function DimensionChainProperties({
       </div>
 
       <Field label="Associativity">
-        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-          {witnessAnchorCount > 0
-            ? `${witnessAnchorCount} snapped witness anchor(s). Fallback coordinates are retained if an anchor cannot be resolved.`
-            : 'Manual dimension. Witness points are fixed coordinates until snapped to object geometry.'}
+        <div className="space-y-2 rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          <p>
+            {linkedAnchorCount > 0
+              ? `${linkedAnchorCount} witness anchor(s). Live anchors drive rendering; captured coordinates remain as fallback.`
+              : 'Manual dimension. Witness points are fixed coordinates until snapped to object geometry.'}
+          </p>
+          {warningAnchorCount > 0 ? (
+            <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+              {warningAnchorCount} linked witness anchor(s) are using fallback or missing source
+              coordinates.
+            </p>
+          ) : null}
+          <div className="space-y-1 text-xs">
+            {witnessAnchors.map((anchor) => (
+              <div
+                key={`${object.id}-anchor-status-${anchor.anchorIndex}`}
+                className="grid gap-2 rounded border bg-background/60 px-2 py-1 sm:grid-cols-[80px_90px_1fr]"
+              >
+                <span>Point {anchor.anchorIndex + 1}</span>
+                <span
+                  className={anchorStatusClassName(anchor.status, Boolean(anchor.sourceObjectId))}
+                >
+                  {formatAnchorStatus(anchor.status, Boolean(anchor.sourceObjectId))}
+                </span>
+                <span>{formatAnchorSummary(anchor)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </Field>
 
@@ -218,4 +253,44 @@ export function DimensionChainProperties({
       </Field>
     </div>
   );
+}
+
+type AnchorStatusRow = ReturnType<typeof resolveDraftingDimensionWitnessAnchors>[number];
+
+function formatAnchorStatus(status: AnchorStatusRow['status'], hasSourceObject: boolean) {
+  if (!hasSourceObject) {
+    return 'Manual';
+  }
+  if (status === 'resolved') {
+    return 'Resolved';
+  }
+  if (status === 'missing') {
+    return 'Missing';
+  }
+  return 'Fallback';
+}
+
+function anchorStatusClassName(status: AnchorStatusRow['status'], hasSourceObject: boolean) {
+  if (!hasSourceObject) {
+    return 'font-medium text-muted-foreground';
+  }
+  if (status === 'resolved') {
+    return 'font-medium text-emerald-700';
+  }
+  return 'font-medium text-amber-700';
+}
+
+function formatAnchorSummary(anchor: AnchorStatusRow) {
+  if (!anchor.anchorRef?.sourceObjectId) {
+    return `Manual point ${formatPoint(anchor.point)}`;
+  }
+
+  const sourceType = anchor.sourceObjectType?.replaceAll('_', ' ') ?? 'source unavailable';
+  const anchorIndex =
+    anchor.anchorRef.anchorIndex !== undefined ? ` ${anchor.anchorRef.anchorIndex + 1}` : '';
+  return `${sourceType} · ${anchor.anchorRef.anchorKind}${anchorIndex} · ${anchor.anchorRef.sourceObjectId}`;
+}
+
+function formatPoint(point: { x: number; y: number }) {
+  return `(${Math.round(point.x)}, ${Math.round(point.y)})`;
 }
