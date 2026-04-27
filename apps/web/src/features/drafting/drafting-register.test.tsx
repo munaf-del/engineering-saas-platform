@@ -5,6 +5,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { DraftingDrawingSummary, Project } from '@eng/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TEMPORARY_DRAFTING_QA_SANDBOX_TITLE_PREFIX } from './qa/drafting-connected-edit-sandbox';
 import { DraftingRegister } from './drafting-register';
 
 const mockUseDraftingDrawings = vi.fn();
@@ -145,6 +146,32 @@ describe('DraftingRegister project model architecture', () => {
       link.getAttribute('href')?.endsWith('/drafting/transmittals'),
     );
     expect(transmittalLinks.length).toBeGreaterThan(0);
+  });
+
+  it('keeps temporary QA sandboxes out of the default customer register view', async () => {
+    const sandboxTitle = `${TEMPORARY_DRAFTING_QA_SANDBOX_TITLE_PREFIX} 2026-04-27T10:00:00.000Z`;
+    mockUseDraftingDrawings.mockReturnValue({
+      data: [
+        ...createDrawings(),
+        createDrawing({
+          id: 'temporary-sandbox',
+          title: sandboxTitle,
+          status: 'draft',
+          updatedAt: '2026-04-25T04:42:00.000Z',
+        }),
+      ],
+      isLoading: false,
+    });
+
+    await renderRegister();
+
+    expect(container.textContent).toContain('Show sketches (4)');
+    expect(container.textContent).not.toContain(sandboxTitle);
+
+    await clickButton('Show sketches (4)');
+
+    expect(container.textContent).toContain(sandboxTitle);
+    expect(cardButtonLabels(sandboxTitle)).toContain('Archive');
   });
 
   async function renderRegister() {
