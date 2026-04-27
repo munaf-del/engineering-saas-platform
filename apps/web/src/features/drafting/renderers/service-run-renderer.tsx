@@ -31,7 +31,7 @@ export function ServiceRunRenderer({
     surface,
   });
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#475569']);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const midpoint = getServiceRunMidpoint(object);
   const isDegeneratePath = serviceRunPathLength(object.geometry.path) < 1;
   const vectorEffect = resolveRendererVectorEffect(surface);

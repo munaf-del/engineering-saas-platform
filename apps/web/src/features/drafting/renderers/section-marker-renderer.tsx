@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { DraftingPoint } from '@eng/shared';
 import {
+  DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
@@ -28,7 +29,7 @@ export function SectionMarkerRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170, drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
   const showSecondary = shouldShowSecondaryCanvasLabel({
@@ -46,7 +47,7 @@ export function SectionMarkerRenderer({
   return (
     <g data-drafting-object="true" onPointerDown={onPointerDown}>
       <line
-        stroke={isSelected ? '#2563eb' : stroke}
+        stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeDasharray="260 180"
         strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect={vectorEffect}

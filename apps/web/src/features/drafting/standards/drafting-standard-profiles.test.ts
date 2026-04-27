@@ -3,13 +3,18 @@ import { createEmptyDraftingModel } from '@eng/shared';
 import {
   DRAFTING_OBJECT_LINE_ROLE_MAP,
   DRAFTING_SCALE_PRESETS,
+  DRAFTING_STANDARD_LINE_ROLE_ALIASES,
+  DRAFTING_STANDARD_LINE_ROLES,
+  DRAFTING_STANDARD_TEXT_PRESETS,
   DRAFTING_STANDARD_PROFILES,
   getDraftingStandardProfile,
 } from './drafting-standard-profiles';
 import {
+  resolveDraftingDimensionStyle,
   resolveDraftingLegacyLineWeight,
   resolveDraftingLineStyle,
   resolveDraftingPaperLineStyle,
+  resolveDraftingTextStyle,
   resolveDraftingTextHeightMm,
 } from './drafting-style-resolver';
 
@@ -50,6 +55,29 @@ describe('drafting standard profiles', () => {
     );
   });
 
+  it('exposes central line roles, line types, and text hierarchy presets', () => {
+    const profile = getDraftingStandardProfile('as1100-general');
+
+    expect(DRAFTING_STANDARD_LINE_ROLES).toEqual([
+      'OBJECT_OUTLINE',
+      'HIDDEN',
+      'CENTRE',
+      'DIMENSION',
+      'EXTENSION',
+      'HATCH',
+      'SECTION',
+      'LEADER',
+      'GRID',
+      'BORDER',
+    ]);
+    expect(DRAFTING_STANDARD_LINE_ROLE_ALIASES.OBJECT_OUTLINE).toBe('objectVisible');
+    expect(profile.lineTypes.centre.dashArray).toBe('7 2 1.5 2');
+    expect(DRAFTING_STANDARD_TEXT_PRESETS).toContain('DIMENSION');
+    expect(profile.textPresets.TITLE.textRole).toBe('drawingTitle');
+    expect(profile.dimensionStyle.lineRole).toBe('dimensionLine');
+    expect(profile.leaderStyle.lineRole).toBe('leaderLine');
+  });
+
   it('maps implemented drafting object types to profile line roles', () => {
     expect(DRAFTING_OBJECT_LINE_ROLE_MAP.pile).toBe('pileOutline');
     expect(DRAFTING_OBJECT_LINE_ROLE_MAP.dimension_chain).toBe('dimension');
@@ -73,6 +101,39 @@ describe('drafting standard profiles', () => {
     expect(editorLine.lineWeightMm).toBe(0.5);
     expect(editorLine.editorStrokeWidth).toBeGreaterThan(paperLine.editorStrokeWidth);
     expect(paperLine.editorStrokeWidth).toBe(0.5);
+  });
+
+  it('resolves canonical standard roles and text styles by editor versus sheet surface', () => {
+    const model = createEmptyDraftingModel('profile-role-resolver');
+    const editorOutline = resolveDraftingLineStyle({
+      role: 'OBJECT_OUTLINE',
+      setup: model.drawingSetup,
+    });
+    const sheetOutline = resolveDraftingPaperLineStyle({
+      role: 'OBJECT_OUTLINE',
+      setup: model.drawingSetup,
+    });
+    const editorText = resolveDraftingTextStyle({
+      role: 'DIMENSION',
+      setup: model.drawingSetup,
+      surface: 'editor',
+    });
+    const sheetText = resolveDraftingTextStyle({
+      role: 'DIMENSION',
+      setup: model.drawingSetup,
+      surface: 'sheet',
+    });
+    const dimensionStyle = resolveDraftingDimensionStyle({
+      setup: model.drawingSetup,
+      surface: 'sheet',
+    });
+
+    expect(editorOutline.role).toBe('objectVisible');
+    expect(editorOutline.editorStrokeWidth).toBeGreaterThan(sheetOutline.editorStrokeWidth);
+    expect(sheetText.fontSize).toBe(2.5);
+    expect(editorText.fontSize).toBeGreaterThan(sheetText.fontSize);
+    expect(dimensionStyle.lineStyle.role).toBe('dimensionLine');
+    expect(dimensionStyle.textStyle.textHeightMm).toBe(2.5);
   });
 
   it('preserves object-level line-weight overrides while defaulting through profile roles', () => {

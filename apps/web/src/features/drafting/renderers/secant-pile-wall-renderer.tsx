@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
@@ -51,7 +52,7 @@ export function SecantPileWallRenderer({
   const pattern = object.parameters.primarySecondaryPattern;
   const centreMark = Math.min(radius * 0.28, 120);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,
@@ -67,9 +68,9 @@ export function SecantPileWallRenderer({
         <polyline
           fill="none"
           points={object.geometry.baselinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
-          stroke="#2563eb"
-          strokeDasharray="180 120"
-          strokeWidth={2}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect={vectorEffect}
         />
       ) : null}
@@ -84,7 +85,8 @@ export function SecantPileWallRenderer({
       />
       {object.geometry.pileCentres.map((point, index) => {
         const useAlternatingFill = pattern !== 'contiguous';
-        const pileFill = useAlternatingFill && index % 2 === 1 ? 'rgba(255, 247, 237, 0.08)' : fill;
+        const pileFill =
+          useAlternatingFill && index % 2 === 1 ? DRAFTING_TECHNICAL_FILLS.structural : fill;
 
         return (
           <g key={`${object.id}-pile-${index}`}>

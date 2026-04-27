@@ -42,7 +42,7 @@ export function ServiceCrossingRenderer({
     object.parameters.riskStatus === 'resolved'
       ? existingStyle.color
       : object.parameters.riskStatus === 'reviewed'
-        ? '#854d0e'
+        ? existingStyle.color
         : conflictStyle.color;
   const stroke = resolveTechnicalStroke(
     object.style?.stroke,
@@ -55,7 +55,7 @@ export function ServiceCrossingRenderer({
       ? DRAFTING_TECHNICAL_FILLS.serviceConflict
       : DRAFTING_TECHNICAL_FILLS.none,
   );
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const { crossingPoint } = object.geometry;
   const vectorEffect = resolveRendererVectorEffect(surface);
   const labelLines = buildDraftingObjectLabelLines({

@@ -20,6 +20,17 @@ export type DraftingTextRole =
   | 'gridReference'
   | 'callout';
 
+export const DRAFTING_STANDARD_TEXT_PRESETS = [
+  'TITLE',
+  'SUBTITLE',
+  'ANNOTATION',
+  'DIMENSION',
+  'NOTE_SMALL',
+  'TABLE',
+] as const;
+
+export type DraftingStandardTextPreset = (typeof DRAFTING_STANDARD_TEXT_PRESETS)[number];
+
 export type DraftingLineRole =
   | 'referenceUnderlay'
   | 'objectVisible'
@@ -54,6 +65,42 @@ export type DraftingLineRole =
   | 'surveyControl'
   | 'constructionSetout';
 
+export const DRAFTING_STANDARD_LINE_ROLES = [
+  'OBJECT_OUTLINE',
+  'HIDDEN',
+  'CENTRE',
+  'DIMENSION',
+  'EXTENSION',
+  'HATCH',
+  'SECTION',
+  'LEADER',
+  'GRID',
+  'BORDER',
+] as const;
+
+export type DraftingStandardLineRole = (typeof DRAFTING_STANDARD_LINE_ROLES)[number];
+export type DraftingLineProfileRole = DraftingLineRole | DraftingStandardLineRole;
+
+export const DRAFTING_STANDARD_LINE_ROLE_ALIASES: Record<
+  DraftingStandardLineRole,
+  DraftingLineRole
+> = {
+  OBJECT_OUTLINE: 'objectVisible',
+  HIDDEN: 'objectHidden',
+  CENTRE: 'centreLine',
+  DIMENSION: 'dimensionLine',
+  EXTENSION: 'dimension',
+  HATCH: 'underlay',
+  SECTION: 'sectionLine',
+  LEADER: 'leaderLine',
+  GRID: 'gridLine',
+  BORDER: 'structuralPrimary',
+};
+
+export const DRAFTING_LINE_TYPE_IDS = ['solid', 'dashed', 'centre', 'hidden'] as const;
+
+export type DraftingLineTypeId = (typeof DRAFTING_LINE_TYPE_IDS)[number];
+
 export type DraftingSymbolRole =
   | 'arrowhead'
   | 'dot'
@@ -74,6 +121,7 @@ export type DraftingSheetPreset = {
 export type DraftingLineStyleDefinition = {
   color: string;
   dashArray?: string;
+  lineType: DraftingLineTypeId;
   lineWeightMm: number;
   notes?: string;
   role: DraftingLineRole;
@@ -86,6 +134,55 @@ export type DraftingTextStyleDefinition = {
   role: DraftingTextRole;
 };
 
+export type DraftingLineTypeDefinition = {
+  dashArray?: string;
+  id: DraftingLineTypeId;
+  label: string;
+  notes: string;
+};
+
+export type DraftingTextPresetDefinition = {
+  emphasis: 'normal' | 'medium' | 'strong';
+  lineHeight: number;
+  role: DraftingStandardTextPreset;
+  textRole: DraftingTextRole;
+};
+
+export type DraftingDimensionStyleDefinition = {
+  extensionGapModelUnits: number;
+  extensionOvershootModelUnits: number;
+  extensionRole: DraftingLineRole;
+  labelBackingFill: string;
+  labelBackingOpacity: number;
+  labelGapModelUnits: number;
+  labelHaloColor: string;
+  lineRole: DraftingLineRole;
+  textPreset: DraftingStandardTextPreset;
+  tickLengthModelUnits: number;
+  totalLineGapModelUnits: number;
+  totalTextGapModelUnits: number;
+};
+
+export type DraftingLeaderStyleDefinition = {
+  colorRole: DraftingLineRole;
+  labelHaloColor: string;
+  lineRole: DraftingLineRole;
+  maxLeaderOpacity: number;
+  textPreset: DraftingStandardTextPreset;
+};
+
+export type DraftingProfilePalette = {
+  background: string;
+  conflict: string;
+  halo: string;
+  ink: string;
+  mutedInk: string;
+  selectionFill: string;
+  selectionStroke: string;
+  sheetBackground: string;
+  softInk: string;
+};
+
 export type DraftingSymbolDefinition = {
   label: string;
   lineRole: DraftingLineRole;
@@ -93,17 +190,22 @@ export type DraftingSymbolDefinition = {
 };
 
 export type DraftingStandardProfile = {
+  dimensionStyle: DraftingDimensionStyleDefinition;
   disciplineProfileId: DraftingDrawingSetup['disciplineProfileId'];
   id: DraftingStandardProfileId;
   label: string;
   lineStyleTableId: string;
   lineStyles: Record<DraftingLineRole, DraftingLineStyleDefinition>;
+  lineTypes: Record<DraftingLineTypeId, DraftingLineTypeDefinition>;
   lineWeightTableId: string;
+  leaderStyle: DraftingLeaderStyleDefinition;
   notes: string[];
+  palette: DraftingProfilePalette;
   scalePresets: string[];
   sheetPresets: DraftingSheetPreset[];
   sourceBasis: string[];
   symbols: Record<DraftingSymbolRole, DraftingSymbolDefinition>;
+  textPresets: Record<DraftingStandardTextPreset, DraftingTextPresetDefinition>;
   textStyles: Record<DraftingTextRole, DraftingTextStyleDefinition>;
   verifiedValues: string[];
   version: string;
@@ -145,39 +247,96 @@ const as1100TextStyles: Record<DraftingTextRole, DraftingTextStyleDefinition> = 
   callout: textRole('callout', 3.5, 2.5),
 };
 
+const as1100TextPresets: Record<DraftingStandardTextPreset, DraftingTextPresetDefinition> = {
+  TITLE: textPreset('TITLE', 'drawingTitle', 'strong', 1.12),
+  SUBTITLE: textPreset('SUBTITLE', 'viewTitle', 'strong', 1.1),
+  ANNOTATION: textPreset('ANNOTATION', 'generalNote', 'medium', 1.08),
+  DIMENSION: textPreset('DIMENSION', 'dimension', 'medium', 1),
+  NOTE_SMALL: textPreset('NOTE_SMALL', 'callout', 'normal', 1.05),
+  TABLE: textPreset('TABLE', 'scheduleBody', 'normal', 1.08),
+};
+
+const profilePalette: DraftingProfilePalette = {
+  background: '#f8fafc',
+  conflict: '#7f1d1d',
+  halo: '#ffffff',
+  ink: '#111827',
+  mutedInk: '#334155',
+  selectionFill: 'rgba(37, 99, 235, 0.08)',
+  selectionStroke: '#2563eb',
+  sheetBackground: '#ffffff',
+  softInk: '#64748b',
+};
+
+const lineTypes: Record<DraftingLineTypeId, DraftingLineTypeDefinition> = {
+  solid: lineType('solid', 'Solid', undefined),
+  dashed: lineType('dashed', 'Dashed', '4 2'),
+  centre: lineType('centre', 'Centre', '7 2 1.5 2'),
+  hidden: lineType('hidden', 'Hidden', '4 2'),
+};
+
 const generalLineStyles: Record<DraftingLineRole, DraftingLineStyleDefinition> = {
-  referenceUnderlay: lineRole('referenceUnderlay', 0.13, '#94a3b8'),
-  objectVisible: lineRole('objectVisible', 0.35, '#334155'),
-  objectHidden: lineRole('objectHidden', 0.25, '#64748b', '4 2'),
-  structuralPrimary: lineRole('structuralPrimary', 0.35, '#111827'),
-  structuralSecondary: lineRole('structuralSecondary', 0.25, '#334155'),
-  pileOutline: lineRole('pileOutline', 0.35, '#111827'),
-  pileCentreMark: lineRole('pileCentreMark', 0.18, '#475569', '7 2 1.5 2'),
-  wallBaseline: lineRole('wallBaseline', 0.25, '#334155', '7 2 1.5 2'),
-  anchorTieback: lineRole('anchorTieback', 0.25, '#334155'),
-  beamWaler: lineRole('beamWaler', 0.35, '#111827'),
-  serviceExisting: lineRole('serviceExisting', 0.25, '#334155'),
-  serviceProposed: lineRole('serviceProposed', 0.25, '#334155', '6 2'),
-  serviceConflict: lineRole('serviceConflict', 0.35, '#7f1d1d'),
-  borehole: lineRole('borehole', 0.25, '#0f172a'),
-  monitoringPoint: lineRole('monitoringPoint', 0.25, '#0f172a'),
-  dimension: lineRole('dimension', 0.18, '#111827'),
-  leaderCallout: lineRole('leaderCallout', 0.18, '#111827'),
-  sectionMarker: lineRole('sectionMarker', 0.5, '#111827'),
-  surveyReferenceMark: lineRole('surveyReferenceMark', 0.35, '#0f172a'),
-  northArrow: lineRole('northArrow', 0.35, '#0f172a'),
-  centreLine: lineRole('centreLine', 0.25, '#475569', '7 2 1.5 2'),
-  dimensionLine: lineRole('dimensionLine', 0.18, '#111827'),
-  leaderLine: lineRole('leaderLine', 0.18, '#111827'),
-  cuttingPlane: lineRole('cuttingPlane', 0.5, '#111827'),
-  sectionLine: lineRole('sectionLine', 0.5, '#111827'),
-  gridLine: lineRole('gridLine', 0.18, '#94a3b8'),
-  underlay: lineRole('underlay', 0.13, '#94a3b8'),
-  existing: lineRole('existing', 0.25, '#475569'),
-  proposed: lineRole('proposed', 0.35, '#1d4ed8'),
-  demolition: lineRole('demolition', 0.25, '#b91c1c', '4 2'),
-  surveyControl: lineRole('surveyControl', 0.35, '#0f766e'),
-  constructionSetout: lineRole('constructionSetout', 0.25, '#7c3aed', '6 2'),
+  referenceUnderlay: lineRole('referenceUnderlay', 0.13, profilePalette.softInk, 'solid'),
+  objectVisible: lineRole('objectVisible', 0.35, profilePalette.mutedInk, 'solid'),
+  objectHidden: lineRole('objectHidden', 0.25, profilePalette.softInk, 'hidden'),
+  structuralPrimary: lineRole('structuralPrimary', 0.35, profilePalette.ink, 'solid'),
+  structuralSecondary: lineRole('structuralSecondary', 0.25, profilePalette.mutedInk, 'solid'),
+  pileOutline: lineRole('pileOutline', 0.35, profilePalette.ink, 'solid'),
+  pileCentreMark: lineRole('pileCentreMark', 0.18, profilePalette.softInk, 'centre'),
+  wallBaseline: lineRole('wallBaseline', 0.25, profilePalette.mutedInk, 'centre'),
+  anchorTieback: lineRole('anchorTieback', 0.25, profilePalette.mutedInk, 'solid'),
+  beamWaler: lineRole('beamWaler', 0.35, profilePalette.ink, 'solid'),
+  serviceExisting: lineRole('serviceExisting', 0.25, profilePalette.mutedInk, 'solid'),
+  serviceProposed: lineRole('serviceProposed', 0.25, profilePalette.mutedInk, 'dashed', '6 2'),
+  serviceConflict: lineRole('serviceConflict', 0.35, profilePalette.conflict, 'solid'),
+  borehole: lineRole('borehole', 0.25, profilePalette.ink, 'solid'),
+  monitoringPoint: lineRole('monitoringPoint', 0.25, profilePalette.ink, 'solid'),
+  dimension: lineRole('dimension', 0.18, profilePalette.ink, 'solid'),
+  leaderCallout: lineRole('leaderCallout', 0.18, profilePalette.ink, 'solid'),
+  sectionMarker: lineRole('sectionMarker', 0.5, profilePalette.ink, 'solid'),
+  surveyReferenceMark: lineRole('surveyReferenceMark', 0.35, profilePalette.ink, 'solid'),
+  northArrow: lineRole('northArrow', 0.35, profilePalette.ink, 'solid'),
+  centreLine: lineRole('centreLine', 0.25, profilePalette.softInk, 'centre'),
+  dimensionLine: lineRole('dimensionLine', 0.18, profilePalette.ink, 'solid'),
+  leaderLine: lineRole('leaderLine', 0.18, profilePalette.ink, 'solid'),
+  cuttingPlane: lineRole('cuttingPlane', 0.5, profilePalette.ink, 'solid'),
+  sectionLine: lineRole('sectionLine', 0.5, profilePalette.ink, 'solid'),
+  gridLine: lineRole('gridLine', 0.18, profilePalette.softInk, 'solid'),
+  underlay: lineRole('underlay', 0.13, profilePalette.softInk, 'solid'),
+  existing: lineRole('existing', 0.25, profilePalette.softInk, 'solid'),
+  proposed: lineRole('proposed', 0.35, profilePalette.mutedInk, 'solid'),
+  demolition: lineRole('demolition', 0.25, profilePalette.conflict, 'dashed'),
+  surveyControl: lineRole('surveyControl', 0.35, profilePalette.ink, 'solid'),
+  constructionSetout: lineRole(
+    'constructionSetout',
+    0.25,
+    profilePalette.mutedInk,
+    'dashed',
+    '6 2',
+  ),
+};
+
+const dimensionStyle: DraftingDimensionStyleDefinition = {
+  extensionGapModelUnits: 90,
+  extensionOvershootModelUnits: 180,
+  extensionRole: 'dimension',
+  labelBackingFill: profilePalette.halo,
+  labelBackingOpacity: 0.84,
+  labelGapModelUnits: 340,
+  labelHaloColor: profilePalette.halo,
+  lineRole: 'dimensionLine',
+  textPreset: 'DIMENSION',
+  tickLengthModelUnits: 210,
+  totalLineGapModelUnits: 620,
+  totalTextGapModelUnits: 420,
+};
+
+const leaderStyle: DraftingLeaderStyleDefinition = {
+  colorRole: 'leaderLine',
+  labelHaloColor: profilePalette.halo,
+  lineRole: 'leaderLine',
+  maxLeaderOpacity: 0.68,
+  textPreset: 'ANNOTATION',
 };
 
 const symbols: Record<DraftingSymbolRole, DraftingSymbolDefinition> = {
@@ -280,20 +439,26 @@ function createProfile(args: {
   }
 
   return {
+    dimensionStyle,
     disciplineProfileId: args.disciplineProfileId,
     id: args.id,
     label: args.label,
     lineStyleTableId: 'as1100-style-lines-v1',
     lineStyles,
+    lineTypes,
     lineWeightTableId: 'as1100-style-lineweights-v1',
+    leaderStyle,
     notes: [
       'AS 1100-style profile defaults; exact project certification remains a licensed-standard review task.',
       'Unverified line dash and symbol geometry tables remain configurable profile data.',
+      'Profiles derive presentation defaults from repo-approved AS 1100 notes without embedding licensed source text.',
     ],
+    palette: profilePalette,
     scalePresets: DRAFTING_SCALE_PRESETS,
     sheetPresets: DRAFTING_SHEET_PRESETS,
     sourceBasis: args.sourceBasis,
     symbols,
+    textPresets: as1100TextPresets,
     textStyles: as1100TextStyles,
     verifiedValues: [
       'AS 1100.101 page 66 character-height table values.',
@@ -303,18 +468,41 @@ function createProfile(args: {
   };
 }
 
+export function resolveDraftingStandardLineRole(role: DraftingLineProfileRole): DraftingLineRole {
+  if ((DRAFTING_STANDARD_LINE_ROLES as readonly string[]).includes(role)) {
+    return DRAFTING_STANDARD_LINE_ROLE_ALIASES[role as DraftingStandardLineRole];
+  }
+
+  return role as DraftingLineRole;
+}
+
 function lineRole(
   role: DraftingLineRole,
   lineWeightMm: number,
   color: string,
+  lineType: DraftingLineTypeId = 'solid',
   dashArray?: string,
 ): DraftingLineStyleDefinition {
   return {
     color,
-    ...(dashArray ? { dashArray } : {}),
+    dashArray: dashArray ?? lineTypes[lineType].dashArray,
+    lineType,
     lineWeightMm,
     role,
     notes: 'Configurable AS 1100-style default; verify exact table values before certification.',
+  };
+}
+
+function lineType(
+  id: DraftingLineTypeId,
+  label: string,
+  dashArray?: string,
+): DraftingLineTypeDefinition {
+  return {
+    ...(dashArray ? { dashArray } : {}),
+    id,
+    label,
+    notes: 'AS 1100-informed line pattern role; verify exact table geometry before certification.',
   };
 }
 
@@ -336,5 +524,19 @@ function textRole(
     a1ToA4HeightMm,
     characterLineThicknessRatioMax: 0.1,
     role,
+  };
+}
+
+function textPreset(
+  role: DraftingStandardTextPreset,
+  textRole: DraftingTextRole,
+  emphasis: DraftingTextPresetDefinition['emphasis'],
+  lineHeight: number,
+): DraftingTextPresetDefinition {
+  return {
+    emphasis,
+    lineHeight,
+    role,
+    textRole,
   };
 }

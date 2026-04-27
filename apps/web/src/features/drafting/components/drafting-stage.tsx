@@ -45,7 +45,11 @@ import {
 import type { DraftingRect } from '../model-utils';
 import type { PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
 import { buildDraftingLabelLayout } from '../labels/drafting-label-candidates';
-import { resolveDraftingLineStyle } from '../standards/drafting-style-resolver';
+import {
+  resolveDraftingLineStyle,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
+import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
 import {
   DRAFTING_CANVAS_LABEL_MODES,
   type DraftingCanvasLabelMode,
@@ -161,6 +165,8 @@ export function DraftingStage({
     tolerancePx: 14,
   };
   const setup = model.drawingSetup!;
+  const standardProfile = getDraftingStandardProfile(setup.activeStandardProfileId);
+  const pendingLineStyle = resolveDraftingLineStyle({ role: 'constructionSetout', setup });
   const referencePoint = setup.referencePoint.modelPoint;
   const selectedSheetScale = selectedDrawingSheet?.scaleLabel ?? setup.scale.defaultSheetScale;
   const zoomPercent = Math.round(view.scale * 100);
@@ -261,13 +267,20 @@ export function DraftingStage({
             onPointerMove={handlePointerMove}
             onPointerDown={onBackgroundPointerDown}
           >
-            <rect x={0} y={0} width={canvasSize.width} height={canvasSize.height} fill="#f8fafc" />
+            <rect
+              x={0}
+              y={0}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              fill={standardProfile.palette.background}
+            />
             <GridLayer
               bounds={visibleWorldBounds}
               height={canvasSize.height}
               offsetX={view.offsetX}
               offsetY={view.offsetY}
               scale={view.scale}
+              setup={setup}
               step={gridStep}
               width={canvasSize.width}
             />
@@ -333,9 +346,9 @@ export function DraftingStage({
                 <polyline
                   fill="none"
                   points={pendingLinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
-                  stroke="#b91c1c"
-                  strokeDasharray="400 200"
-                  strokeWidth={40}
+                  stroke={pendingLineStyle.color}
+                  strokeDasharray={pendingLineStyle.dashArray}
+                  strokeWidth={pendingLineStyle.editorStrokeWidth}
                   vectorEffect="non-scaling-stroke"
                 />
               ) : null}
@@ -615,6 +628,9 @@ function SelectedObjectSourceBadge({
   const label = getSelectedSourceBadgeLabel(object);
   const safeScale = Math.max(0.0001, scale);
   const width = Math.max(92, label.length * 7 + 18);
+  const profile = getDraftingStandardProfile();
+  const lineStyle = resolveDraftingLineStyle({ role: 'leaderLine' });
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', surface: 'editor' });
 
   return (
     <g
@@ -623,17 +639,17 @@ function SelectedObjectSourceBadge({
       transform={`translate(${anchor.x} ${anchor.y}) scale(${1 / safeScale})`}
     >
       <rect
-        fill="#ffffff"
+        fill={profile.palette.halo}
         height={22}
         rx={4}
-        stroke="#64748b"
-        strokeWidth={1}
+        stroke={lineStyle.color}
+        strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         width={width}
         x={16}
         y={-34}
       />
-      <text fill="#334155" fontSize={11} fontWeight={700} x={26} y={-19}>
+      <text fill={lineStyle.color} fontSize={11} fontWeight={textStyle.fontWeight} x={26} y={-19}>
         {label}
       </text>
     </g>
@@ -653,6 +669,9 @@ function SnapPreviewMarker({
   }
   const safeScale = Math.max(0.0001, scale);
   const label = candidate.label;
+  const profile = getDraftingStandardProfile();
+  const markerStyle = resolveDraftingLineStyle({ role: 'surveyControl' });
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', surface: 'editor' });
   return (
     <g
       data-testid="drafting-snap-preview"
@@ -660,27 +679,27 @@ function SnapPreviewMarker({
       transform={`translate(${snapPreview.point.x} ${snapPreview.point.y}) scale(${1 / safeScale})`}
     >
       <rect
-        fill="#ffffff"
+        fill={profile.palette.halo}
         height={20}
         rx={4}
-        stroke="#0f766e"
+        stroke={markerStyle.color}
         width={Math.max(64, label.length * 7 + 18)}
         x={12}
         y={-32}
       />
-      <text fill="#0f766e" fontSize={11} fontWeight={700} x={21} y={-18}>
+      <text fill={markerStyle.color} fontSize={11} fontWeight={textStyle.fontWeight} x={21} y={-18}>
         {label}
       </text>
       <circle
-        fill="#ffffff"
+        fill={profile.palette.halo}
         r={6}
-        stroke="#0f766e"
-        strokeWidth={1.5}
+        stroke={markerStyle.color}
+        strokeWidth={markerStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       <line
-        stroke="#0f766e"
-        strokeWidth={1.2}
+        stroke={markerStyle.color}
+        strokeWidth={markerStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={-12}
         x2={12}
@@ -688,8 +707,8 @@ function SnapPreviewMarker({
         y2={0}
       />
       <line
-        stroke="#0f766e"
-        strokeWidth={1.2}
+        stroke={markerStyle.color}
+        strokeWidth={markerStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={0}
         x2={0}
@@ -758,6 +777,8 @@ function ReferencePointMarker({
 }) {
   const safeScale = Math.max(0.0001, scale);
   const surveyStyle = resolveDraftingLineStyle({ role: 'surveyControl', setup });
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', setup, surface: 'editor' });
+  const profile = getDraftingStandardProfile(setup.activeStandardProfileId);
 
   return (
     <g
@@ -766,15 +787,15 @@ function ReferencePointMarker({
       transform={`translate(${point.x} ${point.y}) scale(${1 / safeScale})`}
     >
       <circle
-        fill="#ffffff"
+        fill={profile.palette.halo}
         r={8}
         stroke={surveyStyle.color}
-        strokeWidth={1.5}
+        strokeWidth={surveyStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
       />
       <line
         stroke={surveyStyle.color}
-        strokeWidth={1.5}
+        strokeWidth={surveyStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={-14}
         x2={14}
@@ -783,14 +804,14 @@ function ReferencePointMarker({
       />
       <line
         stroke={surveyStyle.color}
-        strokeWidth={1.5}
+        strokeWidth={surveyStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x1={0}
         x2={0}
         y1={-14}
         y2={14}
       />
-      <text fill={surveyStyle.color} fontSize={11} fontWeight={700} x={20} y={-12}>
+      <text fill={surveyStyle.color} fontSize={11} fontWeight={textStyle.fontWeight} x={20} y={-12}>
         {label}
       </text>
     </g>
@@ -814,11 +835,12 @@ function CanvasNorthOverlay({
   }
 
   const originX = Math.max(72, width - 86);
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', setup, surface: 'editor' });
 
   return (
     <g data-testid="drafting-north-overlay" pointerEvents="none">
       {arrows.map((arrow, index) => {
-        const arrowStyle = resolveDraftingLineStyle({ role: 'surveyControl', setup });
+        const arrowStyle = resolveDraftingLineStyle({ role: 'northArrow', setup });
 
         return (
           <g
@@ -827,7 +849,7 @@ function CanvasNorthOverlay({
           >
             <line
               stroke={arrowStyle.color}
-              strokeWidth={1.5}
+              strokeWidth={arrowStyle.editorStrokeWidth}
               vectorEffect="non-scaling-stroke"
               x1={0}
               x2={0}
@@ -838,7 +860,7 @@ function CanvasNorthOverlay({
             <text
               fill={arrowStyle.color}
               fontSize={12}
-              fontWeight={700}
+              fontWeight={textStyle.fontWeight}
               textAnchor="middle"
               transform={`rotate(${-arrow.angle})`}
               y={48}
@@ -857,6 +879,9 @@ function DrawingSheetViewportOverlay({ sheet }: { sheet: DraftingDrawingSheetDef
   const height =
     (sheet.viewport.heightMm ?? 220) / Math.max(0.0001, Math.abs(sheet.viewport.scale));
   const label = `${sheet.sheetNumber || sheet.name} - ${sheet.scaleLabel || sheet.viewport.scale.toFixed(4)}`;
+  const profile = getDraftingStandardProfile();
+  const borderStyle = resolveDraftingLineStyle({ role: 'BORDER' });
+  const textStyle = resolveDraftingTextStyle({ role: 'SUBTITLE', surface: 'editor' });
 
   return (
     <g
@@ -865,22 +890,22 @@ function DrawingSheetViewportOverlay({ sheet }: { sheet: DraftingDrawingSheetDef
       transform={`translate(${sheet.viewport.center.x} ${sheet.viewport.center.y}) rotate(${sheet.viewport.rotationDeg ?? 0})`}
     >
       <rect
-        fill="rgba(14, 165, 233, 0.035)"
+        fill={profile.palette.selectionFill}
         height={height}
-        stroke="#0284c7"
+        stroke={borderStyle.color}
         strokeDasharray="220 140"
-        strokeWidth={1.5}
+        strokeWidth={borderStyle.editorStrokeWidth}
         vectorEffect="non-scaling-stroke"
         width={width}
         x={-width / 2}
         y={-height / 2}
       />
       <text
-        fill="#0369a1"
-        fontSize={260}
-        fontWeight={700}
-        stroke="#ffffff"
-        strokeWidth={3}
+        fill={borderStyle.color}
+        fontSize={Math.max(180, textStyle.fontSize)}
+        fontWeight={textStyle.fontWeight}
+        stroke={textStyle.haloColor}
+        strokeWidth={textStyle.haloStrokeWidth}
         vectorEffect="non-scaling-stroke"
         x={-width / 2}
         y={-height / 2 - 180}
@@ -897,6 +922,7 @@ function GridLayer({
   offsetX,
   offsetY,
   scale,
+  setup,
   step,
   width,
 }: {
@@ -905,12 +931,15 @@ function GridLayer({
   offsetX: number;
   offsetY: number;
   scale: number;
+  setup: NonNullable<DraftingModel['drawingSetup']>;
   step: number;
   width: number;
 }) {
   const verticalLines = createGridAxisValues(bounds.minX, bounds.maxX, step);
   const horizontalLines = createGridAxisValues(bounds.minY, bounds.maxY, step);
   const majorStep = step * 5;
+  const gridStyle = resolveDraftingLineStyle({ role: 'GRID', setup });
+  const majorGridStyle = resolveDraftingLineStyle({ role: 'underlay', setup });
 
   return (
     <g>
@@ -925,8 +954,8 @@ function GridLayer({
             x2={screenX}
             y1={0}
             y2={height}
-            stroke={isMajor ? '#cbd5e1' : '#e2e8f0'}
-            strokeWidth={1}
+            stroke={isMajor ? majorGridStyle.color : gridStyle.color}
+            strokeWidth={Math.max(0.6, gridStyle.editorStrokeWidth * (isMajor ? 1.25 : 0.8))}
           />
         );
       })}
@@ -942,8 +971,8 @@ function GridLayer({
             x2={width}
             y1={screenY}
             y2={screenY}
-            stroke={isMajor ? '#cbd5e1' : '#e2e8f0'}
-            strokeWidth={1}
+            stroke={isMajor ? majorGridStyle.color : gridStyle.color}
+            strokeWidth={Math.max(0.6, gridStyle.editorStrokeWidth * (isMajor ? 1.25 : 0.8))}
           />
         );
       })}

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { defaultSoldierPileSymbolDiameterMm } from '../semantic-object-utils';
 import {
+  DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
@@ -52,7 +53,7 @@ export function SoldierPileWallRenderer({
   const firstPile = object.geometry.pilePositions[0];
   const centreMark = Math.min(radius * 0.35, 110);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,
@@ -68,9 +69,9 @@ export function SoldierPileWallRenderer({
         <polyline
           fill="none"
           points={object.geometry.baselinePoints.map((point) => `${point.x},${point.y}`).join(' ')}
-          stroke="#2563eb"
-          strokeDasharray="180 120"
-          strokeWidth={2}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect={vectorEffect}
         />
       ) : null}

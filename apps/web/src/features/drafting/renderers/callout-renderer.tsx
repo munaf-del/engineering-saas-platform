@@ -31,7 +31,7 @@ export function CalloutRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160, drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
   const compactAtScale = surface !== 'sheet' && !isSelected && (viewScale ?? 1) < 0.08;
@@ -145,7 +145,7 @@ function renderCalloutArrow(
 
   return (
     <polygon
-      fill={arrowStyle === 'filled' ? '#ffffff' : 'none'}
+      fill={arrowStyle === 'filled' ? DRAFTING_TECHNICAL_FILLS.annotation : 'none'}
       points={arrowPoints.map((point) => `${point.x},${point.y}`).join(' ')}
       stroke={stroke}
       strokeWidth={strokeWidth}

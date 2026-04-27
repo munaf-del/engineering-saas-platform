@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
@@ -36,7 +37,7 @@ export function PileRenderer({
   const radius = object.geometry.diameterMm / 2;
   const centreMark = Math.min(radius * 0.35, 120);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const isJointSource =
     object.sourceRef?.sourceType === 'foundation_pile' &&
     object.sourceRef.snapshot !== undefined &&
@@ -57,11 +58,11 @@ export function PileRenderer({
           <circle
             cx={object.geometry.centre.x}
             cy={object.geometry.centre.y}
-            fill="rgba(59, 130, 246, 0.08)"
+            fill={DRAFTING_SELECTION_STYLE.fill}
             r={220}
-            stroke="#2563eb"
-            strokeDasharray="160 120"
-            strokeWidth={2}
+            stroke={DRAFTING_SELECTION_STYLE.stroke}
+            strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+            strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
             vectorEffect={vectorEffect}
           />
         ) : null}
@@ -113,11 +114,11 @@ export function PileRenderer({
         <circle
           cx={object.geometry.centre.x}
           cy={object.geometry.centre.y}
-          fill="rgba(59, 130, 246, 0.12)"
+          fill={DRAFTING_SELECTION_STYLE.fill}
           r={radius + 140}
-          stroke="#2563eb"
-          strokeDasharray="160 120"
-          strokeWidth={2}
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
+          strokeDasharray={DRAFTING_SELECTION_STYLE.strokeDasharray}
+          strokeWidth={DRAFTING_SELECTION_STYLE.strokeWidth}
           vectorEffect={vectorEffect}
         />
       ) : null}

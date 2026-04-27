@@ -40,7 +40,7 @@ export function CappingBeamRenderer({
   const firstPoint = object.geometry.points[0];
   const outlinePoints = buildOffsetPolyline(object.geometry.points, object.parameters.widthMm / 2);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,

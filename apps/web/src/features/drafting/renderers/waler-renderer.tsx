@@ -40,7 +40,7 @@ export function WalerRenderer({
   const firstPoint = object.geometry.points[0];
   const edgePoints = buildOffsetPolyline(object.geometry.points, 130);
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,

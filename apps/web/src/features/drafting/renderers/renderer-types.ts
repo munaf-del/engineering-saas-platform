@@ -27,10 +27,14 @@ import type {
   DraftingWalerObject,
 } from '@eng/shared';
 import {
+  resolveDraftingLeaderStyle,
   resolveDraftingLineStyle,
   resolveDraftingPaperLineStyle,
+  resolveDraftingTextStyle,
   type ResolvedDraftingLineStyle,
+  type ResolvedDraftingTextStyle,
 } from '../standards/drafting-style-resolver';
+import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
 import type { DraftingLineRole } from '../standards/drafting-standard-profiles';
 import type { DraftingCanvasLabelMode } from './label-policy';
 import type { DraftingLabelPlacement } from '../labels/drafting-label-layout';
@@ -64,8 +68,8 @@ export function resolveRendererLineStyle(
 }
 
 export const DRAFTING_SELECTION_STYLE = {
-  fill: 'rgba(37, 99, 235, 0.08)',
-  stroke: '#2563eb',
+  fill: getDraftingStandardProfile().palette.selectionFill,
+  stroke: getDraftingStandardProfile().palette.selectionStroke,
   strokeDasharray: '160 120',
   strokeWidth: 2,
 } as const;
@@ -83,8 +87,51 @@ export function resolveRendererVectorEffect(surface?: 'editor' | 'sheet') {
   return surface === 'sheet' ? undefined : 'non-scaling-stroke';
 }
 
-export function resolveCanvasLabelSize(textSize: number | undefined, fallback = 170) {
-  return Math.min(textSize ?? fallback, 180);
+export function resolveCanvasLabelSize(
+  textSize: number | undefined,
+  fallback = 170,
+  drawingSetup?: DraftingDrawingSetup,
+) {
+  const profileDefault = resolveDraftingTextStyle({
+    role: 'ANNOTATION',
+    setup: drawingSetup,
+    surface: 'editor',
+  }).fontSize;
+  return Math.min(textSize ?? fallback ?? profileDefault, 180);
+}
+
+export function resolveCanvasLabelStyle(args: {
+  drawingSetup?: DraftingDrawingSetup;
+  fallback?: number;
+  surface?: 'editor' | 'sheet';
+  textSize?: number;
+}): ResolvedDraftingTextStyle {
+  const resolved = resolveDraftingTextStyle({
+    role: 'ANNOTATION',
+    setup: args.drawingSetup,
+    surface: args.surface,
+  });
+  const fontSize =
+    args.surface === 'sheet'
+      ? resolved.fontSize
+      : resolveCanvasLabelSize(args.textSize, args.fallback, args.drawingSetup);
+
+  return {
+    ...resolved,
+    fontSize,
+    haloStrokeWidth: Math.max(args.surface === 'sheet' ? 0.18 : 14, fontSize * 0.08),
+    secondaryFontSize: fontSize * 0.74,
+  };
+}
+
+export function resolveCanvasLeaderStyle(args: {
+  drawingSetup?: DraftingDrawingSetup;
+  surface?: 'editor' | 'sheet';
+}) {
+  return resolveDraftingLeaderStyle({
+    setup: args.drawingSetup,
+    surface: args.surface,
+  });
 }
 
 export function resolveTechnicalStroke(

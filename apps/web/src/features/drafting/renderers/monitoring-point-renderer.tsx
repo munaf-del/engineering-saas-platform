@@ -34,7 +34,7 @@ export function MonitoringPointRenderer({
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#7c3aed']);
   const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.none);
   const { x, y } = object.geometry.point;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170, drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,

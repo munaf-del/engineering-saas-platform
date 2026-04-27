@@ -1,5 +1,7 @@
 import * as React from 'react';
 import {
+  DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
@@ -24,7 +26,7 @@ export function LeaderNoteRenderer({
     surface,
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160, drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const { anchor, textPoint } = object.geometry;
   const compactAtScale =
@@ -44,10 +46,10 @@ export function LeaderNoteRenderer({
       <circle cx={anchor.x} cy={anchor.y} fill={stroke} r={42} vectorEffect={vectorEffect} />
       {compactAtScale ? null : (
         <rect
-          fill="rgba(255,255,255,0.82)"
+          fill={DRAFTING_TECHNICAL_FILLS.annotation}
           height={340}
           rx={18}
-          stroke={isSelected ? '#2563eb' : stroke}
+          stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
           strokeWidth={lineStyle.editorStrokeWidth}
           vectorEffect={vectorEffect}
           width={1450}

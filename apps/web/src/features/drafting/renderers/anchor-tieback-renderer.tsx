@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
@@ -35,7 +36,7 @@ export function AnchorTiebackRenderer({
   const labelX = (headPoint.x + tailPoint.x) / 2 + 120;
   const labelY = (headPoint.y + tailPoint.y) / 2 - 140;
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,
@@ -71,7 +72,7 @@ export function AnchorTiebackRenderer({
       <circle
         cx={headPoint.x}
         cy={headPoint.y}
-        fill="#ffffff"
+        fill={DRAFTING_TECHNICAL_FILLS.annotation}
         r={95}
         stroke={stroke}
         strokeWidth={lineStyle.editorStrokeWidth}

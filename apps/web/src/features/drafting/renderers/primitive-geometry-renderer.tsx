@@ -11,6 +11,7 @@ import type {
 } from '@eng/shared';
 import {
   DRAFTING_SELECTION_STYLE,
+  DRAFTING_TECHNICAL_FILLS,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
@@ -143,9 +144,10 @@ export function StructuralJointRenderer(
   props: DraftingRendererProps<DraftingStructuralJointObject>,
 ) {
   const lineStyle = resolveRendererLineStyle({ ...props, role: 'structuralPrimary' });
+  const conflictStyle = resolveRendererLineStyle({ ...props, role: 'serviceConflict' });
   const stroke = resolveTechnicalStroke(props.object.style?.stroke, lineStyle);
   const point = props.object.geometry.point;
-  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 170);
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 170, props.drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects: props.allObjects,
@@ -169,7 +171,7 @@ export function StructuralJointRenderer(
       <circle
         cx={point.x}
         cy={point.y}
-        fill="#ffffff"
+        fill={DRAFTING_TECHNICAL_FILLS.annotation}
         r={120}
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeWidth={lineStyle.editorStrokeWidth}
@@ -197,7 +199,7 @@ export function StructuralJointRenderer(
         <g>
           <line
             markerEnd={`url(#${props.object.id}-joint-load-arrow)`}
-            stroke="#7f1d1d"
+            stroke={conflictStyle.color}
             strokeWidth={lineStyle.editorStrokeWidth}
             vectorEffect={vectorEffect}
             x1={point.x}
@@ -215,7 +217,7 @@ export function StructuralJointRenderer(
               refY="4"
               viewBox="0 0 8 8"
             >
-              <path d="M0,0 L8,4 L0,8 z" fill="#7f1d1d" />
+              <path d="M0,0 L8,4 L0,8 z" fill={conflictStyle.color} />
             </marker>
           </defs>
         </g>
@@ -238,7 +240,7 @@ export function StructuralJointRenderer(
 export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeotechSurfaceObject>) {
   const lineStyle = resolveRendererLineStyle({ ...props, role: 'constructionSetout' });
   const stroke = resolveTechnicalStroke(props.object.style?.stroke, lineStyle);
-  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150);
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150, props.drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects: props.allObjects,
@@ -277,7 +279,7 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
           <circle
             cx={point.x}
             cy={point.y}
-            fill="#ffffff"
+            fill={DRAFTING_TECHNICAL_FILLS.annotation}
             r={90}
             stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
             strokeWidth={lineStyle.editorStrokeWidth}
@@ -288,7 +290,7 @@ export function GeotechSurfaceRenderer(props: DraftingRendererProps<DraftingGeot
               fill={stroke}
               fontSize={textSize}
               paintOrder="stroke"
-              stroke="#ffffff"
+              stroke={DRAFTING_TECHNICAL_FILLS.annotation}
               strokeWidth={28}
               x={point.x + 130}
               y={point.y - 80}
@@ -330,7 +332,7 @@ function PrimitiveCanvasLabel({
   props: DraftingRendererProps;
   stroke: string;
 }) {
-  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150);
+  const textSize = resolveCanvasLabelSize(props.object.style?.textSize, 150, props.drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects: props.allObjects,
     isSelected: props.isSelected,

@@ -39,7 +39,11 @@ import {
 } from '../model-utils';
 import { DraftingPdfUnderlay } from '../components/drafting-pdf-underlay';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
-import { resolveDraftingPaperLineStyle } from '../standards/drafting-style-resolver';
+import {
+  resolveDraftingPaperLineStyle,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
+import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
 import {
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
   DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
@@ -389,6 +393,9 @@ export function DraftingDrawingSheetPage({
     viewScale: viewport.scale,
   });
   const viewportClipPathId = `drafting-sheet-viewport-clip-${sanitizeSvgId(sheet.id)}`;
+  const standardProfile = getDraftingStandardProfile(
+    drawing.model.drawingSetup?.activeStandardProfileId,
+  );
 
   return (
     <article
@@ -439,7 +446,7 @@ export function DraftingDrawingSheetPage({
             </clipPath>
           </defs>
           <rect
-            fill="#f8fafc"
+            fill={standardProfile.palette.sheetBackground}
             height={sheetLayout.viewport.height}
             width={sheetLayout.viewport.width}
             x={0}
@@ -451,6 +458,7 @@ export function DraftingDrawingSheetPage({
               <DrawingSheetGrid
                 frameHeightMm={sheetLayout.viewport.height}
                 frameWidthMm={sheetLayout.viewport.width}
+                setup={drawing.model.drawingSetup}
                 viewport={viewport}
               />
             ) : null}
@@ -522,13 +530,21 @@ function DrawingSheetNorthOverlay({
     return null;
   }
   const surveyStyle = resolveDraftingPaperLineStyle({ role: 'surveyControl', setup });
+  const northLineStyle = resolveDraftingPaperLineStyle({ role: 'northArrow', setup });
+  const northTextStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', setup, surface: 'sheet' });
+  const profile = getDraftingStandardProfile(setup.activeStandardProfileId);
 
   const arrows = [
     setup.north.showProjectNorth
-      ? { angle: setup.north.projectNorthAngleDeg, color: '#111827', label: 'PN', x: 0 }
+      ? { angle: setup.north.projectNorthAngleDeg, color: northLineStyle.color, label: 'PN', x: 0 }
       : null,
     setup.north.showTrueNorth
-      ? { angle: setup.north.trueNorthAngleDeg, color: '#991b1b', label: 'TN', x: -14 }
+      ? {
+          angle: setup.north.trueNorthAngleDeg,
+          color: profile.palette.conflict,
+          label: 'TN',
+          x: -14,
+        }
       : null,
   ].filter(
     (arrow): arrow is { angle: number; color: string; label: string; x: number } => arrow !== null,
@@ -557,7 +573,7 @@ function DrawingSheetNorthOverlay({
           <text
             fill={arrow.color}
             fontSize={3.2}
-            fontWeight={700}
+            fontWeight={northTextStyle.fontWeight}
             textAnchor="middle"
             transform={`rotate(${-arrow.angle})`}
             y={13.5}
@@ -573,12 +589,15 @@ function DrawingSheetNorthOverlay({
 function DrawingSheetGrid({
   frameHeightMm,
   frameWidthMm,
+  setup,
   viewport,
 }: {
   frameHeightMm: number;
   frameWidthMm: number;
+  setup: DraftingDrawing['model']['drawingSetup'];
   viewport: DraftingDrawingSheetDefinition['viewport'];
 }) {
+  const gridStyle = resolveDraftingPaperLineStyle({ role: 'GRID', setup });
   const worldWidth = frameWidthMm / viewport.scale;
   const worldHeight = frameHeightMm / viewport.scale;
   const minX = viewport.center.x - worldWidth / 2;
@@ -591,7 +610,11 @@ function DrawingSheetGrid({
   const yValues = createGridAxisValues(minY, maxY, step);
 
   return (
-    <g data-testid="drafting-sheet-grid" stroke="#e2e8f0" strokeWidth={0.25}>
+    <g
+      data-testid="drafting-sheet-grid"
+      stroke={gridStyle.color}
+      strokeWidth={gridStyle.lineWeightMm}
+    >
       {xValues.map((x) => (
         <line
           key={`grid-x-${x}`}
@@ -619,10 +642,19 @@ function UnderlayMetadataPlaceholders({
 }: {
   underlays: Array<{ fileName: string; id: string; pageNumber: number }>;
 }) {
+  const profile = getDraftingStandardProfile();
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', surface: 'sheet' });
   return (
     <g data-testid="drafting-sheet-underlay-metadata">
       {underlays.map((underlay, index) => (
-        <text fill="#64748b" fontSize={3.2} key={underlay.id} x={4} y={6 + index * 5}>
+        <text
+          fill={profile.palette.softInk}
+          fontSize={textStyle.fontSize}
+          fontWeight={textStyle.fontWeight}
+          key={underlay.id}
+          x={4}
+          y={6 + index * 5}
+        >
           PDF underlay: {underlay.fileName} p{underlay.pageNumber}
         </text>
       ))}

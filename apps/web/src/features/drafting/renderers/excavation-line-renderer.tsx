@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  DRAFTING_SELECTION_STYLE,
   resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
@@ -27,11 +28,11 @@ export function ExcavationLineRenderer({
     role: 'constructionSetout',
     surface,
   });
-  const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? '#334155';
+  const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? lineStyle.color;
   const dashArray = object.style?.lineStyle === 'solid' ? undefined : '320 180';
   const firstPoint = object.geometry.points[0];
   const vectorEffect = resolveRendererVectorEffect(surface);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,
@@ -46,7 +47,7 @@ export function ExcavationLineRenderer({
       <polyline
         fill="none"
         points={object.geometry.points.map((point) => `${point.x},${point.y}`).join(' ')}
-        stroke={isSelected ? '#991b1b' : stroke}
+        stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeDasharray={dashArray}
         strokeWidth={lineStyle.editorStrokeWidth}
         vectorEffect={vectorEffect}

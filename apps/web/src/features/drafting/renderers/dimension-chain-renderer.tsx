@@ -12,12 +12,13 @@ import {
   resolveDimensionChainOffsetVector,
 } from '../semantic-object-utils';
 import {
-  resolveCanvasLabelSize,
+  DRAFTING_SELECTION_STYLE,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
   type DraftingDimensionChainRendererProps,
 } from './renderer-types';
 import { resolveEffectiveLabelMode } from './label-policy';
+import { resolveDraftingDimensionStyle } from '../standards/drafting-style-resolver';
 
 export function DimensionChainRenderer({
   drawingSetup,
@@ -30,29 +31,47 @@ export function DimensionChainRenderer({
   surface,
   viewScale,
 }: DraftingDimensionChainRendererProps) {
+  const dimensionStyle = resolveDraftingDimensionStyle({
+    setup: drawingSetup,
+    surface,
+  });
   const lineStyle = resolveRendererLineStyle({
     drawingSetup,
     layer,
     object,
-    role: 'dimension',
+    role: dimensionStyle.lineRole,
     surface,
   });
-  const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? '#334155';
+  const extensionStyle = resolveRendererLineStyle({
+    drawingSetup,
+    layer,
+    object,
+    role: dimensionStyle.extensionRole,
+    surface,
+  });
+  const stroke = object.style?.stroke ?? lineStyle.color ?? layer?.color ?? lineStyle.color;
   const lineWeight =
     surface === 'sheet'
       ? lineStyle.editorStrokeWidth
       : Math.max(0.85, lineStyle.editorStrokeWidth * 0.8);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 150);
+  const extensionLineWeight =
+    surface === 'sheet'
+      ? extensionStyle.editorStrokeWidth
+      : Math.max(0.6, extensionStyle.editorStrokeWidth * 0.65);
+  const textSize =
+    surface === 'sheet'
+      ? dimensionStyle.textStyle.fontSize
+      : Math.min(object.style?.textSize ?? dimensionStyle.textStyle.fontSize, 180);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const resolvedObject = resolveDimensionAnchoredObject(object, allObjects);
   const offsetPoints = buildDimensionChainOffsetPoints(resolvedObject);
   const offsetVector = resolveDimensionChainOffsetVector(resolvedObject);
   const offsetLength = Math.max(1, Math.hypot(offsetVector.x, offsetVector.y));
   const offsetUnit = { x: offsetVector.x / offsetLength, y: offsetVector.y / offsetLength };
-  const extensionOvershoot = 180;
-  const segmentTextGap = 340;
-  const totalLineGap = 620;
-  const totalTextGap = 420;
+  const extensionOvershoot = dimensionStyle.extensionOvershootModelUnits;
+  const segmentTextGap = dimensionStyle.labelGapModelUnits;
+  const totalLineGap = dimensionStyle.totalLineGapModelUnits;
+  const totalTextGap = dimensionStyle.totalTextGapModelUnits;
   const segments = calculateDimensionChainSegments(resolvedObject.geometry.points);
   const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
   const showSegmentLabels =
@@ -81,7 +100,7 @@ export function DimensionChainRenderer({
         <polyline
           fill="none"
           points={offsetPoints.map((point) => `${point.x},${point.y}`).join(' ')}
-          stroke="#2563eb"
+          stroke={DRAFTING_SELECTION_STYLE.stroke}
           strokeWidth={Math.max(2, lineWeight * 2)}
           vectorEffect={vectorEffect}
         />
@@ -100,8 +119,8 @@ export function DimensionChainRenderer({
         return (
           <line
             key={`${object.id}-extension-${index}`}
-            stroke={stroke}
-            strokeWidth={lineWeight}
+            stroke={extensionStyle.color ?? stroke}
+            strokeWidth={extensionLineWeight}
             vectorEffect={vectorEffect}
             x1={point.x}
             x2={extended.x}
@@ -128,6 +147,7 @@ export function DimensionChainRenderer({
         return (
           <DimensionTick
             key={`${object.id}-tick-${index}`}
+            length={dimensionStyle.tickLengthModelUnits}
             point={point}
             stroke={stroke}
             strokeWidth={lineWeight}
@@ -165,6 +185,7 @@ export function DimensionChainRenderer({
                 point={labelPoint}
                 stroke={stroke}
                 textSize={textSize}
+                textStyle={dimensionStyle.textStyle}
               />
             ) : null}
           </React.Fragment>
@@ -202,6 +223,7 @@ export function DimensionChainRenderer({
                   y2={totalEnd.y}
                 />
                 <DimensionTick
+                  length={dimensionStyle.tickLengthModelUnits}
                   point={totalStart}
                   stroke={stroke}
                   strokeWidth={Math.max(0.6, lineWeight * 0.65)}
@@ -212,6 +234,7 @@ export function DimensionChainRenderer({
                   vectorEffect={vectorEffect}
                 />
                 <DimensionTick
+                  length={dimensionStyle.tickLengthModelUnits}
                   point={totalEnd}
                   stroke={stroke}
                   strokeWidth={Math.max(0.6, lineWeight * 0.65)}
@@ -227,6 +250,7 @@ export function DimensionChainRenderer({
                   point={totalLabelPoint}
                   stroke={stroke}
                   textSize={textSize}
+                  textStyle={dimensionStyle.textStyle}
                 />
               </>
             );
@@ -250,10 +274,12 @@ function DimensionTick({
   point,
   start,
   tangent,
+  length = 210,
   stroke,
   strokeWidth,
   vectorEffect,
 }: {
+  length?: number;
   point: DraftingPoint;
   start?: DraftingPoint;
   tangent?: DraftingPoint;
@@ -265,7 +291,6 @@ function DimensionTick({
     tangent ??
     normaliseVector({ x: point.x - (start?.x ?? point.x - 1), y: point.y - (start?.y ?? point.y) });
   const angle = Math.atan2(baseTangent.y, baseTangent.x) + Math.PI / 4;
-  const length = 210;
   const dx = Math.cos(angle) * length;
   const dy = Math.sin(angle) * length;
   return (
@@ -287,23 +312,25 @@ function DimensionLabel({
   point,
   stroke,
   textSize,
+  textStyle,
 }: {
   bold: boolean;
   label: string;
   point: DraftingPoint;
   stroke: string;
   textSize: number;
+  textStyle: ReturnType<typeof resolveDraftingDimensionStyle>['textStyle'];
 }) {
   return (
     <text
       dominantBaseline="middle"
       fill={stroke}
       fontSize={textSize}
-      fontWeight={bold ? 700 : 600}
+      fontWeight={bold ? 700 : textStyle.fontWeight}
       paintOrder="stroke"
-      stroke="#ffffff"
+      stroke={textStyle.haloColor}
       strokeLinejoin="round"
-      strokeWidth={Math.max(18, textSize * 0.1)}
+      strokeWidth={Math.max(textStyle.haloStrokeWidth, textSize * 0.1)}
       textAnchor="middle"
       x={point.x}
       y={point.y}

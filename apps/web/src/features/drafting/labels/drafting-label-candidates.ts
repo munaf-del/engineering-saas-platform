@@ -51,6 +51,7 @@ export function buildDraftingLabelLayout({
     const textSize = resolveCanvasLabelSize(
       object.style?.textSize,
       defaultLabelSizeForObject(object),
+      model.drawingSetup,
     );
     const labelLines = buildDraftingObjectLabelLines({
       allObjects: model.objects,

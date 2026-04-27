@@ -33,7 +33,7 @@ export function BoreholeRenderer({
   });
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, ['#0f766e']);
   const fill = resolveTechnicalFill(object.style?.fill, DRAFTING_TECHNICAL_FILLS.survey);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170);
+  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170, drawingSetup);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
