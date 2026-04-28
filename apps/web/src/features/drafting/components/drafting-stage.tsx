@@ -819,6 +819,43 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'borehole') {
+    return (
+      <g data-testid="drafting-command-preview-borehole">
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={160}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={startPoint!.x}
+          y1={startPoint!.y - 220}
+          y2={startPoint!.y + 220}
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x - 220}
+          x2={startPoint!.x + 220}
+          y1={startPoint!.y}
+          y2={startPoint!.y}
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline

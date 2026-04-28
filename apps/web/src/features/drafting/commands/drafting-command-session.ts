@@ -7,6 +7,7 @@ export type DraftingCalloutCommandTool = 'callout';
 export type DraftingMonitoringPointCommandTool = 'monitoring_point';
 export type DraftingStructuralJointCommandTool = 'structural_joint';
 export type DraftingServiceCrossingCommandTool = 'service_crossing';
+export type DraftingBoreholeCommandTool = 'borehole';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
@@ -17,6 +18,7 @@ export type DraftingCommandTool =
   | DraftingMonitoringPointCommandTool
   | DraftingStructuralJointCommandTool
   | DraftingServiceCrossingCommandTool
+  | DraftingBoreholeCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -78,6 +80,12 @@ export type DraftingCommandSession =
       tool: DraftingServiceCrossingCommandTool;
     }
   | {
+      phase: 'waiting_placement_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingBoreholeCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -118,6 +126,10 @@ type ActiveDraftingStructuralJointCommandSession = Extract<
 type ActiveDraftingServiceCrossingCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingServiceCrossingCommandTool }
+>;
+type ActiveDraftingBoreholeCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingBoreholeCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -217,6 +229,18 @@ export type DraftingServiceCrossingCommandCommit =
       tool: DraftingServiceCrossingCommandTool;
     };
 
+export type DraftingBoreholeCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualPointPlacement;
+      session: DraftingCommandSession;
+      tool: DraftingBoreholeCommandTool;
+    };
+
 export type DraftingDimensionCommandCommit =
   | {
       committed: false;
@@ -312,6 +336,15 @@ export function startDraftingServiceCrossingCommand(): ActiveDraftingServiceCros
   };
 }
 
+export function startDraftingBoreholeCommand(): ActiveDraftingBoreholeCommandSession {
+  return {
+    phase: 'waiting_placement_point',
+    points: [],
+    previewPoint: null,
+    tool: 'borehole',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -378,6 +411,10 @@ export function isDraftingServiceCrossingCommandTool(
   return tool === 'service_crossing';
 }
 
+export function isDraftingBoreholeCommandTool(tool: string): tool is DraftingBoreholeCommandTool {
+  return tool === 'borehole';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -391,6 +428,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingMonitoringPointCommandTool(tool) ||
     isDraftingStructuralJointCommandTool(tool) ||
     isDraftingServiceCrossingCommandTool(tool) ||
+    isDraftingBoreholeCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -445,6 +483,12 @@ export function ensureDraftingServiceCrossingCommand(
   return session.tool === 'service_crossing' ? session : startDraftingServiceCrossingCommand();
 }
 
+export function ensureDraftingBoreholeCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingBoreholeCommandSession {
+  return session.tool === 'borehole' ? session : startDraftingBoreholeCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -465,6 +509,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'monitoring_point' ||
     session.tool === 'structural_joint' ||
     session.tool === 'service_crossing' ||
+    session.tool === 'borehole' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -586,6 +631,20 @@ export function updateDraftingServiceCrossingCommandPreview(
   };
 }
 
+export function updateDraftingBoreholeCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'borehole' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -599,6 +658,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'monitoring_point' ||
     session.tool === 'structural_joint' ||
     session.tool === 'service_crossing' ||
+    session.tool === 'borehole' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -787,6 +847,23 @@ export function commitDraftingServiceCrossingCommandPoint(
   };
 }
 
+export function commitDraftingBoreholeCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingBoreholeCommandCommit {
+  const activeSession = ensureDraftingBoreholeCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  return {
+    committed: true,
+    placement: createManualDraftingPointPlacement(point),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'borehole',
+  };
+}
+
 export function commitDraftingDimensionCommandPoint(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -925,6 +1002,10 @@ export function getDraftingCommandPreviewPoints(session: DraftingCommandSession)
   }
 
   if (session.tool === 'service_crossing') {
+    return session.previewPoint ? [session.previewPoint] : [];
+  }
+
+  if (session.tool === 'borehole') {
     return session.previewPoint ? [session.previewPoint] : [];
   }
 

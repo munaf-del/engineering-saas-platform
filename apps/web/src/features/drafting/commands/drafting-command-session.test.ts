@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DraftingPoint } from '@eng/shared';
 import {
   cancelDraftingCommandSession,
+  commitDraftingBoreholeCommandPoint,
   commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
@@ -17,6 +18,7 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  startDraftingBoreholeCommand,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
@@ -28,6 +30,7 @@ import {
   startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
   startDraftingLineCommand,
+  updateDraftingBoreholeCommandPreview,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
@@ -1020,6 +1023,109 @@ describe('drafting command session', () => {
       startDraftingServiceCrossingCommand(),
       point,
     );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        point,
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts a borehole command waiting for the placement point', () => {
+    expect(startDraftingBoreholeCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'borehole',
+    });
+  });
+
+  it('updates borehole placement preview from the pointer point', () => {
+    const preview = updateDraftingBoreholeCommandPreview(startDraftingBoreholeCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandTool(preview)).toBe('borehole');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a manual borehole placement', () => {
+    const result = commitDraftingBoreholeCommandPoint(startDraftingBoreholeCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('borehole');
+      expect(result.placement).toEqual({
+        point: { x: 1500, y: 1900 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op borehole placement without crashing', () => {
+    const result = commitDraftingBoreholeCommandPoint(startDraftingBoreholeCommand(), null);
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'borehole',
+    });
+  });
+
+  it('cancels an incomplete borehole command without committing', () => {
+    const preview = updateDraftingBoreholeCommandPreview(startDraftingBoreholeCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete borehole command without committing', () => {
+    const preview = updateDraftingBoreholeCommandPreview(startDraftingBoreholeCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves borehole snap refs and optional z and rl point metadata', () => {
+    const point: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingBoreholeCommandPoint(startDraftingBoreholeCommand(), point);
 
     expect(result.committed).toBe(true);
     if (result.committed) {

@@ -73,6 +73,7 @@ import {
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
+  isDraftingBoreholeCommandTool,
 } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingTool } from './tools/drafting-tool-types';
@@ -487,6 +488,25 @@ export function DraftingEditor({
 
     if (isDraftingServiceCrossingCommandTool(drafting.activeTool)) {
       const commandResult = drafting.commitServiceCrossingCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.placement.point,
+        currentModel,
+        [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingBoreholeCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitBoreholeCommandPoint(point);
       if (!commandResult.committed) {
         return;
       }
@@ -1051,6 +1071,8 @@ export function DraftingEditor({
               drafting.updateStructuralJointCommandPreview(point);
             } else if (isDraftingServiceCrossingCommandTool(drafting.activeTool)) {
               drafting.updateServiceCrossingCommandPreview(point);
+            } else if (isDraftingBoreholeCommandTool(drafting.activeTool)) {
+              drafting.updateBoreholeCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1397,6 +1419,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick service crossing location';
   }
 
+  if (isDraftingBoreholeCommandTool(tool)) {
+    return 'Pick borehole location';
+  }
+
   if (isDraftingPathCommandTool(tool)) {
     return pendingPointCount === 0
       ? 'Pick start point'
@@ -1419,7 +1445,7 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick dimension offset';
   }
 
-  if (tool === 'pile' || tool === 'borehole') {
+  if (tool === 'pile') {
     return 'Pick placement point';
   }
 

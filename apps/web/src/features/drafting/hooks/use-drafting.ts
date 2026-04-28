@@ -8,6 +8,7 @@ import {
 import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
+  commitDraftingBoreholeCommandPoint,
   commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
@@ -22,6 +23,7 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  isDraftingBoreholeCommandTool,
   isDraftingCalloutCommandTool,
   isDraftingCommandTool,
   isDraftingDimensionCommandTool,
@@ -32,6 +34,7 @@ import {
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
+  startDraftingBoreholeCommand,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
@@ -41,6 +44,7 @@ import {
   startDraftingSectionMarkerCommand,
   startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
+  updateDraftingBoreholeCommandPreview,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
@@ -50,6 +54,7 @@ import {
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
+  type DraftingBoreholeCommandCommit,
   type DraftingCommandSession,
   type DraftingCalloutCommandCommit,
   type DraftingDimensionCommandCommit,
@@ -132,6 +137,10 @@ export function useDrafting() {
     }
     if (isDraftingServiceCrossingCommandTool(tool)) {
       setCommandSession(startDraftingServiceCrossingCommand());
+      return;
+    }
+    if (isDraftingBoreholeCommandTool(tool)) {
+      setCommandSession(startDraftingBoreholeCommand());
       return;
     }
     setCommandSession(cancelDraftingCommandSession());
@@ -220,6 +229,16 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingServiceCrossingCommandPreview(current, point));
   }
 
+  function commitBoreholeCommandPoint(point: DraftingPoint | null): DraftingBoreholeCommandCommit {
+    const result = commitDraftingBoreholeCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateBoreholeCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingBoreholeCommandPreview(current, point));
+  }
+
   function commitDimensionCommandPoint(
     point: DraftingPoint | null,
   ): DraftingDimensionCommandCommit {
@@ -272,6 +291,7 @@ export function useDrafting() {
     clearPendingLine,
     commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
+    commitBoreholeCommandPoint,
     commitCalloutCommandPoint,
     commitDimensionCommandPoint,
     commitLeaderNoteCommandPoint,
@@ -292,6 +312,7 @@ export function useDrafting() {
     snapSettings,
     toggleSnapEnabled,
     toggleSnapMode,
+    updateBoreholeCommandPreview,
     updateCalloutCommandPreview,
     updateDimensionCommandPreview,
     updateLeaderNoteCommandPreview,
