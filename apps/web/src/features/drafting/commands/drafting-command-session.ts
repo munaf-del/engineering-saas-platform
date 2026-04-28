@@ -2,7 +2,7 @@ import type { DraftingPoint } from '@eng/shared';
 
 export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
 export type DraftingDimensionCommandTool = 'dimension_chain';
-export type DraftingPathCommandTool = 'draft_polyline';
+export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingDimensionCommandTool
@@ -16,6 +16,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 
 export const DRAFTING_PATH_COMMAND_TOOLS = [
   'draft_polyline',
+  'draft_polygon',
 ] as const satisfies DraftingPathCommandTool[];
 
 export type DraftingCommandSession =
@@ -220,7 +221,13 @@ export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
 ): DraftingCommandSession {
-  if (session.tool !== 'draft_polyline' || session.points.length === 0 || !point) {
+  if (
+    session.tool === 'idle' ||
+    session.tool === 'dimension_chain' ||
+    isDraftingPrimitiveCommandTool(session.tool) ||
+    session.points.length === 0 ||
+    !point
+  ) {
     return session;
   }
 
@@ -368,18 +375,27 @@ export function commitDraftingPathCommandPoint(
 
 export function finishDraftingPathCommand(
   session: DraftingCommandSession,
-  minimumPointCount = 2,
 ): DraftingPathCommandCommit {
-  if (session.tool !== 'draft_polyline' || session.points.length < minimumPointCount) {
-    return { committed: false, session };
-  }
+  switch (session.tool) {
+    case 'draft_polyline':
+    case 'draft_polygon': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
 
-  return {
-    committed: true,
-    points: session.points.map(cloneDraftingPoint),
-    session: IDLE_DRAFTING_COMMAND_SESSION,
-    tool: session.tool,
-  };
+      return {
+        committed: true,
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool:
+          session.tool === 'draft_polygon' && session.points.length < 3
+            ? 'draft_polyline'
+            : session.tool,
+      };
+    }
+    default:
+      return { committed: false, session };
+  }
 }
 
 export function cancelDraftingCommandSession(): DraftingCommandSession {

@@ -556,12 +556,8 @@ export function DraftingEditor({
       return;
     }
 
-    const tool =
-      drafting.activeTool === 'draft_polygon' && drafting.pendingLinePoints.length < 3
-        ? 'draft_polyline'
-        : drafting.activeTool;
     const nextObject = createDraftingObject(
-      tool as DraftingImplementedObjectType,
+      drafting.activeTool as DraftingImplementedObjectType,
       drafting.pendingLinePoints[0]!,
       currentModel,
       drafting.pendingLinePoints,

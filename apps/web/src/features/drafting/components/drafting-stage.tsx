@@ -221,7 +221,15 @@ export function DraftingStage({
     onCanvasPointerMove?.(resolvedSnap.point);
   }
 
-  const renderedPendingLinePoints = pendingLinePreviewPoints ?? pendingLinePoints;
+  const pendingPreviewPoints = pendingLinePreviewPoints ?? pendingLinePoints;
+  const pendingPreviewCursorPoint = snapPreview?.point ?? cursorPoint;
+  const renderedPendingLinePoints =
+    pendingCommandPreviewTool &&
+    pendingLinePoints.length > 0 &&
+    pendingPreviewPoints.length <= pendingLinePoints.length &&
+    pendingPreviewCursorPoint
+      ? [...pendingLinePoints, pendingPreviewCursorPoint]
+      : pendingPreviewPoints;
 
   return (
     <Card data-testid="drafting-canvas-stage">
@@ -650,6 +658,36 @@ function PendingCommandPreview({
     return (
       <polyline
         data-testid="drafting-command-preview-polyline"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
+  if (tool === 'draft_polygon') {
+    if (points.length < 3) {
+      return (
+        <polyline
+          data-testid="drafting-command-preview-polygon"
+          fill="none"
+          points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeLinejoin="round"
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      );
+    }
+
+    return (
+      <polygon
+        data-testid="drafting-command-preview-polygon"
         fill="none"
         points={points.map((point) => `${point.x},${point.y}`).join(' ')}
         stroke={stroke}

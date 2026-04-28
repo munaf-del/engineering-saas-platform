@@ -495,4 +495,207 @@ describe('drafting command session', () => {
       expect(result.points).toEqual([start, end]);
     }
   });
+
+  it('starts a polygon path command waiting for the first point', () => {
+    expect(startDraftingPathCommand('draft_polygon')).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'draft_polygon',
+    });
+  });
+
+  it('accepts polygon vertices and keeps collecting points', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 1000,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'draft_polygon', {
+      x: 1500,
+      y: 600,
+    });
+
+    expect(thirdPoint.committed).toBe(false);
+    expect(thirdPoint.session).toMatchObject({
+      phase: 'collecting_points',
+      points: [
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 1500, y: 600 },
+      ],
+      previewPoint: null,
+      tool: 'draft_polygon',
+    });
+  });
+
+  it('updates polygon preview from the next pointer point', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 1000,
+      y: 0,
+    });
+    const preview = updateDraftingPathCommandPreview(secondPoint.session, { x: 900, y: 450 });
+
+    expect(getDraftingCommandTool(preview)).toBe('draft_polygon');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 },
+      { x: 900, y: 450 },
+    ]);
+  });
+
+  it('finishes a polygon command as a closed path with captured vertices', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 1000,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'draft_polygon', {
+      x: 1500,
+      y: 600,
+    });
+    const result = finishDraftingPathCommand(thirdPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('draft_polygon');
+      expect(result.points).toEqual([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+        { x: 1500, y: 600 },
+      ]);
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('preserves the existing two-point polygon finish downgrade to polyline', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 1000,
+      y: 0,
+    });
+    const result = finishDraftingPathCommand(secondPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('draft_polyline');
+      expect(result.points).toEqual([
+        { x: 0, y: 0 },
+        { x: 1000, y: 0 },
+      ]);
+    }
+  });
+
+  it('does not finish a polygon command until the existing two-point minimum is met', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const result = finishDraftingPathCommand(firstPoint.session);
+
+    expect(result.committed).toBe(false);
+    expect(getDraftingCommandPoints(result.session)).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('ignores duplicate/no-op polygon vertices without crashing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 100, y: 100 },
+    );
+    const duplicate = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 100,
+      y: 100,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+  });
+
+  it('cancels an incomplete polygon command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', {
+      x: 1000,
+      y: 0,
+    });
+    const preview = updateDraftingPathCommandPreview(secondPoint.session, { x: 1000, y: 500 });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(3);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete polygon command to a primitive command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves polygon snap refs and optional z and rl point metadata', () => {
+    const start: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const middle: DraftingPoint = { x: 1000, y: 0, z: 12.6, rl: 12.6 };
+    const end: DraftingPoint = { x: 500, y: 800, z: 12.8, rl: 12.8 };
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingPathCommand('draft_polygon'),
+      'draft_polygon',
+      start,
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'draft_polygon', middle);
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'draft_polygon', end);
+    const result = finishDraftingPathCommand(thirdPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.points).toEqual([start, middle, end]);
+    }
+  });
 });

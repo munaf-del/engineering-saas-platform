@@ -4,6 +4,7 @@ import type {
   DraftingDimensionChainObject,
   DraftingDrawing,
   DraftingLineObject,
+  DraftingPolygonObject,
   DraftingPolylineObject,
   DraftingRectangleObject,
   Project,
@@ -366,6 +367,169 @@ test.describe('Drafting connected-edit pointer QA', () => {
     }
   });
 
+  test('authors a polygon through the shared command path and preserves the two-point downgrade', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.42, yRatio: 0.42 },
+        page,
+        previewTestId: 'drafting-command-preview-polygon',
+        start: { xRatio: 0.34, yRatio: 0.38 },
+        toolLabel: 'Polygon',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.45, yRatio: 0.52 },
+        page,
+        previewTestId: 'drafting-command-preview-polygon',
+        start: { xRatio: 0.36, yRatio: 0.48 },
+        toolLabel: 'Polygon',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const downgradeRatios = [
+        { xRatio: 0.38, yRatio: 0.58 },
+        { xRatio: 0.48, yRatio: 0.6 },
+      ];
+      const downgradePreview = await startPathPreview({
+        canvas,
+        next: downgradeRatios[1]!,
+        page,
+        previewTestId: 'drafting-command-preview-polygon',
+        start: downgradeRatios[0]!,
+        toolLabel: 'Polygon',
+      });
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(downgradePreview.nextPoint.x, downgradePreview.nextPoint.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+
+      const polygonRatios = [
+        { xRatio: 0.56, yRatio: 0.56 },
+        { xRatio: 0.66, yRatio: 0.56 },
+        { xRatio: 0.62, yRatio: 0.68 },
+      ];
+      const polygonPreview = await startPathPreview({
+        canvas,
+        next: polygonRatios[1]!,
+        page,
+        previewTestId: 'drafting-command-preview-polygon',
+        start: polygonRatios[0]!,
+        toolLabel: 'Polygon',
+      });
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(polygonPreview.nextPoint.x, polygonPreview.nextPoint.y);
+      await expect(page.getByText('2 point(s) captured for the current path.')).toBeVisible();
+      const thirdPolygonPoint = await pointInLocator(canvas, polygonRatios[2]!);
+      await page.mouse.move(thirdPolygonPoint.x, thirdPolygonPoint.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveAttribute(
+        'points',
+        /.+ .+ .+/,
+      );
+      await page.mouse.click(thirdPolygonPoint.x, thirdPolygonPoint.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-polygon')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const downgradedPolyline = reloadedDrawing.model.objects.find(
+        (object): object is DraftingPolylineObject => object.type === 'draft_polyline',
+      );
+      const authoredPolygon = reloadedDrawing.model.objects.find(
+        (object): object is DraftingPolygonObject => object.type === 'draft_polygon',
+      );
+      expect(downgradedPolyline).toBeDefined();
+      expect(authoredPolygon).toBeDefined();
+      expect(downgradedPolyline!.geometry.points).toHaveLength(2);
+      expect(authoredPolygon!.geometry.points).toHaveLength(3);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedPolyline = exported.model.objects.find(
+        (object): object is DraftingPolylineObject =>
+          object.id === downgradedPolyline!.id && object.type === 'draft_polyline',
+      );
+      const exportedPolygon = exported.model.objects.find(
+        (object): object is DraftingPolygonObject =>
+          object.id === authoredPolygon!.id && object.type === 'draft_polygon',
+      );
+      expect(exportedPolyline).toBeDefined();
+      expect(exportedPolygon).toBeDefined();
+      expect(exportedPolyline!.geometry.points).toHaveLength(2);
+      expect(exportedPolygon!.geometry.points).toHaveLength(3);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
   test('authors an anchored dimension from a browser-created line', async ({ page }) => {
     const { email, password } = await signInWithSeedUser(page);
     const token = await getAuthToken(email, password);
@@ -678,7 +842,32 @@ async function startPolylinePreview({
   page: Page;
   start: { xRatio: number; yRatio: number };
 }) {
-  const toolButton = page.getByRole('button', { exact: true, name: 'Polyline' });
+  await startPathPreview({
+    canvas,
+    next,
+    page,
+    previewTestId: 'drafting-command-preview-polyline',
+    start,
+    toolLabel: 'Polyline',
+  });
+}
+
+async function startPathPreview({
+  canvas,
+  next,
+  page,
+  previewTestId,
+  start,
+  toolLabel,
+}: {
+  canvas: Locator;
+  next: { xRatio: number; yRatio: number };
+  page: Page;
+  previewTestId: string;
+  start: { xRatio: number; yRatio: number };
+  toolLabel: string;
+}) {
+  const toolButton = page.getByRole('button', { exact: true, name: toolLabel });
   await toolButton.click();
   await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
   await canvas.scrollIntoViewIfNeeded();
@@ -686,8 +875,10 @@ async function startPolylinePreview({
   const nextPoint = await pointInLocator(canvas, next);
   await page.mouse.move(startPoint.x, startPoint.y);
   await page.mouse.click(startPoint.x, startPoint.y);
+  await expect(page.getByText('1 point(s) captured for the current path.')).toBeVisible();
   await page.mouse.move(nextPoint.x, nextPoint.y, { steps: 6 });
-  await expect(page.getByTestId('drafting-command-preview-polyline')).toHaveCount(1);
+  await expect(page.getByTestId(previewTestId)).toHaveCount(1);
+  return { nextPoint, startPoint };
 }
 
 async function authorDimensionChain({
