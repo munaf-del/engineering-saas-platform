@@ -15,6 +15,7 @@ import {
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
+  commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
@@ -29,6 +30,7 @@ import {
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
+  isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
@@ -37,6 +39,7 @@ import {
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
@@ -45,6 +48,7 @@ import {
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
+  updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
   type DraftingCommandSession,
   type DraftingCalloutCommandCommit,
@@ -56,6 +60,7 @@ import {
   type DraftingPrimitiveCommandCommit,
   type DraftingPrimitiveCommandTool,
   type DraftingSectionMarkerCommandCommit,
+  type DraftingServiceCrossingCommandCommit,
   type DraftingStructuralJointCommandCommit,
 } from '../commands/drafting-command-session';
 
@@ -123,6 +128,10 @@ export function useDrafting() {
     }
     if (isDraftingStructuralJointCommandTool(tool)) {
       setCommandSession(startDraftingStructuralJointCommand());
+      return;
+    }
+    if (isDraftingServiceCrossingCommandTool(tool)) {
+      setCommandSession(startDraftingServiceCrossingCommand());
       return;
     }
     setCommandSession(cancelDraftingCommandSession());
@@ -199,6 +208,18 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingStructuralJointCommandPreview(current, point));
   }
 
+  function commitServiceCrossingCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingServiceCrossingCommandCommit {
+    const result = commitDraftingServiceCrossingCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateServiceCrossingCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingServiceCrossingCommandPreview(current, point));
+  }
+
   function commitDimensionCommandPoint(
     point: DraftingPoint | null,
   ): DraftingDimensionCommandCommit {
@@ -258,6 +279,7 @@ export function useDrafting() {
     commitPathCommandPoint,
     commitPrimitiveCommandPoint,
     commitSectionMarkerCommandPoint,
+    commitServiceCrossingCommandPoint,
     commitStructuralJointCommandPoint,
     finishPathCommand,
     pendingLinePoints: isDraftingCommandTool(activeTool)
@@ -277,6 +299,7 @@ export function useDrafting() {
     updatePathCommandPreview,
     updatePrimitiveCommandPreview,
     updateSectionMarkerCommandPreview,
+    updateServiceCrossingCommandPreview,
     updateStructuralJointCommandPreview,
   };
 }

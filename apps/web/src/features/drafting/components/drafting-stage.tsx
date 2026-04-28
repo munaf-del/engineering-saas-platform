@@ -779,6 +779,46 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'service_crossing') {
+    return (
+      <g data-testid="drafting-command-preview-service-crossing">
+        <polygon
+          fill="none"
+          points={[
+            `${startPoint!.x},${startPoint!.y - 220}`,
+            `${startPoint!.x + 220},${startPoint!.y}`,
+            `${startPoint!.x},${startPoint!.y + 220}`,
+            `${startPoint!.x - 220},${startPoint!.y}`,
+          ].join(' ')}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x - 110}
+          x2={startPoint!.x + 110}
+          y1={startPoint!.y - 110}
+          y2={startPoint!.y + 110}
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x - 110}
+          x2={startPoint!.x + 110}
+          y1={startPoint!.y + 110}
+          y2={startPoint!.y - 110}
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline

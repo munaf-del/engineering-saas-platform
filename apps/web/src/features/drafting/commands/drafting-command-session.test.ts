@@ -10,6 +10,7 @@ import {
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
+  commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
@@ -24,6 +25,7 @@ import {
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
   startDraftingLineCommand,
   updateDraftingCalloutCommandPreview,
@@ -34,6 +36,7 @@ import {
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
+  updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
 } from './drafting-command-session';
 
@@ -894,6 +897,127 @@ describe('drafting command session', () => {
     };
     const result = commitDraftingStructuralJointCommandPoint(
       startDraftingStructuralJointCommand(),
+      point,
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        point,
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts a service crossing command waiting for the placement point', () => {
+    expect(startDraftingServiceCrossingCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'service_crossing',
+    });
+  });
+
+  it('updates service crossing placement preview from the pointer point', () => {
+    const preview = updateDraftingServiceCrossingCommandPreview(
+      startDraftingServiceCrossingCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandTool(preview)).toBe('service_crossing');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a manual service crossing placement', () => {
+    const result = commitDraftingServiceCrossingCommandPoint(
+      startDraftingServiceCrossingCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('service_crossing');
+      expect(result.placement).toEqual({
+        point: { x: 1500, y: 1900 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op service crossing placement without crashing', () => {
+    const result = commitDraftingServiceCrossingCommandPoint(
+      startDraftingServiceCrossingCommand(),
+      null,
+    );
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'service_crossing',
+    });
+  });
+
+  it('cancels an incomplete service crossing command without committing', () => {
+    const preview = updateDraftingServiceCrossingCommandPreview(
+      startDraftingServiceCrossingCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete service crossing command without committing', () => {
+    const preview = updateDraftingServiceCrossingCommandPreview(
+      startDraftingServiceCrossingCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves service crossing snap refs and optional z and rl point metadata', () => {
+    const point: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingServiceCrossingCommandPoint(
+      startDraftingServiceCrossingCommand(),
       point,
     );
 

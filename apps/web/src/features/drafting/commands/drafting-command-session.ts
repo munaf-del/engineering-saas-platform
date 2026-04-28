@@ -6,6 +6,7 @@ export type DraftingLeaderNoteCommandTool = 'leader_note';
 export type DraftingCalloutCommandTool = 'callout';
 export type DraftingMonitoringPointCommandTool = 'monitoring_point';
 export type DraftingStructuralJointCommandTool = 'structural_joint';
+export type DraftingServiceCrossingCommandTool = 'service_crossing';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
@@ -15,6 +16,7 @@ export type DraftingCommandTool =
   | DraftingCalloutCommandTool
   | DraftingMonitoringPointCommandTool
   | DraftingStructuralJointCommandTool
+  | DraftingServiceCrossingCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -70,6 +72,12 @@ export type DraftingCommandSession =
       tool: DraftingStructuralJointCommandTool;
     }
   | {
+      phase: 'waiting_placement_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingServiceCrossingCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -106,6 +114,10 @@ type ActiveDraftingMonitoringPointCommandSession = Extract<
 type ActiveDraftingStructuralJointCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingStructuralJointCommandTool }
+>;
+type ActiveDraftingServiceCrossingCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingServiceCrossingCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -191,6 +203,18 @@ export type DraftingStructuralJointCommandCommit =
       placement: DraftingManualPointPlacement;
       session: DraftingCommandSession;
       tool: DraftingStructuralJointCommandTool;
+    };
+
+export type DraftingServiceCrossingCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualPointPlacement;
+      session: DraftingCommandSession;
+      tool: DraftingServiceCrossingCommandTool;
     };
 
 export type DraftingDimensionCommandCommit =
@@ -279,6 +303,15 @@ export function startDraftingStructuralJointCommand(): ActiveDraftingStructuralJ
   };
 }
 
+export function startDraftingServiceCrossingCommand(): ActiveDraftingServiceCrossingCommandSession {
+  return {
+    phase: 'waiting_placement_point',
+    points: [],
+    previewPoint: null,
+    tool: 'service_crossing',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -339,6 +372,12 @@ export function isDraftingStructuralJointCommandTool(
   return tool === 'structural_joint';
 }
 
+export function isDraftingServiceCrossingCommandTool(
+  tool: string,
+): tool is DraftingServiceCrossingCommandTool {
+  return tool === 'service_crossing';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -351,6 +390,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingCalloutCommandTool(tool) ||
     isDraftingMonitoringPointCommandTool(tool) ||
     isDraftingStructuralJointCommandTool(tool) ||
+    isDraftingServiceCrossingCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -399,6 +439,12 @@ export function ensureDraftingStructuralJointCommand(
   return session.tool === 'structural_joint' ? session : startDraftingStructuralJointCommand();
 }
 
+export function ensureDraftingServiceCrossingCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingServiceCrossingCommandSession {
+  return session.tool === 'service_crossing' ? session : startDraftingServiceCrossingCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -418,6 +464,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'callout' ||
     session.tool === 'monitoring_point' ||
     session.tool === 'structural_joint' ||
+    session.tool === 'service_crossing' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -525,6 +572,20 @@ export function updateDraftingStructuralJointCommandPreview(
   };
 }
 
+export function updateDraftingServiceCrossingCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'service_crossing' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -537,6 +598,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'callout' ||
     session.tool === 'monitoring_point' ||
     session.tool === 'structural_joint' ||
+    session.tool === 'service_crossing' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -708,6 +770,23 @@ export function commitDraftingStructuralJointCommandPoint(
   };
 }
 
+export function commitDraftingServiceCrossingCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingServiceCrossingCommandCommit {
+  const activeSession = ensureDraftingServiceCrossingCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  return {
+    committed: true,
+    placement: createManualDraftingPointPlacement(point),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'service_crossing',
+  };
+}
+
 export function commitDraftingDimensionCommandPoint(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -842,6 +921,10 @@ export function getDraftingCommandPreviewPoints(session: DraftingCommandSession)
   }
 
   if (session.tool === 'structural_joint') {
+    return session.previewPoint ? [session.previewPoint] : [];
+  }
+
+  if (session.tool === 'service_crossing') {
     return session.previewPoint ? [session.previewPoint] : [];
   }
 

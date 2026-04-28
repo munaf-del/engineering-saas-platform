@@ -11,6 +11,7 @@ import type {
   DraftingPolylineObject,
   DraftingRectangleObject,
   DraftingSectionMarkerObject,
+  DraftingServiceCrossingObject,
   DraftingStructuralJointObject,
   Project,
 } from '@eng/shared';
@@ -1127,6 +1128,149 @@ test.describe('Drafting connected-edit pointer QA', () => {
         status: 'manual',
       });
       expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a manual service crossing through the shared source-placement command path', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+      const previewPoint = await pointInLocator(canvas, { xRatio: 0.42, yRatio: 0.46 });
+
+      const toolButton = page.getByRole('button', { exact: true, name: 'Service crossing' });
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      await page.mouse.move(previewPoint.x, previewPoint.y, { steps: 4 });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-service-crossing')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await toolButton.click();
+      await page.mouse.move(previewPoint.x, previewPoint.y, { steps: 4 });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-service-crossing')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      const placementRatio = { xRatio: 0.48, yRatio: 0.56 };
+      const placementPoint = await pointInLocator(canvas, placementRatio);
+      await page.mouse.move(placementPoint.x, placementPoint.y, { steps: 4 });
+      await clickInLocator(canvas, placementRatio);
+      await expect(page.getByTestId('drafting-command-preview-service-crossing')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredServiceCrossingId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredServiceCrossingId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredServiceCrossingId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredServiceCrossing = reloadedDrawing.model.objects.find(
+        (object): object is DraftingServiceCrossingObject =>
+          object.id === authoredServiceCrossingId && object.type === 'service_crossing',
+      );
+      expect(authoredServiceCrossing).toBeDefined();
+      expect(authoredServiceCrossing!.geometry.crossingPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(authoredServiceCrossing!.parameters.crossingId).toMatch(/^SC\d+$/);
+      expect(authoredServiceCrossing!.parameters.serviceType).toBe('unknown');
+      expect(authoredServiceCrossing!.parameters.conflictType).toBe('unknown');
+      expect(authoredServiceCrossing!.parameters.clearanceMm).toBe(0);
+      expect(authoredServiceCrossing!.parameters.riskStatus).toBe('open');
+      expect(authoredServiceCrossing!.metadata).toMatchObject({
+        linkedObjectId: '',
+        linkedServiceRunId: '',
+        notes: '',
+      });
+      expect(authoredServiceCrossing!.sourceRef).toMatchObject({
+        sourceType: 'manual',
+        status: 'manual',
+      });
+      expect(authoredServiceCrossing!.sourceRef?.sourceId).toBeUndefined();
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedServiceCrossing = exported.model.objects.find(
+        (object): object is DraftingServiceCrossingObject =>
+          object.id === authoredServiceCrossingId && object.type === 'service_crossing',
+      );
+      expect(exportedServiceCrossing).toBeDefined();
+      expect(exportedServiceCrossing!.geometry.crossingPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(exportedServiceCrossing!.parameters.crossingId).toBe(
+        authoredServiceCrossing!.parameters.crossingId,
+      );
+      expect(exportedServiceCrossing!.parameters.serviceType).toBe('unknown');
+      expect(exportedServiceCrossing!.sourceRef).toMatchObject({
+        sourceType: 'manual',
+        status: 'manual',
+      });
+      expectExportIsMetadataOnly(exportedJson);
+
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}/schedules/preview`);
+      await expect(page.getByText(authoredServiceCrossing!.parameters.crossingId)).toBeVisible();
+      await expect(page.getByText('service crossing')).toBeVisible();
+      await expect(page.getByText('sketch / unlinked')).toBeVisible();
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
       sandboxArchived = true;

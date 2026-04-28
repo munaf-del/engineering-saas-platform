@@ -71,6 +71,7 @@ import {
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
+  isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
 } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
@@ -467,6 +468,25 @@ export function DraftingEditor({
 
     if (isDraftingStructuralJointCommandTool(drafting.activeTool)) {
       const commandResult = drafting.commitStructuralJointCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.placement.point,
+        currentModel,
+        [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingServiceCrossingCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitServiceCrossingCommandPoint(point);
       if (!commandResult.committed) {
         return;
       }
@@ -1029,6 +1049,8 @@ export function DraftingEditor({
               drafting.updateMonitoringPointCommandPreview(point);
             } else if (isDraftingStructuralJointCommandTool(drafting.activeTool)) {
               drafting.updateStructuralJointCommandPreview(point);
+            } else if (isDraftingServiceCrossingCommandTool(drafting.activeTool)) {
+              drafting.updateServiceCrossingCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1371,6 +1393,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick joint / node location';
   }
 
+  if (isDraftingServiceCrossingCommandTool(tool)) {
+    return 'Pick service crossing location';
+  }
+
   if (isDraftingPathCommandTool(tool)) {
     return pendingPointCount === 0
       ? 'Pick start point'
@@ -1393,7 +1419,7 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick dimension offset';
   }
 
-  if (tool === 'pile' || tool === 'service_crossing' || tool === 'borehole') {
+  if (tool === 'pile' || tool === 'borehole') {
     return 'Pick placement point';
   }
 
