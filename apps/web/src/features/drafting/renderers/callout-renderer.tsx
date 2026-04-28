@@ -61,7 +61,12 @@ export function CalloutRenderer({
       : [object.geometry.anchorPoint, connectionPoint];
 
   return (
-    <g data-drafting-object="true" onPointerDown={onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={object.id}
+      data-testid={`drafting-object-${object.id}`}
+      onPointerDown={onPointerDown}
+    >
       <polyline
         fill="none"
         points={leaderPoints.map((point) => `${point.x},${point.y}`).join(' ')}

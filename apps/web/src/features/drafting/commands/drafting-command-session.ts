@@ -3,12 +3,14 @@ import type { DraftingPoint } from '@eng/shared';
 export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
 export type DraftingSectionMarkerCommandTool = 'section_marker';
 export type DraftingLeaderNoteCommandTool = 'leader_note';
+export type DraftingCalloutCommandTool = 'callout';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
   | DraftingLeaderNoteCommandTool
+  | DraftingCalloutCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -46,6 +48,12 @@ export type DraftingCommandSession =
       tool: DraftingLeaderNoteCommandTool;
     }
   | {
+      phase: 'waiting_placement_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingCalloutCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -70,6 +78,10 @@ type ActiveDraftingSectionMarkerCommandSession = Extract<
 type ActiveDraftingLeaderNoteCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingLeaderNoteCommandTool }
+>;
+type ActiveDraftingCalloutCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingCalloutCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -114,6 +126,18 @@ export type DraftingLeaderNoteCommandCommit =
       point: DraftingPoint;
       session: DraftingCommandSession;
       tool: DraftingLeaderNoteCommandTool;
+    };
+
+export type DraftingCalloutCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      point: DraftingPoint;
+      session: DraftingCommandSession;
+      tool: DraftingCalloutCommandTool;
     };
 
 export type DraftingDimensionCommandCommit =
@@ -175,6 +199,15 @@ export function startDraftingLeaderNoteCommand(): ActiveDraftingLeaderNoteComman
   };
 }
 
+export function startDraftingCalloutCommand(): ActiveDraftingCalloutCommandSession {
+  return {
+    phase: 'waiting_placement_point',
+    points: [],
+    previewPoint: null,
+    tool: 'callout',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -219,6 +252,10 @@ export function isDraftingLeaderNoteCommandTool(
   return tool === 'leader_note';
 }
 
+export function isDraftingCalloutCommandTool(tool: string): tool is DraftingCalloutCommandTool {
+  return tool === 'callout';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -228,6 +265,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingPrimitiveCommandTool(tool) ||
     isDraftingSectionMarkerCommandTool(tool) ||
     isDraftingLeaderNoteCommandTool(tool) ||
+    isDraftingCalloutCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -258,6 +296,12 @@ export function ensureDraftingLeaderNoteCommand(
   return session.tool === 'leader_note' ? session : startDraftingLeaderNoteCommand();
 }
 
+export function ensureDraftingCalloutCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingCalloutCommandSession {
+  return session.tool === 'callout' ? session : startDraftingCalloutCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -274,6 +318,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'dimension_chain' ||
     session.tool === 'section_marker' ||
     session.tool === 'leader_note' ||
+    session.tool === 'callout' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -339,6 +384,20 @@ export function updateDraftingLeaderNoteCommandPreview(
   };
 }
 
+export function updateDraftingCalloutCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'callout' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -348,6 +407,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'dimension_chain' ||
     session.tool === 'section_marker' ||
     session.tool === 'leader_note' ||
+    session.tool === 'callout' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -465,6 +525,23 @@ export function commitDraftingLeaderNoteCommandPoint(
     point: cloneDraftingPoint(point),
     session: IDLE_DRAFTING_COMMAND_SESSION,
     tool: 'leader_note',
+  };
+}
+
+export function commitDraftingCalloutCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCalloutCommandCommit {
+  const activeSession = ensureDraftingCalloutCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  return {
+    committed: true,
+    point: cloneDraftingPoint(point),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'callout',
   };
 }
 
@@ -590,6 +667,10 @@ export function getDraftingCommandPoints(session: DraftingCommandSession): Draft
 
 export function getDraftingCommandPreviewPoints(session: DraftingCommandSession): DraftingPoint[] {
   if (session.tool === 'leader_note') {
+    return session.previewPoint ? [session.previewPoint] : [];
+  }
+
+  if (session.tool === 'callout') {
     return session.previewPoint ? [session.previewPoint] : [];
   }
 

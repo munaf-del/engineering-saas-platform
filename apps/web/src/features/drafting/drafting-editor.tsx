@@ -64,6 +64,7 @@ import {
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
 import {
+  isDraftingCalloutCommandTool,
   isDraftingDimensionCommandTool,
   isDraftingLeaderNoteCommandTool,
   isDraftingPathCommandTool,
@@ -407,6 +408,25 @@ export function DraftingEditor({
 
     if (isDraftingLeaderNoteCommandTool(drafting.activeTool)) {
       const commandResult = drafting.commitLeaderNoteCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.point,
+        currentModel,
+        [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingCalloutCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitCalloutCommandPoint(point);
       if (!commandResult.committed) {
         return;
       }
@@ -963,6 +983,8 @@ export function DraftingEditor({
               drafting.updateSectionMarkerCommandPreview(point);
             } else if (isDraftingLeaderNoteCommandTool(drafting.activeTool)) {
               drafting.updateLeaderNoteCommandPreview(point);
+            } else if (isDraftingCalloutCommandTool(drafting.activeTool)) {
+              drafting.updateCalloutCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1291,6 +1313,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
 
   if (isDraftingLeaderNoteCommandTool(tool)) {
     return 'Pick leader note anchor';
+  }
+
+  if (isDraftingCalloutCommandTool(tool)) {
+    return 'Pick callout anchor';
   }
 
   if (isDraftingPathCommandTool(tool)) {

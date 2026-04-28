@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DraftingPoint } from '@eng/shared';
 import {
   cancelDraftingCommandSession,
+  commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
   commitDraftingLineCommandPoint,
@@ -13,6 +14,7 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
   startDraftingPathCommand,
@@ -20,6 +22,7 @@ import {
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
   startDraftingLineCommand,
+  updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
   updateDraftingLineCommandPreview,
@@ -551,6 +554,103 @@ describe('drafting command session', () => {
       },
     };
     const result = commitDraftingLeaderNoteCommandPoint(startDraftingLeaderNoteCommand(), anchor);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.point).toEqual(anchor);
+    }
+  });
+
+  it('starts a callout command waiting for the placement point', () => {
+    expect(startDraftingCalloutCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'callout',
+    });
+  });
+
+  it('updates callout placement preview from the pointer point', () => {
+    const preview = updateDraftingCalloutCommandPreview(startDraftingCalloutCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandTool(preview)).toBe('callout');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a callout placement point', () => {
+    const result = commitDraftingCalloutCommandPoint(startDraftingCalloutCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('callout');
+      expect(result.point).toEqual({ x: 1500, y: 1900 });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op callout placement without crashing', () => {
+    const result = commitDraftingCalloutCommandPoint(startDraftingCalloutCommand(), null);
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'callout',
+    });
+  });
+
+  it('cancels an incomplete callout command without committing', () => {
+    const preview = updateDraftingCalloutCommandPreview(startDraftingCalloutCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete callout command to a primitive command without committing', () => {
+    const preview = updateDraftingCalloutCommandPreview(startDraftingCalloutCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves callout snap refs and optional z and rl point metadata', () => {
+    const anchor: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingCalloutCommandPoint(startDraftingCalloutCommand(), anchor);
 
     expect(result.committed).toBe(true);
     if (result.committed) {

@@ -668,6 +668,43 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'callout') {
+    const labelPoint = { x: startPoint!.x + 1800, y: startPoint!.y - 1400 };
+    return (
+      <g data-testid="drafting-command-preview-callout">
+        <polyline
+          fill="none"
+          points={`${startPoint!.x},${startPoint!.y} ${labelPoint.x},${labelPoint.y + 180}`}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <rect
+          fill="none"
+          height={360}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          width={1900}
+          x={labelPoint.x}
+          y={labelPoint.y}
+        />
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={48}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline

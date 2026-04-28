@@ -8,6 +8,7 @@ import {
 import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
+  commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
   commitDraftingPathCommandPoint,
@@ -18,23 +19,27 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  isDraftingCalloutCommandTool,
   isDraftingCommandTool,
   isDraftingDimensionCommandTool,
   isDraftingLeaderNoteCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
+  startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
   type DraftingCommandSession,
+  type DraftingCalloutCommandCommit,
   type DraftingDimensionCommandCommit,
   type DraftingLeaderNoteCommandCommit,
   type DraftingPathCommandCommit,
@@ -98,6 +103,10 @@ export function useDrafting() {
       setCommandSession(startDraftingLeaderNoteCommand());
       return;
     }
+    if (isDraftingCalloutCommandTool(tool)) {
+      setCommandSession(startDraftingCalloutCommand());
+      return;
+    }
     setCommandSession(cancelDraftingCommandSession());
   }
 
@@ -136,6 +145,16 @@ export function useDrafting() {
 
   function updateLeaderNoteCommandPreview(point: DraftingPoint | null) {
     setCommandSession((current) => updateDraftingLeaderNoteCommandPreview(current, point));
+  }
+
+  function commitCalloutCommandPoint(point: DraftingPoint | null): DraftingCalloutCommandCommit {
+    const result = commitDraftingCalloutCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateCalloutCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingCalloutCommandPreview(current, point));
   }
 
   function commitDimensionCommandPoint(
@@ -190,6 +209,7 @@ export function useDrafting() {
     clearPendingLine,
     commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
+    commitCalloutCommandPoint,
     commitDimensionCommandPoint,
     commitLeaderNoteCommandPoint,
     commitPathCommandPoint,
@@ -206,6 +226,7 @@ export function useDrafting() {
     snapSettings,
     toggleSnapEnabled,
     toggleSnapMode,
+    updateCalloutCommandPreview,
     updateDimensionCommandPreview,
     updateLeaderNoteCommandPreview,
     updatePathCommandPreview,
