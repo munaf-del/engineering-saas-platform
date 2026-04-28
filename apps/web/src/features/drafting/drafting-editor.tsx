@@ -67,6 +67,7 @@ import {
   isDraftingCalloutCommandTool,
   isDraftingDimensionCommandTool,
   isDraftingLeaderNoteCommandTool,
+  isDraftingMonitoringPointCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
@@ -434,6 +435,25 @@ export function DraftingEditor({
       const nextObject = createDraftingObject(
         commandResult.tool,
         commandResult.point,
+        currentModel,
+        [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingMonitoringPointCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitMonitoringPointCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.placement.point,
         currentModel,
         [],
         currentUserName,
@@ -985,6 +1005,8 @@ export function DraftingEditor({
               drafting.updateLeaderNoteCommandPreview(point);
             } else if (isDraftingCalloutCommandTool(drafting.activeTool)) {
               drafting.updateCalloutCommandPreview(point);
+            } else if (isDraftingMonitoringPointCommandTool(drafting.activeTool)) {
+              drafting.updateMonitoringPointCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1319,6 +1341,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick callout anchor';
   }
 
+  if (isDraftingMonitoringPointCommandTool(tool)) {
+    return 'Pick monitoring point location';
+  }
+
   if (isDraftingPathCommandTool(tool)) {
     return pendingPointCount === 0
       ? 'Pick start point'
@@ -1345,7 +1371,6 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     tool === 'pile' ||
     tool === 'service_crossing' ||
     tool === 'borehole' ||
-    tool === 'monitoring_point' ||
     tool === 'structural_joint'
   ) {
     return 'Pick placement point';

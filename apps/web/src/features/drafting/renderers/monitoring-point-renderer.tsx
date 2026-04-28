@@ -46,7 +46,12 @@ export function MonitoringPointRenderer({
   });
 
   return (
-    <g data-drafting-object="true" onPointerDown={onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={object.id}
+      data-testid={`drafting-object-${object.id}`}
+      onPointerDown={onPointerDown}
+    >
       {isSelected ? (
         <circle
           cx={x}

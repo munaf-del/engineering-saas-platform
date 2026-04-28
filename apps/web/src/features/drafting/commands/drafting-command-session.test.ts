@@ -6,6 +6,7 @@ import {
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
   commitDraftingLineCommandPoint,
+  commitDraftingMonitoringPointCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
@@ -17,6 +18,7 @@ import {
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
+  startDraftingMonitoringPointCommand,
   startDraftingPathCommand,
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
@@ -26,6 +28,7 @@ import {
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
   updateDraftingLineCommandPreview,
+  updateDraftingMonitoringPointCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
@@ -655,6 +658,127 @@ describe('drafting command session', () => {
     expect(result.committed).toBe(true);
     if (result.committed) {
       expect(result.point).toEqual(anchor);
+    }
+  });
+
+  it('starts a monitoring point command waiting for the placement point', () => {
+    expect(startDraftingMonitoringPointCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'monitoring_point',
+    });
+  });
+
+  it('updates monitoring point placement preview from the pointer point', () => {
+    const preview = updateDraftingMonitoringPointCommandPreview(
+      startDraftingMonitoringPointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandTool(preview)).toBe('monitoring_point');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a manual monitoring point placement', () => {
+    const result = commitDraftingMonitoringPointCommandPoint(
+      startDraftingMonitoringPointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('monitoring_point');
+      expect(result.placement).toEqual({
+        point: { x: 1500, y: 1900 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op monitoring point placement without crashing', () => {
+    const result = commitDraftingMonitoringPointCommandPoint(
+      startDraftingMonitoringPointCommand(),
+      null,
+    );
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'monitoring_point',
+    });
+  });
+
+  it('cancels an incomplete monitoring point command without committing', () => {
+    const preview = updateDraftingMonitoringPointCommandPreview(
+      startDraftingMonitoringPointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete monitoring point command without committing', () => {
+    const preview = updateDraftingMonitoringPointCommandPreview(
+      startDraftingMonitoringPointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves monitoring point snap refs and optional z and rl point metadata', () => {
+    const point: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingMonitoringPointCommandPoint(
+      startDraftingMonitoringPointCommand(),
+      point,
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        point,
+        sourceMode: 'manual_sketch',
+      });
     }
   });
 

@@ -11,6 +11,7 @@ import {
   commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
   commitDraftingLeaderNoteCommandPoint,
+  commitDraftingMonitoringPointCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
@@ -23,18 +24,21 @@ import {
   isDraftingCommandTool,
   isDraftingDimensionCommandTool,
   isDraftingLeaderNoteCommandTool,
+  isDraftingMonitoringPointCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
+  startDraftingMonitoringPointCommand,
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
+  updateDraftingMonitoringPointCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
@@ -42,6 +46,7 @@ import {
   type DraftingCalloutCommandCommit,
   type DraftingDimensionCommandCommit,
   type DraftingLeaderNoteCommandCommit,
+  type DraftingMonitoringPointCommandCommit,
   type DraftingPathCommandCommit,
   type DraftingPathCommandTool,
   type DraftingPrimitiveCommandCommit,
@@ -107,6 +112,10 @@ export function useDrafting() {
       setCommandSession(startDraftingCalloutCommand());
       return;
     }
+    if (isDraftingMonitoringPointCommandTool(tool)) {
+      setCommandSession(startDraftingMonitoringPointCommand());
+      return;
+    }
     setCommandSession(cancelDraftingCommandSession());
   }
 
@@ -155,6 +164,18 @@ export function useDrafting() {
 
   function updateCalloutCommandPreview(point: DraftingPoint | null) {
     setCommandSession((current) => updateDraftingCalloutCommandPreview(current, point));
+  }
+
+  function commitMonitoringPointCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingMonitoringPointCommandCommit {
+    const result = commitDraftingMonitoringPointCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateMonitoringPointCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingMonitoringPointCommandPreview(current, point));
   }
 
   function commitDimensionCommandPoint(
@@ -212,6 +233,7 @@ export function useDrafting() {
     commitCalloutCommandPoint,
     commitDimensionCommandPoint,
     commitLeaderNoteCommandPoint,
+    commitMonitoringPointCommandPoint,
     commitPathCommandPoint,
     commitPrimitiveCommandPoint,
     commitSectionMarkerCommandPoint,
@@ -229,6 +251,7 @@ export function useDrafting() {
     updateCalloutCommandPreview,
     updateDimensionCommandPreview,
     updateLeaderNoteCommandPreview,
+    updateMonitoringPointCommandPreview,
     updatePathCommandPreview,
     updatePrimitiveCommandPreview,
     updateSectionMarkerCommandPreview,
