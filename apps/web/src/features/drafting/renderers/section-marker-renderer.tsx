@@ -45,7 +45,12 @@ export function SectionMarkerRenderer({
   };
 
   return (
-    <g data-drafting-object="true" onPointerDown={onPointerDown}>
+    <g
+      data-drafting-object="true"
+      data-drafting-object-id={object.id}
+      data-testid={`drafting-object-${object.id}`}
+      onPointerDown={onPointerDown}
+    >
       <line
         stroke={isSelected ? DRAFTING_SELECTION_STYLE.stroke : stroke}
         strokeDasharray="260 180"

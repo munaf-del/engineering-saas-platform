@@ -7,6 +7,7 @@ import type {
   DraftingPolygonObject,
   DraftingPolylineObject,
   DraftingRectangleObject,
+  DraftingSectionMarkerObject,
   Project,
 } from '@eng/shared';
 import { calculateDimensionChainTotal } from '../src/features/drafting/semantic-object-utils';
@@ -510,6 +511,124 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(exportedPolygon).toBeDefined();
       expect(exportedPolyline!.geometry.points).toHaveLength(2);
       expect(exportedPolygon!.geometry.points).toHaveLength(3);
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a section marker through the shared two-point command path', async ({ page }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPrimitivePreview({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-section-marker',
+        start: { xRatio: 0.34, yRatio: 0.36 },
+        end: { xRatio: 0.48, yRatio: 0.4 },
+        toolLabel: 'Section marker',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-section-marker')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPrimitivePreview({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-section-marker',
+        start: { xRatio: 0.36, yRatio: 0.46 },
+        end: { xRatio: 0.5, yRatio: 0.48 },
+        toolLabel: 'Section marker',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-section-marker')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await authorTwoPointPrimitive({
+        canvas,
+        page,
+        previewTestId: 'drafting-command-preview-section-marker',
+        start: { xRatio: 0.38, yRatio: 0.58 },
+        end: { xRatio: 0.58, yRatio: 0.58 },
+        toolLabel: 'Section marker',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredSectionMarkerId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredSectionMarkerId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredSectionMarkerId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredSectionMarker = reloadedDrawing.model.objects.find(
+        (object): object is DraftingSectionMarkerObject =>
+          object.id === authoredSectionMarkerId && object.type === 'section_marker',
+      );
+      expect(authoredSectionMarker).toBeDefined();
+      expect(authoredSectionMarker!.geometry.startPoint).not.toEqual(
+        authoredSectionMarker!.geometry.endPoint,
+      );
+      expect(authoredSectionMarker!.parameters.sectionId).toBeTruthy();
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedSectionMarker = exported.model.objects.find(
+        (object): object is DraftingSectionMarkerObject =>
+          object.id === authoredSectionMarkerId && object.type === 'section_marker',
+      );
+      expect(exportedSectionMarker).toBeDefined();
+      expect(exportedSectionMarker!.geometry.startPoint).not.toEqual(
+        exportedSectionMarker!.geometry.endPoint,
+      );
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);

@@ -1,10 +1,12 @@
 import type { DraftingPoint } from '@eng/shared';
 
 export type DraftingPrimitiveCommandTool = 'draft_circle' | 'draft_line' | 'draft_rectangle';
+export type DraftingSectionMarkerCommandTool = 'section_marker';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
+  | DraftingSectionMarkerCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -30,6 +32,12 @@ export type DraftingCommandSession =
       tool: DraftingPrimitiveCommandTool;
     }
   | {
+      phase: 'waiting_first_point' | 'waiting_second_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingSectionMarkerCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -46,6 +54,10 @@ export type DraftingPrimitiveCommandSession = DraftingCommandSession;
 type ActiveDraftingPrimitiveCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingPrimitiveCommandTool }
+>;
+type ActiveDraftingSectionMarkerCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingSectionMarkerCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -66,6 +78,18 @@ export type DraftingPrimitiveCommandCommit =
       points: [DraftingPoint, DraftingPoint];
       session: DraftingCommandSession;
       tool: DraftingPrimitiveCommandTool;
+    };
+
+export type DraftingSectionMarkerCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      points: [DraftingPoint, DraftingPoint];
+      session: DraftingCommandSession;
+      tool: DraftingSectionMarkerCommandTool;
     };
 
 export type DraftingDimensionCommandCommit =
@@ -109,6 +133,15 @@ export function startDraftingLineCommand(): ActiveDraftingPrimitiveCommandSessio
   return startDraftingPrimitiveCommand('draft_line');
 }
 
+export function startDraftingSectionMarkerCommand(): ActiveDraftingSectionMarkerCommandSession {
+  return {
+    phase: 'waiting_first_point',
+    points: [],
+    previewPoint: null,
+    tool: 'section_marker',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -141,6 +174,12 @@ export function isDraftingDimensionCommandTool(tool: string): tool is DraftingDi
   return tool === 'dimension_chain';
 }
 
+export function isDraftingSectionMarkerCommandTool(
+  tool: string,
+): tool is DraftingSectionMarkerCommandTool {
+  return tool === 'section_marker';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -148,6 +187,7 @@ export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCom
 export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool {
   return (
     isDraftingPrimitiveCommandTool(tool) ||
+    isDraftingSectionMarkerCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -166,6 +206,12 @@ export function ensureDraftingDimensionCommand(
   return session.tool === 'dimension_chain' ? session : startDraftingDimensionCommand();
 }
 
+export function ensureDraftingSectionMarkerCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingSectionMarkerCommandSession {
+  return session.tool === 'section_marker' ? session : startDraftingSectionMarkerCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -180,6 +226,7 @@ export function updateDraftingPrimitiveCommandPreview(
   if (
     session.tool === 'idle' ||
     session.tool === 'dimension_chain' ||
+    session.tool === 'section_marker' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -203,6 +250,20 @@ export function updateDraftingLineCommandPreview(
   return updateDraftingPrimitiveCommandPreview(session, point);
 }
 
+export function updateDraftingSectionMarkerCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'section_marker' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingDimensionCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -224,6 +285,7 @@ export function updateDraftingPathCommandPreview(
   if (
     session.tool === 'idle' ||
     session.tool === 'dimension_chain' ||
+    session.tool === 'section_marker' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -284,6 +346,47 @@ export function commitDraftingLineCommandPoint(
   point: DraftingPoint | null | undefined,
 ): DraftingPrimitiveCommandCommit {
   return commitDraftingPrimitiveCommandPoint(session, 'draft_line', point);
+}
+
+export function commitDraftingSectionMarkerCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingSectionMarkerCommandCommit {
+  const activeSession = ensureDraftingSectionMarkerCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  const nextPoint = cloneDraftingPoint(point);
+  if (activeSession.points.length === 0) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        phase: 'waiting_second_point',
+        points: [nextPoint],
+        previewPoint: null,
+      },
+    };
+  }
+
+  const startPoint = activeSession.points[0]!;
+  if (areDraftingPointsCoincident(startPoint, nextPoint)) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        previewPoint: null,
+      },
+    };
+  }
+
+  return {
+    committed: true,
+    points: [startPoint, nextPoint],
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'section_marker',
+  };
 }
 
 export function commitDraftingDimensionCommandPoint(

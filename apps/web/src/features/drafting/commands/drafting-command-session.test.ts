@@ -6,6 +6,7 @@ import {
   commitDraftingLineCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
+  commitDraftingSectionMarkerCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -15,11 +16,13 @@ import {
   startDraftingPathCommand,
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
+  startDraftingSectionMarkerCommand,
   startDraftingLineCommand,
   updateDraftingDimensionCommandPreview,
   updateDraftingLineCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
+  updateDraftingSectionMarkerCommandPreview,
 } from './drafting-command-session';
 
 describe('drafting command session', () => {
@@ -323,6 +326,135 @@ describe('drafting command session', () => {
     expect(result.committed).toBe(true);
     if (result.committed) {
       expect(result.points).toEqual([start, end, offset]);
+    }
+  });
+
+  it('starts a section marker command waiting for the first point', () => {
+    expect(startDraftingSectionMarkerCommand()).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'section_marker',
+    });
+  });
+
+  it('accepts, previews, and commits section marker endpoints', () => {
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      { x: 0, y: 0 },
+    );
+    expect(firstPoint.committed).toBe(false);
+    expect(firstPoint.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 0, y: 0 }],
+      previewPoint: null,
+      tool: 'section_marker',
+    });
+
+    const preview = updateDraftingSectionMarkerCommandPreview(firstPoint.session, {
+      x: 2400,
+      y: 800,
+    });
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 2400, y: 800 },
+    ]);
+
+    const result = commitDraftingSectionMarkerCommandPoint(preview, { x: 2400, y: 800 });
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('section_marker');
+      expect(result.points).toEqual([
+        { x: 0, y: 0 },
+        { x: 2400, y: 800 },
+      ]);
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('does not commit a section marker until the second endpoint is picked', () => {
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      { x: 0, y: 0 },
+    );
+
+    expect(firstPoint.committed).toBe(false);
+    expect(getDraftingCommandPoints(firstPoint.session)).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('ignores duplicate/no-op section marker endpoints without crashing', () => {
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      { x: 100, y: 100 },
+    );
+    const duplicate = commitDraftingSectionMarkerCommandPoint(firstPoint.session, {
+      x: 100,
+      y: 100,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+  });
+
+  it('cancels an incomplete section marker command without committing', () => {
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingSectionMarkerCommandPreview(firstPoint.session, {
+      x: 1200,
+      y: 0,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(2);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete section marker command without committing', () => {
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves section marker snap refs and optional z and rl point metadata', () => {
+    const start: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const end: DraftingPoint = { x: 1000, y: 0, z: 12.6, rl: 12.6 };
+    const firstPoint = commitDraftingSectionMarkerCommandPoint(
+      startDraftingSectionMarkerCommand(),
+      start,
+    );
+    const result = commitDraftingSectionMarkerCommandPoint(firstPoint.session, end);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.points).toEqual([start, end]);
     }
   });
 

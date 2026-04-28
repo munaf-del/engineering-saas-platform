@@ -67,6 +67,7 @@ import {
   isDraftingDimensionCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
+  isDraftingSectionMarkerCommandTool,
 } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingTool } from './tools/drafting-tool-types';
@@ -78,7 +79,6 @@ const TWO_POINT_AUTHORING_TOOLS = new Set([
   'secant_pile_wall',
   'soldier_pile_wall',
   'anchor_tieback',
-  'section_marker',
 ]);
 
 const PATH_AUTHORING_TOOLS = new Set([
@@ -382,6 +382,25 @@ export function DraftingEditor({
 
     if (isDraftingPathCommandTool(drafting.activeTool)) {
       drafting.commitPathCommandPoint(drafting.activeTool, point);
+      return;
+    }
+
+    if (isDraftingSectionMarkerCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitSectionMarkerCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.points[0],
+        currentModel,
+        commandResult.points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
       return;
     }
 
@@ -920,6 +939,8 @@ export function DraftingEditor({
               drafting.updateDimensionCommandPreview(point);
             } else if (isDraftingPathCommandTool(drafting.activeTool)) {
               drafting.updatePathCommandPreview(point);
+            } else if (isDraftingSectionMarkerCommandTool(drafting.activeTool)) {
+              drafting.updateSectionMarkerCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1240,6 +1261,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
 
   if (TWO_POINT_AUTHORING_TOOLS.has(tool)) {
     return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
+  }
+
+  if (isDraftingSectionMarkerCommandTool(tool)) {
+    return pendingPointCount === 0 ? 'Pick section start point' : 'Pick section end point';
   }
 
   if (isDraftingPathCommandTool(tool)) {

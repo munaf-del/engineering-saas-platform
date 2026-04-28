@@ -11,6 +11,7 @@ import {
   commitDraftingDimensionCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
+  commitDraftingSectionMarkerCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -20,18 +21,22 @@ import {
   isDraftingDimensionCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
+  isDraftingSectionMarkerCommandTool,
   startDraftingDimensionCommand,
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
+  startDraftingSectionMarkerCommand,
   updateDraftingDimensionCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
+  updateDraftingSectionMarkerCommandPreview,
   type DraftingCommandSession,
   type DraftingDimensionCommandCommit,
   type DraftingPathCommandCommit,
   type DraftingPathCommandTool,
   type DraftingPrimitiveCommandCommit,
   type DraftingPrimitiveCommandTool,
+  type DraftingSectionMarkerCommandCommit,
 } from '../commands/drafting-command-session';
 
 export type DraftingInspectorTab =
@@ -68,15 +73,23 @@ export function useDrafting() {
   function changeActiveTool(tool: DraftingTool) {
     setActiveTool(tool);
     setPendingLinePoints([]);
-    setCommandSession(
-      isDraftingPrimitiveCommandTool(tool)
-        ? startDraftingPrimitiveCommand(tool)
-        : isDraftingDimensionCommandTool(tool)
-          ? startDraftingDimensionCommand()
-          : isDraftingPathCommandTool(tool)
-            ? startDraftingPathCommand(tool)
-            : cancelDraftingCommandSession(),
-    );
+    if (isDraftingPrimitiveCommandTool(tool)) {
+      setCommandSession(startDraftingPrimitiveCommand(tool));
+      return;
+    }
+    if (isDraftingDimensionCommandTool(tool)) {
+      setCommandSession(startDraftingDimensionCommand());
+      return;
+    }
+    if (isDraftingPathCommandTool(tool)) {
+      setCommandSession(startDraftingPathCommand(tool));
+      return;
+    }
+    if (isDraftingSectionMarkerCommandTool(tool)) {
+      setCommandSession(startDraftingSectionMarkerCommand());
+      return;
+    }
+    setCommandSession(cancelDraftingCommandSession());
   }
 
   function commitPrimitiveCommandPoint(
@@ -90,6 +103,18 @@ export function useDrafting() {
 
   function updatePrimitiveCommandPreview(point: DraftingPoint | null) {
     setCommandSession((current) => updateDraftingPrimitiveCommandPreview(current, point));
+  }
+
+  function commitSectionMarkerCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingSectionMarkerCommandCommit {
+    const result = commitDraftingSectionMarkerCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateSectionMarkerCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingSectionMarkerCommandPreview(current, point));
   }
 
   function commitDimensionCommandPoint(
@@ -147,6 +172,7 @@ export function useDrafting() {
     commitDimensionCommandPoint,
     commitPathCommandPoint,
     commitPrimitiveCommandPoint,
+    commitSectionMarkerCommandPoint,
     finishPathCommand,
     pendingLinePoints: isDraftingCommandTool(activeTool)
       ? getDraftingCommandPoints(commandSession)
@@ -161,5 +187,6 @@ export function useDrafting() {
     updateDimensionCommandPreview,
     updatePathCommandPreview,
     updatePrimitiveCommandPreview,
+    updateSectionMarkerCommandPreview,
   };
 }

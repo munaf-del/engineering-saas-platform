@@ -699,6 +699,23 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'section_marker') {
+    return (
+      <line
+        data-testid="drafting-command-preview-section-marker"
+        fill="none"
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+        x1={startPoint!.x}
+        x2={previewPoint.x}
+        y1={startPoint!.y}
+        y2={previewPoint.y}
+      />
+    );
+  }
+
   if (tool === 'draft_rectangle') {
     const x = Math.min(startPoint!.x, previewPoint.x);
     const y = Math.min(startPoint!.y, previewPoint.y);
