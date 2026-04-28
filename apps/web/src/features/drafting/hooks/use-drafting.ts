@@ -15,6 +15,7 @@ import {
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
+  commitDraftingStructuralJointCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -28,6 +29,7 @@ import {
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
+  isDraftingStructuralJointCommandTool,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingLeaderNoteCommand,
@@ -35,6 +37,7 @@ import {
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  startDraftingStructuralJointCommand,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
   updateDraftingLeaderNoteCommandPreview,
@@ -42,6 +45,7 @@ import {
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
+  updateDraftingStructuralJointCommandPreview,
   type DraftingCommandSession,
   type DraftingCalloutCommandCommit,
   type DraftingDimensionCommandCommit,
@@ -52,6 +56,7 @@ import {
   type DraftingPrimitiveCommandCommit,
   type DraftingPrimitiveCommandTool,
   type DraftingSectionMarkerCommandCommit,
+  type DraftingStructuralJointCommandCommit,
 } from '../commands/drafting-command-session';
 
 export type DraftingInspectorTab =
@@ -116,6 +121,10 @@ export function useDrafting() {
       setCommandSession(startDraftingMonitoringPointCommand());
       return;
     }
+    if (isDraftingStructuralJointCommandTool(tool)) {
+      setCommandSession(startDraftingStructuralJointCommand());
+      return;
+    }
     setCommandSession(cancelDraftingCommandSession());
   }
 
@@ -178,6 +187,18 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingMonitoringPointCommandPreview(current, point));
   }
 
+  function commitStructuralJointCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingStructuralJointCommandCommit {
+    const result = commitDraftingStructuralJointCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateStructuralJointCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingStructuralJointCommandPreview(current, point));
+  }
+
   function commitDimensionCommandPoint(
     point: DraftingPoint | null,
   ): DraftingDimensionCommandCommit {
@@ -237,6 +258,7 @@ export function useDrafting() {
     commitPathCommandPoint,
     commitPrimitiveCommandPoint,
     commitSectionMarkerCommandPoint,
+    commitStructuralJointCommandPoint,
     finishPathCommand,
     pendingLinePoints: isDraftingCommandTool(activeTool)
       ? getDraftingCommandPoints(commandSession)
@@ -255,5 +277,6 @@ export function useDrafting() {
     updatePathCommandPreview,
     updatePrimitiveCommandPreview,
     updateSectionMarkerCommandPreview,
+    updateStructuralJointCommandPreview,
   };
 }

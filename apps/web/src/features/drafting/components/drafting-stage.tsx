@@ -742,6 +742,43 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'structural_joint') {
+    return (
+      <g data-testid="drafting-command-preview-structural-joint">
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={120}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x - 190}
+          x2={startPoint!.x + 190}
+          y1={startPoint!.y}
+          y2={startPoint!.y}
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={startPoint!.x}
+          y1={startPoint!.y - 190}
+          y2={startPoint!.y + 190}
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline

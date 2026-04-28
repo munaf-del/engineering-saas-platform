@@ -10,6 +10,7 @@ import {
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
+  commitDraftingStructuralJointCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -23,6 +24,7 @@ import {
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  startDraftingStructuralJointCommand,
   startDraftingLineCommand,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
@@ -32,6 +34,7 @@ import {
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
+  updateDraftingStructuralJointCommandPreview,
 } from './drafting-command-session';
 
 describe('drafting command session', () => {
@@ -770,6 +773,127 @@ describe('drafting command session', () => {
     };
     const result = commitDraftingMonitoringPointCommandPoint(
       startDraftingMonitoringPointCommand(),
+      point,
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        point,
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts a structural joint command waiting for the placement point', () => {
+    expect(startDraftingStructuralJointCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'structural_joint',
+    });
+  });
+
+  it('updates structural joint placement preview from the pointer point', () => {
+    const preview = updateDraftingStructuralJointCommandPreview(
+      startDraftingStructuralJointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandTool(preview)).toBe('structural_joint');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a manual structural joint placement', () => {
+    const result = commitDraftingStructuralJointCommandPoint(
+      startDraftingStructuralJointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('structural_joint');
+      expect(result.placement).toEqual({
+        point: { x: 1500, y: 1900 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op structural joint placement without crashing', () => {
+    const result = commitDraftingStructuralJointCommandPoint(
+      startDraftingStructuralJointCommand(),
+      null,
+    );
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'structural_joint',
+    });
+  });
+
+  it('cancels an incomplete structural joint command without committing', () => {
+    const preview = updateDraftingStructuralJointCommandPreview(
+      startDraftingStructuralJointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete structural joint command without committing', () => {
+    const preview = updateDraftingStructuralJointCommandPreview(
+      startDraftingStructuralJointCommand(),
+      {
+        x: 1500,
+        y: 1900,
+      },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves structural joint snap refs and optional z and rl point metadata', () => {
+    const point: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingStructuralJointCommandPoint(
+      startDraftingStructuralJointCommand(),
       point,
     );
 

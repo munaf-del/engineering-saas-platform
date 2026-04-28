@@ -5,6 +5,7 @@ export type DraftingSectionMarkerCommandTool = 'section_marker';
 export type DraftingLeaderNoteCommandTool = 'leader_note';
 export type DraftingCalloutCommandTool = 'callout';
 export type DraftingMonitoringPointCommandTool = 'monitoring_point';
+export type DraftingStructuralJointCommandTool = 'structural_joint';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
@@ -13,6 +14,7 @@ export type DraftingCommandTool =
   | DraftingLeaderNoteCommandTool
   | DraftingCalloutCommandTool
   | DraftingMonitoringPointCommandTool
+  | DraftingStructuralJointCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -62,6 +64,12 @@ export type DraftingCommandSession =
       tool: DraftingMonitoringPointCommandTool;
     }
   | {
+      phase: 'waiting_placement_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingStructuralJointCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -94,6 +102,10 @@ type ActiveDraftingCalloutCommandSession = Extract<
 type ActiveDraftingMonitoringPointCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingMonitoringPointCommandTool }
+>;
+type ActiveDraftingStructuralJointCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingStructuralJointCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -167,6 +179,18 @@ export type DraftingMonitoringPointCommandCommit =
       placement: DraftingManualPointPlacement;
       session: DraftingCommandSession;
       tool: DraftingMonitoringPointCommandTool;
+    };
+
+export type DraftingStructuralJointCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualPointPlacement;
+      session: DraftingCommandSession;
+      tool: DraftingStructuralJointCommandTool;
     };
 
 export type DraftingDimensionCommandCommit =
@@ -246,6 +270,15 @@ export function startDraftingMonitoringPointCommand(): ActiveDraftingMonitoringP
   };
 }
 
+export function startDraftingStructuralJointCommand(): ActiveDraftingStructuralJointCommandSession {
+  return {
+    phase: 'waiting_placement_point',
+    points: [],
+    previewPoint: null,
+    tool: 'structural_joint',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -300,6 +333,12 @@ export function isDraftingMonitoringPointCommandTool(
   return tool === 'monitoring_point';
 }
 
+export function isDraftingStructuralJointCommandTool(
+  tool: string,
+): tool is DraftingStructuralJointCommandTool {
+  return tool === 'structural_joint';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -311,6 +350,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingLeaderNoteCommandTool(tool) ||
     isDraftingCalloutCommandTool(tool) ||
     isDraftingMonitoringPointCommandTool(tool) ||
+    isDraftingStructuralJointCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -353,6 +393,12 @@ export function ensureDraftingMonitoringPointCommand(
   return session.tool === 'monitoring_point' ? session : startDraftingMonitoringPointCommand();
 }
 
+export function ensureDraftingStructuralJointCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingStructuralJointCommandSession {
+  return session.tool === 'structural_joint' ? session : startDraftingStructuralJointCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -371,6 +417,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'leader_note' ||
     session.tool === 'callout' ||
     session.tool === 'monitoring_point' ||
+    session.tool === 'structural_joint' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -464,6 +511,20 @@ export function updateDraftingMonitoringPointCommandPreview(
   };
 }
 
+export function updateDraftingStructuralJointCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'structural_joint' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -475,6 +536,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'leader_note' ||
     session.tool === 'callout' ||
     session.tool === 'monitoring_point' ||
+    session.tool === 'structural_joint' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -629,6 +691,23 @@ export function commitDraftingMonitoringPointCommandPoint(
   };
 }
 
+export function commitDraftingStructuralJointCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingStructuralJointCommandCommit {
+  const activeSession = ensureDraftingStructuralJointCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  return {
+    committed: true,
+    placement: createManualDraftingPointPlacement(point),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'structural_joint',
+  };
+}
+
 export function commitDraftingDimensionCommandPoint(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -759,6 +838,10 @@ export function getDraftingCommandPreviewPoints(session: DraftingCommandSession)
   }
 
   if (session.tool === 'monitoring_point') {
+    return session.previewPoint ? [session.previewPoint] : [];
+  }
+
+  if (session.tool === 'structural_joint') {
     return session.previewPoint ? [session.previewPoint] : [];
   }
 
