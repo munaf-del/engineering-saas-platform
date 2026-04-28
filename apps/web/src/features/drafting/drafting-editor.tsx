@@ -69,6 +69,7 @@ import {
   isDraftingLeaderNoteCommandTool,
   isDraftingMonitoringPointCommandTool,
   isDraftingPathCommandTool,
+  isDraftingPileCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
@@ -507,6 +508,25 @@ export function DraftingEditor({
 
     if (isDraftingBoreholeCommandTool(drafting.activeTool)) {
       const commandResult = drafting.commitBoreholeCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.placement.point,
+        currentModel,
+        [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingPileCommandTool(drafting.activeTool) && pileSourceMode === 'manual_sketch') {
+      const commandResult = drafting.commitPileCommandPoint(point);
       if (!commandResult.committed) {
         return;
       }
@@ -1073,6 +1093,11 @@ export function DraftingEditor({
               drafting.updateServiceCrossingCommandPreview(point);
             } else if (isDraftingBoreholeCommandTool(drafting.activeTool)) {
               drafting.updateBoreholeCommandPreview(point);
+            } else if (
+              isDraftingPileCommandTool(drafting.activeTool) &&
+              pileSourceMode === 'manual_sketch'
+            ) {
+              drafting.updatePileCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1423,6 +1448,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
     return 'Pick borehole location';
   }
 
+  if (isDraftingPileCommandTool(tool)) {
+    return 'Pick pile location';
+  }
+
   if (isDraftingPathCommandTool(tool)) {
     return pendingPointCount === 0
       ? 'Pick start point'
@@ -1443,10 +1472,6 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
       return 'Pick next witness point';
     }
     return 'Pick dimension offset';
-  }
-
-  if (tool === 'pile') {
-    return 'Pick placement point';
   }
 
   return undefined;

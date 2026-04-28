@@ -8,6 +8,7 @@ export type DraftingMonitoringPointCommandTool = 'monitoring_point';
 export type DraftingStructuralJointCommandTool = 'structural_joint';
 export type DraftingServiceCrossingCommandTool = 'service_crossing';
 export type DraftingBoreholeCommandTool = 'borehole';
+export type DraftingPileCommandTool = 'pile';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingCommandTool =
@@ -19,6 +20,7 @@ export type DraftingCommandTool =
   | DraftingStructuralJointCommandTool
   | DraftingServiceCrossingCommandTool
   | DraftingBoreholeCommandTool
+  | DraftingPileCommandTool
   | DraftingDimensionCommandTool
   | DraftingPathCommandTool;
 
@@ -86,6 +88,12 @@ export type DraftingCommandSession =
       tool: DraftingBoreholeCommandTool;
     }
   | {
+      phase: 'waiting_placement_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingPileCommandTool;
+    }
+  | {
       phase: 'waiting_first_witness' | 'waiting_second_witness' | 'waiting_offset';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -130,6 +138,10 @@ type ActiveDraftingServiceCrossingCommandSession = Extract<
 type ActiveDraftingBoreholeCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingBoreholeCommandTool }
+>;
+type ActiveDraftingPileCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingPileCommandTool }
 >;
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
@@ -241,6 +253,18 @@ export type DraftingBoreholeCommandCommit =
       tool: DraftingBoreholeCommandTool;
     };
 
+export type DraftingPileCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualPointPlacement;
+      session: DraftingCommandSession;
+      tool: DraftingPileCommandTool;
+    };
+
 export type DraftingDimensionCommandCommit =
   | {
       committed: false;
@@ -345,6 +369,15 @@ export function startDraftingBoreholeCommand(): ActiveDraftingBoreholeCommandSes
   };
 }
 
+export function startDraftingPileCommand(): ActiveDraftingPileCommandSession {
+  return {
+    phase: 'waiting_placement_point',
+    points: [],
+    previewPoint: null,
+    tool: 'pile',
+  };
+}
+
 export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandSession {
   return {
     phase: 'waiting_first_witness',
@@ -415,6 +448,10 @@ export function isDraftingBoreholeCommandTool(tool: string): tool is DraftingBor
   return tool === 'borehole';
 }
 
+export function isDraftingPileCommandTool(tool: string): tool is DraftingPileCommandTool {
+  return tool === 'pile';
+}
+
 export function isDraftingPathCommandTool(tool: string): tool is DraftingPathCommandTool {
   return DRAFTING_PATH_COMMAND_TOOLS.includes(tool as DraftingPathCommandTool);
 }
@@ -429,6 +466,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingStructuralJointCommandTool(tool) ||
     isDraftingServiceCrossingCommandTool(tool) ||
     isDraftingBoreholeCommandTool(tool) ||
+    isDraftingPileCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
@@ -489,6 +527,12 @@ export function ensureDraftingBoreholeCommand(
   return session.tool === 'borehole' ? session : startDraftingBoreholeCommand();
 }
 
+export function ensureDraftingPileCommand(
+  session: DraftingCommandSession,
+): ActiveDraftingPileCommandSession {
+  return session.tool === 'pile' ? session : startDraftingPileCommand();
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -510,6 +554,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'structural_joint' ||
     session.tool === 'service_crossing' ||
     session.tool === 'borehole' ||
+    session.tool === 'pile' ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -645,6 +690,20 @@ export function updateDraftingBoreholeCommandPreview(
   };
 }
 
+export function updateDraftingPileCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'pile' || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -659,6 +718,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'structural_joint' ||
     session.tool === 'service_crossing' ||
     session.tool === 'borehole' ||
+    session.tool === 'pile' ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -864,6 +924,23 @@ export function commitDraftingBoreholeCommandPoint(
   };
 }
 
+export function commitDraftingPileCommandPoint(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingPileCommandCommit {
+  const activeSession = ensureDraftingPileCommand(session);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  return {
+    committed: true,
+    placement: createManualDraftingPointPlacement(point),
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: 'pile',
+  };
+}
+
 export function commitDraftingDimensionCommandPoint(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -1006,6 +1083,10 @@ export function getDraftingCommandPreviewPoints(session: DraftingCommandSession)
   }
 
   if (session.tool === 'borehole') {
+    return session.previewPoint ? [session.previewPoint] : [];
+  }
+
+  if (session.tool === 'pile') {
     return session.previewPoint ? [session.previewPoint] : [];
   }
 

@@ -9,6 +9,7 @@ import {
   commitDraftingLineCommandPoint,
   commitDraftingMonitoringPointCommandPoint,
   commitDraftingPathCommandPoint,
+  commitDraftingPileCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
   commitDraftingServiceCrossingCommandPoint,
@@ -24,6 +25,7 @@ import {
   startDraftingLeaderNoteCommand,
   startDraftingMonitoringPointCommand,
   startDraftingPathCommand,
+  startDraftingPileCommand,
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
@@ -37,6 +39,7 @@ import {
   updateDraftingLineCommandPreview,
   updateDraftingMonitoringPointCommandPreview,
   updateDraftingPathCommandPreview,
+  updateDraftingPileCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
@@ -1126,6 +1129,109 @@ describe('drafting command session', () => {
       },
     };
     const result = commitDraftingBoreholeCommandPoint(startDraftingBoreholeCommand(), point);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        point,
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts a pile command waiting for the placement point', () => {
+    expect(startDraftingPileCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'pile',
+    });
+  });
+
+  it('updates pile placement preview from the pointer point', () => {
+    const preview = updateDraftingPileCommandPreview(startDraftingPileCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandTool(preview)).toBe('pile');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1500, y: 1900 }]);
+  });
+
+  it('commits a manual pile placement', () => {
+    const result = commitDraftingPileCommandPoint(startDraftingPileCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('pile');
+      expect(result.placement).toEqual({
+        point: { x: 1500, y: 1900 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op pile placement without crashing', () => {
+    const result = commitDraftingPileCommandPoint(startDraftingPileCommand(), null);
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'pile',
+    });
+  });
+
+  it('cancels an incomplete pile command without committing', () => {
+    const preview = updateDraftingPileCommandPreview(startDraftingPileCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete pile command without committing', () => {
+    const preview = updateDraftingPileCommandPreview(startDraftingPileCommand(), {
+      x: 1500,
+      y: 1900,
+    });
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves pile snap refs and optional z and rl point metadata', () => {
+    const point: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingPileCommandPoint(startDraftingPileCommand(), point);
 
     expect(result.committed).toBe(true);
     if (result.committed) {

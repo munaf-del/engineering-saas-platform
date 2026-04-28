@@ -14,6 +14,7 @@ import {
   commitDraftingLeaderNoteCommandPoint,
   commitDraftingMonitoringPointCommandPoint,
   commitDraftingPathCommandPoint,
+  commitDraftingPileCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
   commitDraftingServiceCrossingCommandPoint,
@@ -30,6 +31,7 @@ import {
   isDraftingLeaderNoteCommandTool,
   isDraftingMonitoringPointCommandTool,
   isDraftingPathCommandTool,
+  isDraftingPileCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
@@ -40,6 +42,7 @@ import {
   startDraftingLeaderNoteCommand,
   startDraftingMonitoringPointCommand,
   startDraftingPathCommand,
+  startDraftingPileCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
   startDraftingServiceCrossingCommand,
@@ -50,6 +53,7 @@ import {
   updateDraftingLeaderNoteCommandPreview,
   updateDraftingMonitoringPointCommandPreview,
   updateDraftingPathCommandPreview,
+  updateDraftingPileCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
@@ -62,6 +66,7 @@ import {
   type DraftingMonitoringPointCommandCommit,
   type DraftingPathCommandCommit,
   type DraftingPathCommandTool,
+  type DraftingPileCommandCommit,
   type DraftingPrimitiveCommandCommit,
   type DraftingPrimitiveCommandTool,
   type DraftingSectionMarkerCommandCommit,
@@ -141,6 +146,10 @@ export function useDrafting() {
     }
     if (isDraftingBoreholeCommandTool(tool)) {
       setCommandSession(startDraftingBoreholeCommand());
+      return;
+    }
+    if (isDraftingPileCommandTool(tool)) {
+      setCommandSession(startDraftingPileCommand());
       return;
     }
     setCommandSession(cancelDraftingCommandSession());
@@ -239,6 +248,16 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingBoreholeCommandPreview(current, point));
   }
 
+  function commitPileCommandPoint(point: DraftingPoint | null): DraftingPileCommandCommit {
+    const result = commitDraftingPileCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updatePileCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingPileCommandPreview(current, point));
+  }
+
   function commitDimensionCommandPoint(
     point: DraftingPoint | null,
   ): DraftingDimensionCommandCommit {
@@ -297,6 +316,7 @@ export function useDrafting() {
     commitLeaderNoteCommandPoint,
     commitMonitoringPointCommandPoint,
     commitPathCommandPoint,
+    commitPileCommandPoint,
     commitPrimitiveCommandPoint,
     commitSectionMarkerCommandPoint,
     commitServiceCrossingCommandPoint,
@@ -318,6 +338,7 @@ export function useDrafting() {
     updateLeaderNoteCommandPreview,
     updateMonitoringPointCommandPreview,
     updatePathCommandPreview,
+    updatePileCommandPreview,
     updatePrimitiveCommandPreview,
     updateSectionMarkerCommandPreview,
     updateServiceCrossingCommandPreview,

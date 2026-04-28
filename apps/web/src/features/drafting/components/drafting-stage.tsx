@@ -856,6 +856,45 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'pile') {
+    const radius = 300;
+    const centreMark = 105;
+    return (
+      <g data-testid="drafting-command-preview-pile">
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={radius}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x - centreMark}
+          x2={startPoint!.x + centreMark}
+          y1={startPoint!.y}
+          y2={startPoint!.y}
+        />
+        <line
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={startPoint!.x}
+          y1={startPoint!.y - centreMark}
+          y2={startPoint!.y + centreMark}
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline
