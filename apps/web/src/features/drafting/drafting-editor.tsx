@@ -65,6 +65,7 @@ import {
 } from './source-binding-utils';
 import {
   isDraftingDimensionCommandTool,
+  isDraftingLeaderNoteCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
@@ -396,6 +397,25 @@ export function DraftingEditor({
         commandResult.points[0],
         currentModel,
         commandResult.points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingLeaderNoteCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitLeaderNoteCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.point,
+        currentModel,
+        [],
         currentUserName,
       );
       history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
@@ -941,6 +961,8 @@ export function DraftingEditor({
               drafting.updatePathCommandPreview(point);
             } else if (isDraftingSectionMarkerCommandTool(drafting.activeTool)) {
               drafting.updateSectionMarkerCommandPreview(point);
+            } else if (isDraftingLeaderNoteCommandTool(drafting.activeTool)) {
+              drafting.updateLeaderNoteCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1265,6 +1287,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
 
   if (isDraftingSectionMarkerCommandTool(tool)) {
     return pendingPointCount === 0 ? 'Pick section start point' : 'Pick section end point';
+  }
+
+  if (isDraftingLeaderNoteCommandTool(tool)) {
+    return 'Pick leader note anchor';
   }
 
   if (isDraftingPathCommandTool(tool)) {

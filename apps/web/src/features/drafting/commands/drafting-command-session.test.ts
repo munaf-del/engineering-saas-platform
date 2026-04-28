@@ -3,6 +3,7 @@ import type { DraftingPoint } from '@eng/shared';
 import {
   cancelDraftingCommandSession,
   commitDraftingDimensionCommandPoint,
+  commitDraftingLeaderNoteCommandPoint,
   commitDraftingLineCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
@@ -13,12 +14,14 @@ import {
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
   startDraftingDimensionCommand,
+  startDraftingLeaderNoteCommand,
   startDraftingPathCommand,
   startDraftingPolylineCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
   startDraftingLineCommand,
   updateDraftingDimensionCommandPreview,
+  updateDraftingLeaderNoteCommandPreview,
   updateDraftingLineCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
@@ -455,6 +458,103 @@ describe('drafting command session', () => {
     expect(result.committed).toBe(true);
     if (result.committed) {
       expect(result.points).toEqual([start, end]);
+    }
+  });
+
+  it('starts a leader note command waiting for the placement point', () => {
+    expect(startDraftingLeaderNoteCommand()).toEqual({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'leader_note',
+    });
+  });
+
+  it('updates leader note placement preview from the pointer point', () => {
+    const preview = updateDraftingLeaderNoteCommandPreview(startDraftingLeaderNoteCommand(), {
+      x: 1200,
+      y: 1800,
+    });
+
+    expect(getDraftingCommandTool(preview)).toBe('leader_note');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([{ x: 1200, y: 1800 }]);
+  });
+
+  it('commits a leader note placement point', () => {
+    const result = commitDraftingLeaderNoteCommandPoint(startDraftingLeaderNoteCommand(), {
+      x: 1200,
+      y: 1800,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('leader_note');
+      expect(result.point).toEqual({ x: 1200, y: 1800 });
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op leader note placement without crashing', () => {
+    const result = commitDraftingLeaderNoteCommandPoint(startDraftingLeaderNoteCommand(), null);
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_placement_point',
+      points: [],
+      previewPoint: null,
+      tool: 'leader_note',
+    });
+  });
+
+  it('cancels an incomplete leader note command without committing', () => {
+    const preview = updateDraftingLeaderNoteCommandPreview(startDraftingLeaderNoteCommand(), {
+      x: 1200,
+      y: 1800,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(1);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete leader note command to a primitive command without committing', () => {
+    const preview = updateDraftingLeaderNoteCommandPreview(startDraftingLeaderNoteCommand(), {
+      x: 1200,
+      y: 1800,
+    });
+    const switched = commitDraftingPrimitiveCommandPoint(preview, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves leader note snap refs and optional z and rl point metadata', () => {
+    const anchor: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const result = commitDraftingLeaderNoteCommandPoint(startDraftingLeaderNoteCommand(), anchor);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.point).toEqual(anchor);
     }
   });
 

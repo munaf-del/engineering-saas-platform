@@ -9,6 +9,7 @@ import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
   commitDraftingDimensionCommandPoint,
+  commitDraftingLeaderNoteCommandPoint,
   commitDraftingPathCommandPoint,
   commitDraftingPrimitiveCommandPoint,
   commitDraftingSectionMarkerCommandPoint,
@@ -19,19 +20,23 @@ import {
   IDLE_DRAFTING_COMMAND_SESSION,
   isDraftingCommandTool,
   isDraftingDimensionCommandTool,
+  isDraftingLeaderNoteCommandTool,
   isDraftingPathCommandTool,
   isDraftingPrimitiveCommandTool,
   isDraftingSectionMarkerCommandTool,
   startDraftingDimensionCommand,
+  startDraftingLeaderNoteCommand,
   startDraftingPathCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
   updateDraftingDimensionCommandPreview,
+  updateDraftingLeaderNoteCommandPreview,
   updateDraftingPathCommandPreview,
   updateDraftingPrimitiveCommandPreview,
   updateDraftingSectionMarkerCommandPreview,
   type DraftingCommandSession,
   type DraftingDimensionCommandCommit,
+  type DraftingLeaderNoteCommandCommit,
   type DraftingPathCommandCommit,
   type DraftingPathCommandTool,
   type DraftingPrimitiveCommandCommit,
@@ -89,6 +94,10 @@ export function useDrafting() {
       setCommandSession(startDraftingSectionMarkerCommand());
       return;
     }
+    if (isDraftingLeaderNoteCommandTool(tool)) {
+      setCommandSession(startDraftingLeaderNoteCommand());
+      return;
+    }
     setCommandSession(cancelDraftingCommandSession());
   }
 
@@ -115,6 +124,18 @@ export function useDrafting() {
 
   function updateSectionMarkerCommandPreview(point: DraftingPoint | null) {
     setCommandSession((current) => updateDraftingSectionMarkerCommandPreview(current, point));
+  }
+
+  function commitLeaderNoteCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingLeaderNoteCommandCommit {
+    const result = commitDraftingLeaderNoteCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateLeaderNoteCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingLeaderNoteCommandPreview(current, point));
   }
 
   function commitDimensionCommandPoint(
@@ -170,6 +191,7 @@ export function useDrafting() {
     commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
     commitDimensionCommandPoint,
+    commitLeaderNoteCommandPoint,
     commitPathCommandPoint,
     commitPrimitiveCommandPoint,
     commitSectionMarkerCommandPoint,
@@ -185,6 +207,7 @@ export function useDrafting() {
     toggleSnapEnabled,
     toggleSnapMode,
     updateDimensionCommandPreview,
+    updateLeaderNoteCommandPreview,
     updatePathCommandPreview,
     updatePrimitiveCommandPreview,
     updateSectionMarkerCommandPreview,

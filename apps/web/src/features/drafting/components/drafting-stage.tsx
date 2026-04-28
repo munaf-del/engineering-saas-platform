@@ -640,6 +640,34 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'leader_note') {
+    return (
+      <g data-testid="drafting-command-preview-leader-note">
+        <line
+          fill="none"
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={startPoint!.x + 1200}
+          y1={startPoint!.y}
+          y2={startPoint!.y - 600}
+        />
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={48}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline
