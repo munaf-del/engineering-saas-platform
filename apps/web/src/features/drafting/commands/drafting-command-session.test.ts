@@ -14,6 +14,8 @@ import {
   commitDraftingSectionMarkerCommandPoint,
   commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
+  createManualDraftingPointPlacement,
+  createManualTwoPointEngineeringPlacement,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -1240,6 +1242,170 @@ describe('drafting command session', () => {
         sourceMode: 'manual_sketch',
       });
     }
+  });
+
+  it('clones one-point manual placements so later input mutations do not leak into the placement boundary', () => {
+    const point: DraftingPoint = {
+      x: 1200,
+      y: 1800,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'line-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 1200, y: 1800, z: 12.5, rl: 12.5 },
+      },
+    };
+
+    const placement = createManualDraftingPointPlacement(point);
+
+    point.x = 0;
+    point.y = 0;
+    point.z = 0;
+    point.rl = 0;
+    point.snapRef = {
+      sourceObjectId: 'line-2',
+      anchorKind: 'endpoint',
+      anchorIndex: 1,
+      capturedCoordinate: { x: 0, y: 0, z: 0, rl: 0 },
+    };
+
+    expect(placement).toEqual({
+      point: {
+        x: 1200,
+        y: 1800,
+        z: 12.5,
+        rl: 12.5,
+        snapRef: {
+          sourceObjectId: 'line-1',
+          anchorKind: 'endpoint',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 1200, y: 1800, z: 12.5, rl: 12.5 },
+        },
+      },
+      sourceMode: 'manual_sketch',
+    });
+  });
+
+  it('creates a manual two-point engineering placement without deriving engineering values', () => {
+    const start: DraftingPoint = {
+      x: 1000,
+      y: 2000,
+      z: 12.4,
+      rl: 12.4,
+      snapRef: {
+        sourceObjectId: 'wall-1',
+        anchorKind: 'vertex',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 1000, y: 2000, z: 12.4, rl: 12.4 },
+      },
+    };
+    const end: DraftingPoint = {
+      x: 4600,
+      y: 1200,
+      z: 11.8,
+      rl: 11.8,
+      snapRef: {
+        sourceObjectId: 'wall-1',
+        anchorKind: 'vertex',
+        anchorIndex: 1,
+        capturedCoordinate: { x: 4600, y: 1200, z: 11.8, rl: 11.8 },
+      },
+    };
+
+    const placement = createManualTwoPointEngineeringPlacement(start, end);
+
+    expect(placement).toEqual({
+      startPoint: start,
+      endPoint: end,
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement).not.toHaveProperty('angleDeg');
+    expect(placement).not.toHaveProperty('planLengthMm');
+    expect(placement).not.toHaveProperty('bondLengthMm');
+    expect(placement).not.toHaveProperty('designLoadKn');
+    expect(placement).not.toHaveProperty('capacity');
+    expect(placement).not.toHaveProperty('sourceRef');
+  });
+
+  it('clones both points for manual two-point engineering placements', () => {
+    const start: DraftingPoint = {
+      x: 1500,
+      y: 2500,
+      z: 13.2,
+      rl: 13.2,
+      snapRef: {
+        sourceObjectId: 'service-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 1500, y: 2500, z: 13.2, rl: 13.2 },
+      },
+    };
+    const end: DraftingPoint = {
+      x: 4200,
+      y: 2100,
+      z: 12.9,
+      rl: 12.9,
+      snapRef: {
+        sourceObjectId: 'service-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 1,
+        capturedCoordinate: { x: 4200, y: 2100, z: 12.9, rl: 12.9 },
+      },
+    };
+
+    const placement = createManualTwoPointEngineeringPlacement(start, end);
+
+    start.x = -1;
+    start.y = -1;
+    start.z = -1;
+    start.rl = -1;
+    start.snapRef = {
+      sourceObjectId: 'mutated-start',
+      anchorKind: 'endpoint',
+      anchorIndex: 9,
+      capturedCoordinate: { x: -1, y: -1, z: -1, rl: -1 },
+    };
+
+    end.x = -2;
+    end.y = -2;
+    end.z = -2;
+    end.rl = -2;
+    end.snapRef = {
+      sourceObjectId: 'mutated-end',
+      anchorKind: 'endpoint',
+      anchorIndex: 8,
+      capturedCoordinate: { x: -2, y: -2, z: -2, rl: -2 },
+    };
+
+    expect(placement).toEqual({
+      startPoint: {
+        x: 1500,
+        y: 2500,
+        z: 13.2,
+        rl: 13.2,
+        snapRef: {
+          sourceObjectId: 'service-1',
+          anchorKind: 'endpoint',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 1500, y: 2500, z: 13.2, rl: 13.2 },
+        },
+      },
+      endPoint: {
+        x: 4200,
+        y: 2100,
+        z: 12.9,
+        rl: 12.9,
+        snapRef: {
+          sourceObjectId: 'service-1',
+          anchorKind: 'endpoint',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 4200, y: 2100, z: 12.9, rl: 12.9 },
+        },
+      },
+      sourceMode: 'manual_sketch',
+    });
   });
 
   it('starts a polyline path command waiting for the first point', () => {

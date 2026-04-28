@@ -205,6 +205,12 @@ export type DraftingManualPointPlacement = {
   sourceMode: 'manual_sketch';
 };
 
+export type DraftingManualTwoPointEngineeringPlacement = {
+  endPoint: DraftingPoint;
+  sourceMode: 'manual_sketch';
+  startPoint: DraftingPoint;
+};
+
 export type DraftingMonitoringPointCommandCommit =
   | {
       committed: false;
@@ -1117,5 +1123,18 @@ export function createManualDraftingPointPlacement(
   return {
     point: cloneDraftingPoint(point),
     sourceMode: 'manual_sketch',
+  };
+}
+
+// Two-point engineering commands capture manual/sketch placement only.
+// Derived engineering and source-linked fields stay factory-owned or source-owned.
+export function createManualTwoPointEngineeringPlacement(
+  startPoint: DraftingPoint,
+  endPoint: DraftingPoint,
+): DraftingManualTwoPointEngineeringPlacement {
+  return {
+    endPoint: cloneDraftingPoint(endPoint),
+    sourceMode: 'manual_sketch',
+    startPoint: cloneDraftingPoint(startPoint),
   };
 }
