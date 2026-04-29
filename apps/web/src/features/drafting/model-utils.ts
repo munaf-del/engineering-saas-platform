@@ -1228,8 +1228,48 @@ export function isDraftingUnderlayVisible(model: DraftingModel, underlay: Drafti
   return layer?.visible !== false;
 }
 
+export function isDraftingUnderlayRenderable(underlay: DraftingUnderlay) {
+  const runtimeUnderlay = underlay as Partial<DraftingUnderlay>;
+  const transform = runtimeUnderlay.transform as Partial<DraftingUnderlayTransform> | undefined;
+  const crop = runtimeUnderlay.crop as Partial<DraftingUnderlayCrop> | null | undefined;
+
+  if (
+    typeof runtimeUnderlay.fileId !== 'string' ||
+    runtimeUnderlay.fileId.trim().length === 0 ||
+    !Number.isInteger(runtimeUnderlay.pageNumber) ||
+    (runtimeUnderlay.pageNumber ?? 0) <= 0 ||
+    !Number.isFinite(runtimeUnderlay.opacity) ||
+    (runtimeUnderlay.opacity ?? -1) < 0 ||
+    (runtimeUnderlay.opacity ?? 2) > 1 ||
+    !transform ||
+    !Number.isFinite(transform.x) ||
+    !Number.isFinite(transform.y) ||
+    !Number.isFinite(transform.scale) ||
+    (transform.scale ?? 0) <= 0 ||
+    !Number.isFinite(transform.rotationDeg)
+  ) {
+    return false;
+  }
+
+  if (!crop) {
+    return true;
+  }
+
+  return (
+    Number.isFinite(crop.x) &&
+    Number.isFinite(crop.y) &&
+    Number.isFinite(crop.width) &&
+    Number.isFinite(crop.height) &&
+    (crop.width ?? 0) > 0 &&
+    (crop.height ?? 0) > 0
+  );
+}
+
 export function getVisibleDraftingUnderlays(model: DraftingModel) {
-  return model.underlays.filter((underlay) => isDraftingUnderlayVisible(model, underlay));
+  return model.underlays.filter(
+    (underlay) =>
+      isDraftingUnderlayVisible(model, underlay) && isDraftingUnderlayRenderable(underlay),
+  );
 }
 
 export function updateLayer(model: DraftingModel, nextLayer: DraftingLayer) {

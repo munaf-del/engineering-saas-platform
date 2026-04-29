@@ -17,6 +17,7 @@ import {
   fitDraftingObjectsView,
   getVisibleDraftingObjects,
   getVisibleDraftingUnderlays,
+  isDraftingUnderlayRenderable,
   recordDraftingObjectChangeEvent,
   removeDraftingUnderlay,
   removeDraftingObject,
@@ -622,6 +623,41 @@ describe('drafting model utils', () => {
     expect(canEditDraftingUnderlay(withUnderlay, underlay)).toBe(true);
     expect(canEditDraftingUnderlay(hiddenLayerModel, underlay)).toBe(false);
     expect(canEditDraftingUnderlay(withUnderlay, { ...underlay, locked: true })).toBe(false);
+  });
+
+  it('filters malformed PDF underlay metadata before canvas rendering', () => {
+    const model = createEmptyDraftingModel('drawing-1');
+    const validUnderlay = createTestUnderlay();
+    const malformedScale = {
+      ...createTestUnderlay(),
+      id: 'underlay-zero-scale',
+      transform: { ...createTestUnderlay().transform, scale: 0 },
+    };
+    const malformedCrop = {
+      ...createTestUnderlay(),
+      id: 'underlay-bad-crop',
+      crop: { x: 0, y: 0, width: Number.NaN, height: 100 },
+    };
+    const missingFileId = {
+      ...createTestUnderlay(),
+      id: 'underlay-missing-file',
+      fileId: '',
+    };
+
+    const withUnderlays = {
+      ...model,
+      underlays: [
+        validUnderlay,
+        malformedScale,
+        malformedCrop,
+        missingFileId,
+      ] as unknown as typeof model.underlays,
+    };
+
+    expect(isDraftingUnderlayRenderable(validUnderlay)).toBe(true);
+    expect(getVisibleDraftingUnderlays(withUnderlays).map((underlay) => underlay.id)).toEqual([
+      validUnderlay.id,
+    ]);
   });
 
   it('calculates and persists uniform two-point calibration metadata', () => {
