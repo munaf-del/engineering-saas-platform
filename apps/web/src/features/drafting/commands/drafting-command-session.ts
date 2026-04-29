@@ -17,13 +17,15 @@ export type DraftingCappingBeamCommandTool = 'capping_beam';
 export type DraftingWalerCommandTool = 'waler';
 export type DraftingServiceRunCommandTool = 'service_run';
 export type DraftingSecantPileWallCommandTool = 'secant_pile_wall';
+export type DraftingSoldierPileWallCommandTool = 'soldier_pile_wall';
 export type DraftingPathCommandTool =
   | DraftingSketchPathCommandTool
   | DraftingExcavationLineCommandTool
   | DraftingCappingBeamCommandTool
   | DraftingWalerCommandTool
   | DraftingServiceRunCommandTool
-  | DraftingSecantPileWallCommandTool;
+  | DraftingSecantPileWallCommandTool
+  | DraftingSoldierPileWallCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -48,6 +50,7 @@ export const DRAFTING_PATH_COMMAND_TOOLS = [
   'capping_beam',
   'excavation_line',
   'secant_pile_wall',
+  'soldier_pile_wall',
   'service_run',
   'waler',
   'draft_polyline',
@@ -372,7 +375,7 @@ export type DraftingPathCommandCommit =
       placement: DraftingManualGeneratedWallBaselinePlacement;
       points: DraftingPoint[];
       session: DraftingCommandSession;
-      tool: DraftingSecantPileWallCommandTool;
+      tool: DraftingSecantPileWallCommandTool | DraftingSoldierPileWallCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -515,6 +518,10 @@ export function startDraftingServiceRunCommand(): ActiveDraftingPathCommandSessi
 
 export function startDraftingSecantPileWallCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('secant_pile_wall');
+}
+
+export function startDraftingSoldierPileWallCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('soldier_pile_wall');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1202,7 +1209,10 @@ export function commitDraftingPathCommandPoint(
     };
   }
 
-  if (tool === 'secant_pile_wall' && activeSession.points.length >= 1) {
+  if (
+    (tool === 'secant_pile_wall' || tool === 'soldier_pile_wall') &&
+    activeSession.points.length >= 1
+  ) {
     const baselinePoints = [...activeSession.points, nextPoint];
 
     return {
@@ -1210,7 +1220,7 @@ export function commitDraftingPathCommandPoint(
       placement: createManualGeneratedWallBaselinePlacement(baselinePoints),
       points: baselinePoints.map(cloneDraftingPoint),
       session: IDLE_DRAFTING_COMMAND_SESSION,
-      tool: 'secant_pile_wall',
+      tool,
     };
   }
 
@@ -1240,6 +1250,19 @@ export function finishDraftingPathCommand(
         points: session.points.map(cloneDraftingPoint),
         session: IDLE_DRAFTING_COMMAND_SESSION,
         tool: 'secant_pile_wall',
+      };
+    }
+    case 'soldier_pile_wall': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualGeneratedWallBaselinePlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'soldier_pile_wall',
       };
     }
     case 'service_run': {

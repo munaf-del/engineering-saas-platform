@@ -1011,6 +1011,21 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'soldier_pile_wall') {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-soldier-pile-wall"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (tool === 'excavation_line') {
     return (
       <polyline

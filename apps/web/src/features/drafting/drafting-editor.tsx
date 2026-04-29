@@ -83,7 +83,7 @@ import type { DraftingPileSourceMode } from './components/drafting-tool-palette'
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
-const TWO_POINT_AUTHORING_TOOLS = new Set(['soldier_pile_wall']);
+const TWO_POINT_AUTHORING_TOOLS = new Set<DraftingTool>();
 
 const PATH_AUTHORING_TOOLS = new Set([
   'excavation_line',
@@ -91,6 +91,7 @@ const PATH_AUTHORING_TOOLS = new Set([
   'waler',
   'service_run',
   'secant_pile_wall',
+  'soldier_pile_wall',
   'draft_polyline',
   'draft_polygon',
 ]);
@@ -1519,7 +1520,7 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
   }
 
   if (isDraftingPathCommandTool(tool)) {
-    if (tool === 'secant_pile_wall') {
+    if (tool === 'secant_pile_wall' || tool === 'soldier_pile_wall') {
       return pendingPointCount === 0 ? 'Pick wall baseline start' : 'Pick wall baseline end';
     }
     return pendingPointCount === 0

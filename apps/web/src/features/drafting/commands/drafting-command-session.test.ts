@@ -41,6 +41,7 @@ import {
   startDraftingSecantPileWallCommand,
   startDraftingServiceCrossingCommand,
   startDraftingServiceRunCommand,
+  startDraftingSoldierPileWallCommand,
   startDraftingStructuralJointCommand,
   startDraftingLineCommand,
   startDraftingWalerCommand,
@@ -2311,6 +2312,187 @@ describe('drafting command session', () => {
 
     expect(result.committed).toBe(true);
     if (result.committed && result.tool === 'secant_pile_wall') {
+      expect(result.placement).toEqual({
+        baselinePoints: [start, end],
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts a soldier pile wall baseline command waiting for the first vertex', () => {
+    expect(startDraftingSoldierPileWallCommand()).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'soldier_pile_wall',
+    });
+  });
+
+  it('captures the first soldier pile wall baseline vertex before committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+
+    expect(firstPoint.committed).toBe(false);
+    expect(firstPoint.session).toMatchObject({
+      phase: 'collecting_points',
+      points: [{ x: 0, y: 0 }],
+      previewPoint: null,
+      tool: 'soldier_pile_wall',
+    });
+  });
+
+  it('updates soldier pile wall baseline preview from the next pointer vertex', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 1400, y: 250 });
+
+    expect(getDraftingCommandTool(preview)).toBe('soldier_pile_wall');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 1400, y: 250 },
+    ]);
+  });
+
+  it('commits a soldier pile wall through the manual generated-wall baseline boundary', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+    const result = commitDraftingPathCommandPoint(firstPoint.session, 'soldier_pile_wall', {
+      x: 1800,
+      y: 300,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed && result.tool === 'soldier_pile_wall') {
+      expect(result.tool).toBe('soldier_pile_wall');
+      expect(result.placement).toEqual({
+        baselinePoints: [
+          { x: 0, y: 0 },
+          { x: 1800, y: 300 },
+        ],
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.placement).not.toHaveProperty('pileCentres');
+      expect(result.placement).not.toHaveProperty('pilePositions');
+      expect(result.placement).not.toHaveProperty('pileCount');
+      expect(result.placement).not.toHaveProperty('pileIds');
+      expect(result.placement).not.toHaveProperty('wallLengthMm');
+      expect(result.placement).not.toHaveProperty('spacingMm');
+      expect(result.placement).not.toHaveProperty('pileDiameterMm');
+      expect(result.placement).not.toHaveProperty('sectionLabel');
+      expect(result.placement).not.toHaveProperty('laggingType');
+      expect(result.placement).not.toHaveProperty('sourceRef');
+      expect(result.placement).not.toHaveProperty('schedule');
+      expect(result.placement).not.toHaveProperty('exportRows');
+      expect(result.points).toEqual(result.placement.baselinePoints);
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('does not finish a soldier pile wall until the existing two-point minimum is met', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+    const result = finishDraftingPathCommand(firstPoint.session);
+
+    expect(result.committed).toBe(false);
+    expect(getDraftingCommandPoints(result.session)).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('ignores duplicate/no-op soldier pile wall baseline vertices without crashing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 100, y: 100 },
+    );
+    const duplicate = commitDraftingPathCommandPoint(firstPoint.session, 'soldier_pile_wall', {
+      x: 100,
+      y: 100,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+  });
+
+  it('cancels an incomplete soldier pile wall command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 1000, y: 0 });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(2);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete soldier pile wall command to a primitive command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves soldier pile wall baseline snap refs and optional z and rl metadata', () => {
+    const start: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 11.5,
+      rl: 11.5,
+      snapRef: {
+        sourceObjectId: 'soldier-baseline-setout-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 11.5, rl: 11.5 },
+      },
+    };
+    const end: DraftingPoint = {
+      x: 1000,
+      y: 0,
+      z: 11.6,
+      rl: 11.6,
+      snapRef: {
+        sourceObjectId: 'soldier-baseline-setout-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 1,
+        capturedCoordinate: { x: 1000, y: 0, z: 11.6, rl: 11.6 },
+      },
+    };
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingSoldierPileWallCommand(),
+      'soldier_pile_wall',
+      start,
+    );
+    const result = commitDraftingPathCommandPoint(firstPoint.session, 'soldier_pile_wall', end);
+
+    expect(result.committed).toBe(true);
+    if (result.committed && result.tool === 'soldier_pile_wall') {
       expect(result.placement).toEqual({
         baselinePoints: [start, end],
         sourceMode: 'manual_sketch',

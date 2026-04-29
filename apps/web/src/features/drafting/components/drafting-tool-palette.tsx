@@ -1241,6 +1241,7 @@ function isPathAuthoringTool(tool: DraftingTool) {
     tool === 'waler' ||
     tool === 'service_run' ||
     tool === 'secant_pile_wall' ||
+    tool === 'soldier_pile_wall' ||
     tool === 'draft_polyline' ||
     tool === 'draft_polygon'
   );
@@ -1255,6 +1256,9 @@ function getAuthoringHint(tool: DraftingTool) {
   }
   if (tool === 'secant_pile_wall') {
     return 'Click baseline start and end points to create the secant pile wall.';
+  }
+  if (tool === 'soldier_pile_wall') {
+    return 'Click baseline start and end points to create the soldier pile wall.';
   }
   if (tool === 'draft_polyline' || tool === 'draft_polygon') {
     return 'Click vertices, then Finish to create the drafting geometry.';

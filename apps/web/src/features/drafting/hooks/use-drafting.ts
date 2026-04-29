@@ -50,6 +50,7 @@ import {
   startDraftingSectionMarkerCommand,
   startDraftingSecantPileWallCommand,
   startDraftingServiceCrossingCommand,
+  startDraftingSoldierPileWallCommand,
   startDraftingStructuralJointCommand,
   updateDraftingAnchorTiebackCommandPreview,
   updateDraftingBoreholeCommandPreview,
@@ -123,11 +124,15 @@ export function useDrafting() {
       return;
     }
     if (isDraftingPathCommandTool(tool)) {
-      setCommandSession(
-        tool === 'secant_pile_wall'
-          ? startDraftingSecantPileWallCommand()
-          : startDraftingPathCommand(tool),
-      );
+      if (tool === 'secant_pile_wall') {
+        setCommandSession(startDraftingSecantPileWallCommand());
+        return;
+      }
+      if (tool === 'soldier_pile_wall') {
+        setCommandSession(startDraftingSoldierPileWallCommand());
+        return;
+      }
+      setCommandSession(startDraftingPathCommand(tool));
       return;
     }
     if (isDraftingSectionMarkerCommandTool(tool)) {
