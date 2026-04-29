@@ -3,6 +3,9 @@ import type { DraftingPoint, DraftingUnderlay } from '@eng/shared';
 import { usePdfPageRender, type PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
 import { getDraftingUnderlayLocalRect } from '../model-utils';
 
+const FALLBACK_PLACEHOLDER_WIDTH = 1600;
+const FALLBACK_PLACEHOLDER_HEIGHT = 720;
+
 type DraftingPdfUnderlayProps = {
   underlay: DraftingUnderlay;
   isSelected: boolean;
@@ -33,6 +36,10 @@ export function DraftingPdfUnderlay({
   const pageRender = render.data;
 
   if (!pageRender) {
+    if (render.error) {
+      return <PdfUnderlayRenderFallback isSelected={isSelected} underlay={underlay} />;
+    }
+
     return null;
   }
 
@@ -118,6 +125,62 @@ export function DraftingPdfUnderlay({
         ) : null}
       </g>
     </>
+  );
+}
+
+function PdfUnderlayRenderFallback({
+  underlay,
+  isSelected,
+}: {
+  underlay: DraftingUnderlay;
+  isSelected: boolean;
+}) {
+  const matrix = buildSvgMatrix(underlay);
+
+  return (
+    <g data-testid="drafting-pdf-underlay-render-fallback" pointerEvents="none" transform={matrix}>
+      <rect
+        fill="#f8fafc"
+        height={FALLBACK_PLACEHOLDER_HEIGHT}
+        opacity={0.9}
+        stroke="#94a3b8"
+        strokeDasharray="120 80"
+        strokeWidth={24}
+        vectorEffect="non-scaling-stroke"
+        width={FALLBACK_PLACEHOLDER_WIDTH}
+        x={0}
+        y={0}
+      />
+      <text
+        fill="#475569"
+        fontSize={120}
+        fontWeight={600}
+        paintOrder="stroke"
+        stroke="#f8fafc"
+        strokeWidth={18}
+        x={120}
+        y={280}
+      >
+        PDF underlay unavailable
+      </text>
+      <text fill="#64748b" fontSize={88} x={120} y={420}>
+        {underlay.fileName} · page {underlay.pageNumber}
+      </text>
+
+      {isSelected ? (
+        <rect
+          fill="none"
+          height={FALLBACK_PLACEHOLDER_HEIGHT}
+          stroke="#0f766e"
+          strokeDasharray="240 120"
+          strokeWidth={24}
+          vectorEffect="non-scaling-stroke"
+          width={FALLBACK_PLACEHOLDER_WIDTH}
+          x={0}
+          y={0}
+        />
+      ) : null}
+    </g>
   );
 }
 
