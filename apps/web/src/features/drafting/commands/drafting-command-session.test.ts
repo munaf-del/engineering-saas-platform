@@ -17,6 +17,7 @@ import {
   commitDraftingStructuralJointCommandPoint,
   createManualDraftingPointPlacement,
   createManualPathEngineeringPlacement,
+  createManualServiceRunPlacement,
   createManualTwoPointEngineeringPlacement,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
@@ -1752,6 +1753,187 @@ describe('drafting command session', () => {
       points: [{ x: 250, y: 500 }],
       sourceMode: 'manual_sketch',
     });
+  });
+
+  it('creates a manual service-run placement without deriving service or source values', () => {
+    const vertices: DraftingPoint[] = [
+      {
+        x: 0,
+        y: 0,
+        z: 9.8,
+        rl: 9.8,
+        snapRef: {
+          sourceObjectId: 'draft-path-1',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 0, y: 0, z: 9.8, rl: 9.8 },
+        },
+      },
+      {
+        x: 1400,
+        y: 350,
+        z: 9.7,
+        rl: 9.7,
+        snapRef: {
+          sourceObjectId: 'draft-path-1',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 1400, y: 350, z: 9.7, rl: 9.7 },
+        },
+      },
+      {
+        x: 2900,
+        y: 700,
+        z: 9.6,
+        rl: 9.6,
+        snapRef: {
+          sourceObjectId: 'draft-path-1',
+          anchorKind: 'vertex',
+          anchorIndex: 2,
+          capturedCoordinate: { x: 2900, y: 700, z: 9.6, rl: 9.6 },
+        },
+      },
+    ];
+
+    const placement = createManualServiceRunPlacement(vertices);
+
+    expect(placement).toEqual({
+      vertices,
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement.vertices).toHaveLength(3);
+    expect(placement).not.toHaveProperty('geometry');
+    expect(placement).not.toHaveProperty('path');
+    expect(placement).not.toHaveProperty('lengthMm');
+    expect(placement).not.toHaveProperty('depthM');
+    expect(placement).not.toHaveProperty('levelRl');
+    expect(placement).not.toHaveProperty('clearanceMm');
+    expect(placement).not.toHaveProperty('conflictType');
+    expect(placement).not.toHaveProperty('riskStatus');
+    expect(placement).not.toHaveProperty('authority');
+    expect(placement).not.toHaveProperty('serviceType');
+    expect(placement).not.toHaveProperty('status');
+    expect(placement).not.toHaveProperty('sourceRef');
+    expect(placement).not.toHaveProperty('compliance');
+  });
+
+  it('clones every manual service-run vertex and preserves point metadata', () => {
+    const vertices: DraftingPoint[] = [
+      {
+        x: 100,
+        y: 300,
+        z: 8.4,
+        rl: 8.4,
+        snapRef: {
+          sourceObjectId: 'draft-path-2',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 100, y: 300, z: 8.4, rl: 8.4 },
+        },
+      },
+      {
+        x: 900,
+        y: 1100,
+        z: 8.2,
+        rl: 8.2,
+        snapRef: {
+          sourceObjectId: 'draft-path-2',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 900, y: 1100, z: 8.2, rl: 8.2 },
+        },
+      },
+    ];
+
+    const placement = createManualServiceRunPlacement(vertices);
+    const firstVertex = vertices[0]!;
+    const secondVertex = vertices[1]!;
+
+    firstVertex.x = -1;
+    firstVertex.y = -1;
+    firstVertex.z = -1;
+    firstVertex.rl = -1;
+    firstVertex.snapRef = {
+      sourceObjectId: 'mutated-start',
+      anchorKind: 'vertex',
+      anchorIndex: 8,
+      capturedCoordinate: { x: -1, y: -1, z: -1, rl: -1 },
+    };
+    secondVertex.x = -2;
+    secondVertex.y = -2;
+    secondVertex.z = -2;
+    secondVertex.rl = -2;
+    secondVertex.snapRef = {
+      sourceObjectId: 'mutated-end',
+      anchorKind: 'vertex',
+      anchorIndex: 9,
+      capturedCoordinate: { x: -2, y: -2, z: -2, rl: -2 },
+    };
+
+    expect(placement).toEqual({
+      vertices: [
+        {
+          x: 100,
+          y: 300,
+          z: 8.4,
+          rl: 8.4,
+          snapRef: {
+            sourceObjectId: 'draft-path-2',
+            anchorKind: 'vertex',
+            anchorIndex: 0,
+            capturedCoordinate: { x: 100, y: 300, z: 8.4, rl: 8.4 },
+          },
+        },
+        {
+          x: 900,
+          y: 1100,
+          z: 8.2,
+          rl: 8.2,
+          snapRef: {
+            sourceObjectId: 'draft-path-2',
+            anchorKind: 'vertex',
+            anchorIndex: 1,
+            capturedCoordinate: { x: 900, y: 1100, z: 8.2, rl: 8.2 },
+          },
+        },
+      ],
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement.vertices[0]).not.toBe(firstVertex);
+    expect(placement.vertices[1]).not.toBe(secondVertex);
+  });
+
+  it('keeps service-run vertex collection separate from service-run validation semantics', () => {
+    expect(createManualServiceRunPlacement([])).toEqual({
+      vertices: [],
+      sourceMode: 'manual_sketch',
+    });
+
+    expect(createManualServiceRunPlacement([{ x: 250, y: 500 }])).toEqual({
+      vertices: [{ x: 250, y: 500 }],
+      sourceMode: 'manual_sketch',
+    });
+  });
+
+  it('packages future manual service-run vertices without creating a service-run object', () => {
+    const placement = createManualServiceRunPlacement([
+      { x: 0, y: 300 },
+      { x: 1000, y: 300 },
+      { x: 1500, y: 600 },
+    ]);
+
+    expect(placement.sourceMode).toBe('manual_sketch');
+    expect(placement.vertices).toEqual([
+      { x: 0, y: 300 },
+      { x: 1000, y: 300 },
+      { x: 1500, y: 600 },
+    ]);
+    expect(placement).not.toHaveProperty('type');
+    expect(placement).not.toHaveProperty('tool');
+    expect(placement).not.toHaveProperty('serviceId');
+    expect(placement).not.toHaveProperty('serviceType');
+    expect(placement).not.toHaveProperty('depthM');
+    expect(placement).not.toHaveProperty('sourceRef');
   });
 
   it('packages future path-family placement points without creating tool objects', () => {

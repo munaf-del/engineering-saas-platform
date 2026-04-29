@@ -239,6 +239,11 @@ export type DraftingManualPathEngineeringPlacement = {
   sourceMode: 'manual_sketch';
 };
 
+export type DraftingManualServiceRunPlacement = {
+  sourceMode: 'manual_sketch';
+  vertices: DraftingPoint[];
+};
+
 export type DraftingMonitoringPointCommandCommit =
   | {
       committed: false;
@@ -1334,5 +1339,18 @@ export function createManualPathEngineeringPlacement(
   return {
     points: points.map(cloneDraftingPoint),
     sourceMode: 'manual_sketch',
+  };
+}
+
+// Service-run authoring captures ordered vertices only.
+// Service metadata, source refs, schedules, and risk fields stay factory-owned or source-owned.
+export function createManualServiceRunPlacement(
+  vertices: readonly DraftingPoint[],
+): DraftingManualServiceRunPlacement {
+  const placement = createManualPathEngineeringPlacement(vertices);
+
+  return {
+    sourceMode: placement.sourceMode,
+    vertices: placement.points,
   };
 }
