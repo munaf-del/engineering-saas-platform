@@ -16,12 +16,14 @@ export type DraftingExcavationLineCommandTool = 'excavation_line';
 export type DraftingCappingBeamCommandTool = 'capping_beam';
 export type DraftingWalerCommandTool = 'waler';
 export type DraftingServiceRunCommandTool = 'service_run';
+export type DraftingSecantPileWallCommandTool = 'secant_pile_wall';
 export type DraftingPathCommandTool =
   | DraftingSketchPathCommandTool
   | DraftingExcavationLineCommandTool
   | DraftingCappingBeamCommandTool
   | DraftingWalerCommandTool
-  | DraftingServiceRunCommandTool;
+  | DraftingServiceRunCommandTool
+  | DraftingSecantPileWallCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -45,6 +47,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 export const DRAFTING_PATH_COMMAND_TOOLS = [
   'capping_beam',
   'excavation_line',
+  'secant_pile_wall',
   'service_run',
   'waler',
   'draft_polyline',
@@ -363,6 +366,13 @@ export type DraftingPathCommandCommit =
       points: DraftingPoint[];
       session: DraftingCommandSession;
       tool: DraftingServiceRunCommandTool;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualGeneratedWallBaselinePlacement;
+      points: DraftingPoint[];
+      session: DraftingCommandSession;
+      tool: DraftingSecantPileWallCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -501,6 +511,10 @@ export function startDraftingWalerCommand(): ActiveDraftingPathCommandSession {
 
 export function startDraftingServiceRunCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('service_run');
+}
+
+export function startDraftingSecantPileWallCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('secant_pile_wall');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1188,6 +1202,18 @@ export function commitDraftingPathCommandPoint(
     };
   }
 
+  if (tool === 'secant_pile_wall' && activeSession.points.length >= 1) {
+    const baselinePoints = [...activeSession.points, nextPoint];
+
+    return {
+      committed: true,
+      placement: createManualGeneratedWallBaselinePlacement(baselinePoints),
+      points: baselinePoints.map(cloneDraftingPoint),
+      session: IDLE_DRAFTING_COMMAND_SESSION,
+      tool: 'secant_pile_wall',
+    };
+  }
+
   return {
     committed: false,
     session: {
@@ -1203,6 +1229,19 @@ export function finishDraftingPathCommand(
   session: DraftingCommandSession,
 ): DraftingPathCommandCommit {
   switch (session.tool) {
+    case 'secant_pile_wall': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualGeneratedWallBaselinePlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'secant_pile_wall',
+      };
+    }
     case 'service_run': {
       if (session.points.length < 2) {
         return { committed: false, session };

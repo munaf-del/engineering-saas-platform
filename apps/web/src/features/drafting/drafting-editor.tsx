@@ -83,13 +83,14 @@ import type { DraftingPileSourceMode } from './components/drafting-tool-palette'
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
-const TWO_POINT_AUTHORING_TOOLS = new Set(['secant_pile_wall', 'soldier_pile_wall']);
+const TWO_POINT_AUTHORING_TOOLS = new Set(['soldier_pile_wall']);
 
 const PATH_AUTHORING_TOOLS = new Set([
   'excavation_line',
   'capping_beam',
   'waler',
   'service_run',
+  'secant_pile_wall',
   'draft_polyline',
   'draft_polygon',
 ]);
@@ -385,7 +386,25 @@ export function DraftingEditor({
     }
 
     if (isDraftingPathCommandTool(drafting.activeTool)) {
-      drafting.commitPathCommandPoint(drafting.activeTool, point);
+      const commandResult = drafting.commitPathCommandPoint(drafting.activeTool, point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const placementPoints =
+        'placement' in commandResult && 'baselinePoints' in commandResult.placement
+          ? commandResult.placement.baselinePoints
+          : commandResult.points;
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        placementPoints[0]!,
+        currentModel,
+        placementPoints,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
       return;
     }
 
@@ -719,9 +738,11 @@ export function DraftingEditor({
 
       if ('placement' in commandResult) {
         const placementPoints =
-          'vertices' in commandResult.placement
-            ? commandResult.placement.vertices
-            : commandResult.placement.points;
+          'baselinePoints' in commandResult.placement
+            ? commandResult.placement.baselinePoints
+            : 'vertices' in commandResult.placement
+              ? commandResult.placement.vertices
+              : commandResult.placement.points;
         const nextObject = createDraftingObject(
           commandResult.tool,
           placementPoints[0]!,
@@ -1498,6 +1519,9 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
   }
 
   if (isDraftingPathCommandTool(tool)) {
+    if (tool === 'secant_pile_wall') {
+      return pendingPointCount === 0 ? 'Pick wall baseline start' : 'Pick wall baseline end';
+    }
     return pendingPointCount === 0
       ? 'Pick start point'
       : 'Pick next point · Enter to finish / Esc to cancel';

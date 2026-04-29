@@ -1240,6 +1240,7 @@ function isPathAuthoringTool(tool: DraftingTool) {
     tool === 'capping_beam' ||
     tool === 'waler' ||
     tool === 'service_run' ||
+    tool === 'secant_pile_wall' ||
     tool === 'draft_polyline' ||
     tool === 'draft_polygon'
   );
@@ -1251,6 +1252,9 @@ function getAuthoringHint(tool: DraftingTool) {
   }
   if (tool === 'capping_beam' || tool === 'waler') {
     return 'Click path points, then Finish to create the beam or waler baseline.';
+  }
+  if (tool === 'secant_pile_wall') {
+    return 'Click baseline start and end points to create the secant pile wall.';
   }
   if (tool === 'draft_polyline' || tool === 'draft_polygon') {
     return 'Click vertices, then Finish to create the drafting geometry.';

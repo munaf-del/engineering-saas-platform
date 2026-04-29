@@ -48,6 +48,7 @@ import {
   startDraftingPileCommand,
   startDraftingPrimitiveCommand,
   startDraftingSectionMarkerCommand,
+  startDraftingSecantPileWallCommand,
   startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
   updateDraftingAnchorTiebackCommandPreview,
@@ -122,7 +123,11 @@ export function useDrafting() {
       return;
     }
     if (isDraftingPathCommandTool(tool)) {
-      setCommandSession(startDraftingPathCommand(tool));
+      setCommandSession(
+        tool === 'secant_pile_wall'
+          ? startDraftingSecantPileWallCommand()
+          : startDraftingPathCommand(tool),
+      );
       return;
     }
     if (isDraftingSectionMarkerCommandTool(tool)) {
