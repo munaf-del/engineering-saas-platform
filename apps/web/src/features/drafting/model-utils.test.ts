@@ -419,6 +419,122 @@ describe('drafting model utils', () => {
     expect(waler).not.toHaveProperty('capacity');
   });
 
+  it('creates a service run from authored vertices while preserving factory-owned service fields', () => {
+    const model = createEmptyDraftingModel('drawing-service-run');
+    const vertices = [
+      { x: 0, y: 0, z: 8.5, rl: 8.5 },
+      { x: 1600, y: 0, z: 8.4, rl: 8.4 },
+      { x: 2200, y: 700, z: 8.3, rl: 8.3 },
+    ];
+    const serviceRun = createDraftingObject('service_run', vertices[0]!, model, vertices);
+
+    if (serviceRun.type !== 'service_run') {
+      throw new Error('Expected a service run object');
+    }
+
+    expect(serviceRun.geometry).toEqual({ path: vertices });
+    expect(serviceRun.parameters).toEqual({
+      serviceId: 'SR1',
+      serviceType: 'unknown',
+      status: 'existing',
+      diameterMm: 0,
+      depthM: 0,
+      levelRl: 0,
+      authority: '',
+    });
+    expect(serviceRun.metadata).toEqual({
+      sourceReference: '',
+      surveyConfidence: '',
+      notes: '',
+    });
+    expect(serviceRun.sourceRef).toMatchObject({
+      sourceType: 'manual',
+      status: 'manual',
+    });
+    expect(serviceRun.sourceRef?.sourceId).toBeUndefined();
+    expect(serviceRun).not.toHaveProperty('clearanceMm');
+    expect(serviceRun).not.toHaveProperty('riskStatus');
+    expect(serviceRun).not.toHaveProperty('strata');
+    expect(serviceRun).not.toHaveProperty('surface');
+  });
+
+  it('creates a secant pile wall from authored baseline vertices while preserving factory-owned generated arrays', () => {
+    const model = createEmptyDraftingModel('drawing-secant-wall');
+    const baselinePoints = [
+      { x: 0, y: 0, z: 7.5, rl: 7.5 },
+      { x: 3200, y: 0, z: 7.4, rl: 7.4 },
+    ];
+    const secantWall = createDraftingObject(
+      'secant_pile_wall',
+      baselinePoints[0]!,
+      model,
+      baselinePoints,
+    );
+
+    if (secantWall.type !== 'secant_pile_wall') {
+      throw new Error('Expected a secant pile wall object');
+    }
+
+    expect(secantWall.geometry.baselinePoints).toEqual(baselinePoints);
+    expect(secantWall.geometry.pileCentres).toHaveLength(secantWall.metadata.pileCount);
+    expect(secantWall.parameters).toEqual({
+      pileDiameterMm: 900,
+      spacingMm: 750,
+      overlapMm: 150,
+      secantType: 'overlapping',
+      primarySecondaryPattern: 'hard_soft',
+    });
+    expect(secantWall.metadata).toMatchObject({
+      wallId: 'SEC1',
+      constructionMethod: 'secant bored piles',
+      pileCount: secantWall.geometry.pileCentres.length,
+      designNotes: '',
+    });
+    expect(secantWall.sourceRef).toBeUndefined();
+    expect(secantWall).not.toHaveProperty('pileIds');
+    expect(secantWall).not.toHaveProperty('wallLengthMm');
+    expect(secantWall).not.toHaveProperty('load');
+    expect(secantWall).not.toHaveProperty('capacity');
+  });
+
+  it('creates a soldier pile wall from authored baseline vertices while preserving factory-owned generated arrays', () => {
+    const model = createEmptyDraftingModel('drawing-soldier-wall');
+    const baselinePoints = [
+      { x: 0, y: 0, z: 6.5, rl: 6.5 },
+      { x: 3600, y: 0, z: 6.4, rl: 6.4 },
+    ];
+    const soldierWall = createDraftingObject(
+      'soldier_pile_wall',
+      baselinePoints[0]!,
+      model,
+      baselinePoints,
+    );
+
+    if (soldierWall.type !== 'soldier_pile_wall') {
+      throw new Error('Expected a soldier pile wall object');
+    }
+
+    expect(soldierWall.geometry.baselinePoints).toEqual(baselinePoints);
+    expect(soldierWall.geometry.pilePositions).toHaveLength(soldierWall.metadata.pileCount);
+    expect(soldierWall.parameters).toEqual({
+      pileDiameterMm: 600,
+      sectionLabel: 'UC310',
+      spacingMm: 1500,
+      laggingType: 'timber lagging',
+      embedmentNote: '',
+    });
+    expect(soldierWall.metadata).toMatchObject({
+      wallId: 'SOL1',
+      constructionMethod: 'soldier piles with lagging',
+      pileCount: soldierWall.geometry.pilePositions.length,
+    });
+    expect(soldierWall.sourceRef).toBeUndefined();
+    expect(soldierWall).not.toHaveProperty('pileIds');
+    expect(soldierWall).not.toHaveProperty('wallLengthMm');
+    expect(soldierWall).not.toHaveProperty('load');
+    expect(soldierWall).not.toHaveProperty('capacity');
+  });
+
   it('keeps dimension witness anchor metadata aligned for partially snapped dimensions', () => {
     const model = createEmptyDraftingModel('dimension-witness-alignment');
     const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [
