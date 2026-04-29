@@ -85,6 +85,9 @@ describe('DraftingUnderlaysPanel', () => {
     expect(markup).toContain('1 visible PDF underlay is unavailable and skipped on');
     expect(markup).toContain('Unavailable');
     expect(markup).toContain('This PDF underlay is unavailable and is skipped on the canvas.');
+    expect(markup).toContain(
+      'Calibration and crop stay disabled until the underlay can render safely again.',
+    );
     expect(markup).not.toContain('Uniform Scale');
   });
 
@@ -100,6 +103,57 @@ describe('DraftingUnderlaysPanel', () => {
 
     expect(markup).toContain('All loaded PDF underlays are hidden, so none render on the canvas.');
     expect(markup).toContain('Hidden');
+  });
+
+  it('shows action-specific feedback when the selected underlay is locked', () => {
+    const lockedUnderlay = {
+      ...createUnderlay(),
+      locked: true,
+    };
+
+    const markup = renderToStaticMarkup(
+      <DraftingUnderlaysPanel {...createPanelProps([lockedUnderlay], lockedUnderlay)} />,
+    );
+
+    expect(markup).toContain(
+      'This underlay is locked. Unlock it to move, rotate, scale, crop, or calibrate it.',
+    );
+    expect(markup).toContain('Unlock the underlay before calibration.');
+    expect(markup).toContain('Unlock the underlay before crop.');
+  });
+
+  it('shows action-specific feedback when the selected underlay is hidden', () => {
+    const hiddenUnderlay = {
+      ...createUnderlay(),
+      visible: false,
+    };
+
+    const markup = renderToStaticMarkup(
+      <DraftingUnderlaysPanel {...createPanelProps([hiddenUnderlay], hiddenUnderlay)} />,
+    );
+
+    expect(markup).toContain('Show the underlay before calibration.');
+    expect(markup).toContain('Show the underlay before crop.');
+  });
+
+  it('shows action-specific feedback when the selected underlay page cannot render', () => {
+    const selectedUnderlay = createUnderlay();
+    pdfPageRenderState.current = {
+      data: null,
+      error: new Error('Failed to render PDF page'),
+      isLoading: false,
+    };
+
+    const markup = renderToStaticMarkup(
+      <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+    );
+
+    expect(markup).toContain(
+      'The selected PDF page cannot currently render. Calibration is disabled until the page renders again.',
+    );
+    expect(markup).toContain(
+      'The selected PDF page cannot currently render. Crop is disabled until the page renders again.',
+    );
   });
 
   it('shows page render feedback when an inspected PDF page cannot be rendered', () => {

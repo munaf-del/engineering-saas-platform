@@ -43,6 +43,8 @@ type DraftingUnderlaysPanelProps = {
   onClearCrop: (underlayId: string) => void;
 };
 
+type UnderlayModeAction = 'calibration' | 'crop';
+
 export function DraftingUnderlaysPanel({
   drawingId,
   projectId,
@@ -95,6 +97,10 @@ export function DraftingUnderlaysPanel({
   const selectedDocumentInfo = usePdfDocumentInfo(selectedDocument?.id ?? null);
   const selectedDocumentPage = usePdfPageRender(selectedDocument?.id ?? null, addPageNumber);
   const selectedUnderlayDocumentInfo = usePdfDocumentInfo(selectedUnderlayFileId);
+  const selectedUnderlayPageRender = usePdfPageRender(
+    selectedUnderlayRenderable ? selectedUnderlayFileId : null,
+    selectedUnderlayRenderable ? (selectedUnderlay?.pageNumber ?? null) : null,
+  );
 
   React.useEffect(() => {
     if (!documents.length) {
@@ -131,6 +137,18 @@ export function DraftingUnderlaysPanel({
     calibrationState.pdfPointA != null &&
     calibrationState.pdfPointB != null;
   const isEditingLocked = selectedUnderlay?.locked ?? false;
+  const calibrationBlockedReason = getUnderlayModeBlockedReason({
+    action: 'calibration',
+    underlay: selectedUnderlay,
+    renderable: selectedUnderlayRenderable,
+    pageRenderError: selectedUnderlayPageRender.error,
+  });
+  const cropBlockedReason = getUnderlayModeBlockedReason({
+    action: 'crop',
+    underlay: selectedUnderlay,
+    renderable: selectedUnderlayRenderable,
+    pageRenderError: selectedUnderlayPageRender.error,
+  });
 
   async function handleUploadPdf() {
     if (!uploadFile) {
@@ -201,6 +219,32 @@ export function DraftingUnderlaysPanel({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to apply calibration');
     }
+  }
+
+  function handleBeginCalibration() {
+    if (!selectedUnderlay) {
+      return;
+    }
+
+    if (calibrationBlockedReason) {
+      toast.error(calibrationBlockedReason);
+      return;
+    }
+
+    onBeginCalibration(selectedUnderlay.id);
+  }
+
+  function handleBeginCrop() {
+    if (!selectedUnderlay) {
+      return;
+    }
+
+    if (cropBlockedReason) {
+      toast.error(cropBlockedReason);
+      return;
+    }
+
+    onBeginCrop(selectedUnderlay.id);
   }
 
   return (
@@ -427,7 +471,8 @@ export function DraftingUnderlaysPanel({
             {!selectedUnderlayRenderable ? (
               <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
                 This PDF underlay is unavailable and is skipped on the canvas. Check the PDF file,
-                page, transform, opacity, and crop metadata before editing it.
+                page, transform, opacity, and crop metadata before editing it. Calibration and crop
+                stay disabled until the underlay can render safely again.
               </div>
             ) : (
               <>
@@ -567,8 +612,8 @@ export function DraftingUnderlaysPanel({
                       ) : (
                         <Button
                           variant="outline"
-                          onClick={() => onBeginCalibration(selectedUnderlay.id)}
-                          disabled={isEditingLocked}
+                          onClick={handleBeginCalibration}
+                          disabled={Boolean(calibrationBlockedReason)}
                         >
                           Start Calibration
                         </Button>
@@ -587,7 +632,9 @@ export function DraftingUnderlaysPanel({
                       <p>Not calibrated yet.</p>
                     )}
 
-                    {calibrationState?.underlayId === selectedUnderlay.id ? (
+                    {calibrationBlockedReason ? (
+                      <p className="mt-2">{calibrationBlockedReason}</p>
+                    ) : calibrationState?.underlayId === selectedUnderlay.id ? (
                       <p className="mt-2">
                         {!calibrationState.pdfPointA
                           ? 'Click the first reference point on the PDF underlay.'
@@ -635,8 +682,8 @@ export function DraftingUnderlaysPanel({
                       ) : (
                         <Button
                           variant="outline"
-                          onClick={() => onBeginCrop(selectedUnderlay.id)}
-                          disabled={isEditingLocked}
+                          onClick={handleBeginCrop}
+                          disabled={Boolean(cropBlockedReason)}
                         >
                           Start Crop
                         </Button>
@@ -662,7 +709,9 @@ export function DraftingUnderlaysPanel({
                     ) : (
                       <p>No crop applied yet.</p>
                     )}
-                    {cropModeUnderlayId === selectedUnderlay.id ? (
+                    {cropBlockedReason ? (
+                      <p className="mt-2">{cropBlockedReason}</p>
+                    ) : cropModeUnderlayId === selectedUnderlay.id ? (
                       <p className="mt-2">
                         Click and drag on the selected PDF underlay to define a rectangular crop.
                       </p>
@@ -676,4 +725,41 @@ export function DraftingUnderlaysPanel({
       ) : null}
     </div>
   );
+}
+
+function getUnderlayModeBlockedReason({
+  action,
+  underlay,
+  renderable,
+  pageRenderError,
+}: {
+  action: UnderlayModeAction;
+  underlay: DraftingUnderlay | null;
+  renderable: boolean;
+  pageRenderError: Error | null;
+}) {
+  if (!underlay) {
+    return null;
+  }
+
+  const actionLabel = action === 'calibration' ? 'calibration' : 'crop';
+  const actionTitle = action === 'calibration' ? 'Calibration' : 'Crop';
+
+  if (underlay.locked) {
+    return `Unlock the underlay before ${actionLabel}.`;
+  }
+
+  if (!underlay.visible) {
+    return `Show the underlay before ${actionLabel}.`;
+  }
+
+  if (!renderable) {
+    return `This underlay is unavailable or its page metadata is invalid. ${actionTitle} is disabled until the underlay can render safely again.`;
+  }
+
+  if (pageRenderError) {
+    return `The selected PDF page cannot currently render. ${actionTitle} is disabled until the page renders again.`;
+  }
+
+  return null;
 }
