@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Field, NumberField } from '../properties/common-object-properties';
 import { useProjectDocuments, useUploadProjectDocument } from '@/hooks/use-documents';
 import { usePdfDocumentInfo, usePdfPageRender } from '../hooks/use-pdf-underlay-render';
-import { clampNumber, formatDraftingTimestamp } from '../model-utils';
+import { clampNumber, formatDraftingTimestamp, isDraftingUnderlayRenderable } from '../model-utils';
 
 const CALIBRATION_WARNING_TEXT =
   'PDF calibration depends on the accuracy of the source drawing. Scanned, stretched, or distorted PDFs may not be reliable for measurement. This version supports uniform two-point calibration only and does not rectify warped drawings.';
@@ -71,13 +71,30 @@ export function DraftingUnderlaysPanel({
   const [warningAcknowledged, setWarningAcknowledged] = React.useState(false);
 
   const documents = React.useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
+  const visibleUnderlayCount = React.useMemo(
+    () => underlays.filter((underlay) => underlay.visible).length,
+    [underlays],
+  );
+  const skippedVisibleUnderlayCount = React.useMemo(
+    () =>
+      underlays.filter((underlay) => underlay.visible && !isDraftingUnderlayRenderable(underlay))
+        .length,
+    [underlays],
+  );
+  const selectedUnderlayRenderable = selectedUnderlay
+    ? isDraftingUnderlayRenderable(selectedUnderlay)
+    : true;
+  const selectedUnderlayFileId =
+    typeof selectedUnderlay?.fileId === 'string' && selectedUnderlay.fileId.trim().length > 0
+      ? selectedUnderlay.fileId
+      : null;
   const selectedDocument = React.useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
     [documents, selectedDocumentId],
   );
   const selectedDocumentInfo = usePdfDocumentInfo(selectedDocument?.id ?? null);
   const selectedDocumentPage = usePdfPageRender(selectedDocument?.id ?? null, addPageNumber);
-  const selectedUnderlayDocumentInfo = usePdfDocumentInfo(selectedUnderlay?.fileId ?? null);
+  const selectedUnderlayDocumentInfo = usePdfDocumentInfo(selectedUnderlayFileId);
 
   React.useEffect(() => {
     if (!documents.length) {
@@ -304,35 +321,54 @@ export function DraftingUnderlaysPanel({
               No underlays are loaded yet.
             </div>
           ) : (
-            underlays.map((underlay) => (
-              <button
-                key={underlay.id}
-                type="button"
-                className={`w-full rounded-md border p-3 text-left transition ${
-                  selectedUnderlay?.id === underlay.id
-                    ? 'border-emerald-600 bg-emerald-50'
-                    : 'border-border bg-background hover:border-emerald-300'
-                }`}
-                onClick={() => onSelectUnderlay(underlay.id)}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{underlay.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {underlay.fileName} · page {underlay.pageNumber}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={underlay.visible ? 'success' : 'secondary'}>
-                      {underlay.visible ? 'Visible' : 'Hidden'}
-                    </Badge>
-                    <Badge variant={underlay.locked ? 'warning' : 'outline'}>
-                      {underlay.locked ? 'Locked' : 'Unlocked'}
-                    </Badge>
-                  </div>
+            <>
+              {visibleUnderlayCount === 0 ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  All loaded PDF underlays are hidden, so none render on the canvas.
                 </div>
-              </button>
-            ))
+              ) : skippedVisibleUnderlayCount > 0 ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  {skippedVisibleUnderlayCount} visible PDF underlay
+                  {skippedVisibleUnderlayCount === 1 ? ' is' : 's are'} unavailable and skipped on
+                  the canvas.
+                </div>
+              ) : null}
+
+              {underlays.map((underlay) => {
+                const renderable = isDraftingUnderlayRenderable(underlay);
+
+                return (
+                  <button
+                    key={underlay.id}
+                    type="button"
+                    className={`w-full rounded-md border p-3 text-left transition ${
+                      selectedUnderlay?.id === underlay.id
+                        ? 'border-emerald-600 bg-emerald-50'
+                        : 'border-border bg-background hover:border-emerald-300'
+                    }`}
+                    onClick={() => onSelectUnderlay(underlay.id)}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{underlay.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {underlay.fileName} · page {underlay.pageNumber}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={underlay.visible ? 'success' : 'secondary'}>
+                          {underlay.visible ? 'Visible' : 'Hidden'}
+                        </Badge>
+                        <Badge variant={underlay.locked ? 'warning' : 'outline'}>
+                          {underlay.locked ? 'Locked' : 'Unlocked'}
+                        </Badge>
+                        {!renderable ? <Badge variant="warning">Unavailable</Badge> : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </>
           )}
         </CardContent>
       </Card>
@@ -375,242 +411,253 @@ export function DraftingUnderlaysPanel({
               </Button>
             </div>
 
-            {selectedUnderlay.locked ? (
+            {!selectedUnderlayRenderable ? (
               <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                This underlay is locked. Unlock it to move, rotate, scale, crop, or calibrate it.
+                This PDF underlay is unavailable and is skipped on the canvas. Check the PDF file,
+                page, transform, opacity, and crop metadata before editing it.
               </div>
-            ) : null}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name">
-                <Input
-                  value={selectedUnderlay.name}
-                  disabled={isEditingLocked}
-                  onChange={(event) =>
-                    updateSelectedUnderlay((underlay) => ({
-                      ...underlay,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </Field>
-
-              <NumberField
-                label="Page Number"
-                value={selectedUnderlay.pageNumber}
-                disabled={isEditingLocked}
-                onChange={(value) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    pageNumber: Math.max(
-                      1,
-                      Math.min(value, selectedUnderlayDocumentInfo.data?.pageCount ?? value),
-                    ),
-                    crop: null,
-                    calibration: null,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Opacity</label>
-              <input
-                className="w-full"
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(selectedUnderlay.opacity * 100)}
-                disabled={isEditingLocked}
-                onChange={(event) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    opacity: clampNumber(Number(event.target.value) / 100, 0, 1),
-                  }))
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                {Math.round(selectedUnderlay.opacity * 100)}% opacity
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <NumberField
-                label="Position X (mm)"
-                value={Math.round(selectedUnderlay.transform.x)}
-                disabled={isEditingLocked}
-                onChange={(value) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    transform: {
-                      ...underlay.transform,
-                      x: value,
-                    },
-                  }))
-                }
-              />
-              <NumberField
-                label="Position Y (mm)"
-                value={Math.round(selectedUnderlay.transform.y)}
-                disabled={isEditingLocked}
-                onChange={(value) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    transform: {
-                      ...underlay.transform,
-                      y: value,
-                    },
-                  }))
-                }
-              />
-              <NumberField
-                label="Uniform Scale"
-                value={Number(selectedUnderlay.transform.scale.toFixed(6))}
-                disabled={isEditingLocked}
-                onChange={(value) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    transform: {
-                      ...underlay.transform,
-                      scale: Math.max(value, 0.000001),
-                    },
-                  }))
-                }
-              />
-              <NumberField
-                label="Rotation (deg)"
-                value={Number(selectedUnderlay.transform.rotationDeg.toFixed(2))}
-                disabled={isEditingLocked}
-                onChange={(value) =>
-                  updateSelectedUnderlay((underlay) => ({
-                    ...underlay,
-                    transform: {
-                      ...underlay.transform,
-                      rotationDeg: value,
-                    },
-                  }))
-                }
-              />
-            </div>
-
-            <div className="rounded-md border p-3">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">Calibration</p>
-                  <p className="text-sm text-muted-foreground">
-                    Uniform two-point calibration only. No warp, skew, rectification, or non-uniform
-                    scaling.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {calibrationState?.underlayId === selectedUnderlay.id ? (
-                    <Button variant="outline" onClick={onCancelCalibration}>
-                      Cancel Calibration
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      onClick={() => onBeginCalibration(selectedUnderlay.id)}
-                      disabled={isEditingLocked}
-                    >
-                      Start Calibration
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                {selectedUnderlay.calibration ? (
-                  <p>
-                    Calibrated at scale {selectedUnderlay.calibration.calculatedScale.toFixed(6)} on{' '}
-                    {formatDraftingTimestamp(selectedUnderlay.calibration.calibratedAt)}.
-                  </p>
-                ) : (
-                  <p>Not calibrated yet.</p>
-                )}
-
-                {calibrationState?.underlayId === selectedUnderlay.id ? (
-                  <p className="mt-2">
-                    {!calibrationState.pdfPointA
-                      ? 'Click the first reference point on the PDF underlay.'
-                      : !calibrationState.pdfPointB
-                        ? 'Click the second reference point on the PDF underlay.'
-                        : 'Enter the real-world distance in millimetres and acknowledge the warning before applying calibration.'}
-                  </p>
+            ) : (
+              <>
+                {selectedUnderlay.locked ? (
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    This underlay is locked. Unlock it to move, rotate, scale, crop, or calibrate
+                    it.
+                  </div>
                 ) : null}
-              </div>
 
-              {isCalibrationReady ? (
-                <div className="mt-4 space-y-3">
-                  <NumberField
-                    label="Real-World Distance (mm)"
-                    value={calibrationDistanceMm}
-                    onChange={(value) => setCalibrationDistanceMm(String(value))}
-                  />
-                  <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={warningAcknowledged}
-                      onChange={(event) => setWarningAcknowledged(event.target.checked)}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Name">
+                    <Input
+                      value={selectedUnderlay.name}
+                      disabled={isEditingLocked}
+                      onChange={(event) =>
+                        updateSelectedUnderlay((underlay) => ({
+                          ...underlay,
+                          name: event.target.value,
+                        }))
+                      }
                     />
-                    <span>{CALIBRATION_WARNING_TEXT}</span>
-                  </label>
-                  <Button onClick={handleApplyCalibration}>Apply Uniform Calibration</Button>
-                </div>
-              ) : null}
-            </div>
+                  </Field>
 
-            <div className="rounded-md border p-3">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">Crop</p>
+                  <NumberField
+                    label="Page Number"
+                    value={selectedUnderlay.pageNumber}
+                    disabled={isEditingLocked}
+                    onChange={(value) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        pageNumber: Math.max(
+                          1,
+                          Math.min(value, selectedUnderlayDocumentInfo.data?.pageCount ?? value),
+                        ),
+                        crop: null,
+                        calibration: null,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Opacity</label>
+                  <input
+                    className="w-full"
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(selectedUnderlay.opacity * 100)}
+                    disabled={isEditingLocked}
+                    onChange={(event) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        opacity: clampNumber(Number(event.target.value) / 100, 0, 1),
+                      }))
+                    }
+                  />
                   <p className="text-sm text-muted-foreground">
-                    Crop affects display and exported JSON metadata only. The original PDF file is
-                    unchanged.
+                    {Math.round(selectedUnderlay.opacity * 100)}% opacity
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  {cropModeUnderlayId === selectedUnderlay.id ? (
-                    <Button variant="outline" onClick={onCancelCrop}>
-                      Cancel Crop
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      onClick={() => onBeginCrop(selectedUnderlay.id)}
-                      disabled={isEditingLocked}
-                    >
-                      Start Crop
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => onClearCrop(selectedUnderlay.id)}
-                    disabled={!selectedUnderlay.crop}
-                  >
-                    Clear Crop
-                  </Button>
-                </div>
-              </div>
 
-              <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                {selectedUnderlay.crop ? (
-                  <p>
-                    Crop rectangle: x {selectedUnderlay.crop.x.toFixed(1)}, y{' '}
-                    {selectedUnderlay.crop.y.toFixed(1)}, width{' '}
-                    {selectedUnderlay.crop.width.toFixed(1)}, height{' '}
-                    {selectedUnderlay.crop.height.toFixed(1)}.
-                  </p>
-                ) : (
-                  <p>No crop applied yet.</p>
-                )}
-                {cropModeUnderlayId === selectedUnderlay.id ? (
-                  <p className="mt-2">
-                    Click and drag on the selected PDF underlay to define a rectangular crop.
-                  </p>
-                ) : null}
-              </div>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <NumberField
+                    label="Position X (mm)"
+                    value={Math.round(selectedUnderlay.transform.x)}
+                    disabled={isEditingLocked}
+                    onChange={(value) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        transform: {
+                          ...underlay.transform,
+                          x: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    label="Position Y (mm)"
+                    value={Math.round(selectedUnderlay.transform.y)}
+                    disabled={isEditingLocked}
+                    onChange={(value) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        transform: {
+                          ...underlay.transform,
+                          y: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    label="Uniform Scale"
+                    value={Number(selectedUnderlay.transform.scale.toFixed(6))}
+                    disabled={isEditingLocked}
+                    onChange={(value) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        transform: {
+                          ...underlay.transform,
+                          scale: Math.max(value, 0.000001),
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    label="Rotation (deg)"
+                    value={Number(selectedUnderlay.transform.rotationDeg.toFixed(2))}
+                    disabled={isEditingLocked}
+                    onChange={(value) =>
+                      updateSelectedUnderlay((underlay) => ({
+                        ...underlay,
+                        transform: {
+                          ...underlay.transform,
+                          rotationDeg: value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="rounded-md border p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">Calibration</p>
+                      <p className="text-sm text-muted-foreground">
+                        Uniform two-point calibration only. No warp, skew, rectification, or
+                        non-uniform scaling.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {calibrationState?.underlayId === selectedUnderlay.id ? (
+                        <Button variant="outline" onClick={onCancelCalibration}>
+                          Cancel Calibration
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          onClick={() => onBeginCalibration(selectedUnderlay.id)}
+                          disabled={isEditingLocked}
+                        >
+                          Start Calibration
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {selectedUnderlay.calibration ? (
+                      <p>
+                        Calibrated at scale{' '}
+                        {selectedUnderlay.calibration.calculatedScale.toFixed(6)} on{' '}
+                        {formatDraftingTimestamp(selectedUnderlay.calibration.calibratedAt)}.
+                      </p>
+                    ) : (
+                      <p>Not calibrated yet.</p>
+                    )}
+
+                    {calibrationState?.underlayId === selectedUnderlay.id ? (
+                      <p className="mt-2">
+                        {!calibrationState.pdfPointA
+                          ? 'Click the first reference point on the PDF underlay.'
+                          : !calibrationState.pdfPointB
+                            ? 'Click the second reference point on the PDF underlay.'
+                            : 'Enter the real-world distance in millimetres and acknowledge the warning before applying calibration.'}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {isCalibrationReady ? (
+                    <div className="mt-4 space-y-3">
+                      <NumberField
+                        label="Real-World Distance (mm)"
+                        value={calibrationDistanceMm}
+                        onChange={(value) => setCalibrationDistanceMm(String(value))}
+                      />
+                      <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={warningAcknowledged}
+                          onChange={(event) => setWarningAcknowledged(event.target.checked)}
+                        />
+                        <span>{CALIBRATION_WARNING_TEXT}</span>
+                      </label>
+                      <Button onClick={handleApplyCalibration}>Apply Uniform Calibration</Button>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-md border p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">Crop</p>
+                      <p className="text-sm text-muted-foreground">
+                        Crop affects display and exported JSON metadata only. The original PDF file
+                        is unchanged.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {cropModeUnderlayId === selectedUnderlay.id ? (
+                        <Button variant="outline" onClick={onCancelCrop}>
+                          Cancel Crop
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          onClick={() => onBeginCrop(selectedUnderlay.id)}
+                          disabled={isEditingLocked}
+                        >
+                          Start Crop
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={() => onClearCrop(selectedUnderlay.id)}
+                        disabled={!selectedUnderlay.crop}
+                      >
+                        Clear Crop
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {selectedUnderlay.crop ? (
+                      <p>
+                        Crop rectangle: x {selectedUnderlay.crop.x.toFixed(1)}, y{' '}
+                        {selectedUnderlay.crop.y.toFixed(1)}, width{' '}
+                        {selectedUnderlay.crop.width.toFixed(1)}, height{' '}
+                        {selectedUnderlay.crop.height.toFixed(1)}.
+                      </p>
+                    ) : (
+                      <p>No crop applied yet.</p>
+                    )}
+                    {cropModeUnderlayId === selectedUnderlay.id ? (
+                      <p className="mt-2">
+                        Click and drag on the selected PDF underlay to define a rectangular crop.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : null}
