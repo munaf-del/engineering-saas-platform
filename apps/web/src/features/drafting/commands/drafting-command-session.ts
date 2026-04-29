@@ -223,6 +223,11 @@ export type DraftingManualTwoPointEngineeringPlacement = {
   startPoint: DraftingPoint;
 };
 
+export type DraftingManualPathEngineeringPlacement = {
+  points: DraftingPoint[];
+  sourceMode: 'manual_sketch';
+};
+
 export type DraftingMonitoringPointCommandCommit =
   | {
       committed: false;
@@ -1246,5 +1251,16 @@ export function createManualTwoPointEngineeringPlacement(
     endPoint: cloneDraftingPoint(endPoint),
     sourceMode: 'manual_sketch',
     startPoint: cloneDraftingPoint(startPoint),
+  };
+}
+
+// Path engineering commands capture ordered manual/sketch vertices only.
+// Derived path metadata stays factory-owned or source-owned.
+export function createManualPathEngineeringPlacement(
+  points: readonly DraftingPoint[],
+): DraftingManualPathEngineeringPlacement {
+  return {
+    points: points.map(cloneDraftingPoint),
+    sourceMode: 'manual_sketch',
   };
 }

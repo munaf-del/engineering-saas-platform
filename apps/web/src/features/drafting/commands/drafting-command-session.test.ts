@@ -16,6 +16,7 @@ import {
   commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
   createManualDraftingPointPlacement,
+  createManualPathEngineeringPlacement,
   createManualTwoPointEngineeringPlacement,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
@@ -1595,6 +1596,210 @@ describe('drafting command session', () => {
       },
       sourceMode: 'manual_sketch',
     });
+  });
+
+  it('creates a manual path engineering placement without deriving path or engineering values', () => {
+    const points: DraftingPoint[] = [
+      {
+        x: 0,
+        y: 0,
+        z: 12.5,
+        rl: 12.5,
+        snapRef: {
+          sourceObjectId: 'path-source-1',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+        },
+      },
+      {
+        x: 1800,
+        y: 450,
+        z: 12.2,
+        rl: 12.2,
+        snapRef: {
+          sourceObjectId: 'path-source-1',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 1800, y: 450, z: 12.2, rl: 12.2 },
+        },
+      },
+      {
+        x: 3600,
+        y: 900,
+        z: 12,
+        rl: 12,
+        snapRef: {
+          sourceObjectId: 'path-source-1',
+          anchorKind: 'vertex',
+          anchorIndex: 2,
+          capturedCoordinate: { x: 3600, y: 900, z: 12, rl: 12 },
+        },
+      },
+    ];
+
+    const placement = createManualPathEngineeringPlacement(points);
+
+    expect(placement).toEqual({
+      points,
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement).not.toHaveProperty('lengthMm');
+    expect(placement).not.toHaveProperty('areaMm2');
+    expect(placement).not.toHaveProperty('levelRl');
+    expect(placement).not.toHaveProperty('widthMm');
+    expect(placement).not.toHaveProperty('material');
+    expect(placement).not.toHaveProperty('serviceDepthMm');
+    expect(placement).not.toHaveProperty('designLoadKn');
+    expect(placement).not.toHaveProperty('capacity');
+    expect(placement).not.toHaveProperty('sourceRef');
+  });
+
+  it('clones every manual path engineering placement vertex', () => {
+    const points: DraftingPoint[] = [
+      {
+        x: 100,
+        y: 200,
+        z: 10.1,
+        rl: 10.1,
+        snapRef: {
+          sourceObjectId: 'path-a',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 100, y: 200, z: 10.1, rl: 10.1 },
+        },
+      },
+      {
+        x: 900,
+        y: 1200,
+        z: 10.4,
+        rl: 10.4,
+        snapRef: {
+          sourceObjectId: 'path-a',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 900, y: 1200, z: 10.4, rl: 10.4 },
+        },
+      },
+    ];
+
+    const placement = createManualPathEngineeringPlacement(points);
+    const firstPoint = points[0]!;
+    const secondPoint = points[1]!;
+
+    firstPoint.x = -1;
+    firstPoint.y = -1;
+    firstPoint.z = -1;
+    firstPoint.rl = -1;
+    firstPoint.snapRef = {
+      sourceObjectId: 'mutated-start',
+      anchorKind: 'vertex',
+      anchorIndex: 8,
+      capturedCoordinate: { x: -1, y: -1, z: -1, rl: -1 },
+    };
+    secondPoint.x = -2;
+    secondPoint.y = -2;
+    secondPoint.z = -2;
+    secondPoint.rl = -2;
+    secondPoint.snapRef = {
+      sourceObjectId: 'mutated-end',
+      anchorKind: 'vertex',
+      anchorIndex: 9,
+      capturedCoordinate: { x: -2, y: -2, z: -2, rl: -2 },
+    };
+
+    expect(placement).toEqual({
+      points: [
+        {
+          x: 100,
+          y: 200,
+          z: 10.1,
+          rl: 10.1,
+          snapRef: {
+            sourceObjectId: 'path-a',
+            anchorKind: 'vertex',
+            anchorIndex: 0,
+            capturedCoordinate: { x: 100, y: 200, z: 10.1, rl: 10.1 },
+          },
+        },
+        {
+          x: 900,
+          y: 1200,
+          z: 10.4,
+          rl: 10.4,
+          snapRef: {
+            sourceObjectId: 'path-a',
+            anchorKind: 'vertex',
+            anchorIndex: 1,
+            capturedCoordinate: { x: 900, y: 1200, z: 10.4, rl: 10.4 },
+          },
+        },
+      ],
+      sourceMode: 'manual_sketch',
+    });
+  });
+
+  it('keeps path placement vertex collection separate from path validation semantics', () => {
+    expect(createManualPathEngineeringPlacement([])).toEqual({
+      points: [],
+      sourceMode: 'manual_sketch',
+    });
+
+    expect(createManualPathEngineeringPlacement([{ x: 250, y: 500 }])).toEqual({
+      points: [{ x: 250, y: 500 }],
+      sourceMode: 'manual_sketch',
+    });
+  });
+
+  it('packages future path-family placement points without creating tool objects', () => {
+    const futureManualPathInputs = [
+      {
+        label: 'excavation_line',
+        points: [
+          { x: 0, y: 0 },
+          { x: 1000, y: 0 },
+        ],
+      },
+      {
+        label: 'capping_beam',
+        points: [
+          { x: 0, y: 100 },
+          { x: 1000, y: 100 },
+        ],
+      },
+      {
+        label: 'waler',
+        points: [
+          { x: 0, y: 200 },
+          { x: 1000, y: 200 },
+        ],
+      },
+      {
+        label: 'service_run',
+        points: [
+          { x: 0, y: 300 },
+          { x: 1000, y: 300 },
+          { x: 1500, y: 600 },
+        ],
+      },
+    ] as const satisfies ReadonlyArray<{
+      label: 'capping_beam' | 'excavation_line' | 'service_run' | 'waler';
+      points: readonly DraftingPoint[];
+    }>;
+
+    for (const input of futureManualPathInputs) {
+      const placement = createManualPathEngineeringPlacement(input.points);
+
+      expect(placement.sourceMode).toBe('manual_sketch');
+      expect(placement.points).toEqual(input.points);
+      expect(placement.points).toHaveLength(input.points.length);
+      expect(placement).not.toHaveProperty('tool');
+      expect(placement).not.toHaveProperty('lengthMm');
+      expect(placement).not.toHaveProperty('widthMm');
+      expect(placement).not.toHaveProperty('levelRl');
+      expect(placement).not.toHaveProperty('serviceType');
+      expect(placement).not.toHaveProperty('sourceRef');
+    }
   });
 
   it('starts a polyline path command waiting for the first point', () => {
