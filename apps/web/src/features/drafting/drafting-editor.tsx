@@ -718,11 +718,15 @@ export function DraftingEditor({
       }
 
       if ('placement' in commandResult) {
+        const placementPoints =
+          'vertices' in commandResult.placement
+            ? commandResult.placement.vertices
+            : commandResult.placement.points;
         const nextObject = createDraftingObject(
           commandResult.tool,
-          commandResult.placement.points[0]!,
+          placementPoints[0]!,
           currentModel,
-          commandResult.placement.points,
+          placementPoints,
           currentUserName,
         );
 

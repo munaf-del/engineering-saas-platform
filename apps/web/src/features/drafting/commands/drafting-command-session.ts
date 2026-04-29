@@ -15,11 +15,13 @@ export type DraftingSketchPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingExcavationLineCommandTool = 'excavation_line';
 export type DraftingCappingBeamCommandTool = 'capping_beam';
 export type DraftingWalerCommandTool = 'waler';
+export type DraftingServiceRunCommandTool = 'service_run';
 export type DraftingPathCommandTool =
   | DraftingSketchPathCommandTool
   | DraftingExcavationLineCommandTool
   | DraftingCappingBeamCommandTool
-  | DraftingWalerCommandTool;
+  | DraftingWalerCommandTool
+  | DraftingServiceRunCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -43,6 +45,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 export const DRAFTING_PATH_COMMAND_TOOLS = [
   'capping_beam',
   'excavation_line',
+  'service_run',
   'waler',
   'draft_polyline',
   'draft_polygon',
@@ -348,6 +351,13 @@ export type DraftingPathCommandCommit =
         | DraftingCappingBeamCommandTool
         | DraftingExcavationLineCommandTool
         | DraftingWalerCommandTool;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualServiceRunPlacement;
+      points: DraftingPoint[];
+      session: DraftingCommandSession;
+      tool: DraftingServiceRunCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -482,6 +492,10 @@ export function startDraftingCappingBeamCommand(): ActiveDraftingPathCommandSess
 
 export function startDraftingWalerCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('waler');
+}
+
+export function startDraftingServiceRunCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('service_run');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1184,6 +1198,19 @@ export function finishDraftingPathCommand(
   session: DraftingCommandSession,
 ): DraftingPathCommandCommit {
   switch (session.tool) {
+    case 'service_run': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualServiceRunPlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'service_run',
+      };
+    }
     case 'waler': {
       if (session.points.length < 2) {
         return { committed: false, session };

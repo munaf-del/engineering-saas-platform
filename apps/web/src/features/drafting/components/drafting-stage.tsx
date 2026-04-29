@@ -981,6 +981,21 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'service_run') {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-service-run"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (tool === 'excavation_line') {
     return (
       <polyline

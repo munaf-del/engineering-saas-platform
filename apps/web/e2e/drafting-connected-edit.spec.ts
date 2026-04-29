@@ -17,6 +17,7 @@ import type {
   DraftingRectangleObject,
   DraftingSectionMarkerObject,
   DraftingServiceCrossingObject,
+  DraftingServiceRunObject,
   DraftingStructuralJointObject,
   DraftingWalerObject,
   Project,
@@ -2179,6 +2180,171 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(exportedWaler!.sourceRef).toBeUndefined();
       expect(exportedWaler).not.toHaveProperty('designLoad');
       expect(exportedWaler).not.toHaveProperty('capacity');
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a manual service run through the shared service-run boundary', async ({ page }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.43, yRatio: 0.44 },
+        page,
+        previewTestId: 'drafting-command-preview-service-run',
+        start: { xRatio: 0.34, yRatio: 0.48 },
+        toolLabel: 'Service run',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-service-run')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.46, yRatio: 0.5 },
+        page,
+        previewTestId: 'drafting-command-preview-service-run',
+        start: { xRatio: 0.36, yRatio: 0.56 },
+        toolLabel: 'Service run',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-service-run')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const ratios = [
+        { xRatio: 0.38, yRatio: 0.62 },
+        { xRatio: 0.5, yRatio: 0.56 },
+        { xRatio: 0.62, yRatio: 0.6 },
+      ];
+      const toolButton = page.getByRole('button', { exact: true, name: 'Service run' });
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      await canvas.scrollIntoViewIfNeeded();
+      const points = await Promise.all(ratios.map((ratio) => pointInLocator(canvas, ratio)));
+
+      await page.mouse.move(points[0]!.x, points[0]!.y);
+      await page.mouse.click(points[0]!.x, points[0]!.y);
+      await expect(page.getByText('1 point(s) captured for the current path.')).toBeVisible();
+      await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-service-run')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(points[1]!.x, points[1]!.y);
+      await page.mouse.move(points[2]!.x, points[2]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-service-run')).toHaveAttribute(
+        'points',
+        /.+ .+ .+/,
+      );
+      await page.mouse.click(points[2]!.x, points[2]!.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-service-run')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredServiceRunId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredServiceRunId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredServiceRunId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredServiceRun = reloadedDrawing.model.objects.find(
+        (object): object is DraftingServiceRunObject =>
+          object.id === authoredServiceRunId && object.type === 'service_run',
+      );
+      expect(authoredServiceRun).toBeDefined();
+      expect(authoredServiceRun!.geometry.path).toHaveLength(3);
+      expect(authoredServiceRun!.parameters.serviceId).toMatch(/^SR\d+$/);
+      expect(authoredServiceRun!.parameters.serviceType).toBe('unknown');
+      expect(authoredServiceRun!.parameters.status).toBe('existing');
+      expect(authoredServiceRun!.parameters.diameterMm).toBe(0);
+      expect(authoredServiceRun!.parameters.depthM).toBe(0);
+      expect(authoredServiceRun!.parameters.levelRl).toBe(0);
+      expect(authoredServiceRun!.parameters.authority).toBe('');
+      expect(authoredServiceRun!.metadata.sourceReference).toBe('');
+      expect(authoredServiceRun!.metadata.surveyConfidence).toBe('');
+      expect(authoredServiceRun!.metadata.notes).toBe('');
+      expect(authoredServiceRun!.sourceRef).toMatchObject({
+        sourceType: 'manual',
+        status: 'manual',
+      });
+      expect(authoredServiceRun!.parameters).not.toHaveProperty('clearanceMm');
+      expect(authoredServiceRun!.parameters).not.toHaveProperty('riskStatus');
+      expect(authoredServiceRun).not.toHaveProperty('strata');
+      expect(authoredServiceRun).not.toHaveProperty('surface');
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedServiceRun = exported.model.objects.find(
+        (object): object is DraftingServiceRunObject =>
+          object.id === authoredServiceRunId && object.type === 'service_run',
+      );
+      expect(exportedServiceRun).toBeDefined();
+      expect(exportedServiceRun!.geometry.path).toHaveLength(3);
+      expect(exportedServiceRun!.parameters.serviceId).toBe(
+        authoredServiceRun!.parameters.serviceId,
+      );
+      expect(exportedServiceRun!.parameters.serviceType).toBe('unknown');
+      expect(exportedServiceRun!.parameters.status).toBe('existing');
+      expect(exportedServiceRun!.parameters.depthM).toBe(0);
+      expect(exportedServiceRun!.parameters.levelRl).toBe(0);
+      expect(exportedServiceRun!.sourceRef).toMatchObject({
+        sourceType: 'manual',
+        status: 'manual',
+      });
+      expect(exportedServiceRun!.parameters).not.toHaveProperty('clearanceMm');
+      expect(exportedServiceRun!.parameters).not.toHaveProperty('riskStatus');
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
