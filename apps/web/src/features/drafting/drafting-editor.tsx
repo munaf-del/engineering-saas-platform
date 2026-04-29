@@ -64,6 +64,7 @@ import {
   type DraftingSpatialSourceRecord,
 } from './source-binding-utils';
 import {
+  isDraftingAnchorTiebackCommandTool,
   isDraftingCalloutCommandTool,
   isDraftingDimensionCommandTool,
   isDraftingLeaderNoteCommandTool,
@@ -82,11 +83,7 @@ import type { DraftingPileSourceMode } from './components/drafting-tool-palette'
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
-const TWO_POINT_AUTHORING_TOOLS = new Set([
-  'secant_pile_wall',
-  'soldier_pile_wall',
-  'anchor_tieback',
-]);
+const TWO_POINT_AUTHORING_TOOLS = new Set(['secant_pile_wall', 'soldier_pile_wall']);
 
 const PATH_AUTHORING_TOOLS = new Set([
   'excavation_line',
@@ -536,6 +533,29 @@ export function DraftingEditor({
         commandResult.placement.point,
         currentModel,
         [],
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
+    if (isDraftingAnchorTiebackCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitAnchorTiebackCommandPoint(point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const placementPoints = [
+        commandResult.placement.startPoint,
+        commandResult.placement.endPoint,
+      ];
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.placement.startPoint,
+        currentModel,
+        placementPoints,
         currentUserName,
       );
       history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
@@ -1098,6 +1118,8 @@ export function DraftingEditor({
               pileSourceMode === 'manual_sketch'
             ) {
               drafting.updatePileCommandPreview(point);
+            } else if (isDraftingAnchorTiebackCommandTool(drafting.activeTool)) {
+              drafting.updateAnchorTiebackCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1418,6 +1440,10 @@ function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number)
 
   if (TWO_POINT_AUTHORING_TOOLS.has(tool)) {
     return pendingPointCount === 0 ? 'Pick start point' : 'Pick end point';
+  }
+
+  if (isDraftingAnchorTiebackCommandTool(tool)) {
+    return pendingPointCount === 0 ? 'Pick anchor head point' : 'Pick tieback tail point';
   }
 
   if (isDraftingSectionMarkerCommandTool(tool)) {

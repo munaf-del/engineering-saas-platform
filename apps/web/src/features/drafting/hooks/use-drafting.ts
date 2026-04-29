@@ -8,6 +8,7 @@ import {
 import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   cancelDraftingCommandSession,
+  commitDraftingAnchorTiebackCommandPoint,
   commitDraftingBoreholeCommandPoint,
   commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
@@ -24,6 +25,7 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  isDraftingAnchorTiebackCommandTool,
   isDraftingBoreholeCommandTool,
   isDraftingCalloutCommandTool,
   isDraftingCommandTool,
@@ -36,6 +38,7 @@ import {
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
+  startDraftingAnchorTiebackCommand,
   startDraftingBoreholeCommand,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
@@ -47,6 +50,7 @@ import {
   startDraftingSectionMarkerCommand,
   startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
+  updateDraftingAnchorTiebackCommandPreview,
   updateDraftingBoreholeCommandPreview,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
@@ -58,6 +62,7 @@ import {
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
+  type DraftingAnchorTiebackCommandCommit,
   type DraftingBoreholeCommandCommit,
   type DraftingCommandSession,
   type DraftingCalloutCommandCommit,
@@ -150,6 +155,10 @@ export function useDrafting() {
     }
     if (isDraftingPileCommandTool(tool)) {
       setCommandSession(startDraftingPileCommand());
+      return;
+    }
+    if (isDraftingAnchorTiebackCommandTool(tool)) {
+      setCommandSession(startDraftingAnchorTiebackCommand());
       return;
     }
     setCommandSession(cancelDraftingCommandSession());
@@ -258,6 +267,18 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingPileCommandPreview(current, point));
   }
 
+  function commitAnchorTiebackCommandPoint(
+    point: DraftingPoint | null,
+  ): DraftingAnchorTiebackCommandCommit {
+    const result = commitDraftingAnchorTiebackCommandPoint(commandSession, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateAnchorTiebackCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingAnchorTiebackCommandPreview(current, point));
+  }
+
   function commitDimensionCommandPoint(
     point: DraftingPoint | null,
   ): DraftingDimensionCommandCommit {
@@ -310,6 +331,7 @@ export function useDrafting() {
     clearPendingLine,
     commandPreviewTool: getDraftingCommandTool(commandSession),
     commandPreviewPoints: getDraftingCommandPreviewPoints(commandSession),
+    commitAnchorTiebackCommandPoint,
     commitBoreholeCommandPoint,
     commitCalloutCommandPoint,
     commitDimensionCommandPoint,
@@ -332,6 +354,7 @@ export function useDrafting() {
     snapSettings,
     toggleSnapEnabled,
     toggleSnapMode,
+    updateAnchorTiebackCommandPreview,
     updateBoreholeCommandPreview,
     updateCalloutCommandPreview,
     updateDimensionCommandPreview,

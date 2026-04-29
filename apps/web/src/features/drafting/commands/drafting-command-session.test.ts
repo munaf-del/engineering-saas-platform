@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DraftingPoint } from '@eng/shared';
 import {
   cancelDraftingCommandSession,
+  commitDraftingAnchorTiebackCommandPoint,
   commitDraftingBoreholeCommandPoint,
   commitDraftingCalloutCommandPoint,
   commitDraftingDimensionCommandPoint,
@@ -21,6 +22,7 @@ import {
   getDraftingCommandPreviewPoints,
   getDraftingCommandTool,
   IDLE_DRAFTING_COMMAND_SESSION,
+  startDraftingAnchorTiebackCommand,
   startDraftingBoreholeCommand,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
@@ -34,6 +36,7 @@ import {
   startDraftingServiceCrossingCommand,
   startDraftingStructuralJointCommand,
   startDraftingLineCommand,
+  updateDraftingAnchorTiebackCommandPreview,
   updateDraftingBoreholeCommandPreview,
   updateDraftingCalloutCommandPreview,
   updateDraftingDimensionCommandPreview,
@@ -1239,6 +1242,192 @@ describe('drafting command session', () => {
     if (result.committed) {
       expect(result.placement).toEqual({
         point,
+        sourceMode: 'manual_sketch',
+      });
+    }
+  });
+
+  it('starts an anchor tieback command waiting for the head point', () => {
+    expect(startDraftingAnchorTiebackCommand()).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'anchor_tieback',
+    });
+  });
+
+  it('captures the anchor tieback head point and waits for the tail point', () => {
+    const result = commitDraftingAnchorTiebackCommandPoint(startDraftingAnchorTiebackCommand(), {
+      x: 1000,
+      y: 2000,
+    });
+
+    expect(result.committed).toBe(false);
+    expect(result.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 1000, y: 2000 }],
+      previewPoint: null,
+      tool: 'anchor_tieback',
+    });
+  });
+
+  it('updates anchor tieback preview after the head point is captured', () => {
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      { x: 1000, y: 2000 },
+    );
+    const preview = updateDraftingAnchorTiebackCommandPreview(firstPoint.session, {
+      x: 4200,
+      y: 1500,
+    });
+
+    expect(getDraftingCommandTool(preview)).toBe('anchor_tieback');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 1000, y: 2000 },
+      { x: 4200, y: 1500 },
+    ]);
+  });
+
+  it('does not show an anchor tieback preview before the head point is captured', () => {
+    const preview = updateDraftingAnchorTiebackCommandPreview(startDraftingAnchorTiebackCommand(), {
+      x: 4200,
+      y: 1500,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([]);
+  });
+
+  it('commits a manual anchor tieback placement through the two-point boundary', () => {
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      { x: 1000, y: 2000 },
+    );
+    const result = commitDraftingAnchorTiebackCommandPoint(firstPoint.session, {
+      x: 4200,
+      y: 1500,
+    });
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.tool).toBe('anchor_tieback');
+      expect(result.placement).toEqual({
+        startPoint: { x: 1000, y: 2000 },
+        endPoint: { x: 4200, y: 1500 },
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.placement).not.toHaveProperty('angleDeg');
+      expect(result.placement).not.toHaveProperty('planLengthMm');
+      expect(result.placement).not.toHaveProperty('inclinationDeg');
+      expect(result.placement).not.toHaveProperty('bondLengthMm');
+      expect(result.placement).not.toHaveProperty('designLoadKn');
+      expect(result.placement).not.toHaveProperty('capacity');
+      expect(result.placement).not.toHaveProperty('sourceRef');
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('ignores invalid/no-op anchor tieback placement without crashing', () => {
+    const missing = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      null,
+    );
+    expect(missing.committed).toBe(false);
+    expect(missing.session).toMatchObject({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'anchor_tieback',
+    });
+
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      { x: 1000, y: 2000 },
+    );
+    const duplicate = commitDraftingAnchorTiebackCommandPoint(firstPoint.session, {
+      x: 1000,
+      y: 2000,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(duplicate.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 1000, y: 2000 }],
+      previewPoint: null,
+      tool: 'anchor_tieback',
+    });
+  });
+
+  it('cancels an incomplete anchor tieback command without committing', () => {
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      { x: 1000, y: 2000 },
+    );
+    const preview = updateDraftingAnchorTiebackCommandPreview(firstPoint.session, {
+      x: 4200,
+      y: 1500,
+    });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(2);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete anchor tieback command without committing', () => {
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      { x: 1000, y: 2000 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves anchor tieback snap refs and optional z and rl point metadata', () => {
+    const start: DraftingPoint = {
+      x: 1000,
+      y: 2000,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'wall-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 1000, y: 2000, z: 12.5, rl: 12.5 },
+      },
+    };
+    const end: DraftingPoint = {
+      x: 4200,
+      y: 1500,
+      z: 12.1,
+      rl: 12.1,
+      snapRef: {
+        sourceObjectId: 'wall-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 1,
+        capturedCoordinate: { x: 4200, y: 1500, z: 12.1, rl: 12.1 },
+      },
+    };
+    const firstPoint = commitDraftingAnchorTiebackCommandPoint(
+      startDraftingAnchorTiebackCommand(),
+      start,
+    );
+    const result = commitDraftingAnchorTiebackCommandPoint(firstPoint.session, end);
+
+    expect(result.committed).toBe(true);
+    if (result.committed) {
+      expect(result.placement).toEqual({
+        startPoint: start,
+        endPoint: end,
         sourceMode: 'manual_sketch',
       });
     }

@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type {
+  DraftingAnchorTiebackObject,
   DraftingBoreholeObject,
   DraftingCalloutObject,
   DraftingCircleObject,
@@ -1563,6 +1564,164 @@ test.describe('Drafting connected-edit pointer QA', () => {
       await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}/schedules/preview`);
       await expect(page.getByText(authoredPile!.metadata.pileId).first()).toBeVisible();
       await expect(page.getByText('manual sketch')).toBeVisible();
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a manual anchor tieback through the shared two-point command path', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+      const headRatio = { xRatio: 0.42, yRatio: 0.58 };
+      const tailRatio = { xRatio: 0.56, yRatio: 0.5 };
+      const previewTailPoint = await pointInLocator(canvas, tailRatio);
+      const toolButton = page.getByRole('button', { exact: true, name: 'Anchor / tieback' });
+
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      await clickInLocator(canvas, headRatio);
+      await page.mouse.move(previewTailPoint.x, previewTailPoint.y, { steps: 4 });
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(1);
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await toolButton.click();
+      await clickInLocator(canvas, headRatio);
+      await page.mouse.move(previewTailPoint.x, previewTailPoint.y, { steps: 4 });
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(1);
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      const headPoint = await pointInLocator(canvas, headRatio);
+      const tailPoint = await pointInLocator(canvas, tailRatio);
+      await page.mouse.move(headPoint.x, headPoint.y);
+      await clickInLocator(canvas, headRatio);
+      await page.mouse.move(tailPoint.x, tailPoint.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(1);
+      await clickInLocator(canvas, tailRatio);
+      await expect(page.getByTestId('drafting-command-preview-anchor-tieback')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredAnchorId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredAnchorId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredAnchorId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredAnchor = reloadedDrawing.model.objects.find(
+        (object): object is DraftingAnchorTiebackObject =>
+          object.id === authoredAnchorId && object.type === 'anchor_tieback',
+      );
+      expect(authoredAnchor).toBeDefined();
+      expect(authoredAnchor!.geometry.headPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(authoredAnchor!.geometry.tailPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(authoredAnchor!.geometry.headPoint).not.toEqual(authoredAnchor!.geometry.tailPoint);
+      expect(authoredAnchor!.parameters.anchorId).toMatch(/^A\d+$/);
+      expect(authoredAnchor!.parameters.planLengthMm).toBeGreaterThan(0);
+      expect(Number.isFinite(authoredAnchor!.parameters.angleDeg)).toBe(true);
+      expect(authoredAnchor!.metadata).toMatchObject({
+        associatedWallId: '',
+        installationStage: 'Stage 1',
+        notes: '',
+      });
+      expect(authoredAnchor!.sourceRef).toBeUndefined();
+      expect(authoredAnchor).not.toHaveProperty('capacity');
+      expect(authoredAnchor!.parameters).not.toHaveProperty('capacity');
+      expect(authoredAnchor!.parameters).not.toHaveProperty('inclinationDeg');
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedAnchor = exported.model.objects.find(
+        (object): object is DraftingAnchorTiebackObject =>
+          object.id === authoredAnchorId && object.type === 'anchor_tieback',
+      );
+      expect(exportedAnchor).toBeDefined();
+      expect(exportedAnchor!.geometry.headPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(exportedAnchor!.geometry.tailPoint).toEqual(
+        expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+        }),
+      );
+      expect(exportedAnchor!.parameters.anchorId).toBe(authoredAnchor!.parameters.anchorId);
+      expect(exportedAnchor!.parameters.planLengthMm).toBe(authoredAnchor!.parameters.planLengthMm);
+      expect(exportedAnchor!.parameters.angleDeg).toBe(authoredAnchor!.parameters.angleDeg);
+      expect(exportedAnchor!.sourceRef).toBeUndefined();
+      expect(exportedAnchor!.parameters).not.toHaveProperty('capacity');
+      expect(exportedAnchor!.parameters).not.toHaveProperty('inclinationDeg');
+      expectExportIsMetadataOnly(exportedJson);
+
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}/schedules/preview`);
+      await expect(page.getByText(authoredAnchor!.parameters.anchorId).first()).toBeVisible();
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
       sandboxArchived = true;

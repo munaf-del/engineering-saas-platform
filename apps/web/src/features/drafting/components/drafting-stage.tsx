@@ -895,6 +895,48 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'anchor_tieback') {
+    if (!previewPoint) {
+      return null;
+    }
+
+    return (
+      <g data-testid="drafting-command-preview-anchor-tieback">
+        <line
+          fill="none"
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={previewPoint.x}
+          y1={startPoint!.y}
+          y2={previewPoint.y}
+        />
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={95}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <circle
+          cx={previewPoint.x}
+          cy={previewPoint.y}
+          fill="none"
+          r={60}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
   if (!tool || tool === 'draft_line' || !previewPoint) {
     return (
       <polyline
