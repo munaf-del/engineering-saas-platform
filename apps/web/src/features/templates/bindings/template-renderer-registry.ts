@@ -26,7 +26,10 @@ export function indexTemplateObjectDefinitions<TType extends string>(
   );
 }
 
-export function ensureRequiredTemplateObjects<TObject extends { type: TType }, TType extends string>(args: {
+export function ensureRequiredTemplateObjects<
+  TObject extends { type: TType },
+  TType extends string,
+>(args: {
   createDefaultObject: (type: TType) => TObject;
   definitions: ReadonlyArray<TemplateObjectDefinition<TType>>;
   objects: TObject[];

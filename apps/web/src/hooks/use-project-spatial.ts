@@ -36,7 +36,9 @@ export function useProjectSpatialFeature(projectId: string, featureId: string) {
   return useQuery({
     queryKey: projectSpatialDetailQueryKey(projectId, featureId),
     queryFn: () =>
-      projectSpatialApi<ProjectSpatialFeature>(`/projects/${projectId}/spatial/features/${featureId}`),
+      projectSpatialApi<ProjectSpatialFeature>(
+        `/projects/${projectId}/spatial/features/${featureId}`,
+      ),
     enabled: !!projectId && !!featureId,
   });
 }
@@ -64,10 +66,13 @@ export function useUpdateProjectSpatialFeature(projectId: string, featureId: str
 
   return useMutation({
     mutationFn: (payload: UpdateProjectSpatialFeatureInput) =>
-      projectSpatialApi<ProjectSpatialFeature>(`/projects/${projectId}/spatial/features/${featureId}`, {
-        method: 'PATCH',
-        body: payload,
-      }),
+      projectSpatialApi<ProjectSpatialFeature>(
+        `/projects/${projectId}/spatial/features/${featureId}`,
+        {
+          method: 'PATCH',
+          body: payload,
+        },
+      ),
     onSuccess: async (feature) => {
       queryClient.setQueryData(projectSpatialDetailQueryKey(projectId, featureId), feature);
       await queryClient.invalidateQueries({
@@ -250,10 +255,7 @@ type ProjectSpatialApiOptions = {
   params?: Record<string, string | number | boolean | undefined>;
 };
 
-async function projectSpatialApi<T>(
-  path: string,
-  options: ProjectSpatialApiOptions = {},
-) {
+async function projectSpatialApi<T>(path: string, options: ProjectSpatialApiOptions = {}) {
   const debugEnabled = isProjectSpatialDebugEnabled();
 
   if (debugEnabled) {

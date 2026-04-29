@@ -69,9 +69,8 @@ vi.mock('@/components/ui/badge', () => ({
 }));
 
 vi.mock('@/components/ui/button', async () => {
-  const actual = await vi.importActual<typeof import('@/components/ui/button')>(
-    '@/components/ui/button',
-  );
+  const actual =
+    await vi.importActual<typeof import('@/components/ui/button')>('@/components/ui/button');
 
   return {
     ...actual,
@@ -94,13 +93,9 @@ vi.mock('@/components/ui/card', () => ({
   CardTitle: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <h2 className={className}>{children}</h2>
   ),
-  CardDescription: ({
-    children,
-    className,
-  }: {
-    children: React.ReactNode;
-    className?: string;
-  }) => <div className={className}>{children}</div>,
+  CardDescription: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
   CardContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),

@@ -10,11 +10,7 @@ import { ProjectSpatialWorkspace } from '@/features/spatial/project-spatial-work
 import { useProject } from '@/hooks/use-projects';
 import { ApiError } from '@/lib/api-client';
 
-export default function ProjectSpatialViewsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ProjectSpatialViewsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const searchParams = useSearchParams();
   const { data: project, isLoading, error } = useProject(projectId);

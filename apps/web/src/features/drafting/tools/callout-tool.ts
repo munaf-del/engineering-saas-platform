@@ -2,7 +2,10 @@ import type { DraftingCalloutObject, DraftingModel, DraftingPoint } from '@eng/s
 import { defaultLayerIdForDraftingObjectType } from '@eng/shared';
 import { nextDraftingObjectSequence } from './drafting-tool-types';
 
-export function createCalloutObject(point: DraftingPoint, model: DraftingModel): DraftingCalloutObject {
+export function createCalloutObject(
+  point: DraftingPoint,
+  model: DraftingModel,
+): DraftingCalloutObject {
   const now = new Date().toISOString();
   const sequence = nextDraftingObjectSequence(model.objects, 'callout');
 

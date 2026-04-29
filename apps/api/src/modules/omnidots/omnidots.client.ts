@@ -220,9 +220,13 @@ export class OmnidotsClient {
     const safeUrl = redactOmnidotsUrl(buildOmnidotsUrl(this.baseUrl, path, params));
 
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      throw new OmnidotsClientError('Omnidots returned a non-object JSON payload', 'invalid_response', {
-        safeUrl,
-      });
+      throw new OmnidotsClientError(
+        'Omnidots returned a non-object JSON payload',
+        'invalid_response',
+        {
+          safeUrl,
+        },
+      );
     }
 
     const success = omnidotsApiSuccessEnvelopeSchema.safeParse(payload);

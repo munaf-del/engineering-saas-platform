@@ -63,7 +63,9 @@ function buildSectionMarkerRow(
   };
 }
 
-function buildCalloutRow(object: Extract<DraftingObject, { type: 'callout' }>): DraftingScheduleRow {
+function buildCalloutRow(
+  object: Extract<DraftingObject, { type: 'callout' }>,
+): DraftingScheduleRow {
   return {
     id: object.parameters.calloutId || object.id,
     sourceObjectId: object.id,
@@ -85,7 +87,9 @@ function buildDimensionChainRow(
 ): DraftingScheduleRow {
   const total = calculateDimensionChainTotal(object.geometry.points);
   const segments = calculateDimensionChainSegments(object.geometry.points)
-    .map((segment) => formatDimensionDistance(segment, object.parameters.unit, object.parameters.precision))
+    .map((segment) =>
+      formatDimensionDistance(segment, object.parameters.unit, object.parameters.precision),
+    )
     .join(' / ');
 
   return {

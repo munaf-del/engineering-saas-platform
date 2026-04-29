@@ -22,10 +22,7 @@ function normalizeTemplate(value: unknown): TestTemplate {
   return {
     id: typeof record.id === 'string' ? record.id : 'template-1',
     name: typeof record.name === 'string' ? record.name : 'Template',
-    updatedAt:
-      typeof record.updatedAt === 'string'
-        ? record.updatedAt
-        : '2026-04-16T00:00:00.000Z',
+    updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : '2026-04-16T00:00:00.000Z',
   };
 }
 
@@ -35,14 +32,11 @@ describe('template library persistence', () => {
       'project-spatial-sheets:project-1',
     );
     expect(
-      createLegacyProjectTemplateMetadataStorageKey(
-        'project-spatial-sheet-metadata',
-        'project-1',
-      ),
+      createLegacyProjectTemplateMetadataStorageKey('project-spatial-sheet-metadata', 'project-1'),
     ).toBe('project-spatial-sheet-metadata:project-1');
-    expect(
-      createBrowserTemplateLibraryStorageKey('project-spatial-sheet-template-library'),
-    ).toBe('project-spatial-sheet-template-library:v1');
+    expect(createBrowserTemplateLibraryStorageKey('project-spatial-sheet-template-library')).toBe(
+      'project-spatial-sheet-template-library:v1',
+    );
   });
 
   it('parses and sorts a stored browser template library', () => {

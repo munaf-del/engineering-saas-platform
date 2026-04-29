@@ -258,7 +258,8 @@ function buildOmnidotsDatasetPreviewRows(
   const measuringPointId = snapshot.measuringPoint?.id ?? null;
   const importDateFrom = snapshot.dateRange?.dateFrom ?? null;
   const importDateTo = snapshot.dateRange?.dateTo ?? null;
-  const timezone = snapshot.dateRange?.timezone?.trim() || snapshot.measuringPoint?.timezone || null;
+  const timezone =
+    snapshot.dateRange?.timezone?.trim() || snapshot.measuringPoint?.timezone || null;
 
   return (snapshot.metrics ?? [])
     .map((metric) => {
@@ -278,34 +279,34 @@ function buildOmnidotsDatasetPreviewRows(
         unit: metric.unit?.trim() || null,
         measuringPointId,
         measuringPointLabel,
-        sampleCount: metric.sampleCount ?? (metric.samples?.length ?? 0),
+        sampleCount: metric.sampleCount ?? metric.samples?.length ?? 0,
         importDateFrom,
         importDateTo,
         timezone,
         datasetId,
         importJobId: importJob?.id ?? null,
         importJobStatus: importJob?.status ?? null,
-        highestVtopX: metricKey === 'vtop' ? xPeak?.value ?? null : null,
-        highestVtopXAt: metricKey === 'vtop' ? xPeak?.timestamp ?? null : null,
-        highestVtopY: metricKey === 'vtop' ? yPeak?.value ?? null : null,
-        highestVtopYAt: metricKey === 'vtop' ? yPeak?.timestamp ?? null : null,
-        highestVtopZ: metricKey === 'vtop' ? zPeak?.value ?? null : null,
-        highestVtopZAt: metricKey === 'vtop' ? zPeak?.timestamp ?? null : null,
-        fdomX: metricKey === 'vtop' ? xPeak?.fdom ?? null : null,
-        fdomY: metricKey === 'vtop' ? yPeak?.fdom ?? null : null,
-        fdomZ: metricKey === 'vtop' ? zPeak?.fdom ?? null : null,
-        highestVdvX: metricKey === 'vdv' ? xPeak?.value ?? null : null,
-        highestVdvXAt: metricKey === 'vdv' ? xPeak?.timestamp ?? null : null,
-        highestVdvY: metricKey === 'vdv' ? yPeak?.value ?? null : null,
-        highestVdvYAt: metricKey === 'vdv' ? yPeak?.timestamp ?? null : null,
-        highestVdvZ: metricKey === 'vdv' ? zPeak?.value ?? null : null,
-        highestVdvZAt: metricKey === 'vdv' ? zPeak?.timestamp ?? null : null,
-        highestVeffX: metricKey === 'veff_max' ? xPeak?.value ?? null : null,
-        highestVeffXAt: metricKey === 'veff_max' ? xPeak?.timestamp ?? null : null,
-        highestVeffY: metricKey === 'veff_max' ? yPeak?.value ?? null : null,
-        highestVeffYAt: metricKey === 'veff_max' ? yPeak?.timestamp ?? null : null,
-        highestVeffZ: metricKey === 'veff_max' ? zPeak?.value ?? null : null,
-        highestVeffZAt: metricKey === 'veff_max' ? zPeak?.timestamp ?? null : null,
+        highestVtopX: metricKey === 'vtop' ? (xPeak?.value ?? null) : null,
+        highestVtopXAt: metricKey === 'vtop' ? (xPeak?.timestamp ?? null) : null,
+        highestVtopY: metricKey === 'vtop' ? (yPeak?.value ?? null) : null,
+        highestVtopYAt: metricKey === 'vtop' ? (yPeak?.timestamp ?? null) : null,
+        highestVtopZ: metricKey === 'vtop' ? (zPeak?.value ?? null) : null,
+        highestVtopZAt: metricKey === 'vtop' ? (zPeak?.timestamp ?? null) : null,
+        fdomX: metricKey === 'vtop' ? (xPeak?.fdom ?? null) : null,
+        fdomY: metricKey === 'vtop' ? (yPeak?.fdom ?? null) : null,
+        fdomZ: metricKey === 'vtop' ? (zPeak?.fdom ?? null) : null,
+        highestVdvX: metricKey === 'vdv' ? (xPeak?.value ?? null) : null,
+        highestVdvXAt: metricKey === 'vdv' ? (xPeak?.timestamp ?? null) : null,
+        highestVdvY: metricKey === 'vdv' ? (yPeak?.value ?? null) : null,
+        highestVdvYAt: metricKey === 'vdv' ? (yPeak?.timestamp ?? null) : null,
+        highestVdvZ: metricKey === 'vdv' ? (zPeak?.value ?? null) : null,
+        highestVdvZAt: metricKey === 'vdv' ? (zPeak?.timestamp ?? null) : null,
+        highestVeffX: metricKey === 'veff_max' ? (xPeak?.value ?? null) : null,
+        highestVeffXAt: metricKey === 'veff_max' ? (xPeak?.timestamp ?? null) : null,
+        highestVeffY: metricKey === 'veff_max' ? (yPeak?.value ?? null) : null,
+        highestVeffYAt: metricKey === 'veff_max' ? (yPeak?.timestamp ?? null) : null,
+        highestVeffZ: metricKey === 'veff_max' ? (zPeak?.value ?? null) : null,
+        highestVeffZAt: metricKey === 'veff_max' ? (zPeak?.timestamp ?? null) : null,
       } satisfies OmnidotsDatasetPreviewRow;
     })
     .filter((row): row is OmnidotsDatasetPreviewRow => row !== null);
@@ -331,10 +332,8 @@ function summarizeAxisPeak(
       continue;
     }
 
-    const valueKey =
-      axis === 'x' ? 'xValue' : axis === 'y' ? 'yValue' : ('zValue' as const);
-    const fdomKey =
-      axis === 'x' ? 'fdomX' : axis === 'y' ? 'fdomY' : ('fdomZ' as const);
+    const valueKey = axis === 'x' ? 'xValue' : axis === 'y' ? 'yValue' : ('zValue' as const);
+    const fdomKey = axis === 'x' ? 'fdomX' : axis === 'y' ? 'fdomY' : ('fdomZ' as const);
     const value = sample[valueKey];
 
     if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -442,7 +441,9 @@ function buildImportedResultNote(
       dedupeSignature,
       'Created from the imported Omnidots dataset summary after explicit user confirmation.',
       `Dataset ${row.datasetId}.`,
-      row.importJobId ? `Import job ${row.importJobId} (${row.importJobStatus ?? 'unknown'}).` : null,
+      row.importJobId
+        ? `Import job ${row.importJobId} (${row.importJobStatus ?? 'unknown'}).`
+        : null,
       `Measuring point ${row.measuringPointLabel}.`,
       `Metric ${row.metricLabel} (${row.metricKey}).`,
       row.importDateFrom && row.importDateTo

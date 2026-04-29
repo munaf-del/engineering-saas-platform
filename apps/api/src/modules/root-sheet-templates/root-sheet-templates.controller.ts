@@ -31,10 +31,7 @@ export class RootSheetTemplatesController {
 
   @Get()
   @ApiOperation({ summary: 'List Root Sheet Templates for the current organisation scope' })
-  async listTemplates(
-    @Query() query: ListRootSheetTemplatesDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async listTemplates(@Query() query: ListRootSheetTemplatesDto, @CurrentUser() user: RequestUser) {
     return this.rootSheetTemplatesService.listTemplates(this.access(user), query);
   }
 
@@ -42,10 +39,7 @@ export class RootSheetTemplatesController {
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin', 'engineer')
   @ApiOperation({ summary: 'Create a Root Sheet Template' })
-  async createTemplate(
-    @Body() dto: CreateRootSheetTemplateDto,
-    @CurrentUser() user: RequestUser,
-  ) {
+  async createTemplate(@Body() dto: CreateRootSheetTemplateDto, @CurrentUser() user: RequestUser) {
     return this.rootSheetTemplatesService.createTemplate(this.access(user), dto);
   }
 
@@ -84,4 +78,3 @@ export class RootSheetTemplatesController {
     };
   }
 }
-

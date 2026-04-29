@@ -58,11 +58,5 @@ export default function ProjectEnvironmentalMonitoringPreviewPage({
     );
   }
 
-  return (
-    <MonitoringReportPreview
-      projectId={projectId}
-      reportId={reportId}
-      project={project}
-    />
-  );
+  return <MonitoringReportPreview projectId={projectId} reportId={reportId} project={project} />;
 }

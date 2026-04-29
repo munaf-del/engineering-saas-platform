@@ -8,11 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PROJECT_SPATIAL_FEATURE_TYPES } from '@eng/shared';
-import {
-  MonitoringImportJobType,
-  Prisma,
-  type SheetTemplateSourceKind,
-} from '@prisma/client';
+import { MonitoringImportJobType, Prisma, type SheetTemplateSourceKind } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { getProjectSpecificsFromProjectMetadata } from '../projects/project-specifics.adapter';
 import { NOISE_VIBRATION_RECEIVER_TYPES } from '../standards/noise-vibration/dto/noise-vibration-criteria-query.dto';
@@ -1271,11 +1267,7 @@ export class ProjectEnvironmentalMonitoringService {
     );
   }
 
-  async syncOmnidotsMeasuringPoints(
-    access: ProjectAccess,
-    reportId: string,
-    connectionId: string,
-  ) {
+  async syncOmnidotsMeasuringPoints(access: ProjectAccess, reportId: string, connectionId: string) {
     await this.assertProjectWriteAccess(access);
     await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
 
@@ -1286,11 +1278,7 @@ export class ProjectEnvironmentalMonitoringService {
     );
   }
 
-  async listOmnidotsMeasuringPoints(
-    access: ProjectAccess,
-    reportId: string,
-    connectionId: string,
-  ) {
+  async listOmnidotsMeasuringPoints(access: ProjectAccess, reportId: string, connectionId: string) {
     await this.assertProjectReadAccess(access);
     await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
 
@@ -1314,8 +1302,14 @@ export class ProjectEnvironmentalMonitoringService {
   ) {
     await this.assertProjectWriteAccess(access);
     await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
-    await this.assertOmnidotsConnectionBelongsToOrganisation(access.organisationId, dto.connectionId);
-    await this.assertOmnidotsMeasuringPointBelongsToConnection(dto.connectionId, dto.measuringPointId);
+    await this.assertOmnidotsConnectionBelongsToOrganisation(
+      access.organisationId,
+      dto.connectionId,
+    );
+    await this.assertOmnidotsMeasuringPointBelongsToConnection(
+      dto.connectionId,
+      dto.measuringPointId,
+    );
 
     const dateFrom = new Date(dto.dateFrom);
     const dateTo = new Date(dto.dateTo);
@@ -1390,8 +1384,14 @@ export class ProjectEnvironmentalMonitoringService {
   ) {
     await this.assertProjectWriteAccess(access);
     await this.assertMonitoringReportType(access.projectId, reportId, 'vibration_monitoring');
-    await this.assertOmnidotsConnectionBelongsToOrganisation(access.organisationId, dto.connectionId);
-    await this.assertOmnidotsMeasuringPointBelongsToConnection(dto.connectionId, dto.measuringPointId);
+    await this.assertOmnidotsConnectionBelongsToOrganisation(
+      access.organisationId,
+      dto.connectionId,
+    );
+    await this.assertOmnidotsMeasuringPointBelongsToConnection(
+      dto.connectionId,
+      dto.measuringPointId,
+    );
 
     const buildResult = await this.omnidotsService.buildReportDatasetSnapshot({
       monitoringReportId: reportId,
@@ -1853,11 +1853,15 @@ export class ProjectEnvironmentalMonitoringService {
     }
 
     const snapshotRecord =
-      dataset.snapshotJson && typeof dataset.snapshotJson === 'object' && !Array.isArray(dataset.snapshotJson)
+      dataset.snapshotJson &&
+      typeof dataset.snapshotJson === 'object' &&
+      !Array.isArray(dataset.snapshotJson)
         ? (dataset.snapshotJson as Record<string, unknown>)
         : null;
     const selectedMetricKeys = Array.isArray(snapshotRecord?.selectedMetricKeys)
-      ? snapshotRecord.selectedMetricKeys.filter((metricKey): metricKey is string => typeof metricKey === 'string')
+      ? snapshotRecord.selectedMetricKeys.filter(
+          (metricKey): metricKey is string => typeof metricKey === 'string',
+        )
       : [];
     const importJobsByMetric = await this.findOmnidotsImportJobReferenceMap(
       connectionId,

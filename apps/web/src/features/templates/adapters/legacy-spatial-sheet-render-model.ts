@@ -10,9 +10,7 @@ import type {
   SharedSheetRenderModel,
   SharedSheetTitleBlockContent,
 } from '../core/shared-sheet-schema';
-import type {
-  ProjectSpatialLegendFeatureEntry,
-} from '@/features/spatial/project-spatial-legend';
+import type { ProjectSpatialLegendFeatureEntry } from '@/features/spatial/project-spatial-legend';
 import type { ProjectSpatialMapScaleBar } from '@/features/spatial/project-spatial-map';
 import type {
   ProjectSpatialPaperSize,
@@ -90,7 +88,10 @@ export function buildLegacySpatialSharedSheetRenderModel(
   const definition = adaptLegacySpatialSheetTemplateToSharedDefinition(args.template);
   const titleBlockContent = buildLegacySpatialTitleBlockContent(args);
   const contentByBlockId = Object.fromEntries(
-    definition.objects.map((block) => [block.id, buildLegacySpatialBlockContent(block, args, titleBlockContent)]),
+    definition.objects.map((block) => [
+      block.id,
+      buildLegacySpatialBlockContent(block, args, titleBlockContent),
+    ]),
   ) as Record<string, SharedSheetBlockContent | undefined>;
 
   return {
@@ -311,9 +312,7 @@ function buildLegacySpatialSheetContextRows(
     visibility.basemap ? { label: 'Basemap', value: titleBlockContent.activeBasemapLabel } : null,
     visibility.geology ? { label: 'Geology', value: titleBlockContent.geologyStatusLabel } : null,
     visibility.geoQuery ? { label: 'Geo Query', value: titleBlockContent.geologyQueryLabel } : null,
-    visibility.generated
-      ? { label: 'Generated', value: titleBlockContent.generatedAtLabel }
-      : null,
+    visibility.generated ? { label: 'Generated', value: titleBlockContent.generatedAtLabel } : null,
   ].filter(Boolean) as Array<{ label: string | undefined; value: string | undefined }>;
 
   return rows.map((row, index) => ({

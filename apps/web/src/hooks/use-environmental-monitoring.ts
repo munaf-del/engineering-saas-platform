@@ -61,14 +61,13 @@ export function useEnvironmentalMonitoringReportPackageIssue(
   });
 }
 
-export function useEnvironmentalMonitoringOmnidotsConnections(
-  projectId: string,
-  reportId: string,
-) {
+export function useEnvironmentalMonitoringOmnidotsConnections(projectId: string, reportId: string) {
   return useQuery({
     queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
     queryFn: () =>
-      api<OmnidotsConnectionSummary[]>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections`),
+      api<OmnidotsConnectionSummary[]>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections`,
+      ),
     enabled: !!projectId && !!reportId,
   });
 }
@@ -96,10 +95,13 @@ export function useCreateEnvironmentalMonitoringOmnidotsConnection(
 
   return useMutation({
     mutationFn: (payload: EnvironmentalMonitoringOmnidotsConnectionInput) =>
-      api<OmnidotsConnectionSummary>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections`, {
-        method: 'POST',
-        body: payload,
-      }),
+      api<OmnidotsConnectionSummary>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections`,
+        {
+          method: 'POST',
+          body: payload,
+        },
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: monitoringOmnidotsConnectionsQueryKey(projectId, reportId),
@@ -156,10 +158,18 @@ export function useValidateEnvironmentalMonitoringOmnidotsConnection(
     mutationFn: (connectionId: string) =>
       api<{
         connection: OmnidotsConnectionSummary;
-        validation: { valid: boolean; accountName?: string | null; accountId?: string | null; message?: string };
-      }>(`${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}/validate`, {
-        method: 'POST',
-      }),
+        validation: {
+          valid: boolean;
+          accountName?: string | null;
+          accountId?: string | null;
+          message?: string;
+        };
+      }>(
+        `${monitoringReportPath(projectId, reportId)}/omnidots/connections/${connectionId}/validate`,
+        {
+          method: 'POST',
+        },
+      ),
     onSuccess: async (_, connectionId) => {
       await Promise.all([
         queryClient.invalidateQueries({
@@ -209,10 +219,7 @@ export function useSyncEnvironmentalMonitoringOmnidotsMeasuringPoints(
   });
 }
 
-export function useImportEnvironmentalMonitoringOmnidots(
-  projectId: string,
-  reportId: string,
-) {
+export function useImportEnvironmentalMonitoringOmnidots(projectId: string, reportId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({

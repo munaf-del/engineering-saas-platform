@@ -1,8 +1,5 @@
 import * as React from 'react';
-import {
-  DRAFTING_SECTION_ARROW_DIRECTIONS,
-  type DraftingSectionMarkerObject,
-} from '@eng/shared';
+import { DRAFTING_SECTION_ARROW_DIRECTIONS, type DraftingSectionMarkerObject } from '@eng/shared';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -142,7 +139,8 @@ export function SectionMarkerProperties({
                 ...object,
                 parameters: {
                   ...object.parameters,
-                  arrowDirection: value as DraftingSectionMarkerObject['parameters']['arrowDirection'],
+                  arrowDirection:
+                    value as DraftingSectionMarkerObject['parameters']['arrowDirection'],
                 },
               })
             }

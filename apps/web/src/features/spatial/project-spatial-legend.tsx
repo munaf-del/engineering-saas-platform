@@ -302,7 +302,10 @@ function GeologyOverlayLegendSwatch({
       className="flex shrink-0 items-center justify-center rounded-md border bg-white/90"
       style={{ height: `${36 * symbolScale}px`, width: `${48 * symbolScale}px` }}
     >
-      <svg viewBox="0 0 40 24" style={{ height: `${24 * symbolScale}px`, width: `${40 * symbolScale}px` }}>
+      <svg
+        viewBox="0 0 40 24"
+        style={{ height: `${24 * symbolScale}px`, width: `${40 * symbolScale}px` }}
+      >
         <defs>
           <pattern
             id={patternId}

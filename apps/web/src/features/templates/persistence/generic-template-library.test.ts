@@ -89,7 +89,9 @@ describe('generic template library persistence', () => {
         updatedAt: '2026-04-16T23:04:00.000Z',
       },
     ]);
-    const refreshed = merged.find((template) => template.id === 'builtin-template-as1100-a4-landscape');
+    const refreshed = merged.find(
+      (template) => template.id === 'builtin-template-as1100-a4-landscape',
+    );
 
     expect(refreshed?.updatedAt).toBe('2026-04-16T23:44:00.000Z');
     expect(refreshed?.objects.find((object) => object.type === 'titleBlock')).toMatchObject({
@@ -123,7 +125,9 @@ describe('generic template library persistence', () => {
         ),
       },
     ]);
-    const refreshed = merged.find((template) => template.id === 'builtin-template-as1100-a1-landscape');
+    const refreshed = merged.find(
+      (template) => template.id === 'builtin-template-as1100-a1-landscape',
+    );
 
     expect(refreshed?.updatedAt).toBe('2026-04-16T23:41:00.000Z');
     expect(refreshed?.objects.find((object) => object.type === 'titleBlock')).toMatchObject({

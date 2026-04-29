@@ -75,7 +75,8 @@ export function MonitoringPointProperties({
               ...object,
               metadata: {
                 ...object.metadata,
-                monitoringType: value as DraftingMonitoringPointObject['metadata']['monitoringType'],
+                monitoringType:
+                  value as DraftingMonitoringPointObject['metadata']['monitoringType'],
               },
               updatedAt: now,
             })

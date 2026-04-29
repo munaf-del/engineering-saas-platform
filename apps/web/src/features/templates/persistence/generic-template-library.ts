@@ -179,13 +179,10 @@ export function parseLegacySpatialTemplateSummaries(value: string) {
               ? record.name.trim()
               : 'Spatial Template',
           objectCount: Array.isArray(record.objects) ? record.objects.length : 0,
-          orientation:
-            typeof record.orientation === 'string' ? record.orientation : 'landscape',
+          orientation: typeof record.orientation === 'string' ? record.orientation : 'landscape',
           paperSize: typeof record.paperSize === 'string' ? record.paperSize : 'a4',
           updatedAt:
-            typeof record.updatedAt === 'string'
-              ? record.updatedAt
-              : new Date(0).toISOString(),
+            typeof record.updatedAt === 'string' ? record.updatedAt : new Date(0).toISOString(),
         } satisfies LegacySpatialTemplateSummary;
       })
       .filter(

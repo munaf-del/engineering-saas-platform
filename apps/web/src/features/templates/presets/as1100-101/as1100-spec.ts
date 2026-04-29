@@ -86,14 +86,13 @@ const AS1100_DRAWING_FRAME_MARGINS_MM: Record<TemplatePaperSize, As1100Margins> 
 };
 
 // Source: Screenshot 2026-04-16 at 11.06.56 pm.png (Table 2.6, Border lines row)
-const AS1100_FORMAT_LINE_THICKNESS_MM: Record<TemplatePaperSize, As1100FormatLineThicknessSpec> =
-  {
-    a0: { borderLineMm: 1.4, cameraAlignmentMarkLineMm: 0.5 },
-    a1: { borderLineMm: 1.0, cameraAlignmentMarkLineMm: 0.35 },
-    a2: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
-    a3: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
-    a4: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
-  };
+const AS1100_FORMAT_LINE_THICKNESS_MM: Record<TemplatePaperSize, As1100FormatLineThicknessSpec> = {
+  a0: { borderLineMm: 1.4, cameraAlignmentMarkLineMm: 0.5 },
+  a1: { borderLineMm: 1.0, cameraAlignmentMarkLineMm: 0.35 },
+  a2: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
+  a3: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
+  a4: { borderLineMm: 0.7, cameraAlignmentMarkLineMm: 0.25 },
+};
 
 // Source: Screenshot 2026-04-16 at 11.33.21 pm.png (Table 4.1)
 const AS1100_LETTERING_HEIGHTS_MM: Record<TemplatePaperSize, As1100LetteringSpec> = {

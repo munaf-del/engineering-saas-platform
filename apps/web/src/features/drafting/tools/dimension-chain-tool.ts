@@ -22,11 +22,7 @@ export function createDimensionChainObject(
       textSize: 220,
     },
     geometry: {
-      points: [
-        point,
-        { x: point.x + 3000, y: point.y },
-        { x: point.x + 6000, y: point.y + 500 },
-      ],
+      points: [point, { x: point.x + 3000, y: point.y }, { x: point.x + 6000, y: point.y + 500 }],
       offsetDistanceMm: 1200,
     },
     parameters: {

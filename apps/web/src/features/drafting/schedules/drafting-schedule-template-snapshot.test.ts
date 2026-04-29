@@ -31,7 +31,10 @@ describe('drafting schedule template snapshots', () => {
     const state = resolveDraftingScheduleSheetTemplateState(
       definition,
       new Map([
-        ['root-template-1', buildRootSheetTemplateRecord('root-template-1', 'QA template', template)],
+        [
+          'root-template-1',
+          buildRootSheetTemplateRecord('root-template-1', 'QA template', template),
+        ],
       ]),
     );
 
@@ -74,7 +77,10 @@ describe('drafting schedule template snapshots', () => {
     const snapshotMap = buildDraftingScheduleSheetTemplateSnapshotMap(
       definitions,
       new Map([
-        ['root-template-1', buildRootSheetTemplateRecord('root-template-1', 'QA template', template)],
+        [
+          'root-template-1',
+          buildRootSheetTemplateRecord('root-template-1', 'QA template', template),
+        ],
       ]),
     );
 

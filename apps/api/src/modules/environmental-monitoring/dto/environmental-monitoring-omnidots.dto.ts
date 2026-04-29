@@ -9,11 +9,7 @@ import {
   IsUUID,
 } from 'class-validator';
 
-export const ENVIRONMENTAL_MONITORING_OMNIDOTS_METRIC_KEYS = [
-  'vtop',
-  'vdv',
-  'veff_max',
-] as const;
+export const ENVIRONMENTAL_MONITORING_OMNIDOTS_METRIC_KEYS = ['vtop', 'vdv', 'veff_max'] as const;
 
 export class ProjectEnvironmentalMonitoringOmnidotsImportDto {
   @ApiProperty()

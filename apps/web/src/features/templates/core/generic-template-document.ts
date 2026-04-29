@@ -312,7 +312,8 @@ export function createDefaultGenericTemplateObjects(args: {
     args.presetId === 'as1100_inspired'
       ? getAs1100TitleBlockSpec(args.paperSize, args.orientation)
       : null;
-  const includeAdditionalBlocksArea = args.presetId === 'as1100_inspired' && args.paperSize !== 'a4';
+  const includeAdditionalBlocksArea =
+    args.presetId === 'as1100_inspired' && args.paperSize !== 'a4';
   const titleBlockHeight = clampMm(asTitleBlock?.totalHeightMm ?? 46, 35, 110);
   const titleBlockWidth = clampMm(
     includeAdditionalBlocksArea ? safeArea.width : (asTitleBlock?.totalWidthMm ?? safeArea.width),
@@ -335,7 +336,9 @@ export function createDefaultGenericTemplateObjects(args: {
 
   const defaultObjects: GenericTemplateObject[] = [
     {
-      body: as1100BlankDefaults ? '' : 'Add reusable notes, assumptions, or drawing instructions here.',
+      body: as1100BlankDefaults
+        ? ''
+        : 'Add reusable notes, assumptions, or drawing instructions here.',
       height: topBandHeight,
       id: createTemplateObjectId('generic-object'),
       lineStyle: createDefaultGenericTemplateLineStyle(),
@@ -486,8 +489,7 @@ export function sanitizeAs1100StarterObjects(objects: GenericTemplateObject[]) {
         rows.every((row, index) => {
           const normalizedLabel = row.label.trim().toLowerCase();
           return (
-            normalizedLabel === '' ||
-            normalizedLabel === ['document', 'revision', 'status'][index]
+            normalizedLabel === '' || normalizedLabel === ['document', 'revision', 'status'][index]
           );
         });
       const hasOnlyPlaceholderValues =
@@ -498,13 +500,14 @@ export function sanitizeAs1100StarterObjects(objects: GenericTemplateObject[]) {
 
       return {
         ...object,
-        rows: hasOnlyPlaceholderValues && hasOnlyDefaultLabels
-          ? rows.map((row) => ({
-              ...row,
-              label: '',
-              value: '',
-            }))
-          : rows,
+        rows:
+          hasOnlyPlaceholderValues && hasOnlyDefaultLabels
+            ? rows.map((row) => ({
+                ...row,
+                label: '',
+                value: '',
+              }))
+            : rows,
         title: object.title === 'Document Details' ? '' : object.title,
       } satisfies GenericTemplateObject;
     }
@@ -516,7 +519,8 @@ export function sanitizeAs1100StarterObjects(objects: GenericTemplateObject[]) {
         projectName: object.projectName === 'Reusable Template' ? '' : object.projectName,
         sheetNumber: object.sheetNumber === '001' ? '' : object.sheetNumber,
         subtitle:
-          object.subtitle === 'Edit this title block for your reports, sketches, or printable sheets.'
+          object.subtitle ===
+          'Edit this title block for your reports, sketches, or printable sheets.'
             ? ''
             : object.subtitle,
         title: object.title === 'General Arrangement' ? '' : object.title,
@@ -813,9 +817,7 @@ export function normalizeGenericTemplateObject(
         ? record.preparedBy
         : undefined,
     checkedBy:
-      type === 'titleBlock' && typeof record.checkedBy === 'string'
-        ? record.checkedBy
-        : undefined,
+      type === 'titleBlock' && typeof record.checkedBy === 'string' ? record.checkedBy : undefined,
     generatedAtLabel:
       type === 'titleBlock' && typeof record.generatedAtLabel === 'string'
         ? record.generatedAtLabel
@@ -833,9 +835,7 @@ export function normalizeGenericTemplateObject(
         ? record.projectName
         : undefined,
     revision:
-      type === 'titleBlock' && typeof record.revision === 'string'
-        ? record.revision
-        : undefined,
+      type === 'titleBlock' && typeof record.revision === 'string' ? record.revision : undefined,
     rows: type === 'detailsBlock' ? normalizeGenericTemplateDetailRows(record.rows) : undefined,
     scaleLabel:
       type === 'titleBlock' && typeof record.scaleLabel === 'string'
@@ -1083,8 +1083,7 @@ function normalizeGenericTemplateChromeStyle(
 
   return {
     color: normalizeGenericTemplateColor(record.color, fallback.color),
-    visible:
-      typeof record.visible === 'boolean' ? record.visible : fallback.visible,
+    visible: typeof record.visible === 'boolean' ? record.visible : fallback.visible,
     widthPx: clampNumber(normalizeNumber(record.widthPx, fallback.widthPx), 0.5, 6),
   } satisfies GenericTemplateChromeStyle;
 }
@@ -1120,8 +1119,7 @@ function normalizeGenericTemplateDetailRows(value: unknown) {
   const normalizedRows = rows
     .map((row, index) => {
       const record = asRecord(row);
-      const label =
-        typeof record.label === 'string' ? record.label.trim() : `Field ${index + 1}`;
+      const label = typeof record.label === 'string' ? record.label.trim() : `Field ${index + 1}`;
       const valueText =
         typeof record.value === 'string'
           ? record.value.trim()

@@ -819,10 +819,7 @@ export function ProjectSpatialMap({
   }, [handleExportApiReady]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn('h-[640px] w-full rounded-lg bg-slate-100', className)}
-    />
+    <div ref={containerRef} className={cn('h-[640px] w-full rounded-lg bg-slate-100', className)} />
   );
 }
 

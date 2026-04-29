@@ -3,9 +3,7 @@
 import { useMemo } from 'react';
 import { SharedSheetRenderer } from '@/features/templates/components/shared-sheet-renderer';
 import { buildLegacySpatialSharedSheetRenderModel } from '@/features/templates/adapters/legacy-spatial-sheet-render-model';
-import {
-  buildGenericTemplateSpatialSheetRenderModel,
-} from '@/features/templates/adapters/generic-template-render-model';
+import { buildGenericTemplateSpatialSheetRenderModel } from '@/features/templates/adapters/generic-template-render-model';
 import type { GenericTemplateDocument } from '@/features/templates/core/generic-template-document';
 import type { SharedSheetDetailsBlockContent } from '@/features/templates/core/shared-sheet-schema';
 import type { ProjectSpatialLegendFeatureEntry } from './project-spatial-legend';

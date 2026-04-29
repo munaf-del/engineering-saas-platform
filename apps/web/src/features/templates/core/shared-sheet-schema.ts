@@ -55,7 +55,9 @@ export type SharedSheetContextRowKey =
 
 export type SharedSheetContextRowsVisibility = Record<SharedSheetContextRowKey, boolean>;
 
-export type SharedSheetBindingReference<TSlot extends SharedSheetBindingSlot = SharedSheetBindingSlot> = {
+export type SharedSheetBindingReference<
+  TSlot extends SharedSheetBindingSlot = SharedSheetBindingSlot,
+> = {
   description?: string;
   required?: boolean;
   slot: TSlot;

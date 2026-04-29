@@ -183,7 +183,10 @@ const PROJECT_SPATIAL_OBJECT_DEFINITION_BY_TYPE = indexTemplateObjectDefinitions
 const OBJECT_TYPES = PROJECT_SPATIAL_OBJECT_DEFINITIONS.map((definition) => definition.type);
 
 const DEFAULT_OBJECT_ORDER = Object.fromEntries(
-  PROJECT_SPATIAL_OBJECT_DEFINITIONS.map((definition) => [definition.type, definition.defaultOrder]),
+  PROJECT_SPATIAL_OBJECT_DEFINITIONS.map((definition) => [
+    definition.type,
+    definition.defaultOrder,
+  ]),
 ) as Record<ProjectSpatialSheetObjectType, number>;
 
 const OBJECT_MIN_SIZE = Object.fromEntries(
@@ -191,7 +194,10 @@ const OBJECT_MIN_SIZE = Object.fromEntries(
 ) as Record<ProjectSpatialSheetObjectType, { height: number; width: number }>;
 
 const OBJECT_MAX_SIZE_RATIO = Object.fromEntries(
-  PROJECT_SPATIAL_OBJECT_DEFINITIONS.map((definition) => [definition.type, definition.maxSizeRatio]),
+  PROJECT_SPATIAL_OBJECT_DEFINITIONS.map((definition) => [
+    definition.type,
+    definition.maxSizeRatio,
+  ]),
 ) as Record<ProjectSpatialSheetObjectType, { height: number; width: number }>;
 
 const AUTO_SIZE_FALLBACK_METRICS: ProjectSpatialSheetContentMetrics = {
@@ -346,7 +352,10 @@ export function createDefaultProjectSpatialSheetObjects({
     ? clampMm(titleBlockHeight * 0.62, 18, 28)
     : clampMm(titleBlockHeight * 0.96, 24, titleBlockHeight);
   const minInlineSupportWidth =
-    OBJECT_MIN_SIZE.legend.width + OBJECT_MIN_SIZE.notes.width + OBJECT_MIN_SIZE.sheetContext.width + gap * 2;
+    OBJECT_MIN_SIZE.legend.width +
+    OBJECT_MIN_SIZE.notes.width +
+    OBJECT_MIN_SIZE.sheetContext.width +
+    gap * 2;
   const inlineSupportWidth = useCompactBottomBand ? 0 : safeArea.width - titleBlockWidth - gap;
   const useInlineSupportBand = inlineSupportWidth >= minInlineSupportWidth;
   const supportY = useInlineSupportBand
@@ -366,7 +375,9 @@ export function createDefaultProjectSpatialSheetObjects({
     Math.min(isA3Landscape ? 72 : 84, supportSpanWidth * 0.28),
   );
   const contextWidth = clampMm(
-    isA3Landscape ? standardTitleBlock.recordPanelWidthMm * 0.88 : standardTitleBlock.recordPanelWidthMm,
+    isA3Landscape
+      ? standardTitleBlock.recordPanelWidthMm * 0.88
+      : standardTitleBlock.recordPanelWidthMm,
     34,
     Math.min(isA3Landscape ? 82 : 110, supportSpanWidth * (isA3Landscape ? 0.2 : 0.3)),
   );
@@ -504,20 +515,29 @@ export function normalizeProjectSpatialSheetObject(
   const minSize = OBJECT_MIN_SIZE[type];
   const defaultPresentation = createDefaultProjectSpatialSheetObjectPresentation(type);
   const object: ProjectSpatialSheetObject = {
-    contentScale: normalizeScale(record.contentScale, defaultPresentation.contentScale ?? 1, 0.8, 1.5),
-    density:
-      record.density === 'compact'
-        ? 'compact'
-        : (defaultPresentation.density ?? 'normal'),
+    contentScale: normalizeScale(
+      record.contentScale,
+      defaultPresentation.contentScale ?? 1,
+      0.8,
+      1.5,
+    ),
+    density: record.density === 'compact' ? 'compact' : (defaultPresentation.density ?? 'normal'),
     height: normalizeNumber(record.height, minSize.height),
     id: typeof record.id === 'string' ? record.id : createProjectSpatialSheetObjectId(),
     legendColumns:
       type === 'legend'
-        ? clampInteger(normalizeNumber(record.legendColumns, defaultPresentation.legendColumns ?? 1), 1, 2)
+        ? clampInteger(
+            normalizeNumber(record.legendColumns, defaultPresentation.legendColumns ?? 1),
+            1,
+            2,
+          )
         : undefined,
     legendShowMapContext:
       type === 'legend'
-        ? normalizeBoolean(record.legendShowMapContext, defaultPresentation.legendShowMapContext ?? true)
+        ? normalizeBoolean(
+            record.legendShowMapContext,
+            defaultPresentation.legendShowMapContext ?? true,
+          )
         : undefined,
     linkedSavedViewId:
       type === 'mapFrame' && typeof record.linkedSavedViewId === 'string'
@@ -537,7 +557,12 @@ export function normalizeProjectSpatialSheetObject(
         ? record.name
         : getProjectSpatialSheetObjectLabel(type),
     order: normalizeNumber(record.order, DEFAULT_OBJECT_ORDER[type]),
-    paddingScale: normalizeScale(record.paddingScale, defaultPresentation.paddingScale ?? 1, 0.75, 1.45),
+    paddingScale: normalizeScale(
+      record.paddingScale,
+      defaultPresentation.paddingScale ?? 1,
+      0.75,
+      1.45,
+    ),
     scaleBarShowLabel:
       type === 'scaleBar'
         ? normalizeBoolean(record.scaleBarShowLabel, defaultPresentation.scaleBarShowLabel ?? true)
@@ -728,35 +753,34 @@ export function autoArrangeProjectSpatialSheetObjects(args: {
     args.contentMetrics,
   );
 
-  const arrangedPrimaryObjects = arrangedDefaults
-    .map((defaultObject) => {
-      const existingObject = currentObjectsByType.get(defaultObject.type)?.shift();
-      if (!existingObject) {
-        return defaultObject;
-      }
+  const arrangedPrimaryObjects = arrangedDefaults.map((defaultObject) => {
+    const existingObject = currentObjectsByType.get(defaultObject.type)?.shift();
+    if (!existingObject) {
+      return defaultObject;
+    }
 
-      return {
-        ...defaultObject,
-        contentScale: existingObject.contentScale,
-        density: existingObject.density,
-        id: existingObject.id,
-        legendColumns: existingObject.legendColumns,
-        legendShowMapContext: existingObject.legendShowMapContext,
-        linkedSavedViewId:
-          defaultObject.type === 'mapFrame'
-            ? existingObject.linkedSavedViewId ?? defaultObject.linkedSavedViewId ?? null
-            : undefined,
-        locked: existingObject.locked,
-        mapFitMode: existingObject.mapFitMode,
-        name: existingObject.name,
-        order: existingObject.order,
-        paddingScale: existingObject.paddingScale,
-        scaleBarShowLabel: existingObject.scaleBarShowLabel,
-        sheetContextRowsVisibility: existingObject.sheetContextRowsVisibility,
-        symbolScale: existingObject.symbolScale,
-        visible: existingObject.visible,
-      };
-    });
+    return {
+      ...defaultObject,
+      contentScale: existingObject.contentScale,
+      density: existingObject.density,
+      id: existingObject.id,
+      legendColumns: existingObject.legendColumns,
+      legendShowMapContext: existingObject.legendShowMapContext,
+      linkedSavedViewId:
+        defaultObject.type === 'mapFrame'
+          ? (existingObject.linkedSavedViewId ?? defaultObject.linkedSavedViewId ?? null)
+          : undefined,
+      locked: existingObject.locked,
+      mapFitMode: existingObject.mapFitMode,
+      name: existingObject.name,
+      order: existingObject.order,
+      paddingScale: existingObject.paddingScale,
+      scaleBarShowLabel: existingObject.scaleBarShowLabel,
+      sheetContextRowsVisibility: existingObject.sheetContextRowsVisibility,
+      symbolScale: existingObject.symbolScale,
+      visible: existingObject.visible,
+    };
+  });
   const trailingObjects = Array.from(currentObjectsByType.values())
     .flat()
     .map((object) => clampProjectSpatialSheetObject(object, args.paperSize, args.orientation));
@@ -796,7 +820,7 @@ export function resetProjectSpatialSheetObjectToDefault(args: {
     legendShowMapContext: args.object.legendShowMapContext,
     linkedSavedViewId:
       args.object.type === 'mapFrame'
-        ? args.object.linkedSavedViewId ?? defaultObject.linkedSavedViewId ?? null
+        ? (args.object.linkedSavedViewId ?? defaultObject.linkedSavedViewId ?? null)
         : undefined,
     locked: args.object.locked,
     mapFitMode: args.object.mapFitMode,
@@ -868,10 +892,7 @@ export function normalizeProjectSpatialSheetTemplate(value: unknown) {
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date().toISOString(),
     id: typeof record.id === 'string' ? record.id : createProjectSpatialSheetTemplateId(),
     mode: normalizeMode(record.mode),
-    name:
-      typeof record.name === 'string' && record.name.trim()
-        ? record.name
-        : 'Sheet Template',
+    name: typeof record.name === 'string' && record.name.trim() ? record.name : 'Sheet Template',
     objects: normalizeProjectSpatialSheetObjects(record.objects, paperSize, orientation).map(
       (object) => ({
         ...object,
@@ -977,14 +998,12 @@ function resolveAutoSizedObjectSize(
       const visibleContextRows = countVisibleSheetContextRows(object.sheetContextRowsVisibility);
       return {
         height: clampMm(
-          (18 * paddingScale + Math.max(1, visibleContextRows) * 5.5 * contentScale) *
-            densityScale,
+          (18 * paddingScale + Math.max(1, visibleContextRows) * 5.5 * contentScale) * densityScale,
           minHeight,
           maxHeight,
         ),
         width: clampMm(
-          (28 * paddingScale +
-            Math.max(16, metrics.contextMaxValueLength) * 1.2 * contentScale) *
+          (28 * paddingScale + Math.max(16, metrics.contextMaxValueLength) * 1.2 * contentScale) *
             densityScale,
           minWidth,
           clampMm(maxWidth, minWidth, safeArea.width * 0.34),
@@ -1057,9 +1076,7 @@ function normalizeSheetContextRowsVisibility(
   };
 }
 
-function countVisibleSheetContextRows(
-  value: ProjectSpatialSheetContextRowsVisibility | undefined,
-) {
+function countVisibleSheetContextRows(value: ProjectSpatialSheetContextRowsVisibility | undefined) {
   const visibility = value ?? DEFAULT_SHEET_CONTEXT_ROWS_VISIBILITY;
   return Object.values(visibility).filter(Boolean).length;
 }

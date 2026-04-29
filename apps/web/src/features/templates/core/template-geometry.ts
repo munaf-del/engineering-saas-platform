@@ -181,7 +181,10 @@ export function remapTemplateRectToSafeArea<TRect extends TemplateRectMm>(args: 
     y = args.toSafeArea.y + centerYRatio * args.toSafeArea.height - nextHeight / 2;
   } else if (verticalAnchor === 'bottom') {
     y =
-      args.toSafeArea.y + args.toSafeArea.height - nextHeight - bottomRatio * args.toSafeArea.height;
+      args.toSafeArea.y +
+      args.toSafeArea.height -
+      nextHeight -
+      bottomRatio * args.toSafeArea.height;
   }
 
   return clampTemplateRect(
@@ -204,11 +207,7 @@ export function resizeTemplateRectWithAnchors<TRect extends TemplateRectMm>(args
   rect: TRect;
   safeArea: TemplateSafeArea;
 }) {
-  const clampedWidth = clampMm(
-    args.nextWidth,
-    args.constraint.minWidth,
-    args.constraint.maxWidth,
-  );
+  const clampedWidth = clampMm(args.nextWidth, args.constraint.minWidth, args.constraint.maxWidth);
   const clampedHeight = clampMm(
     args.nextHeight,
     args.constraint.minHeight,

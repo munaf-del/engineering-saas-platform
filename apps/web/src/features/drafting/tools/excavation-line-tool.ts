@@ -1,8 +1,4 @@
-import type {
-  DraftingExcavationLineObject,
-  DraftingModel,
-  DraftingPoint,
-} from '@eng/shared';
+import type { DraftingExcavationLineObject, DraftingModel, DraftingPoint } from '@eng/shared';
 import { defaultLayerIdForDraftingObjectType } from '@eng/shared';
 import { nextDraftingObjectSequence } from './drafting-tool-types';
 

@@ -5,7 +5,11 @@ import { ProjectSpatialService } from './project-spatial.service';
 import { ProjectSpatialViewsController } from './project-spatial-views.controller';
 
 @Module({
-  controllers: [ProjectSpatialController, ProjectSpatialViewsController, ProjectSpatialSheetsController],
+  controllers: [
+    ProjectSpatialController,
+    ProjectSpatialViewsController,
+    ProjectSpatialSheetsController,
+  ],
   providers: [ProjectSpatialService],
 })
 export class ProjectSpatialModule {}

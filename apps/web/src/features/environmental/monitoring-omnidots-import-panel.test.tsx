@@ -377,10 +377,7 @@ describe('MonitoringOmnidotsImportPanel', () => {
     ) as HTMLInputElement | undefined;
     expect(filterInput).toBeTruthy();
 
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )?.set;
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     expect(valueSetter).toBeTruthy();
 
     await act(async () => {
