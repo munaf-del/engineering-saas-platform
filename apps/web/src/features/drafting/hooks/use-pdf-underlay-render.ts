@@ -137,9 +137,14 @@ async function getPdfDocumentInfo(fileId: string) {
     return cached;
   }
 
-  const promise = loadPdfDocument(fileId).then((document) => ({
-    pageCount: document.numPages,
-  }));
+  const promise = loadPdfDocument(fileId)
+    .then((document) => ({
+      pageCount: document.numPages,
+    }))
+    .catch((error: unknown) => {
+      pageInfoCache.delete(fileId);
+      throw error;
+    });
   pageInfoCache.set(fileId, promise);
   return promise;
 }
@@ -152,49 +157,54 @@ async function renderPdfPage(fileId: string, pageNumber: number) {
   }
 
   const promise = (async () => {
-    const pdf = await loadPdfDocument(fileId);
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
+    try {
+      const pdf = await loadPdfDocument(fileId);
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
 
-    const context = canvas.getContext('2d');
-    if (!context) {
-      throw new Error('Canvas rendering context is unavailable');
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Canvas rendering context is unavailable');
+      }
+
+      await page.render({
+        canvas,
+        canvasContext: context,
+        viewport,
+      }).promise;
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((value) => {
+          if (value) {
+            resolve(value);
+            return;
+          }
+
+          reject(new Error('Failed to convert rendered PDF page to an image'));
+        }, 'image/png');
+      });
+
+      const existingUrl = pageImageUrlCache.get(cacheKey);
+      if (existingUrl) {
+        URL.revokeObjectURL(existingUrl);
+      }
+
+      const imageUrl = URL.createObjectURL(blob);
+      pageImageUrlCache.set(cacheKey, imageUrl);
+
+      return {
+        imageUrl,
+        width: viewport.width / PDF_RENDER_SCALE,
+        height: viewport.height / PDF_RENDER_SCALE,
+        pageCount: pdf.numPages,
+      } satisfies PdfUnderlayPageRender;
+    } catch (error) {
+      pageRenderCache.delete(cacheKey);
+      throw error;
     }
-
-    await page.render({
-      canvas,
-      canvasContext: context,
-      viewport,
-    }).promise;
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((value) => {
-        if (value) {
-          resolve(value);
-          return;
-        }
-
-        reject(new Error('Failed to convert rendered PDF page to an image'));
-      }, 'image/png');
-    });
-
-    const existingUrl = pageImageUrlCache.get(cacheKey);
-    if (existingUrl) {
-      URL.revokeObjectURL(existingUrl);
-    }
-
-    const imageUrl = URL.createObjectURL(blob);
-    pageImageUrlCache.set(cacheKey, imageUrl);
-
-    return {
-      imageUrl,
-      width: viewport.width / PDF_RENDER_SCALE,
-      height: viewport.height / PDF_RENDER_SCALE,
-      pageCount: pdf.numPages,
-    } satisfies PdfUnderlayPageRender;
   })();
 
   pageRenderCache.set(cacheKey, promise);
@@ -207,9 +217,12 @@ async function loadPdfDocument(fileId: string) {
     return cached;
   }
 
-  const promise = apiArrayBuffer(`/documents/${fileId}/download`).then(
-    (data) => pdfjsLib.getDocument({ data }).promise,
-  );
+  const promise = apiArrayBuffer(`/documents/${fileId}/download`)
+    .then((data) => pdfjsLib.getDocument({ data }).promise)
+    .catch((error: unknown) => {
+      documentCache.delete(fileId);
+      throw error;
+    });
 
   documentCache.set(fileId, promise);
   return promise;
