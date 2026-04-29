@@ -114,6 +114,9 @@ export default function ProjectEnvironmentalPage({ params }: { params: Promise<{
               <CardDescription>
                 Open the monitoring reports collection for creation, tracking, and report editing
               </CardDescription>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Open a monitoring report to import Omnidots Honeycomb data.
+              </p>
             </CardContent>
           </Card>
         </Link>

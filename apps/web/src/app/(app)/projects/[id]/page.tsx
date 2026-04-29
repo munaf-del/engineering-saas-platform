@@ -8,8 +8,10 @@ import {
   Calculator,
   ClipboardList,
   FileText,
+  FolderOpen,
   Layers,
   Map,
+  PenTool,
   Save,
   Settings,
   Sparkles,
@@ -398,6 +400,12 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
       desc: 'Upload reports, index in OpenAI, and extract cited engineering summaries',
     },
     {
+      href: `/projects/${projectId}/documents`,
+      icon: FolderOpen,
+      title: 'Documents',
+      desc: 'Upload, open, and safely delete project-scoped files',
+    },
+    {
       href: `/projects/${projectId}/standards`,
       icon: ClipboardList,
       title: 'Standards',
@@ -417,6 +425,12 @@ function ProjectDetailContent({ projectId, project }: { projectId: string; proje
       icon: Map,
       title: 'Spatial',
       desc: 'Project master map, boundaries, monitoring locations, boreholes, wells, and reusable spatial features',
+    },
+    {
+      href: `/projects/${projectId}/drafting`,
+      icon: PenTool,
+      title: 'Drafting',
+      desc: 'Project-native drawings, underlays, semantic engineering objects, revisions, and exports',
     },
     { href: `/projects/${projectId}/members`, icon: Users, title: 'Members', desc: 'Project team' },
     {

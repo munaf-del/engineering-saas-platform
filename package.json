@@ -28,19 +28,6 @@
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "*.{json,md,css}": [
-      "prettier --write"
-    ],
-    "*.py": [
-      "ruff format",
-      "ruff check --fix"
-    ]
-  },
   "pnpm": {
     "overrides": {
       "tar": "^6.2.1",

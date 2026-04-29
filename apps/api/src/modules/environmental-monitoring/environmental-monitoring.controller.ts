@@ -17,14 +17,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import {
   CreateProjectEnvironmentalMonitoringLocationDto,
+  CreateProjectEnvironmentalMonitoringAnnexureDto,
   CreateProjectEnvironmentalMonitoringObservationDto,
+  CreateProjectEnvironmentalMonitoringReportPackageIssueDto,
   CreateProjectEnvironmentalMonitoringRecommendationDto,
   CreateProjectEnvironmentalMonitoringReferenceDto,
   CreateProjectEnvironmentalMonitoringReportDto,
   CreateProjectEnvironmentalMonitoringSelectedCriterionDto,
   CreateProjectEnvironmentalNoiseResultRowDto,
   CreateProjectEnvironmentalVibrationResultRowDto,
+  ImportProjectEnvironmentalMonitoringLocationsFromViewDto,
+  ReorderProjectEnvironmentalMonitoringAnnexuresDto,
   UpdateProjectEnvironmentalMonitoringLocationDto,
+  UpdateProjectEnvironmentalMonitoringAnnexureDto,
   UpdateProjectEnvironmentalMonitoringObservationDto,
   UpdateProjectEnvironmentalMonitoringRecommendationDto,
   UpdateProjectEnvironmentalMonitoringReferenceDto,
@@ -33,6 +38,15 @@ import {
   UpdateProjectEnvironmentalNoiseResultRowDto,
   UpdateProjectEnvironmentalVibrationResultRowDto,
 } from './dto/environmental-monitoring.dto';
+import {
+  CreateOmnidotsProviderConnectionDto,
+  UpdateOmnidotsProviderConnectionDto,
+} from '../omnidots/dto/omnidots-connection.dto';
+import {
+  CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+  ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+  ProjectEnvironmentalMonitoringOmnidotsImportDto,
+} from './dto/environmental-monitoring-omnidots.dto';
 import { ProjectEnvironmentalMonitoringService } from './environmental-monitoring.service';
 
 @ApiTags('project-environmental-monitoring')
@@ -68,6 +82,21 @@ export class ProjectEnvironmentalMonitoringController {
     );
   }
 
+  @Post(':reportId/duplicate')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Duplicate an environmental monitoring report' })
+  async duplicateReport(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.duplicateReport(
+      this.access(projectId, user),
+      reportId,
+    );
+  }
+
   @Get(':reportId')
   @ApiOperation({ summary: 'Get an environmental monitoring report' })
   async findReport(
@@ -78,6 +107,175 @@ export class ProjectEnvironmentalMonitoringController {
     return this.projectEnvironmentalMonitoringService.findReport(
       this.access(projectId, user),
       reportId,
+    );
+  }
+
+  @Get(':reportId/omnidots/connections')
+  @ApiOperation({
+    summary: 'List Omnidots connections available to a vibration monitoring report',
+  })
+  async listOmnidotsConnections(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.listOmnidotsConnections(
+      this.access(projectId, user),
+      reportId,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Create an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async createOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateOmnidotsProviderConnectionDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Patch(':reportId/omnidots/connections/:connectionId')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Update an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async updateOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @Body() dto: UpdateOmnidotsProviderConnectionDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.updateOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections/:connectionId/validate')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Validate an Omnidots connection from the vibration monitoring report workflow',
+  })
+  async validateOmnidotsConnection(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.validateOmnidotsConnection(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Post(':reportId/omnidots/connections/:connectionId/sync-measuring-points')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Sync Omnidots measuring points from the vibration monitoring report workflow',
+  })
+  async syncOmnidotsMeasuringPoints(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.syncOmnidotsMeasuringPoints(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Get(':reportId/omnidots/connections/:connectionId/measuring-points')
+  @ApiOperation({
+    summary: 'List synced Omnidots measuring points for a vibration monitoring report connection',
+  })
+  async listOmnidotsMeasuringPoints(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('connectionId', ParseUUIDPipe) connectionId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.listOmnidotsMeasuringPoints(
+      this.access(projectId, user),
+      reportId,
+      connectionId,
+    );
+  }
+
+  @Post(':reportId/omnidots/import')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Import Omnidots metrics into monitoring series for a vibration monitoring report',
+  })
+  async importOmnidotsData(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ProjectEnvironmentalMonitoringOmnidotsImportDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.importOmnidotsData(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/build-dataset')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary:
+      'Build or refresh a frozen Omnidots dataset snapshot for a vibration monitoring report',
+  })
+  async buildOmnidotsDataset(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ProjectEnvironmentalMonitoringOmnidotsBuildDatasetDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.buildOmnidotsDataset(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Post(':reportId/omnidots/create-vibration-results')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary:
+      'Create authored vibration result rows from a frozen Omnidots dataset summary only after explicit confirmation',
+  })
+  async createVibrationResultsFromOmnidotsDataset(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringVibrationResultsFromOmnidotsDatasetDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createVibrationResultsFromOmnidotsDataset(
+      this.access(projectId, user),
+      reportId,
+      dto,
     );
   }
 
@@ -110,6 +308,108 @@ export class ProjectEnvironmentalMonitoringController {
     return this.projectEnvironmentalMonitoringService.deleteReport(
       this.access(projectId, user),
       reportId,
+    );
+  }
+
+  @Post(':reportId/package-issues')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Create a frozen report package issue snapshot' })
+  async createPackageIssue(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringReportPackageIssueDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createPackageIssue(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Get(':reportId/package-issues/:issueId')
+  @ApiOperation({ summary: 'Get a frozen report package issue snapshot' })
+  async findPackageIssue(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('issueId', ParseUUIDPipe) issueId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.findPackageIssue(
+      this.access(projectId, user),
+      reportId,
+      issueId,
+    );
+  }
+
+  @Post(':reportId/annexures')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Add an annexure to an environmental monitoring report' })
+  async createAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: CreateProjectEnvironmentalMonitoringAnnexureDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.createAnnexure(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Put(':reportId/annexures/reorder')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Reorder annexures on an environmental monitoring report' })
+  async reorderAnnexures(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ReorderProjectEnvironmentalMonitoringAnnexuresDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.reorderAnnexures(
+      this.access(projectId, user),
+      reportId,
+      dto,
+    );
+  }
+
+  @Patch(':reportId/annexures/:id')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Update an annexure on an environmental monitoring report' })
+  async updateAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProjectEnvironmentalMonitoringAnnexureDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.updateAnnexure(
+      this.access(projectId, user),
+      reportId,
+      id,
+      dto,
+    );
+  }
+
+  @Delete(':reportId/annexures/:id')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({ summary: 'Delete an annexure from an environmental monitoring report' })
+  async deleteAnnexure(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.deleteAnnexure(
+      this.access(projectId, user),
+      reportId,
+      id,
     );
   }
 
@@ -216,6 +516,25 @@ export class ProjectEnvironmentalMonitoringController {
       this.access(projectId, user),
       reportId,
       id,
+    );
+  }
+
+  @Post(':reportId/locations/import-from-view')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin', 'engineer')
+  @ApiOperation({
+    summary: 'Import or refresh monitoring locations from a Project Spatial View',
+  })
+  async importLocationsFromView(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('reportId', ParseUUIDPipe) reportId: string,
+    @Body() dto: ImportProjectEnvironmentalMonitoringLocationsFromViewDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.projectEnvironmentalMonitoringService.importLocationsFromView(
+      this.access(projectId, user),
+      reportId,
+      dto,
     );
   }
 

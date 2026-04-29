@@ -6,6 +6,12 @@ import type {
 } from '@eng/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
+import type {
+  ProjectSpatialSheetInput,
+  ProjectSpatialSheetRecordApi,
+  ProjectSpatialViewInput,
+  ProjectSpatialViewRecord,
+} from '@/features/spatial/project-spatial-record-types';
 
 export function useProjectSpatialFeatures(
   projectId: string,
@@ -93,6 +99,139 @@ export function useDeleteProjectSpatialFeature(projectId: string) {
       });
       await queryClient.invalidateQueries({
         queryKey: projectSpatialQueryKeyRoot(projectId),
+      });
+    },
+  });
+}
+
+export function useProjectSpatialViews(projectId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'spatial', 'views'],
+    queryFn: () =>
+      projectSpatialApi<ProjectSpatialViewRecord[]>(`/projects/${projectId}/spatial/views`),
+    enabled: !!projectId,
+  });
+}
+
+export function useCreateProjectSpatialView(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ProjectSpatialViewInput) =>
+      projectSpatialApi<ProjectSpatialViewRecord>(`/projects/${projectId}/spatial/views`, {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'views'],
+      });
+    },
+  });
+}
+
+export function useUpdateProjectSpatialView(projectId: string, viewId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Partial<ProjectSpatialViewInput>) =>
+      projectSpatialApi<ProjectSpatialViewRecord>(
+        `/projects/${projectId}/spatial/views/${viewId}`,
+        {
+          method: 'PATCH',
+          body: payload,
+        },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'views'],
+      });
+    },
+  });
+}
+
+export function useDeleteProjectSpatialView(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (viewId: string) =>
+      projectSpatialApi<{ id: string; deleted: boolean }>(
+        `/projects/${projectId}/spatial/views/${viewId}`,
+        {
+          method: 'DELETE',
+        },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'views'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'sheets'],
+      });
+    },
+  });
+}
+
+export function useProjectSpatialSheets(projectId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'spatial', 'sheets'],
+    queryFn: () =>
+      projectSpatialApi<ProjectSpatialSheetRecordApi[]>(`/projects/${projectId}/spatial/sheets`),
+    enabled: !!projectId,
+  });
+}
+
+export function useCreateProjectSpatialSheet(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ProjectSpatialSheetInput) =>
+      projectSpatialApi<ProjectSpatialSheetRecordApi>(`/projects/${projectId}/spatial/sheets`, {
+        method: 'POST',
+        body: payload,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'sheets'],
+      });
+    },
+  });
+}
+
+export function useUpdateProjectSpatialSheet(projectId: string, sheetId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Partial<ProjectSpatialSheetInput>) =>
+      projectSpatialApi<ProjectSpatialSheetRecordApi>(
+        `/projects/${projectId}/spatial/sheets/${sheetId}`,
+        {
+          method: 'PATCH',
+          body: payload,
+        },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'sheets'],
+      });
+    },
+  });
+}
+
+export function useDeleteProjectSpatialSheet(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sheetId: string) =>
+      projectSpatialApi<{ id: string; deleted: boolean }>(
+        `/projects/${projectId}/spatial/sheets/${sheetId}`,
+        {
+          method: 'DELETE',
+        },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', projectId, 'spatial', 'sheets'],
       });
     },
   });

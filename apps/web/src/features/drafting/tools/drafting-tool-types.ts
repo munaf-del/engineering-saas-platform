@@ -1,0 +1,36 @@
+import type { DraftingImplementedObjectType, DraftingObject } from '@eng/shared';
+
+export type DraftingCreateTool = DraftingImplementedObjectType;
+export type DraftingTool = 'select' | 'pan' | DraftingCreateTool;
+
+export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
+  'pile',
+  'secant_pile_wall',
+  'soldier_pile_wall',
+  'anchor_tieback',
+  'capping_beam',
+  'waler',
+  'excavation_line',
+  'monitoring_point',
+  'leader_note',
+  'dimension_chain',
+  'callout',
+  'section_marker',
+  'borehole',
+  'service_run',
+  'service_crossing',
+  'draft_line',
+  'draft_polyline',
+  'draft_rectangle',
+  'draft_circle',
+  'draft_polygon',
+  'structural_joint',
+  'geotech_surface',
+];
+
+export function nextDraftingObjectSequence(
+  objects: DraftingObject[],
+  type: DraftingImplementedObjectType,
+) {
+  return objects.filter((object) => object.type === type).length + 1;
+}

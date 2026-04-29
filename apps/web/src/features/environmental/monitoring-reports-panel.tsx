@@ -1,14 +1,24 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus } from 'lucide-react';
+import { Copy, FileText, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { PageLoading } from '@/components/loading';
 import {
   useCreateEnvironmentalMonitoringReport,
+  useDeleteEnvironmentalMonitoringReport,
+  useDuplicateEnvironmentalMonitoringReport,
   useEnvironmentalMonitoringReports,
 } from '@/hooks/use-environmental-monitoring';
 import type {
@@ -16,7 +26,9 @@ import type {
   EnvironmentalMonitoringReportType,
 } from './environmental-monitoring-types';
 import { ENVIRONMENTAL_MONITORING_REPORT_TYPE_OPTIONS } from './environmental-monitoring-types';
+import { OMNIDOTS_IMPORT_PANEL_ID } from './monitoring-omnidots-types';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 type MonitoringReportsPanelProps = {
   projectId: string;
@@ -32,6 +44,8 @@ export function MonitoringReportsPanel({
   const router = useRouter();
   const { data: reports, isLoading } = useEnvironmentalMonitoringReports(projectId);
   const createReport = useCreateEnvironmentalMonitoringReport(projectId);
+  const deleteReport = useDeleteEnvironmentalMonitoringReport(projectId);
+  const duplicateReport = useDuplicateEnvironmentalMonitoringReport(projectId);
 
   async function handleCreate(reportType: EnvironmentalMonitoringReportType) {
     try {
@@ -47,6 +61,32 @@ export function MonitoringReportsPanel({
     }
   }
 
+  async function handleDuplicate(report: EnvironmentalMonitoringReportSummary) {
+    try {
+      const duplicatedReport = await duplicateReport.mutateAsync(report.id);
+      toast.success('Monitoring report duplicated');
+      router.push(`/projects/${projectId}/environmental/monitoring/${duplicatedReport.id}`);
+    } catch {
+      toast.error('Failed to duplicate monitoring report');
+    }
+  }
+
+  async function handleDelete(report: EnvironmentalMonitoringReportSummary) {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(`Delete monitoring report "${displayReportTitle(report)}"?`)
+    ) {
+      return;
+    }
+
+    try {
+      await deleteReport.mutateAsync(report.id);
+      toast.success('Monitoring report deleted');
+    } catch {
+      toast.error('Failed to delete monitoring report');
+    }
+  }
+
   const visibleReports = compact ? (reports ?? []).slice(0, 4) : (reports ?? []);
 
   return (
@@ -56,7 +96,7 @@ export function MonitoringReportsPanel({
           <Button
             type="button"
             onClick={() => handleCreate('noise_monitoring')}
-            disabled={createReport.isPending}
+            disabled={createReport.isPending || duplicateReport.isPending || deleteReport.isPending}
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Noise Monitoring Report
@@ -65,7 +105,7 @@ export function MonitoringReportsPanel({
             type="button"
             variant="outline"
             onClick={() => handleCreate('vibration_monitoring')}
-            disabled={createReport.isPending}
+            disabled={createReport.isPending || duplicateReport.isPending || deleteReport.isPending}
           >
             <Plus className="mr-2 h-4 w-4" />
             Create Vibration Monitoring Report
@@ -91,11 +131,14 @@ export function MonitoringReportsPanel({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleReports.map((report) => (
-            <Link
+            <Card
               key={report.id}
-              href={`/projects/${projectId}/environmental/monitoring/${report.id}`}
+              className="flex h-full flex-col transition-colors hover:border-primary/50 hover:bg-accent/30"
             >
-              <Card className="h-full transition-colors hover:border-primary/50 hover:bg-accent/30">
+              <Link
+                href={`/projects/${projectId}/environmental/monitoring/${report.id}`}
+                className="flex flex-1 flex-col"
+              >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2">
                     <FileText className="h-5 w-5 text-muted-foreground" />
@@ -118,15 +161,53 @@ export function MonitoringReportsPanel({
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {report._count.locations} locations · {report._count.selectedCriteria} criteria
-                    ·{' '}
+                    {report._count.annexures} annexures · {report._count.locations} locations ·{' '}
+                    {report._count.selectedCriteria} criteria ·{' '}
                     {report.reportType === 'noise_monitoring'
                       ? `${report._count.noiseResults} noise results`
                       : `${report._count.vibrationResults} vibration results`}
                   </p>
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+              <CardFooter className="justify-end gap-2 border-t px-6 py-4">
+                {report.reportType === 'vibration_monitoring' ? (
+                  <Link
+                    href={buildOmnidotsImportHref(projectId, report.id)}
+                    className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
+                  >
+                    Import from Omnidots
+                  </Link>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleDuplicate(report)}
+                  disabled={
+                    createReport.isPending || duplicateReport.isPending || deleteReport.isPending
+                  }
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  {duplicateReport.isPending && duplicateReport.variables === report.id
+                    ? 'Duplicating…'
+                    : 'Duplicate'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void handleDelete(report)}
+                  disabled={
+                    createReport.isPending || duplicateReport.isPending || deleteReport.isPending
+                  }
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleteReport.isPending && deleteReport.variables === report.id
+                    ? 'Deleting…'
+                    : 'Delete'}
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </div>
       )}
@@ -147,4 +228,8 @@ function displayReportTitle(report: EnvironmentalMonitoringReportSummary) {
   }
 
   return labelForReportType(report.reportType);
+}
+
+function buildOmnidotsImportHref(projectId: string, reportId: string) {
+  return `/projects/${projectId}/environmental/monitoring/${reportId}#${OMNIDOTS_IMPORT_PANEL_ID}`;
 }

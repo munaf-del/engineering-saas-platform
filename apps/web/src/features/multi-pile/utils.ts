@@ -1313,11 +1313,25 @@ export function normalizePileTypeDefinition(
   return {
     id,
     displayName: String(raw.displayName ?? raw.name ?? raw.label ?? id).trim() || id,
+    description: stringFromInput(raw.description),
     sizePreset,
     useCustom,
     customMm,
     Dmm,
     nominalDiameterMm: Dmm,
+    pileSystem: stringFromInput(raw.pileSystem ?? raw.system ?? raw.constructionMethod),
+    concreteGrade: stringFromInput(raw.concreteGrade),
+    socketLengthM: nullableNumberValue(raw.socketLengthM, { min: 0 }),
+    socketLengthMm: nullableNumberValue(raw.socketLengthMm, { min: 0 }),
+    foundingStratum: stringFromInput(raw.foundingStratum),
+    foundingNote: stringFromInput(raw.foundingNote),
+    designCompressionKn: nullableNumberValue(raw.designCompressionKn, { min: 0 }),
+    designTensionKn: nullableNumberValue(raw.designTensionKn, { min: 0 }),
+    designLateralKn: nullableNumberValue(raw.designLateralKn, { min: 0 }),
+    durabilityExposureNote: stringFromInput(raw.durabilityExposureNote),
+    constructionNote: stringFromInput(raw.constructionNote),
+    status: normalizePileTypeStatus(raw.status),
+    notes: stringFromInput(raw.notes),
     eoop,
     eoopM: eoop,
     compressionUltimateMin: nullableNumberValue(raw.compressionUltimateMin, { min: 0 }),
@@ -1327,6 +1341,14 @@ export function normalizePileTypeDefinition(
     active: raw.active === undefined ? true : Boolean(raw.active),
     order: options?.order ?? Math.max(0, Math.round(numberFromInput(String(raw.order ?? 0), 0))),
   };
+}
+
+function stringFromInput(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizePileTypeStatus(value: unknown): MultiPilePileTypeDefinition['status'] {
+  return value === 'active' || value === 'superseded' || value === 'draft' ? value : 'draft';
 }
 
 export function normalizeJointDefinition(

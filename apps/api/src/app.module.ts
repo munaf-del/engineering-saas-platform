@@ -28,6 +28,9 @@ import { ProjectCnvmpModule } from './modules/cnvmp/cnvmp.module';
 import { ProjectEnvironmentalMonitoringModule } from './modules/environmental-monitoring/environmental-monitoring.module';
 import { ProjectWasteClassificationModule } from './modules/waste-classification/waste-classification.module';
 import { ProjectSpatialModule } from './modules/project-spatial/project-spatial.module';
+import { RootSheetTemplatesModule } from './modules/root-sheet-templates/root-sheet-templates.module';
+import { DraftingModule } from './modules/drafting/drafting.module';
+import { OmnidotsModule } from './modules/omnidots/omnidots.module';
 
 @Module({
   imports: [
@@ -59,6 +62,9 @@ import { ProjectSpatialModule } from './modules/project-spatial/project-spatial.
     ProjectEnvironmentalMonitoringModule,
     ProjectWasteClassificationModule,
     ProjectSpatialModule,
+    RootSheetTemplatesModule,
+    DraftingModule,
+    OmnidotsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },

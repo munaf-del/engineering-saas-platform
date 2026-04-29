@@ -1,0 +1,1094 @@
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { ArrowLeft, FileJson, Lock, Printer } from 'lucide-react';
+import type {
+  DraftingDrawing,
+  DraftingDrawingSheetDefinition,
+  DraftingDrawingSheetTemplateSnapshot,
+  DraftingSheetProfileAudit,
+  Project,
+} from '@eng/shared';
+import { PageLoading } from '@/components/loading';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useDraftingDrawing } from '@/hooks/use-drafting';
+import { useRootSheetTemplates } from '@/hooks/use-root-sheet-templates';
+import {
+  coerceRootSheetTemplateDocument,
+  type RootSheetTemplate,
+} from '@/features/templates/root-sheet-template-types';
+import { getTemplatePageLayout } from '@/features/templates/core/template-page';
+import type { GenericTemplateDocument } from '@/features/templates/core/generic-template-document';
+import { formatOperatorFacingSheetLabel } from '@/features/templates/sheet-display-labels';
+import { downloadDraftingDrawingSheetIssueManifestJson } from '../export-utils';
+import { createGridAxisValues } from '../geometry-utils';
+import { buildDraftingLabelLayout } from '../labels/drafting-label-candidates';
+import {
+  formatDrawingRevision,
+  getDraftingCurrentRevisionLabel,
+  getDraftingDrawingTitle,
+  getLayerById,
+} from '../model-utils';
+import { DraftingPdfUnderlay } from '../components/drafting-pdf-underlay';
+import { renderDraftingObject } from '../renderers/render-drafting-object';
+import {
+  resolveDraftingPaperLineStyle,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
+import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
+import {
+  buildDraftingSheetProfileAudit,
+  DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING,
+  DRAFTING_PROFILE_AUDIT_WARNING,
+  resolveDraftingSheetProfileAuditForIssue,
+} from '../standards/drafting-profile-audit';
+import {
+  DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
+  DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
+  getDrawingSheetDefinitions,
+  getDrawingSheetVisibleObjects,
+  getDrawingSheetVisibleUnderlays,
+} from './drafting-drawing-sheet-utils';
+import {
+  buildIssuedDrawingModel,
+  compareDraftingDrawingSheetIssue,
+  getDrawingSheetIssues,
+} from './drafting-drawing-sheet-issue-utils';
+
+export type DraftingDrawingSheetPreviewMode = 'all' | 'sheet';
+
+export function DraftingDrawingSheetPreviewPage({
+  drawingId,
+  initialMode = 'sheet',
+  initialIssueId,
+  initialSheetId,
+  project,
+  projectId,
+}: {
+  drawingId: string;
+  initialMode?: DraftingDrawingSheetPreviewMode;
+  initialIssueId?: string;
+  initialSheetId?: string;
+  project: Project;
+  projectId: string;
+}) {
+  const { data: drawing, isLoading: drawingLoading } = useDraftingDrawing(projectId, drawingId);
+  const { data: rootTemplates = [], isLoading: templatesLoading } = useRootSheetTemplates();
+  const [previewMode, setPreviewMode] =
+    React.useState<DraftingDrawingSheetPreviewMode>(initialMode);
+  const [selectedSheetId, setSelectedSheetId] = React.useState(initialSheetId ?? '');
+
+  if (drawingLoading || templatesLoading || !drawing) {
+    return <PageLoading />;
+  }
+
+  return (
+    <DraftingDrawingSheetPreview
+      drawing={drawing}
+      onModeChange={setPreviewMode}
+      onSelectedSheetIdChange={setSelectedSheetId}
+      previewMode={previewMode}
+      project={project}
+      projectId={projectId}
+      rootTemplates={rootTemplates}
+      selectedIssueId={initialIssueId}
+      selectedSheetId={selectedSheetId}
+    />
+  );
+}
+
+export function DraftingDrawingSheetPreview({
+  drawing,
+  onModeChange,
+  onSelectedSheetIdChange,
+  previewMode,
+  project,
+  projectId,
+  rootTemplates,
+  selectedIssueId,
+  selectedSheetId,
+}: {
+  drawing: DraftingDrawing;
+  onModeChange: (mode: DraftingDrawingSheetPreviewMode) => void;
+  onSelectedSheetIdChange: (sheetId: string) => void;
+  previewMode: DraftingDrawingSheetPreviewMode;
+  project: Project;
+  projectId: string;
+  rootTemplates: RootSheetTemplate[];
+  selectedIssueId?: string;
+  selectedSheetId: string;
+}) {
+  const selectedIssue = React.useMemo(
+    () => getDrawingSheetIssues(drawing.model).find((issue) => issue.id === selectedIssueId),
+    [drawing.model, selectedIssueId],
+  );
+  const previewModel = React.useMemo(
+    () => (selectedIssue ? buildIssuedDrawingModel(drawing.model, selectedIssue) : drawing.model),
+    [drawing.model, selectedIssue],
+  );
+  const previewDrawing = React.useMemo(
+    () => ({ ...drawing, model: previewModel }),
+    [drawing, previewModel],
+  );
+  const sheets = React.useMemo(() => getDrawingSheetDefinitions(previewModel), [previewModel]);
+  const selectedSheet = sheets.find((sheet) => sheet.id === selectedSheetId) ?? sheets[0] ?? null;
+  const sheetsToRender = previewMode === 'all' ? sheets : selectedSheet ? [selectedSheet] : [];
+  const rootTemplatesById = React.useMemo(
+    () => new Map(rootTemplates.map((template) => [template.id, template] as const)),
+    [rootTemplates],
+  );
+  const issueLockedSheetsById = React.useMemo(
+    () =>
+      new Map(
+        (selectedIssue?.lockedDrawingSheets ?? []).map((sheet) => [sheet.id, sheet] as const),
+      ),
+    [selectedIssue],
+  );
+  const issueComparison = selectedIssue
+    ? compareDraftingDrawingSheetIssue(drawing.model, selectedIssue, rootTemplatesById)
+    : null;
+  const drawingRevision =
+    getDraftingCurrentRevisionLabel(previewModel) ?? formatDrawingRevision(drawing);
+  const currentRevisionRow =
+    previewModel.revisionBlock?.revisions.find((row) => row.revision === drawingRevision) ??
+    previewModel.revisionBlock?.revisions.at(-1) ??
+    null;
+  const drawingTitle = getDraftingDrawingTitle(previewModel, drawing.title);
+
+  React.useEffect(() => {
+    if (selectedSheetId || !selectedSheet) {
+      return;
+    }
+
+    onSelectedSheetIdChange(selectedSheet.id);
+  }, [onSelectedSheetIdChange, selectedSheet, selectedSheetId]);
+
+  return (
+    <div className="mx-auto max-w-[1600px] space-y-4 print:max-w-none print:space-y-0">
+      <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
+        <div className="space-y-2">
+          <Link
+            href={`/projects/${projectId}/drafting/${drawing.id}`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Drafting editor
+          </Link>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">Drawing Sheet Preview</h1>
+              {selectedIssue ? (
+                <Badge className="gap-1" variant="destructive">
+                  <Lock className="h-3 w-3" />
+                  Frozen issued snapshot
+                </Badge>
+              ) : null}
+              {selectedSheet ? (
+                <>
+                  <Badge variant="secondary">{selectedSheet.pageSize.toUpperCase()}</Badge>
+                  <Badge variant="outline">{selectedSheet.orientation}</Badge>
+                  <Badge variant="outline">{selectedSheet.scaleLabel}</Badge>
+                </>
+              ) : null}
+              {drawingRevision ? <Badge variant="secondary">Rev {drawingRevision}</Badge> : null}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {project.code} - {drawingTitle} - {selectedSheet?.name ?? 'No drawing sheets'}
+            </p>
+            {selectedIssue ? (
+              <p className="text-sm text-muted-foreground">
+                Issue {selectedIssue.issueNumber} - Rev {selectedIssue.revision} - read-only, frozen
+                at {formatIssueDate(selectedIssue.issueDate)}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={previewMode}
+            onValueChange={(value) => onModeChange(value as DraftingDrawingSheetPreviewMode)}
+          >
+            <SelectTrigger className="w-[150px]" aria-label="Preview mode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sheet">One sheet</SelectItem>
+              <SelectItem value="all">All sheets</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            disabled={sheets.length === 0 || previewMode === 'all'}
+            value={selectedSheet?.id ?? ''}
+            onValueChange={onSelectedSheetIdChange}
+          >
+            <SelectTrigger className="w-[260px]" aria-label="Drawing sheet definition">
+              <SelectValue placeholder="No saved drawing sheets" />
+            </SelectTrigger>
+            <SelectContent>
+              {sheets.map((sheet) => (
+                <SelectItem key={sheet.id} value={sheet.id}>
+                  {sheet.sheetNumber} - {sheet.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Link
+            href={`/projects/${projectId}/drafting/${drawing.id}`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            Editor
+          </Link>
+          {selectedIssue ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                downloadDraftingDrawingSheetIssueManifestJson({
+                  issue: selectedIssue,
+                  model: drawing.model,
+                  rootTemplatesById,
+                  title: drawingTitle,
+                })
+              }
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Manifest JSON
+            </Button>
+          ) : null}
+          <Button
+            disabled={sheetsToRender.length === 0}
+            type="button"
+            onClick={() => window.print()}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print / Save PDF
+          </Button>
+        </div>
+      </div>
+
+      {selectedIssue && issueComparison ? (
+        <div className="rounded-md border bg-white p-4 text-sm print:hidden">
+          <div className="font-medium">Live vs issued comparison</div>
+          <div className="mt-2 grid gap-1 text-muted-foreground">
+            <div>
+              Title/revision:{' '}
+              {issueComparison.titleRevision.hasDrift
+                ? issueComparison.titleRevision.messages.join(' ')
+                : 'No drift.'}
+            </div>
+            <div>
+              Viewports:{' '}
+              {issueComparison.sheets.some((sheet) => sheet.hasDrift)
+                ? issueComparison.sheets
+                    .filter((sheet) => sheet.hasDrift)
+                    .map((sheet) => sheet.issuedSheetLabel)
+                    .join(', ')
+                : 'No drift.'}
+            </div>
+            <div>
+              Objects: {issueComparison.objects.added.length} added,{' '}
+              {issueComparison.objects.removed.length} removed,{' '}
+              {issueComparison.objects.changed.length} changed.
+            </div>
+            <div>
+              Underlays: {issueComparison.underlays.added.length} added,{' '}
+              {issueComparison.underlays.removed.length} removed,{' '}
+              {issueComparison.underlays.changed.length} changed.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedSheet ? (
+        <ProfileAuditSection
+          audit={
+            selectedIssue
+              ? resolveDraftingSheetProfileAuditForIssue({
+                  issue: selectedIssue,
+                  lockedProfileAudit: issueLockedSheetsById.get(selectedSheet.id)?.profileAudit,
+                  model: drawing.model,
+                  sheet: selectedSheet,
+                })
+              : buildDraftingSheetProfileAudit({ model: previewModel, sheet: selectedSheet })
+          }
+        />
+      ) : null}
+
+      {sheetsToRender.length === 0 ? (
+        <div className="rounded-md border border-dashed bg-white px-6 py-12 text-center text-sm text-muted-foreground print:hidden">
+          No saved drawing sheet definitions are available for this preview.
+        </div>
+      ) : (
+        <div
+          className="space-y-6 overflow-auto rounded-md border bg-slate-100 p-6 print:space-y-0 print:overflow-visible print:rounded-none print:border-0 print:bg-white print:p-0"
+          data-testid="drafting-drawing-sheet-pack-preview"
+        >
+          {sheetsToRender.map((sheet) => (
+            <DraftingDrawingSheetPage
+              currentRevisionRow={currentRevisionRow}
+              drawing={previewDrawing}
+              drawingRevision={drawingRevision}
+              drawingTitle={drawingTitle}
+              key={sheet.id}
+              project={project}
+              rootTemplate={
+                selectedIssue
+                  ? null
+                  : sheet.rootSheetTemplateId
+                    ? rootTemplatesById.get(sheet.rootSheetTemplateId)
+                    : null
+              }
+              sheet={sheet}
+              templateSnapshot={
+                selectedIssue ? issueLockedSheetsById.get(sheet.id)?.templateSnapshot : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DraftingDrawingSheetPage({
+  currentRevisionRow,
+  drawing,
+  drawingRevision,
+  drawingTitle,
+  project,
+  rootTemplate,
+  sheet,
+  templateSnapshot,
+}: {
+  currentRevisionRow:
+    | NonNullable<DraftingDrawing['model']['revisionBlock']>['revisions'][number]
+    | null;
+  drawing: DraftingDrawing;
+  drawingRevision: string;
+  drawingTitle: string;
+  project: Project;
+  rootTemplate: RootSheetTemplate | null | undefined;
+  sheet: DraftingDrawingSheetDefinition;
+  templateSnapshot?: DraftingDrawingSheetTemplateSnapshot;
+}) {
+  const rootTemplateDocument =
+    coerceTemplateSnapshotDocument(templateSnapshot) ??
+    coerceRootSheetTemplateDocument(rootTemplate);
+  const layout = getTemplatePageLayout(
+    rootTemplateDocument?.paperSize ?? sheet.pageSize,
+    rootTemplateDocument?.orientation ?? sheet.orientation,
+  );
+  const sheetLayout = resolveDrawingSheetLayout(sheet, rootTemplateDocument);
+  const visibleObjects = getDrawingSheetVisibleObjects(drawing.model, sheet);
+  const visibleUnderlays = getDrawingSheetVisibleUnderlays(drawing.model, sheet);
+  const viewport = {
+    ...sheet.viewport,
+    heightMm: sheet.viewport.heightMm ?? sheetLayout.viewport.height,
+    widthMm: sheet.viewport.widthMm ?? sheetLayout.viewport.width,
+  };
+  const transform = buildViewportTransform({
+    centerX: viewport.center.x,
+    centerY: viewport.center.y,
+    frameHeightMm: sheetLayout.viewport.height,
+    frameWidthMm: sheetLayout.viewport.width,
+    rotationDeg: viewport.rotationDeg ?? 0,
+    scale: viewport.scale,
+  });
+  const labelLayout = buildDraftingLabelLayout({
+    labelMode: 'engineering',
+    model: drawing.model,
+    objects: visibleObjects,
+    selectedObjectId: null,
+    surface: 'sheet',
+    viewScale: viewport.scale,
+  });
+  const viewportClipPathId = `drafting-sheet-viewport-clip-${sanitizeSvgId(sheet.id)}`;
+  const standardProfile = getDraftingStandardProfile(
+    drawing.model.drawingSetup?.activeStandardProfileId,
+  );
+
+  return (
+    <article
+      className="package-print-page bg-white shadow-sm print:shadow-none"
+      data-print-orientation={layout.orientation}
+      data-print-page-size={layout.paperSize}
+      data-testid="drafting-drawing-sheet-page"
+      style={{
+        height: `${layout.heightMm}mm`,
+        position: 'relative',
+        width: `${layout.widthMm}mm`,
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute border-2 border-slate-950"
+        style={{
+          inset: layout.paperSize === 'a0' || layout.paperSize === 'a1' ? '20mm' : '10mm',
+        }}
+      />
+
+      <section
+        className="absolute overflow-hidden border border-slate-900 bg-white"
+        data-testid="drafting-geometry-viewport"
+        style={{
+          height: `${sheetLayout.viewport.height}mm`,
+          left: `${sheetLayout.viewport.x}mm`,
+          top: `${sheetLayout.viewport.y}mm`,
+          width: `${sheetLayout.viewport.width}mm`,
+        }}
+      >
+        <svg
+          className={`drafting-sheet-paper-preview ${sheet.includeObjectLabels ? '' : 'drafting-sheet-hide-labels'}`}
+          height="100%"
+          preserveAspectRatio="none"
+          viewBox={`0 0 ${sheetLayout.viewport.width} ${sheetLayout.viewport.height}`}
+          width="100%"
+        >
+          <style>{'.drafting-sheet-hide-labels text{display:none}'}</style>
+          <defs>
+            <clipPath id={viewportClipPathId}>
+              <rect
+                height={sheetLayout.viewport.height}
+                width={sheetLayout.viewport.width}
+                x={0}
+                y={0}
+              />
+            </clipPath>
+          </defs>
+          <rect
+            fill={standardProfile.palette.sheetBackground}
+            height={sheetLayout.viewport.height}
+            width={sheetLayout.viewport.width}
+            x={0}
+            y={0}
+          />
+
+          <g clipPath={`url(#${viewportClipPathId})`} data-testid="drafting-sheet-viewport-clip">
+            {sheet.includeGrid ? (
+              <DrawingSheetGrid
+                frameHeightMm={sheetLayout.viewport.height}
+                frameWidthMm={sheetLayout.viewport.width}
+                setup={drawing.model.drawingSetup}
+                viewport={viewport}
+              />
+            ) : null}
+
+            {sheet.includeUnderlays && visibleUnderlays.length > 0 ? (
+              <UnderlayMetadataPlaceholders underlays={visibleUnderlays} />
+            ) : null}
+
+            <g transform={transform}>
+              {visibleUnderlays.map((underlay) => (
+                <DraftingPdfUnderlay
+                  calibrationPoints={null}
+                  cropPreview={null}
+                  interactionEnabled={false}
+                  isSelected={false}
+                  key={underlay.id}
+                  underlay={underlay}
+                />
+              ))}
+
+              {visibleObjects.map((object) => (
+                <React.Fragment key={object.id}>
+                  {renderDraftingObject({
+                    drawingSetup: drawing.model.drawingSetup,
+                    isSelected: false,
+                    layer: getLayerById(drawing.model, object.layerId),
+                    labelMode: 'engineering',
+                    labelPlacement: labelLayout.placementByObjectId[object.id],
+                    object,
+                    allObjects: drawing.model.objects,
+                    onPointerDown: () => {},
+                    surface: 'sheet',
+                    viewScale: viewport.scale,
+                  })}
+                </React.Fragment>
+              ))}
+            </g>
+
+            <DrawingSheetNorthOverlay
+              frameWidthMm={sheetLayout.viewport.width}
+              setup={drawing.model.drawingSetup}
+            />
+          </g>
+        </svg>
+      </section>
+
+      <TitleBlock
+        currentRevisionRow={currentRevisionRow}
+        drawing={drawing}
+        drawingRevision={drawingRevision}
+        drawingTitle={drawingTitle}
+        layout={sheetLayout.titleBlock}
+        project={project}
+        rootTemplateDocument={rootTemplateDocument}
+        sheet={sheet}
+      />
+    </article>
+  );
+}
+
+function ProfileAuditSection({ audit }: { audit: DraftingSheetProfileAudit }) {
+  return (
+    <section
+      className="space-y-3 rounded-md border bg-white p-4 text-sm print:hidden"
+      data-testid="drafting-sheet-profile-audit"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="font-medium">Profile Audit</div>
+            <Badge variant={audit.provenance?.status === 'frozen' ? 'secondary' : 'outline'}>
+              {formatProfileAuditProvenanceLabel(audit.provenance?.status)}
+            </Badge>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Resolved presentation metadata used by this plotted sheet preview.
+          </div>
+        </div>
+        <Badge variant="outline">{audit.schemaVersion}</Badge>
+      </div>
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        {DRAFTING_PROFILE_AUDIT_WARNING}
+      </div>
+      {audit.provenance?.status === 'fallback_resolved' ? (
+        <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
+          {audit.provenance.warning ?? DRAFTING_PROFILE_AUDIT_FALLBACK_WARNING}
+        </div>
+      ) : null}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <AuditMetric
+          label="Active profile"
+          value={`${audit.activeProfileId} · ${audit.profileName}`}
+        />
+        <AuditMetric
+          label="Audit source"
+          value={formatProfileAuditProvenanceLabel(audit.provenance?.status)}
+        />
+        <AuditMetric label="Version" value={audit.profileVersion} />
+        <AuditMetric label="Discipline" value={audit.disciplineProfileId} />
+        <AuditMetric label="Sheet / scale" value={`${audit.sheetSize} · ${audit.plottedScale}`} />
+        <AuditMetric label="Line weight scale" value={String(audit.lineWeightScale)} />
+        <AuditMetric label="Text scale mode" value={audit.textScaleMode} />
+        <AuditMetric label="Line table" value={audit.lineWeightTableId} />
+        <AuditMetric label="Style table" value={audit.lineStyleTableId} />
+        {audit.provenance?.frozenAt ? (
+          <AuditMetric label="Frozen at" value={formatIssueDate(audit.provenance.frozenAt)} />
+        ) : null}
+        {audit.provenance?.sourceIssueId ? (
+          <AuditMetric label="Source issue" value={audit.provenance.sourceIssueId} />
+        ) : null}
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <AuditSummaryTable
+          columns={['Role', 'Type', 'Sheet mm']}
+          rows={audit.lineRoles.map((role) => [
+            role.role,
+            role.lineType,
+            role.sheetLineWeightMm.toFixed(2),
+          ])}
+          title="Resolved Line Roles"
+        />
+        <AuditSummaryTable
+          columns={['Preset', 'Text role', 'Paper height']}
+          rows={audit.textPresets.map((preset) => [
+            preset.preset,
+            preset.textRole,
+            `${preset.paperHeightMm.toFixed(1)} mm`,
+          ])}
+          title="Resolved Text Presets"
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <AuditSummaryCard
+          rows={[
+            ['Line role', audit.dimensionStyle.lineRole],
+            ['Extension role', audit.dimensionStyle.extensionRole],
+            ['Text preset', audit.dimensionStyle.textPreset],
+            ['Sheet weight', `${audit.dimensionStyle.sheetLineWeightMm.toFixed(2)} mm`],
+            ['Text height', `${audit.dimensionStyle.textHeightMm.toFixed(1)} mm`],
+          ]}
+          title="Dimension Style"
+        />
+        <AuditSummaryCard
+          rows={[
+            ['Line role', audit.leaderStyle.lineRole],
+            ['Colour role', audit.leaderStyle.colorRole],
+            ['Text preset', audit.leaderStyle.textPreset],
+            ['Sheet weight', `${audit.leaderStyle.sheetLineWeightMm.toFixed(2)} mm`],
+            ['Max opacity', audit.leaderStyle.maxLeaderOpacity.toFixed(2)],
+          ]}
+          title="Leader Style"
+        />
+      </div>
+    </section>
+  );
+}
+
+function formatProfileAuditProvenanceLabel(
+  status: NonNullable<DraftingSheetProfileAudit['provenance']>['status'] | undefined,
+) {
+  if (status === 'frozen') {
+    return 'Frozen profile audit';
+  }
+  if (status === 'fallback_resolved') {
+    return 'Fallback resolved profile audit';
+  }
+  return 'Missing profile audit';
+}
+
+function AuditMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2">
+      <div className="text-[10px] font-medium uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-xs font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function AuditSummaryTable({
+  columns,
+  rows,
+  title,
+}: {
+  columns: string[];
+  rows: string[][];
+  title: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <div className="border-b bg-muted/60 px-3 py-2 text-xs font-medium">{title}</div>
+      <div
+        className="grid bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase text-muted-foreground"
+        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+      >
+        {columns.map((column) => (
+          <div key={column}>{column}</div>
+        ))}
+      </div>
+      {rows.map((row) => (
+        <div
+          className="grid border-t px-3 py-1.5 text-xs"
+          key={row.join(':')}
+          style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+        >
+          {row.map((cell, index) => (
+            <div className="break-words" key={`${cell}-${index}`}>
+              {cell}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AuditSummaryCard({ rows, title }: { rows: string[][]; title: string }) {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{title}</div>
+      <dl className="mt-2 grid gap-1 text-xs">
+        {rows.map(([label, value]) => (
+          <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-2" key={label}>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="break-words font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function DrawingSheetNorthOverlay({
+  frameWidthMm,
+  setup,
+}: {
+  frameWidthMm: number;
+  setup: DraftingDrawing['model']['drawingSetup'];
+}) {
+  if (!setup) {
+    return null;
+  }
+  const surveyStyle = resolveDraftingPaperLineStyle({ role: 'surveyControl', setup });
+  const northLineStyle = resolveDraftingPaperLineStyle({ role: 'northArrow', setup });
+  const northTextStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', setup, surface: 'sheet' });
+  const profile = getDraftingStandardProfile(setup.activeStandardProfileId);
+
+  const arrows = [
+    setup.north.showProjectNorth
+      ? { angle: setup.north.projectNorthAngleDeg, color: northLineStyle.color, label: 'PN', x: 0 }
+      : null,
+    setup.north.showTrueNorth
+      ? {
+          angle: setup.north.trueNorthAngleDeg,
+          color: profile.palette.conflict,
+          label: 'TN',
+          x: -14,
+        }
+      : null,
+  ].filter(
+    (arrow): arrow is { angle: number; color: string; label: string; x: number } => arrow !== null,
+  );
+
+  if (arrows.length === 0) {
+    return null;
+  }
+
+  return (
+    <g data-testid="drafting-sheet-north-overlay" pointerEvents="none">
+      {arrows.map((arrow) => (
+        <g
+          key={arrow.label}
+          transform={`translate(${frameWidthMm - 14 + arrow.x} 18) rotate(${arrow.angle})`}
+        >
+          <line
+            stroke={arrow.color}
+            strokeWidth={surveyStyle.lineWeightMm}
+            x1={0}
+            x2={0}
+            y1={8}
+            y2={-8}
+          />
+          <polygon fill={arrow.color} points="0,-11 -2.2,-6 2.2,-6" />
+          <text
+            fill={arrow.color}
+            fontSize={3.2}
+            fontWeight={northTextStyle.fontWeight}
+            textAnchor="middle"
+            transform={`rotate(${-arrow.angle})`}
+            y={13.5}
+          >
+            {arrow.label}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function DrawingSheetGrid({
+  frameHeightMm,
+  frameWidthMm,
+  setup,
+  viewport,
+}: {
+  frameHeightMm: number;
+  frameWidthMm: number;
+  setup: DraftingDrawing['model']['drawingSetup'];
+  viewport: DraftingDrawingSheetDefinition['viewport'];
+}) {
+  const gridStyle = resolveDraftingPaperLineStyle({ role: 'GRID', setup });
+  const worldWidth = frameWidthMm / viewport.scale;
+  const worldHeight = frameHeightMm / viewport.scale;
+  const minX = viewport.center.x - worldWidth / 2;
+  const maxX = viewport.center.x + worldWidth / 2;
+  const minY = viewport.center.y - worldHeight / 2;
+  const maxY = viewport.center.y + worldHeight / 2;
+  const step =
+    [1000, 2000, 5000, 10000, 20000].find((candidate) => candidate * viewport.scale >= 8) ?? 20000;
+  const xValues = createGridAxisValues(minX, maxX, step);
+  const yValues = createGridAxisValues(minY, maxY, step);
+
+  return (
+    <g
+      data-testid="drafting-sheet-grid"
+      stroke={gridStyle.color}
+      strokeWidth={gridStyle.lineWeightMm}
+    >
+      {xValues.map((x) => (
+        <line
+          key={`grid-x-${x}`}
+          x1={frameWidthMm / 2 + (x - viewport.center.x) * viewport.scale}
+          x2={frameWidthMm / 2 + (x - viewport.center.x) * viewport.scale}
+          y1={0}
+          y2={frameHeightMm}
+        />
+      ))}
+      {yValues.map((y) => (
+        <line
+          key={`grid-y-${y}`}
+          x1={0}
+          x2={frameWidthMm}
+          y1={frameHeightMm / 2 + (y - viewport.center.y) * viewport.scale}
+          y2={frameHeightMm / 2 + (y - viewport.center.y) * viewport.scale}
+        />
+      ))}
+    </g>
+  );
+}
+
+function UnderlayMetadataPlaceholders({
+  underlays,
+}: {
+  underlays: Array<{ fileName: string; id: string; pageNumber: number }>;
+}) {
+  const profile = getDraftingStandardProfile();
+  const textStyle = resolveDraftingTextStyle({ role: 'NOTE_SMALL', surface: 'sheet' });
+  return (
+    <g data-testid="drafting-sheet-underlay-metadata">
+      {underlays.map((underlay, index) => (
+        <text
+          fill={profile.palette.softInk}
+          fontSize={textStyle.fontSize}
+          fontWeight={textStyle.fontWeight}
+          key={underlay.id}
+          x={4}
+          y={6 + index * 5}
+        >
+          PDF underlay: {underlay.fileName} p{underlay.pageNumber}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+function TitleBlock({
+  currentRevisionRow,
+  drawing,
+  drawingRevision,
+  drawingTitle,
+  layout,
+  project,
+  rootTemplateDocument,
+  sheet,
+}: {
+  currentRevisionRow:
+    | NonNullable<DraftingDrawing['model']['revisionBlock']>['revisions'][number]
+    | null;
+  drawing: DraftingDrawing;
+  drawingRevision: string;
+  drawingTitle: string;
+  layout: SheetRect;
+  project: Project;
+  rootTemplateDocument: DrawingSheetTemplateDocument | null;
+  sheet: DraftingDrawingSheetDefinition;
+}) {
+  const titleBlock = drawing.model.titleBlock ?? {};
+  const metadataRows = [
+    ['Project', titleBlock.projectName ?? project.name],
+    ['Drawing No.', titleBlock.drawingNumber ?? '-'],
+    ['Sheet', sheet.sheetNumber || titleBlock.sheetNumber || '-'],
+    ['Scale', sheet.scaleLabel || titleBlock.scale || '-'],
+    ['Revision', drawingRevision || '-'],
+    ['Status', currentRevisionRow?.status || titleBlock.status || '-'],
+    ['Drawn', currentRevisionRow?.drawnBy || titleBlock.drawnBy || '-'],
+    ['Checked', currentRevisionRow?.checkedBy || titleBlock.checkedBy || '-'],
+    ['Approved', currentRevisionRow?.approvedBy || titleBlock.approvedBy || '-'],
+  ];
+
+  return (
+    <section
+      className="absolute grid grid-rows-[1fr_auto] border border-slate-950 bg-white text-slate-950"
+      data-testid="drafting-sheet-title-block"
+      style={{
+        height: `${layout.height}mm`,
+        left: `${layout.x}mm`,
+        top: `${layout.y}mm`,
+        width: `${layout.width}mm`,
+      }}
+    >
+      <div className="grid grid-cols-[1fr_46mm]">
+        <div className="min-w-0 border-r border-slate-950 p-[3mm]">
+          <div className="text-[8px] font-semibold uppercase leading-tight text-slate-600">
+            {rootTemplateDocument
+              ? formatOperatorFacingSheetLabel(rootTemplateDocument.name)
+              : 'Default drafting drawing sheet'}
+          </div>
+          <div className="mt-[2mm] text-[16px] font-semibold leading-tight">{sheet.title}</div>
+          <div className="mt-[1mm] text-[11px] leading-tight text-slate-700">{drawingTitle}</div>
+          {titleBlock.clientName ? (
+            <div className="mt-[1mm] text-[10px] leading-tight text-slate-600">
+              Client: {titleBlock.clientName}
+            </div>
+          ) : null}
+        </div>
+        <div className="grid grid-rows-3 text-[9px] leading-tight">
+          <TitleCell label="Drawn" value={currentRevisionRow?.drawnBy || titleBlock.drawnBy} />
+          <TitleCell
+            label="Checked"
+            value={currentRevisionRow?.checkedBy || titleBlock.checkedBy}
+          />
+          <TitleCell
+            label="Approved"
+            value={currentRevisionRow?.approvedBy || titleBlock.approvedBy}
+            isLast
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 border-t border-slate-950 text-[8px] leading-tight">
+        {metadataRows.map(([label, value], index) => (
+          <div
+            className={`grid grid-cols-[20mm_minmax(0,1fr)] ${index < metadataRows.length - 1 ? 'border-r border-slate-950' : ''}`}
+            key={label}
+          >
+            <div className="border-r border-slate-300 px-[1.5mm] py-[1mm] font-semibold uppercase text-slate-500">
+              {label}
+            </div>
+            <div className="truncate px-[1.5mm] py-[1mm]">{value}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TitleCell({
+  isLast = false,
+  label,
+  value,
+}: {
+  isLast?: boolean;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <div className={`px-[2mm] py-[1.5mm] ${isLast ? '' : 'border-b border-slate-950'}`}>
+      <div className="font-semibold uppercase text-slate-500">{label}</div>
+      <div>{value || '-'}</div>
+    </div>
+  );
+}
+
+type SheetRect = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+function resolveDrawingSheetLayout(
+  sheet: DraftingDrawingSheetDefinition,
+  rootTemplateDocument: DrawingSheetTemplateDocument | null,
+): { titleBlock: SheetRect; viewport: SheetRect } {
+  const layout = getTemplatePageLayout(
+    rootTemplateDocument?.paperSize ?? sheet.pageSize,
+    rootTemplateDocument?.orientation ?? sheet.orientation,
+  );
+  const titleBlockObject = rootTemplateDocument?.objects.find(
+    (object) => object.type === 'titleBlock',
+  );
+  const viewportObject = rootTemplateDocument?.objects.find(
+    (object) => object.type === 'mapFrame' || object.type === 'imageFrame',
+  );
+  const margin = layout.paperSize === 'a0' || layout.paperSize === 'a1' ? 20 : 10;
+  const defaultTitleBlock = {
+    height: 56,
+    width: Math.min(185, layout.widthMm - margin * 2),
+    x: layout.widthMm - margin - Math.min(185, layout.widthMm - margin * 2),
+    y: layout.heightMm - margin - 56,
+  };
+  const titleBlock = titleBlockObject ? toSheetRect(titleBlockObject) : defaultTitleBlock;
+  const viewport = viewportObject
+    ? toSheetRect(viewportObject)
+    : {
+        height: Math.max(
+          80,
+          Math.min(
+            sheet.viewport.heightMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_HEIGHT_MM,
+            titleBlock.y - margin * 1.5,
+          ),
+        ),
+        width: Math.max(
+          120,
+          Math.min(
+            sheet.viewport.widthMm ?? DEFAULT_DRAFTING_DRAWING_SHEET_VIEWPORT_WIDTH_MM,
+            layout.widthMm - margin * 2,
+          ),
+        ),
+        x: margin,
+        y: margin,
+      };
+
+  return { titleBlock, viewport };
+}
+
+function toSheetRect(rect: SheetRect): SheetRect {
+  return {
+    height: rect.height,
+    width: rect.width,
+    x: rect.x,
+    y: rect.y,
+  };
+}
+
+function buildViewportTransform({
+  centerX,
+  centerY,
+  frameHeightMm,
+  frameWidthMm,
+  rotationDeg,
+  scale,
+}: {
+  centerX: number;
+  centerY: number;
+  frameHeightMm: number;
+  frameWidthMm: number;
+  rotationDeg: number;
+  scale: number;
+}) {
+  return [
+    `translate(${frameWidthMm / 2} ${frameHeightMm / 2})`,
+    rotationDeg ? `rotate(${-rotationDeg})` : '',
+    `scale(${scale})`,
+    `translate(${-centerX} ${-centerY})`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function sanitizeSvgId(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+type DrawingSheetTemplateDocument = Pick<
+  GenericTemplateDocument,
+  'name' | 'objects' | 'orientation' | 'paperSize'
+>;
+
+function coerceTemplateSnapshotDocument(
+  snapshot: DraftingDrawingSheetTemplateSnapshot | undefined,
+): DrawingSheetTemplateDocument | null {
+  const definition = snapshot?.renderDefinition;
+  if (!definition || typeof definition !== 'object') {
+    return null;
+  }
+  const candidate = definition as Partial<DrawingSheetTemplateDocument>;
+  if (!candidate.paperSize || !candidate.orientation || !Array.isArray(candidate.objects)) {
+    return null;
+  }
+
+  return {
+    name: snapshot.label,
+    objects: candidate.objects,
+    orientation: candidate.orientation,
+    paperSize: candidate.paperSize,
+  } as DrawingSheetTemplateDocument;
+}
+
+function formatIssueDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}

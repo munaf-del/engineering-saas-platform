@@ -14,3 +14,5 @@ export * from './piles.js';
 export * from './multi-pile.js';
 export * from './project-loads.js';
 export * from './project-spatial.js';
+export * from './drafting.js';
+export * from './drafting-source-registry.js';

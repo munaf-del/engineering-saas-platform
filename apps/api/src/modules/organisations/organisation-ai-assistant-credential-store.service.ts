@@ -161,8 +161,17 @@ export class OrganisationAiAssistantCredentialStoreService {
     ) as StoredOrganisationAiProviderCredentialMap;
   }
 
-  private getClient(client?: OrganisationAiAssistantCredentialStoreClient) {
-    return (client ?? this.prisma) as OrganisationAiAssistantCredentialStoreClient;
+  private getClient(
+    client?: OrganisationAiAssistantCredentialStoreClient,
+  ): OrganisationAiAssistantCredentialStoreClient {
+    if (client) {
+      return client;
+    }
+
+    return {
+      organisationAiAssistantProviderCredential:
+        this.prisma.organisationAiAssistantProviderCredential,
+    };
   }
 
   private requireEncryptionSecret() {

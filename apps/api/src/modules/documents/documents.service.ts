@@ -1,18 +1,63 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { access as fsAccess } from 'node:fs/promises';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { RequestUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { CreateDocumentDto } from './dto/document.dto';
+import { DocumentStorageService } from './document-storage.service';
+import { findDraftingTransmittalEvidenceReferences } from './drafting-transmittal-evidence-references';
+
+type DocumentAccess = {
+  organisationId: string;
+  userId: string;
+  orgRole?: string;
+};
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: DocumentStorageService,
+  ) {}
 
-  async findAll(organisationId: string, pagination: PaginationDto, projectId?: string) {
+  accessFor(user: RequestUser): DocumentAccess {
+    if (!user.organisationId) {
+      throw new ForbiddenException('Organisation context required');
+    }
+
+    return {
+      organisationId: user.organisationId,
+      userId: user.id,
+      orgRole: user.orgRole,
+    };
+  }
+
+  async findAll(
+    access: DocumentAccess,
+    pagination: PaginationDto,
+    projectId?: string,
+    mimeType?: string,
+  ) {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = { organisationId };
-    if (projectId) where.projectId = projectId;
+    if (projectId) {
+      await this.assertProjectReadAccess(access, projectId);
+    }
+
+    const where: Record<string, unknown> = { organisationId: access.organisationId };
+    if (projectId) {
+      where.projectId = projectId;
+    }
+    if (mimeType) {
+      where.mimeType = mimeType;
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.document.findMany({
@@ -27,40 +72,180 @@ export class DocumentsService {
     return paginate(data, total, page, limit);
   }
 
-  async findById(id: string, organisationId: string) {
+  async findById(id: string, access: DocumentAccess) {
     const doc = await this.prisma.document.findFirst({
-      where: { id, organisationId },
+      where: { id, organisationId: access.organisationId },
     });
-    if (!doc) throw new NotFoundException('Document not found');
+
+    if (!doc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (doc.projectId) {
+      await this.assertProjectReadAccess(access, doc.projectId);
+    }
+
     return doc;
   }
 
   async create(
-    organisationId: string,
-    userId: string,
+    access: DocumentAccess,
     dto: CreateDocumentDto,
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
   ) {
-    const storagePath = `uploads/${organisationId}/${Date.now()}-${file.originalname}`;
+    if (dto.projectId) {
+      await this.assertProjectWriteAccess(access, dto.projectId);
+    }
 
-    return this.prisma.document.create({
-      data: {
-        organisationId,
-        projectId: dto.projectId,
-        entityType: dto.entityType,
-        entityId: dto.entityId,
-        name: dto.name,
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        sizeBytes: file.size,
-        storagePath,
-        uploadedBy: userId,
-      },
+    const documentId = randomUUID();
+    const persisted = await this.storageService.persistUploadedFile({
+      organisationId: access.organisationId,
+      projectId: dto.projectId,
+      documentId,
+      originalName: file.originalname,
+      buffer: file.buffer,
     });
+
+    try {
+      return await this.prisma.document.create({
+        data: {
+          id: documentId,
+          organisationId: access.organisationId,
+          projectId: dto.projectId,
+          entityType: dto.entityType,
+          entityId: dto.entityId,
+          name: dto.name,
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          storagePath: persisted.storagePath,
+          uploadedBy: access.userId,
+        },
+      });
+    } catch (error) {
+      await this.storageService.deleteStoredFile(persisted.storagePath);
+      throw error;
+    }
   }
 
-  async delete(id: string, organisationId: string) {
-    const doc = await this.findById(id, organisationId);
-    return this.prisma.document.delete({ where: { id: doc.id } });
+  async prepareDownload(id: string, documentAccess: DocumentAccess) {
+    const doc = await this.findById(id, documentAccess);
+    const absolutePath = this.storageService.resolveAbsolutePath(doc.storagePath);
+
+    try {
+      await fsAccess(absolutePath);
+    } catch {
+      throw new NotFoundException('Document file not found');
+    }
+
+    return {
+      document: doc,
+      absolutePath,
+    };
+  }
+
+  async delete(id: string, access: DocumentAccess) {
+    const doc = await this.findById(id, access);
+    if (doc.projectId) {
+      const references = await this.findDraftingTransmittalEvidenceReferences(
+        doc.projectId,
+        doc.id,
+      );
+      if (references.length > 0) {
+        throw new ConflictException({
+          documentId: doc.id,
+          projectId: doc.projectId,
+          referencesCount: references.length,
+          references,
+        });
+      }
+    }
+
+    const deleted = await this.prisma.document.delete({ where: { id: doc.id } });
+    await this.storageService.deleteStoredFile(doc.storagePath);
+    return deleted;
+  }
+
+  async findDraftingTransmittalEvidenceReferences(projectId: string, documentId: string) {
+    const drawings = await this.prisma.draftingDrawing.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        modelJson: true,
+        projectId: true,
+        revisions: {
+          select: {
+            modelJsonSnapshot: true,
+          },
+        },
+        title: true,
+      },
+    });
+
+    const models = drawings.flatMap((drawing) => {
+      const current = {
+        id: drawing.id,
+        modelJson: drawing.modelJson,
+        projectId: drawing.projectId,
+        title: drawing.title,
+      };
+
+      return [
+        current,
+        ...drawing.revisions.map((revision) => ({
+          ...current,
+          modelJson: revision.modelJsonSnapshot,
+        })),
+      ];
+    });
+
+    return findDraftingTransmittalEvidenceReferences(projectId, documentId, models);
+  }
+
+  private async assertProjectReadAccess(access: DocumentAccess, projectId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        organisationId: access.organisationId,
+      },
+      include: {
+        members: {
+          select: {
+            userId: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    if (access.orgRole === 'owner' || access.orgRole === 'admin') {
+      return project;
+    }
+
+    const membership = project.members.find((member) => member.userId === access.userId);
+    if (!membership) {
+      throw new ForbiddenException('Not a member of this project');
+    }
+
+    return project;
+  }
+
+  private async assertProjectWriteAccess(access: DocumentAccess, projectId: string) {
+    const project = await this.assertProjectReadAccess(access, projectId);
+
+    if (access.orgRole === 'owner' || access.orgRole === 'admin') {
+      return project;
+    }
+
+    const membership = project.members.find((member) => member.userId === access.userId);
+    if (!membership || membership.role === 'viewer') {
+      throw new ForbiddenException('Project write access denied');
+    }
+
+    return project;
   }
 }

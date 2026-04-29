@@ -159,15 +159,28 @@ export function LoadEngineBasisTab({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1600px]">
+            <Table className="min-w-[2600px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Type ID</TableHead>
                   <TableHead>Display Name</TableHead>
+                  <TableHead className="w-56">Description</TableHead>
+                  <TableHead className="w-44">Pile system / type</TableHead>
+                  <TableHead className="w-36">Concrete grade</TableHead>
+                  <TableHead className="w-36">Socket length (m)</TableHead>
+                  <TableHead className="w-44">Founding stratum</TableHead>
+                  <TableHead className="w-56">Founding note</TableHead>
                   <TableHead className="w-28">Active</TableHead>
+                  <TableHead className="w-36">Source status</TableHead>
                   <TableHead className="w-40">Standard Size (mm)</TableHead>
                   <TableHead className="w-28">Use Custom</TableHead>
                   <TableHead className="w-40">Custom Size (mm)</TableHead>
+                  <TableHead className="w-40">Design compression (kN)</TableHead>
+                  <TableHead className="w-40">Design tension (kN)</TableHead>
+                  <TableHead className="w-40">Design lateral (kN)</TableHead>
+                  <TableHead className="w-56">Durability / exposure note</TableHead>
+                  <TableHead className="w-56">Construction note</TableHead>
+                  <TableHead className="w-56">Notes</TableHead>
                   <TableHead className="w-32">D (m)</TableHead>
                   <TableHead className="w-32">e_oop (m)</TableHead>
                   <TableHead className="w-40">Compression range min (kN)</TableHead>
@@ -212,6 +225,99 @@ export function LoadEngineBasisTab({
                         />
                       </TableCell>
                       <TableCell>
+                        <Input
+                          value={pileType.description ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, description: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="bored pile, CFA..."
+                          value={pileType.pileSystem ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, pileSystem: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="C40"
+                          value={pileType.concreteGrade ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, concreteGrade: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.socketLengthM ?? null)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      socketLengthM: nullableNumberFromInput(event.target.value),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.foundingStratum ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, foundingStratum: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.foundingNote ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, foundingNote: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
                         <input
                           type="checkbox"
                           className="h-4 w-4 rounded border border-input"
@@ -224,6 +330,35 @@ export function LoadEngineBasisTab({
                             )
                           }
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={pileType.status ?? 'draft'}
+                          onValueChange={(value) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      status:
+                                        value === 'active' || value === 'superseded'
+                                          ? value
+                                          : 'draft',
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="superseded">Superseded</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Select
@@ -285,6 +420,111 @@ export function LoadEngineBasisTab({
                                       ),
                                     }
                                   : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.designCompressionKn ?? null)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      designCompressionKn: nullableNumberFromInput(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.designTensionKn ?? null)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      designTensionKn: nullableNumberFromInput(event.target.value),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={nullableNumberToInput(pileType.designLateralKn ?? null)}
+                          placeholder="Open"
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? {
+                                      ...row,
+                                      designLateralKn: nullableNumberFromInput(event.target.value),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.durabilityExposureNote ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, durabilityExposureNote: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.constructionNote ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, constructionNote: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={pileType.notes ?? ''}
+                          onChange={(event) =>
+                            updatePileTypes((currentPileTypes) =>
+                              currentPileTypes.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, notes: event.target.value } : row,
                               ),
                             )
                           }

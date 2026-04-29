@@ -1,20 +1,34 @@
 'use client';
 
+import * as React from 'react';
 import { useState } from 'react';
 import { Building2, Check, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
-export function OrgSwitcher() {
+export function OrgSwitcher({ compact = false }: { compact?: boolean }) {
   const { user, organisations, currentOrg, switchOrg } = useAuth();
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const organisationName = currentOrg?.name ?? 'Organisation';
 
   if (!user || organisations.length <= 1) {
+    if (compact) {
+      return (
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-md bg-accent/50"
+          title={organisationName}
+        >
+          <Building2 className="h-4 w-4 text-muted-foreground" />
+          <span className="sr-only">{organisationName}</span>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center gap-2 rounded-md bg-accent/50 px-2 py-1.5 text-sm">
         <Building2 className="h-4 w-4 text-muted-foreground" />
-        <span className="truncate font-medium">{currentOrg?.name ?? 'Organisation'}</span>
+        <span className="truncate font-medium">{organisationName}</span>
       </div>
     );
   }
@@ -40,22 +54,38 @@ export function OrgSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1.5 text-sm hover:bg-accent"
+        className={cn(
+          'flex items-center rounded-md border bg-background text-sm hover:bg-accent',
+          compact ? 'h-10 w-10 justify-center' : 'w-full justify-between gap-2 px-2 py-1.5',
+        )}
         disabled={switching}
+        title={compact ? organisationName : undefined}
+        aria-label="Switch organisation"
       >
-        <div className="flex items-center gap-2 truncate">
+        <div className={cn('flex items-center truncate', compact ? 'justify-center' : 'gap-2')}>
           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-medium">
-            {switching ? 'Switching…' : currentOrg?.name}
-          </span>
+          {compact ? (
+            <span className="sr-only">
+              {switching ? 'Switching organisation' : organisationName}
+            </span>
+          ) : (
+            <span className="truncate font-medium">
+              {switching ? 'Switching…' : organisationName}
+            </span>
+          )}
         </div>
-        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        {compact ? null : <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border bg-popover p-1 shadow-md">
+          <div
+            className={cn(
+              'absolute z-50 rounded-md border bg-popover p-1 shadow-md',
+              compact ? 'left-full top-0 ml-2 w-64' : 'left-0 right-0 mt-1',
+            )}
+          >
             {organisations.map((org) => (
               <button
                 key={org.id}

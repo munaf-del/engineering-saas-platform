@@ -82,9 +82,7 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   params?: Record<string, string | number | boolean | undefined>;
 };
 
-export async function api<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { body, params, headers: extraHeaders, ...rest } = opts;
-
+function buildApiUrl(path: string, params?: RequestOptions['params']) {
   let url = `${API_BASE}${API_PREFIX}${path}`;
   if (params) {
     const sp = new URLSearchParams();
@@ -94,6 +92,14 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
     const qs = sp.toString();
     if (qs) url += `?${qs}`;
   }
+
+  return url;
+}
+
+export async function apiResponse(path: string, opts: RequestOptions = {}) {
+  const { body, params, headers: extraHeaders, ...rest } = opts;
+
+  const url = buildApiUrl(path, params);
 
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
@@ -146,9 +152,27 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
     throw new ApiError(res.status, res.statusText, errBody);
   }
 
-  if (res.status === 204) return undefined as T;
+  return res;
+}
+
+export async function api<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const res = await apiResponse(path, opts);
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
 
   return res.json() as Promise<T>;
+}
+
+export async function apiBlob(path: string, opts: RequestOptions = {}) {
+  const res = await apiResponse(path, opts);
+  return res.blob();
+}
+
+export async function apiArrayBuffer(path: string, opts: RequestOptions = {}) {
+  const res = await apiResponse(path, opts);
+  return res.arrayBuffer();
 }
 
 export type PaginatedResponse<T> = {

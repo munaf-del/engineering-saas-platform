@@ -4,6 +4,7 @@ import { buildMultiPileEnvelopeInputSignature } from '@eng/shared';
 import {
   findSuggestedPileTypeForEnvelopeExtremes,
   materializeAutoAssignedPileTypes,
+  normalizePileTypeDefinition,
   summarizePileTypeUltimateRange,
 } from './utils';
 
@@ -219,6 +220,44 @@ function latestRunFixture(state: MultiPileState): MultiPileEnvelopeRunSummary {
 }
 
 describe('multi-pile range matching helpers', () => {
+  it('normalizes project pile type source metadata for Drafting reuse', () => {
+    expect(
+      normalizePileTypeDefinition({
+        id: 'BP1',
+        displayName: 'Main bored pile',
+        Dmm: 600,
+        concreteGrade: 'C40',
+        pileSystem: 'bored pile',
+        socketLengthM: 3,
+        foundingStratum: 'weathered shale',
+        foundingNote: 'socket into verified founding stratum',
+        designCompressionKn: 2500,
+        designTensionKn: 500,
+        designLateralKn: 125,
+        durabilityExposureNote: 'project durability note',
+        constructionNote: 'installation note',
+        status: 'active',
+        notes: 'source note',
+      }),
+    ).toMatchObject({
+      id: 'BP1',
+      displayName: 'Main bored pile',
+      nominalDiameterMm: 600,
+      concreteGrade: 'C40',
+      pileSystem: 'bored pile',
+      socketLengthM: 3,
+      foundingStratum: 'weathered shale',
+      foundingNote: 'socket into verified founding stratum',
+      designCompressionKn: 2500,
+      designTensionKn: 500,
+      designLateralKn: 125,
+      durabilityExposureNote: 'project durability note',
+      constructionNote: 'installation note',
+      status: 'active',
+      notes: 'source note',
+    });
+  });
+
   it('marks pile types with missing axis data as incomplete for auto-matching', () => {
     expect(
       summarizePileTypeUltimateRange({
