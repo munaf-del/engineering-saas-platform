@@ -18,6 +18,7 @@ import type {
   DraftingSectionMarkerObject,
   DraftingServiceCrossingObject,
   DraftingStructuralJointObject,
+  DraftingWalerObject,
   Project,
 } from '@eng/shared';
 import { calculateDimensionChainTotal } from '../src/features/drafting/semantic-object-utils';
@@ -2027,6 +2028,157 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(exportedCappingBeam!.sourceRef).toBeUndefined();
       expect(exportedCappingBeam).not.toHaveProperty('designLoad');
       expect(exportedCappingBeam).not.toHaveProperty('capacity');
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a manual waler through the shared path command boundary', async ({ page }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.43, yRatio: 0.44 },
+        page,
+        previewTestId: 'drafting-command-preview-waler',
+        start: { xRatio: 0.34, yRatio: 0.48 },
+        toolLabel: 'Waler',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-waler')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.46, yRatio: 0.5 },
+        page,
+        previewTestId: 'drafting-command-preview-waler',
+        start: { xRatio: 0.36, yRatio: 0.56 },
+        toolLabel: 'Waler',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-waler')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const ratios = [
+        { xRatio: 0.38, yRatio: 0.62 },
+        { xRatio: 0.5, yRatio: 0.56 },
+        { xRatio: 0.62, yRatio: 0.6 },
+      ];
+      const toolButton = page.getByRole('button', { exact: true, name: 'Waler' });
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      await canvas.scrollIntoViewIfNeeded();
+      const points = await Promise.all(ratios.map((ratio) => pointInLocator(canvas, ratio)));
+
+      await page.mouse.move(points[0]!.x, points[0]!.y);
+      await page.mouse.click(points[0]!.x, points[0]!.y);
+      await expect(page.getByText('1 point(s) captured for the current path.')).toBeVisible();
+      await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-waler')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(points[1]!.x, points[1]!.y);
+      await page.mouse.move(points[2]!.x, points[2]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-waler')).toHaveAttribute(
+        'points',
+        /.+ .+ .+/,
+      );
+      await page.mouse.click(points[2]!.x, points[2]!.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-waler')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredWalerId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredWalerId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredWalerId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredWaler = reloadedDrawing.model.objects.find(
+        (object): object is DraftingWalerObject =>
+          object.id === authoredWalerId && object.type === 'waler',
+      );
+      expect(authoredWaler).toBeDefined();
+      expect(authoredWaler!.geometry.points).toHaveLength(3);
+      expect(authoredWaler!.parameters.walerId).toMatch(/^W\d+$/);
+      expect(authoredWaler!.parameters.sectionLabel).toBe('2UC360');
+      expect(authoredWaler!.parameters.levelRl).toBe(10.5);
+      expect(authoredWaler!.parameters.connectionNotes).toBe('');
+      expect(authoredWaler!.metadata.associatedWallId).toBe('');
+      expect(authoredWaler!.metadata.notes).toBe('');
+      expect(authoredWaler!.sourceRef).toBeUndefined();
+      expect(authoredWaler).not.toHaveProperty('designLoad');
+      expect(authoredWaler).not.toHaveProperty('capacity');
+      expect(authoredWaler).not.toHaveProperty('reinforcement');
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedWaler = exported.model.objects.find(
+        (object): object is DraftingWalerObject =>
+          object.id === authoredWalerId && object.type === 'waler',
+      );
+      expect(exportedWaler).toBeDefined();
+      expect(exportedWaler!.geometry.points).toHaveLength(3);
+      expect(exportedWaler!.parameters.walerId).toBe(authoredWaler!.parameters.walerId);
+      expect(exportedWaler!.parameters.sectionLabel).toBe('2UC360');
+      expect(exportedWaler!.parameters.levelRl).toBe(10.5);
+      expect(exportedWaler!.parameters.connectionNotes).toBe('');
+      expect(exportedWaler!.sourceRef).toBeUndefined();
+      expect(exportedWaler).not.toHaveProperty('designLoad');
+      expect(exportedWaler).not.toHaveProperty('capacity');
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);

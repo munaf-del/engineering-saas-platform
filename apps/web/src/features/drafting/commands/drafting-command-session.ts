@@ -14,10 +14,12 @@ export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingSketchPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingExcavationLineCommandTool = 'excavation_line';
 export type DraftingCappingBeamCommandTool = 'capping_beam';
+export type DraftingWalerCommandTool = 'waler';
 export type DraftingPathCommandTool =
   | DraftingSketchPathCommandTool
   | DraftingExcavationLineCommandTool
-  | DraftingCappingBeamCommandTool;
+  | DraftingCappingBeamCommandTool
+  | DraftingWalerCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -41,6 +43,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 export const DRAFTING_PATH_COMMAND_TOOLS = [
   'capping_beam',
   'excavation_line',
+  'waler',
   'draft_polyline',
   'draft_polygon',
 ] as const satisfies DraftingPathCommandTool[];
@@ -336,7 +339,10 @@ export type DraftingPathCommandCommit =
       placement: DraftingManualPathEngineeringPlacement;
       points: DraftingPoint[];
       session: DraftingCommandSession;
-      tool: DraftingCappingBeamCommandTool | DraftingExcavationLineCommandTool;
+      tool:
+        | DraftingCappingBeamCommandTool
+        | DraftingExcavationLineCommandTool
+        | DraftingWalerCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -467,6 +473,10 @@ export function startDraftingExcavationLineCommand(): ActiveDraftingPathCommandS
 
 export function startDraftingCappingBeamCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('capping_beam');
+}
+
+export function startDraftingWalerCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('waler');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1169,6 +1179,19 @@ export function finishDraftingPathCommand(
   session: DraftingCommandSession,
 ): DraftingPathCommandCommit {
   switch (session.tool) {
+    case 'waler': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualPathEngineeringPlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'waler',
+      };
+    }
     case 'capping_beam': {
       if (session.points.length < 2) {
         return { committed: false, session };

@@ -389,6 +389,36 @@ describe('drafting model utils', () => {
     expect(cappingBeam).not.toHaveProperty('capacity');
   });
 
+  it('creates a waler from authored path vertices while preserving factory-owned defaults', () => {
+    const model = createEmptyDraftingModel('drawing-waler');
+    const vertices = [
+      { x: 0, y: 0, z: 10.5, rl: 10.5 },
+      { x: 1500, y: 0, z: 10.4, rl: 10.4 },
+      { x: 2100, y: 450, z: 10.3, rl: 10.3 },
+    ];
+    const waler = createDraftingObject('waler', vertices[0]!, model, vertices);
+
+    if (waler.type !== 'waler') {
+      throw new Error('Expected a waler object');
+    }
+
+    expect(waler.geometry).toEqual({ points: vertices });
+    expect(waler.parameters).toEqual({
+      walerId: 'W1',
+      sectionLabel: '2UC360',
+      levelRl: 10.5,
+      connectionNotes: '',
+    });
+    expect(waler.metadata).toEqual({
+      associatedWallId: '',
+      notes: '',
+    });
+    expect(waler.sourceRef).toBeUndefined();
+    expect(waler).not.toHaveProperty('designLevel');
+    expect(waler).not.toHaveProperty('load');
+    expect(waler).not.toHaveProperty('capacity');
+  });
+
   it('keeps dimension witness anchor metadata aligned for partially snapped dimensions', () => {
     const model = createEmptyDraftingModel('dimension-witness-alignment');
     const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [

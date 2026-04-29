@@ -966,6 +966,21 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'waler') {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-waler"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (tool === 'excavation_line') {
     return (
       <polyline
