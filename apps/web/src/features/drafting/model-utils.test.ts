@@ -332,6 +332,32 @@ describe('drafting model utils', () => {
     expect(parsed.objects).toHaveLength(6);
   });
 
+  it('creates an excavation line from authored path vertices while preserving factory-owned defaults', () => {
+    const model = createEmptyDraftingModel('drawing-excavation-line');
+    const vertices = [
+      { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      { x: 1500, y: 0, z: 12.4, rl: 12.4 },
+      { x: 2100, y: 600, z: 12.3, rl: 12.3 },
+    ];
+    const excavationLine = createDraftingObject('excavation_line', vertices[0]!, model, vertices);
+
+    if (excavationLine.type !== 'excavation_line') {
+      throw new Error('Expected an excavation line object');
+    }
+
+    expect(excavationLine.geometry).toEqual({
+      points: vertices,
+      closed: false,
+    });
+    expect(excavationLine.metadata).toEqual({
+      excavationId: 'EX1',
+      stage: 'Stage 1',
+    });
+    expect(excavationLine.sourceRef).toBeUndefined();
+    expect(excavationLine).not.toHaveProperty('designLevel');
+    expect(excavationLine).not.toHaveProperty('volume');
+  });
+
   it('keeps dimension witness anchor metadata aligned for partially snapped dimensions', () => {
     const model = createEmptyDraftingModel('dimension-witness-alignment');
     const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [

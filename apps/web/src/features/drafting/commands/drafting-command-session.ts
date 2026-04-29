@@ -11,7 +11,11 @@ export type DraftingBoreholeCommandTool = 'borehole';
 export type DraftingPileCommandTool = 'pile';
 export type DraftingAnchorTiebackCommandTool = 'anchor_tieback';
 export type DraftingDimensionCommandTool = 'dimension_chain';
-export type DraftingPathCommandTool = 'draft_polyline' | 'draft_polygon';
+export type DraftingSketchPathCommandTool = 'draft_polyline' | 'draft_polygon';
+export type DraftingExcavationLineCommandTool = 'excavation_line';
+export type DraftingPathCommandTool =
+  | DraftingSketchPathCommandTool
+  | DraftingExcavationLineCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -33,6 +37,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 ] as const satisfies DraftingPrimitiveCommandTool[];
 
 export const DRAFTING_PATH_COMMAND_TOOLS = [
+  'excavation_line',
   'draft_polyline',
   'draft_polygon',
 ] as const satisfies DraftingPathCommandTool[];
@@ -321,7 +326,14 @@ export type DraftingPathCommandCommit =
       committed: true;
       points: DraftingPoint[];
       session: DraftingCommandSession;
-      tool: DraftingPathCommandTool;
+      tool: DraftingSketchPathCommandTool;
+    }
+  | {
+      committed: true;
+      placement: DraftingManualPathEngineeringPlacement;
+      points: DraftingPoint[];
+      session: DraftingCommandSession;
+      tool: DraftingExcavationLineCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -444,6 +456,10 @@ export function startDraftingPathCommand(
 
 export function startDraftingPolylineCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('draft_polyline');
+}
+
+export function startDraftingExcavationLineCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('excavation_line');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1146,6 +1162,19 @@ export function finishDraftingPathCommand(
   session: DraftingCommandSession,
 ): DraftingPathCommandCommit {
   switch (session.tool) {
+    case 'excavation_line': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualPathEngineeringPlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'excavation_line',
+      };
+    }
     case 'draft_polyline':
     case 'draft_polygon': {
       if (session.points.length < 2) {

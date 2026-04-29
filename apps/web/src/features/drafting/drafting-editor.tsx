@@ -717,6 +717,21 @@ export function DraftingEditor({
         return;
       }
 
+      if ('placement' in commandResult) {
+        const nextObject = createDraftingObject(
+          commandResult.tool,
+          commandResult.placement.points[0]!,
+          currentModel,
+          commandResult.placement.points,
+          currentUserName,
+        );
+
+        history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+        selection.selectObject(nextObject.id);
+        drafting.setActiveTab('properties');
+        return;
+      }
+
       const nextObject = createDraftingObject(
         commandResult.tool,
         commandResult.points[0]!,

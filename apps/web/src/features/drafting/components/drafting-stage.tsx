@@ -951,6 +951,21 @@ function PendingCommandPreview({
     );
   }
 
+  if (tool === 'excavation_line') {
+    return (
+      <polyline
+        data-testid="drafting-command-preview-excavation-line"
+        fill="none"
+        points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+        stroke={stroke}
+        strokeDasharray={strokeDasharray}
+        strokeLinejoin="round"
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+
   if (tool === 'draft_polyline') {
     return (
       <polyline
