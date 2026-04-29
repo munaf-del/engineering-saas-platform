@@ -256,15 +256,28 @@ export function DraftingUnderlaysPanel({
             </Field>
           </div>
 
-          <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            {selectedDocumentInfo.isLoading ? 'Loading PDF page count...' : null}
-            {selectedDocumentInfo.error ? 'Failed to inspect the selected PDF.' : null}
-            {selectedDocumentInfo.data
-              ? `${selectedDocumentInfo.data.pageCount} page${selectedDocumentInfo.data.pageCount === 1 ? '' : 's'} available`
-              : null}
-            {selectedDocumentPage.data
-              ? ` · Page ${addPageNumber} renders at ${Math.round(selectedDocumentPage.data.width)} × ${Math.round(selectedDocumentPage.data.height)} PDF units`
-              : null}
+          <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            {!selectedDocument ? <p>Select or upload a PDF to inspect page availability.</p> : null}
+            {selectedDocumentInfo.isLoading ? <p>Loading PDF page count...</p> : null}
+            {selectedDocumentInfo.error ? (
+              <p>Failed to inspect the selected PDF. Page count is unavailable.</p>
+            ) : null}
+            {selectedDocumentInfo.data ? (
+              <p>
+                {selectedDocumentInfo.data.pageCount} page
+                {selectedDocumentInfo.data.pageCount === 1 ? '' : 's'} available.
+              </p>
+            ) : null}
+            {selectedDocumentPage.isLoading ? <p>Checking page {addPageNumber}...</p> : null}
+            {selectedDocumentPage.error ? (
+              <p>Page {addPageNumber} could not be rendered. Check the page number or PDF file.</p>
+            ) : null}
+            {selectedDocumentPage.data ? (
+              <p>
+                Page {addPageNumber} renders at {Math.round(selectedDocumentPage.data.width)} ×{' '}
+                {Math.round(selectedDocumentPage.data.height)} PDF units.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-2">
