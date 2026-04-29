@@ -16,6 +16,7 @@ import {
   commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
   createManualDraftingPointPlacement,
+  createManualGeneratedWallBaselinePlacement,
   createManualPathEngineeringPlacement,
   createManualServiceRunPlacement,
   createManualTwoPointEngineeringPlacement,
@@ -1935,6 +1936,205 @@ describe('drafting command session', () => {
     expect(placement).not.toHaveProperty('serviceType');
     expect(placement).not.toHaveProperty('depthM');
     expect(placement).not.toHaveProperty('sourceRef');
+  });
+
+  it('creates a manual generated-wall baseline placement without generating pile arrays or wall values', () => {
+    const baselinePoints: DraftingPoint[] = [
+      {
+        x: 0,
+        y: 0,
+        z: 7.5,
+        rl: 7.5,
+        snapRef: {
+          sourceObjectId: 'baseline-setout-1',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 0, y: 0, z: 7.5, rl: 7.5 },
+        },
+      },
+      {
+        x: 1600,
+        y: 200,
+        z: 7.4,
+        rl: 7.4,
+        snapRef: {
+          sourceObjectId: 'baseline-setout-1',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 1600, y: 200, z: 7.4, rl: 7.4 },
+        },
+      },
+      {
+        x: 3200,
+        y: 500,
+        z: 7.3,
+        rl: 7.3,
+        snapRef: {
+          sourceObjectId: 'baseline-setout-1',
+          anchorKind: 'vertex',
+          anchorIndex: 2,
+          capturedCoordinate: { x: 3200, y: 500, z: 7.3, rl: 7.3 },
+        },
+      },
+    ];
+
+    const placement = createManualGeneratedWallBaselinePlacement(baselinePoints);
+
+    expect(placement).toEqual({
+      baselinePoints,
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement.baselinePoints).toHaveLength(3);
+    expect(placement).not.toHaveProperty('geometry');
+    expect(placement).not.toHaveProperty('pileCentres');
+    expect(placement).not.toHaveProperty('pilePositions');
+    expect(placement).not.toHaveProperty('pileCount');
+    expect(placement).not.toHaveProperty('pileIds');
+    expect(placement).not.toHaveProperty('wallLengthMm');
+    expect(placement).not.toHaveProperty('spacingMm');
+    expect(placement).not.toHaveProperty('overlapMm');
+    expect(placement).not.toHaveProperty('pileDiameterMm');
+    expect(placement).not.toHaveProperty('sectionLabel');
+    expect(placement).not.toHaveProperty('lagging');
+    expect(placement).not.toHaveProperty('sourceRef');
+    expect(placement).not.toHaveProperty('compliance');
+  });
+
+  it('clones every manual generated-wall baseline vertex and preserves point metadata', () => {
+    const baselinePoints: DraftingPoint[] = [
+      {
+        x: 100,
+        y: 400,
+        z: 6.2,
+        rl: 6.2,
+        snapRef: {
+          sourceObjectId: 'baseline-setout-2',
+          anchorKind: 'vertex',
+          anchorIndex: 0,
+          capturedCoordinate: { x: 100, y: 400, z: 6.2, rl: 6.2 },
+        },
+      },
+      {
+        x: 900,
+        y: 900,
+        z: 6.1,
+        rl: 6.1,
+        snapRef: {
+          sourceObjectId: 'baseline-setout-2',
+          anchorKind: 'vertex',
+          anchorIndex: 1,
+          capturedCoordinate: { x: 900, y: 900, z: 6.1, rl: 6.1 },
+        },
+      },
+    ];
+
+    const placement = createManualGeneratedWallBaselinePlacement(baselinePoints);
+    const firstBaselinePoint = baselinePoints[0]!;
+    const secondBaselinePoint = baselinePoints[1]!;
+
+    firstBaselinePoint.x = -1;
+    firstBaselinePoint.y = -1;
+    firstBaselinePoint.z = -1;
+    firstBaselinePoint.rl = -1;
+    firstBaselinePoint.snapRef = {
+      sourceObjectId: 'mutated-start',
+      anchorKind: 'vertex',
+      anchorIndex: 8,
+      capturedCoordinate: { x: -1, y: -1, z: -1, rl: -1 },
+    };
+    secondBaselinePoint.x = -2;
+    secondBaselinePoint.y = -2;
+    secondBaselinePoint.z = -2;
+    secondBaselinePoint.rl = -2;
+    secondBaselinePoint.snapRef = {
+      sourceObjectId: 'mutated-end',
+      anchorKind: 'vertex',
+      anchorIndex: 9,
+      capturedCoordinate: { x: -2, y: -2, z: -2, rl: -2 },
+    };
+
+    expect(placement).toEqual({
+      baselinePoints: [
+        {
+          x: 100,
+          y: 400,
+          z: 6.2,
+          rl: 6.2,
+          snapRef: {
+            sourceObjectId: 'baseline-setout-2',
+            anchorKind: 'vertex',
+            anchorIndex: 0,
+            capturedCoordinate: { x: 100, y: 400, z: 6.2, rl: 6.2 },
+          },
+        },
+        {
+          x: 900,
+          y: 900,
+          z: 6.1,
+          rl: 6.1,
+          snapRef: {
+            sourceObjectId: 'baseline-setout-2',
+            anchorKind: 'vertex',
+            anchorIndex: 1,
+            capturedCoordinate: { x: 900, y: 900, z: 6.1, rl: 6.1 },
+          },
+        },
+      ],
+      sourceMode: 'manual_sketch',
+    });
+    expect(placement.baselinePoints[0]).not.toBe(firstBaselinePoint);
+    expect(placement.baselinePoints[1]).not.toBe(secondBaselinePoint);
+  });
+
+  it('keeps generated-wall baseline collection separate from generated-wall validation semantics', () => {
+    expect(createManualGeneratedWallBaselinePlacement([])).toEqual({
+      baselinePoints: [],
+      sourceMode: 'manual_sketch',
+    });
+
+    expect(createManualGeneratedWallBaselinePlacement([{ x: 250, y: 500 }])).toEqual({
+      baselinePoints: [{ x: 250, y: 500 }],
+      sourceMode: 'manual_sketch',
+    });
+  });
+
+  it('packages future generated-wall baseline inputs without creating generated-wall objects', () => {
+    const futureGeneratedWallBaselineInputs = [
+      {
+        label: 'secant_pile_wall',
+        baselinePoints: [
+          { x: 0, y: 0 },
+          { x: 1000, y: 0 },
+        ],
+      },
+      {
+        label: 'soldier_pile_wall',
+        baselinePoints: [
+          { x: 0, y: 100 },
+          { x: 1000, y: 100 },
+        ],
+      },
+    ] as const satisfies ReadonlyArray<{
+      baselinePoints: readonly DraftingPoint[];
+      label: 'secant_pile_wall' | 'soldier_pile_wall';
+    }>;
+
+    for (const input of futureGeneratedWallBaselineInputs) {
+      const placement = createManualGeneratedWallBaselinePlacement(input.baselinePoints);
+
+      expect(placement.sourceMode).toBe('manual_sketch');
+      expect(placement.baselinePoints).toEqual(input.baselinePoints);
+      expect(placement.baselinePoints).toHaveLength(input.baselinePoints.length);
+      expect(placement).not.toHaveProperty('type');
+      expect(placement).not.toHaveProperty('tool');
+      expect(placement).not.toHaveProperty('pileCentres');
+      expect(placement).not.toHaveProperty('pilePositions');
+      expect(placement).not.toHaveProperty('pileCount');
+      expect(placement).not.toHaveProperty('spacingMm');
+      expect(placement).not.toHaveProperty('overlapMm');
+      expect(placement).not.toHaveProperty('pileDiameterMm');
+      expect(placement).not.toHaveProperty('sourceRef');
+    }
   });
 
   it('packages future path-family placement points without creating tool objects', () => {

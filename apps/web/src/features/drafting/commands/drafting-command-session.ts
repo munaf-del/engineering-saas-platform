@@ -247,6 +247,11 @@ export type DraftingManualServiceRunPlacement = {
   vertices: DraftingPoint[];
 };
 
+export type DraftingManualGeneratedWallBaselinePlacement = {
+  baselinePoints: DraftingPoint[];
+  sourceMode: 'manual_sketch';
+};
+
 export type DraftingMonitoringPointCommandCommit =
   | {
       committed: false;
@@ -1379,5 +1384,18 @@ export function createManualServiceRunPlacement(
   return {
     sourceMode: placement.sourceMode,
     vertices: placement.points,
+  };
+}
+
+// Generated-wall authoring captures manual/sketch baseline vertices only.
+// Pile arrays, spacing, IDs, schedules, and source fields stay factory-owned or source-owned.
+export function createManualGeneratedWallBaselinePlacement(
+  baselinePoints: readonly DraftingPoint[],
+): DraftingManualGeneratedWallBaselinePlacement {
+  const placement = createManualPathEngineeringPlacement(baselinePoints);
+
+  return {
+    baselinePoints: placement.points,
+    sourceMode: placement.sourceMode,
   };
 }
