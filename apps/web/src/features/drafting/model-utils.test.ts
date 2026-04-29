@@ -358,6 +358,37 @@ describe('drafting model utils', () => {
     expect(excavationLine).not.toHaveProperty('volume');
   });
 
+  it('creates a capping beam from authored path vertices while preserving factory-owned defaults', () => {
+    const model = createEmptyDraftingModel('drawing-capping-beam');
+    const vertices = [
+      { x: 0, y: 0, z: 15.5, rl: 15.5 },
+      { x: 1500, y: 0, z: 15.4, rl: 15.4 },
+      { x: 2100, y: 450, z: 15.3, rl: 15.3 },
+    ];
+    const cappingBeam = createDraftingObject('capping_beam', vertices[0]!, model, vertices);
+
+    if (cappingBeam.type !== 'capping_beam') {
+      throw new Error('Expected a capping beam object');
+    }
+
+    expect(cappingBeam.geometry).toEqual({ points: vertices });
+    expect(cappingBeam.parameters).toEqual({
+      beamId: 'CB1',
+      widthMm: 900,
+      depthMm: 1200,
+      levelRl: 12,
+      concreteGrade: '40 MPa',
+    });
+    expect(cappingBeam.metadata).toEqual({
+      associatedWallId: '',
+      notes: '',
+    });
+    expect(cappingBeam.sourceRef).toBeUndefined();
+    expect(cappingBeam).not.toHaveProperty('designLevel');
+    expect(cappingBeam).not.toHaveProperty('load');
+    expect(cappingBeam).not.toHaveProperty('capacity');
+  });
+
   it('keeps dimension witness anchor metadata aligned for partially snapped dimensions', () => {
     const model = createEmptyDraftingModel('dimension-witness-alignment');
     const line = createDraftingObject('draft_line', { x: 0, y: 0 }, model, [

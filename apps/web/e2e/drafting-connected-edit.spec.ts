@@ -3,6 +3,7 @@ import type {
   DraftingAnchorTiebackObject,
   DraftingBoreholeObject,
   DraftingCalloutObject,
+  DraftingCappingBeamObject,
   DraftingCircleObject,
   DraftingDimensionChainObject,
   DraftingDrawing,
@@ -1871,6 +1872,161 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(exportedExcavationLine!.metadata.stage).toBe('Stage 1');
       expect(exportedExcavationLine!.sourceRef).toBeUndefined();
       expect(exportedExcavationLine!.metadata).not.toHaveProperty('designLevel');
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
+  test('authors a manual capping beam through the shared path command boundary', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-27T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await canvas.scrollIntoViewIfNeeded();
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.43, yRatio: 0.44 },
+        page,
+        previewTestId: 'drafting-command-preview-capping-beam',
+        start: { xRatio: 0.34, yRatio: 0.48 },
+        toolLabel: 'Capping beam',
+      });
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('drafting-command-preview-capping-beam')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await startPathPreview({
+        canvas,
+        next: { xRatio: 0.46, yRatio: 0.5 },
+        page,
+        previewTestId: 'drafting-command-preview-capping-beam',
+        start: { xRatio: 0.36, yRatio: 0.56 },
+        toolLabel: 'Capping beam',
+      });
+      await page.getByRole('button', { exact: true, name: 'Select / Move' }).click();
+      await expect(page.getByTestId('drafting-command-preview-capping-beam')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      const ratios = [
+        { xRatio: 0.38, yRatio: 0.62 },
+        { xRatio: 0.5, yRatio: 0.56 },
+        { xRatio: 0.62, yRatio: 0.6 },
+      ];
+      const toolButton = page.getByRole('button', { exact: true, name: 'Capping beam' });
+      await toolButton.click();
+      await expect(toolButton).toHaveAttribute('aria-pressed', 'true');
+      await canvas.scrollIntoViewIfNeeded();
+      const points = await Promise.all(ratios.map((ratio) => pointInLocator(canvas, ratio)));
+
+      await page.mouse.move(points[0]!.x, points[0]!.y);
+      await page.mouse.click(points[0]!.x, points[0]!.y);
+      await expect(page.getByText('1 point(s) captured for the current path.')).toBeVisible();
+      await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-capping-beam')).toHaveAttribute(
+        'points',
+        /.+ .+/,
+      );
+      await page.mouse.click(points[1]!.x, points[1]!.y);
+      await page.mouse.move(points[2]!.x, points[2]!.y, { steps: 6 });
+      await expect(page.getByTestId('drafting-command-preview-capping-beam')).toHaveAttribute(
+        'points',
+        /.+ .+ .+/,
+      );
+      await page.mouse.click(points[2]!.x, points[2]!.y);
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('drafting-command-preview-capping-beam')).toHaveCount(0);
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      const authoredCappingBeamId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredCappingBeamId).toBeTruthy();
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredCappingBeamId}`)).toHaveCount(1);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredCappingBeam = reloadedDrawing.model.objects.find(
+        (object): object is DraftingCappingBeamObject =>
+          object.id === authoredCappingBeamId && object.type === 'capping_beam',
+      );
+      expect(authoredCappingBeam).toBeDefined();
+      expect(authoredCappingBeam!.geometry.points).toHaveLength(3);
+      expect(authoredCappingBeam!.parameters.beamId).toMatch(/^CB\d+$/);
+      expect(authoredCappingBeam!.parameters.widthMm).toBe(900);
+      expect(authoredCappingBeam!.parameters.depthMm).toBe(1200);
+      expect(authoredCappingBeam!.parameters.levelRl).toBe(12);
+      expect(authoredCappingBeam!.parameters.concreteGrade).toBe('40 MPa');
+      expect(authoredCappingBeam!.metadata.associatedWallId).toBe('');
+      expect(authoredCappingBeam!.metadata.notes).toBe('');
+      expect(authoredCappingBeam!.sourceRef).toBeUndefined();
+      expect(authoredCappingBeam).not.toHaveProperty('designLoad');
+      expect(authoredCappingBeam).not.toHaveProperty('capacity');
+      expect(authoredCappingBeam).not.toHaveProperty('reinforcement');
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedCappingBeam = exported.model.objects.find(
+        (object): object is DraftingCappingBeamObject =>
+          object.id === authoredCappingBeamId && object.type === 'capping_beam',
+      );
+      expect(exportedCappingBeam).toBeDefined();
+      expect(exportedCappingBeam!.geometry.points).toHaveLength(3);
+      expect(exportedCappingBeam!.parameters.beamId).toBe(authoredCappingBeam!.parameters.beamId);
+      expect(exportedCappingBeam!.parameters.widthMm).toBe(900);
+      expect(exportedCappingBeam!.parameters.depthMm).toBe(1200);
+      expect(exportedCappingBeam!.parameters.levelRl).toBe(12);
+      expect(exportedCappingBeam!.parameters.concreteGrade).toBe('40 MPa');
+      expect(exportedCappingBeam!.sourceRef).toBeUndefined();
+      expect(exportedCappingBeam).not.toHaveProperty('designLoad');
+      expect(exportedCappingBeam).not.toHaveProperty('capacity');
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);

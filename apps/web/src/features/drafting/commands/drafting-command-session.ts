@@ -13,9 +13,11 @@ export type DraftingAnchorTiebackCommandTool = 'anchor_tieback';
 export type DraftingDimensionCommandTool = 'dimension_chain';
 export type DraftingSketchPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingExcavationLineCommandTool = 'excavation_line';
+export type DraftingCappingBeamCommandTool = 'capping_beam';
 export type DraftingPathCommandTool =
   | DraftingSketchPathCommandTool
-  | DraftingExcavationLineCommandTool;
+  | DraftingExcavationLineCommandTool
+  | DraftingCappingBeamCommandTool;
 export type DraftingCommandTool =
   | DraftingPrimitiveCommandTool
   | DraftingSectionMarkerCommandTool
@@ -37,6 +39,7 @@ export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
 ] as const satisfies DraftingPrimitiveCommandTool[];
 
 export const DRAFTING_PATH_COMMAND_TOOLS = [
+  'capping_beam',
   'excavation_line',
   'draft_polyline',
   'draft_polygon',
@@ -333,7 +336,7 @@ export type DraftingPathCommandCommit =
       placement: DraftingManualPathEngineeringPlacement;
       points: DraftingPoint[];
       session: DraftingCommandSession;
-      tool: DraftingExcavationLineCommandTool;
+      tool: DraftingCappingBeamCommandTool | DraftingExcavationLineCommandTool;
     };
 
 export const IDLE_DRAFTING_COMMAND_SESSION: DraftingCommandSession = { tool: 'idle' };
@@ -460,6 +463,10 @@ export function startDraftingPolylineCommand(): ActiveDraftingPathCommandSession
 
 export function startDraftingExcavationLineCommand(): ActiveDraftingPathCommandSession {
   return startDraftingPathCommand('excavation_line');
+}
+
+export function startDraftingCappingBeamCommand(): ActiveDraftingPathCommandSession {
+  return startDraftingPathCommand('capping_beam');
 }
 
 export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPrimitiveCommandTool {
@@ -1162,6 +1169,19 @@ export function finishDraftingPathCommand(
   session: DraftingCommandSession,
 ): DraftingPathCommandCommit {
   switch (session.tool) {
+    case 'capping_beam': {
+      if (session.points.length < 2) {
+        return { committed: false, session };
+      }
+
+      return {
+        committed: true,
+        placement: createManualPathEngineeringPlacement(session.points),
+        points: session.points.map(cloneDraftingPoint),
+        session: IDLE_DRAFTING_COMMAND_SESSION,
+        tool: 'capping_beam',
+      };
+    }
     case 'excavation_line': {
       if (session.points.length < 2) {
         return { committed: false, session };

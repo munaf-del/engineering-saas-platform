@@ -25,6 +25,7 @@ import {
   IDLE_DRAFTING_COMMAND_SESSION,
   startDraftingAnchorTiebackCommand,
   startDraftingBoreholeCommand,
+  startDraftingCappingBeamCommand,
   startDraftingCalloutCommand,
   startDraftingDimensionCommand,
   startDraftingExcavationLineCommand,
@@ -1800,6 +1801,199 @@ describe('drafting command session', () => {
       expect(placement).not.toHaveProperty('levelRl');
       expect(placement).not.toHaveProperty('serviceType');
       expect(placement).not.toHaveProperty('sourceRef');
+    }
+  });
+
+  it('starts a capping beam path command waiting for the first vertex', () => {
+    expect(startDraftingCappingBeamCommand()).toEqual({
+      phase: 'waiting_first_point',
+      points: [],
+      previewPoint: null,
+      tool: 'capping_beam',
+    });
+  });
+
+  it('captures capping beam vertices and keeps collecting points', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'capping_beam', {
+      x: 1200,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'capping_beam', {
+      x: 1800,
+      y: 300,
+    });
+
+    expect(thirdPoint.committed).toBe(false);
+    expect(thirdPoint.session).toMatchObject({
+      phase: 'collecting_points',
+      points: [
+        { x: 0, y: 0 },
+        { x: 1200, y: 0 },
+        { x: 1800, y: 300 },
+      ],
+      previewPoint: null,
+      tool: 'capping_beam',
+    });
+  });
+
+  it('updates capping beam preview from the next pointer vertex', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 900, y: 450 });
+
+    expect(getDraftingCommandTool(preview)).toBe('capping_beam');
+    expect(getDraftingCommandPreviewPoints(preview)).toEqual([
+      { x: 0, y: 0 },
+      { x: 900, y: 450 },
+    ]);
+  });
+
+  it('finishes a capping beam through the manual path placement boundary', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'capping_beam', {
+      x: 1200,
+      y: 0,
+    });
+    const thirdPoint = commitDraftingPathCommandPoint(secondPoint.session, 'capping_beam', {
+      x: 1800,
+      y: 300,
+    });
+    const result = finishDraftingPathCommand(thirdPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed && result.tool === 'capping_beam') {
+      expect(result.tool).toBe('capping_beam');
+      expect(result.placement).toEqual({
+        points: [
+          { x: 0, y: 0 },
+          { x: 1200, y: 0 },
+          { x: 1800, y: 300 },
+        ],
+        sourceMode: 'manual_sketch',
+      });
+      expect(result.placement).not.toHaveProperty('lengthMm');
+      expect(result.placement).not.toHaveProperty('widthMm');
+      expect(result.placement).not.toHaveProperty('levelRl');
+      expect(result.placement).not.toHaveProperty('concreteGrade');
+      expect(result.placement).not.toHaveProperty('sourceRef');
+      expect(result.points).toEqual(result.placement.points);
+      expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+      expect(getDraftingCommandPreviewPoints(result.session)).toEqual([]);
+    }
+  });
+
+  it('does not finish a capping beam until the existing two-point minimum is met', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const result = finishDraftingPathCommand(firstPoint.session);
+
+    expect(result.committed).toBe(false);
+    expect(getDraftingCommandPoints(result.session)).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('ignores duplicate/no-op capping beam vertices without crashing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 100, y: 100 },
+    );
+    const duplicate = commitDraftingPathCommandPoint(firstPoint.session, 'capping_beam', {
+      x: 100,
+      y: 100,
+    });
+
+    expect(duplicate.committed).toBe(false);
+    expect(getDraftingCommandPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+    expect(getDraftingCommandPreviewPoints(duplicate.session)).toEqual([{ x: 100, y: 100 }]);
+  });
+
+  it('cancels an incomplete capping beam command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const preview = updateDraftingPathCommandPreview(firstPoint.session, { x: 1000, y: 0 });
+
+    expect(getDraftingCommandPreviewPoints(preview)).toHaveLength(2);
+    expect(cancelDraftingCommandSession()).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    expect(getDraftingCommandPreviewPoints(cancelDraftingCommandSession())).toEqual([]);
+  });
+
+  it('switches from an incomplete capping beam command to a primitive command without committing', () => {
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      { x: 0, y: 0 },
+    );
+    const switched = commitDraftingPrimitiveCommandPoint(firstPoint.session, 'draft_rectangle', {
+      x: 300,
+      y: 300,
+    });
+
+    expect(switched.committed).toBe(false);
+    expect(switched.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [{ x: 300, y: 300 }],
+      previewPoint: null,
+      tool: 'draft_rectangle',
+    });
+  });
+
+  it('preserves capping beam snap refs and optional z and rl vertex metadata', () => {
+    const start: DraftingPoint = {
+      x: 0,
+      y: 0,
+      z: 12.5,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'beam-setout-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        capturedCoordinate: { x: 0, y: 0, z: 12.5, rl: 12.5 },
+      },
+    };
+    const end: DraftingPoint = {
+      x: 1000,
+      y: 0,
+      z: 12.6,
+      rl: 12.6,
+      snapRef: {
+        sourceObjectId: 'beam-setout-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 1,
+        capturedCoordinate: { x: 1000, y: 0, z: 12.6, rl: 12.6 },
+      },
+    };
+    const firstPoint = commitDraftingPathCommandPoint(
+      startDraftingCappingBeamCommand(),
+      'capping_beam',
+      start,
+    );
+    const secondPoint = commitDraftingPathCommandPoint(firstPoint.session, 'capping_beam', end);
+    const result = finishDraftingPathCommand(secondPoint.session);
+
+    expect(result.committed).toBe(true);
+    if (result.committed && result.tool === 'capping_beam') {
+      expect(result.placement).toEqual({
+        points: [start, end],
+        sourceMode: 'manual_sketch',
+      });
     }
   });
 
