@@ -93,6 +93,21 @@ describe('PDF underlay render hooks', () => {
     });
   });
 
+  it('exposes page-render loading state without stale error feedback', async () => {
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: new Promise(() => undefined),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const loading = await renderPageRenderHook('loading-document', 1);
+    await waitFor(() => loading.current.isLoading);
+    await loading.unmount();
+
+    expect(loading.current.data).toBeNull();
+    expect(loading.current.error).toBeNull();
+    expect(loading.current.errorKind).toBeNull();
+  });
+
   it('classifies missing and inaccessible document download failures', async () => {
     vi.mocked(apiArrayBuffer).mockRejectedValueOnce(createApiError(404, 'Not Found'));
 

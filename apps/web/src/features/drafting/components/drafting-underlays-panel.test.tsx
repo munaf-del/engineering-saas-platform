@@ -73,6 +73,20 @@ vi.mock('../hooks/use-pdf-underlay-render', () => ({
 
     return options.fallback ?? 'The PDF underlay could not be rendered.';
   },
+  getPdfUnderlayRenderLoadingMessage: (
+    kind: string,
+    options: { pageNumber?: number | null } = {},
+  ) => {
+    if (kind === 'document_info_loading') {
+      return 'Inspecting the selected PDF page count.';
+    }
+
+    if (kind === 'page_render_loading') {
+      return `Rendering PDF page ${options.pageNumber}.`;
+    }
+
+    return '';
+  },
   usePdfDocumentInfo: () => pdfDocumentInfoState.current,
   usePdfPageRender: () => pdfPageRenderState.current,
 }));
@@ -364,6 +378,54 @@ describe('DraftingUnderlaysPanel', () => {
 
     expect(markup).toContain('2 pages available.');
     expect(markup).toContain('Page 1 could not be rendered. Check the page number or PDF file.');
+  });
+
+  it('shows loading feedback while inspecting and rendering a selected project PDF', () => {
+    documentsQueryState.current.data = [createDocument()];
+    pdfDocumentInfoState.current = {
+      data: null,
+      error: null,
+      errorKind: null,
+      isLoading: true,
+    };
+    pdfPageRenderState.current = {
+      data: null,
+      error: null,
+      errorKind: null,
+      isLoading: true,
+    };
+
+    const markup = renderToStaticMarkup(<DraftingUnderlaysPanel {...createPanelProps([], null)} />);
+
+    expect(markup).toContain('Inspecting the selected PDF page count.');
+    expect(markup).toContain('Rendering PDF page 1.');
+    expect(markup).not.toContain('could not be rendered');
+  });
+
+  it('guards selected underlay mode entry while its PDF page is still rendering', async () => {
+    const selectedUnderlay = createUnderlay();
+    pdfPageRenderState.current = {
+      data: null,
+      error: null,
+      errorKind: null,
+      isLoading: true,
+    };
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'Rendering PDF page 1. Calibration is disabled until the page is ready.',
+    );
+    expect(container.textContent).toContain(
+      'Rendering PDF page 1. Crop is disabled until the page is ready.',
+    );
+    expect(container.textContent).not.toContain('cannot currently render');
+    expect(getButton('Start Calibration').disabled).toBe(true);
+    expect(getButton('Start Crop').disabled).toBe(true);
   });
 
   it('shows classified PDF inspection and page feedback when available', () => {
