@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { DraftingPoint, DraftingUnderlay } from '@eng/shared';
+import type { DraftingLayer, DraftingPoint, DraftingUnderlay } from '@eng/shared';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ type DraftingUnderlaysPanelProps = {
   drawingId: string;
   projectId: string;
   underlays: DraftingUnderlay[];
+  underlayLayer: DraftingLayer | null;
   selectedUnderlay: DraftingUnderlay | null;
   calibrationState: {
     underlayId: string;
@@ -44,23 +45,35 @@ type DraftingUnderlaysPanelProps = {
 };
 
 type UnderlayModeAction = 'calibration' | 'crop';
-type UnderlayModeBlockedCode = 'locked' | 'hidden' | 'unavailable' | 'page-render-error';
+type UnderlayModeBlockedCode =
+  | 'layer-missing'
+  | 'layer-locked'
+  | 'layer-hidden'
+  | 'locked'
+  | 'hidden'
+  | 'unavailable'
+  | 'page-render-error';
+
+type UnderlayModeBlockedScope = 'layer' | 'underlay';
 
 type UnderlayModeBlockedState = {
   code: UnderlayModeBlockedCode;
   message: string;
+  scope: UnderlayModeBlockedScope;
 };
 
 type ActiveUnderlayModeInvalidation = {
   action: UnderlayModeAction;
   key: string;
   message: string;
+  shouldToast: boolean;
 };
 
 export function DraftingUnderlaysPanel({
   drawingId,
   projectId,
   underlays,
+  underlayLayer,
   selectedUnderlay,
   calibrationState,
   cropModeUnderlayId,
@@ -154,12 +167,14 @@ export function DraftingUnderlaysPanel({
   const calibrationBlockedState = getUnderlayModeBlockedState({
     action: 'calibration',
     underlay: selectedUnderlay,
+    underlayLayer,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
   const cropBlockedState = getUnderlayModeBlockedState({
     action: 'crop',
     underlay: selectedUnderlay,
+    underlayLayer,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
@@ -171,6 +186,7 @@ export function DraftingUnderlaysPanel({
       activeUnderlayId: calibrationState?.underlayId ?? null,
       selectedUnderlay,
       underlays,
+      underlayLayer,
       pageRenderError: selectedUnderlayPageRender.error,
     }) ??
     getActiveUnderlayModeInvalidation({
@@ -178,6 +194,7 @@ export function DraftingUnderlaysPanel({
       activeUnderlayId: cropModeUnderlayId,
       selectedUnderlay,
       underlays,
+      underlayLayer,
       pageRenderError: selectedUnderlayPageRender.error,
     });
 
@@ -193,6 +210,9 @@ export function DraftingUnderlaysPanel({
 
     lastInvalidationKeyRef.current = activeModeInvalidation.key;
     setActiveModeFeedback(activeModeInvalidation.message);
+    if (activeModeInvalidation.shouldToast) {
+      toast.error(activeModeInvalidation.message);
+    }
 
     if (activeModeInvalidation.action === 'calibration') {
       onCancelCalibration();
@@ -793,16 +813,23 @@ export function DraftingUnderlaysPanel({
 function getUnderlayModeBlockedState({
   action,
   underlay,
+  underlayLayer,
   renderable,
   pageRenderError,
 }: {
   action: UnderlayModeAction;
   underlay: DraftingUnderlay | null;
+  underlayLayer: DraftingLayer | null;
   renderable: boolean;
   pageRenderError: Error | null;
 }): UnderlayModeBlockedState | null {
   if (!underlay) {
     return null;
+  }
+
+  const layerBlockedState = getUnderlayLayerModeBlockedState(action, underlayLayer);
+  if (layerBlockedState) {
+    return layerBlockedState;
   }
 
   const actionLabel = action === 'calibration' ? 'calibration' : 'crop';
@@ -812,6 +839,7 @@ function getUnderlayModeBlockedState({
     return {
       code: 'locked',
       message: `Unlock the underlay before ${actionLabel}.`,
+      scope: 'underlay',
     };
   }
 
@@ -819,6 +847,7 @@ function getUnderlayModeBlockedState({
     return {
       code: 'hidden',
       message: `Show the underlay before ${actionLabel}.`,
+      scope: 'underlay',
     };
   }
 
@@ -826,6 +855,7 @@ function getUnderlayModeBlockedState({
     return {
       code: 'unavailable',
       message: `This underlay is unavailable or its page metadata is invalid. ${actionTitle} is disabled until the underlay can render safely again.`,
+      scope: 'underlay',
     };
   }
 
@@ -833,6 +863,41 @@ function getUnderlayModeBlockedState({
     return {
       code: 'page-render-error',
       message: `The selected PDF page cannot currently render. ${actionTitle} is disabled until the page renders again.`,
+      scope: 'underlay',
+    };
+  }
+
+  return null;
+}
+
+function getUnderlayLayerModeBlockedState(
+  action: UnderlayModeAction,
+  underlayLayer: DraftingLayer | null,
+): UnderlayModeBlockedState | null {
+  const actionLabel = action === 'calibration' ? 'calibration' : 'crop';
+  const actionTitle = action === 'calibration' ? 'Calibration' : 'Crop';
+
+  if (!underlayLayer) {
+    return {
+      code: 'layer-missing',
+      message: `The Underlay layer is unavailable. ${actionTitle} is disabled until the layer can be restored.`,
+      scope: 'layer',
+    };
+  }
+
+  if (underlayLayer.locked) {
+    return {
+      code: 'layer-locked',
+      message: `Unlock the Underlay layer before ${actionLabel}.`,
+      scope: 'layer',
+    };
+  }
+
+  if (!underlayLayer.visible) {
+    return {
+      code: 'layer-hidden',
+      message: `Show the Underlay layer before ${actionLabel}.`,
+      scope: 'layer',
     };
   }
 
@@ -844,12 +909,14 @@ function getActiveUnderlayModeInvalidation({
   activeUnderlayId,
   selectedUnderlay,
   underlays,
+  underlayLayer,
   pageRenderError,
 }: {
   action: UnderlayModeAction;
   activeUnderlayId: string | null;
   selectedUnderlay: DraftingUnderlay | null;
   underlays: DraftingUnderlay[];
+  underlayLayer: DraftingLayer | null;
   pageRenderError: Error | null;
 }): ActiveUnderlayModeInvalidation | null {
   if (!activeUnderlayId) {
@@ -864,6 +931,7 @@ function getActiveUnderlayModeInvalidation({
       action,
       key: `${action}:removed:${activeUnderlayId}`,
       message: `${actionTitle} was cancelled because the active underlay was removed.`,
+      shouldToast: false,
     };
   }
 
@@ -872,12 +940,14 @@ function getActiveUnderlayModeInvalidation({
       action,
       key: `${action}:deselected:${activeUnderlayId}:${selectedUnderlay?.id ?? 'none'}`,
       message: `${actionTitle} was cancelled because the active underlay is no longer selected.`,
+      shouldToast: false,
     };
   }
 
   const blockedState = getUnderlayModeBlockedState({
     action,
     underlay: activeUnderlay,
+    underlayLayer,
     renderable: isDraftingUnderlayRenderable(activeUnderlay),
     pageRenderError,
   });
@@ -890,6 +960,7 @@ function getActiveUnderlayModeInvalidation({
     action,
     key: `${action}:${blockedState.code}:${activeUnderlayId}`,
     message: getActiveUnderlayModeInvalidationMessage(actionTitle, blockedState.code),
+    shouldToast: blockedState.scope === 'layer',
   };
 }
 
@@ -898,6 +969,12 @@ function getActiveUnderlayModeInvalidationMessage(
   code: UnderlayModeBlockedCode,
 ) {
   switch (code) {
+    case 'layer-missing':
+      return `${actionTitle} was cancelled because the Underlay layer is unavailable.`;
+    case 'layer-locked':
+      return `${actionTitle} was cancelled because the Underlay layer is locked.`;
+    case 'layer-hidden':
+      return `${actionTitle} was cancelled because the Underlay layer is hidden.`;
     case 'locked':
       return `${actionTitle} was cancelled because the active underlay is locked.`;
     case 'hidden':

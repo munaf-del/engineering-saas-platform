@@ -43,6 +43,7 @@ import {
   formatDraftingTimestamp,
   getDraftingCurrentRevisionLabel,
   getDraftingDrawingTitle,
+  getLayerById,
   getVisibleDraftingUnderlays,
   getVisibleDraftingObjects,
   updateDraftingDrawingSetup,
@@ -1317,6 +1318,7 @@ export function DraftingEditor({
                     onUpdateUnderlay={underlays.updateSelectedUnderlay}
                     projectId={projectId}
                     selectedUnderlay={underlays.selectedUnderlay}
+                    underlayLayer={getLayerById(currentModel, 'underlay')}
                     underlays={currentModel.underlays}
                     calibrationState={underlays.calibrationState}
                     cropModeUnderlayId={underlays.activeCropUnderlayId}

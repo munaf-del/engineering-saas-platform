@@ -3,8 +3,9 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { Document, DraftingUnderlay } from '@eng/shared';
+import type { Document, DraftingLayer, DraftingUnderlay } from '@eng/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
 import { DraftingUnderlaysPanel } from './drafting-underlays-panel';
 
 const documentsQueryState = vi.hoisted(() => ({
@@ -79,6 +80,8 @@ describe('DraftingUnderlaysPanel', () => {
       error: null,
       isLoading: false,
     };
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
   });
 
   afterEach(async () => {
@@ -173,6 +176,46 @@ describe('DraftingUnderlaysPanel', () => {
       'The selected PDF page cannot currently render. Crop is disabled until the page renders again.',
     );
   });
+
+  it.each([
+    {
+      description: 'hidden',
+      underlayLayer: {
+        ...createUnderlayLayer(),
+        visible: false,
+      },
+      calibrationMessage: 'Show the Underlay layer before calibration.',
+      cropMessage: 'Show the Underlay layer before crop.',
+    },
+    {
+      description: 'locked',
+      underlayLayer: {
+        ...createUnderlayLayer(),
+        locked: true,
+      },
+      calibrationMessage: 'Unlock the Underlay layer before calibration.',
+      cropMessage: 'Unlock the Underlay layer before crop.',
+    },
+  ])(
+    'blocks calibration and crop entry when the shared Underlay layer is $description',
+    async ({ underlayLayer, calibrationMessage, cropMessage }) => {
+      const selectedUnderlay = createUnderlay();
+
+      await act(async () => {
+        root.render(
+          <DraftingUnderlaysPanel
+            {...createPanelProps([selectedUnderlay], selectedUnderlay)}
+            underlayLayer={underlayLayer}
+          />,
+        );
+      });
+
+      expect(container.textContent).toContain(calibrationMessage);
+      expect(container.textContent).toContain(cropMessage);
+      expect(getButton('Start Calibration').disabled).toBe(true);
+      expect(getButton('Start Crop').disabled).toBe(true);
+    },
+  );
 
   it('shows page render feedback when an inspected PDF page cannot be rendered', () => {
     documentsQueryState.current.data = [createDocument()];
@@ -309,6 +352,74 @@ describe('DraftingUnderlaysPanel', () => {
 
       expect(container.textContent).toContain(expectedFeedback);
       expect(container.textContent).not.toContain(staleInstruction);
+      expect(onCancelCalibration).toHaveBeenCalledTimes(cancelSpy === 'calibration' ? 1 : 0);
+      expect(onCancelCrop).toHaveBeenCalledTimes(cancelSpy === 'crop' ? 1 : 0);
+    },
+  );
+
+  it.each([
+    {
+      action: 'calibration' as const,
+      mutate: (handle: ActiveModeHarnessHandle) =>
+        handle.updateUnderlayLayer((layer) => ({ ...layer, visible: false })),
+      expectedFeedback: 'Calibration was cancelled because the Underlay layer is hidden.',
+      staleInstruction: 'Click the first reference point on the PDF underlay.',
+      cancelSpy: 'calibration',
+    },
+    {
+      action: 'calibration' as const,
+      mutate: (handle: ActiveModeHarnessHandle) =>
+        handle.updateUnderlayLayer((layer) => ({ ...layer, locked: true })),
+      expectedFeedback: 'Calibration was cancelled because the Underlay layer is locked.',
+      staleInstruction: 'Click the first reference point on the PDF underlay.',
+      cancelSpy: 'calibration',
+    },
+    {
+      action: 'crop' as const,
+      mutate: (handle: ActiveModeHarnessHandle) =>
+        handle.updateUnderlayLayer((layer) => ({ ...layer, visible: false })),
+      expectedFeedback: 'Crop was cancelled because the Underlay layer is hidden.',
+      staleInstruction: 'Click and drag on the selected PDF underlay to define a rectangular crop.',
+      cancelSpy: 'crop',
+    },
+    {
+      action: 'crop' as const,
+      mutate: (handle: ActiveModeHarnessHandle) =>
+        handle.updateUnderlayLayer((layer) => ({ ...layer, locked: true })),
+      expectedFeedback: 'Crop was cancelled because the Underlay layer is locked.',
+      staleInstruction: 'Click and drag on the selected PDF underlay to define a rectangular crop.',
+      cancelSpy: 'crop',
+    },
+  ])(
+    'cancels active $action mode when the shared Underlay layer becomes unsafe',
+    async ({ action, mutate, expectedFeedback, staleInstruction, cancelSpy }) => {
+      const selectedUnderlay = createUnderlay();
+      const handle = React.createRef<ActiveModeHarnessHandle>();
+      const onCancelCalibration = vi.fn();
+      const onCancelCrop = vi.fn();
+
+      await act(async () => {
+        root.render(
+          <ActiveModeHarness
+            ref={handle}
+            initialSelectedUnderlayId={selectedUnderlay.id}
+            initialUnderlays={[selectedUnderlay]}
+            mode={action}
+            onCancelCalibration={onCancelCalibration}
+            onCancelCrop={onCancelCrop}
+          />,
+        );
+      });
+
+      expect(container.textContent).toContain(staleInstruction);
+
+      await act(async () => {
+        mutate(handle.current!);
+      });
+
+      expect(container.textContent).toContain(expectedFeedback);
+      expect(container.textContent).not.toContain(staleInstruction);
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith(expectedFeedback);
       expect(onCancelCalibration).toHaveBeenCalledTimes(cancelSpy === 'calibration' ? 1 : 0);
       expect(onCancelCrop).toHaveBeenCalledTimes(cancelSpy === 'crop' ? 1 : 0);
     },
@@ -505,6 +616,7 @@ function createPanelProps(
     drawingId: 'drawing-1',
     projectId: 'project-1',
     underlays,
+    underlayLayer: createUnderlayLayer(),
     selectedUnderlay,
     calibrationState: null,
     cropModeUnderlayId: null,
@@ -518,6 +630,17 @@ function createPanelProps(
     onRemoveUnderlay: vi.fn(),
     onSelectUnderlay: vi.fn(),
     onUpdateUnderlay: vi.fn(),
+  };
+}
+
+function createUnderlayLayer(): DraftingLayer {
+  return {
+    id: 'underlay',
+    name: 'Underlay',
+    visible: true,
+    locked: false,
+    color: '#94a3b8',
+    lineWeight: 1,
   };
 }
 
@@ -563,6 +686,7 @@ type ActiveModeHarnessHandle = {
   refresh: () => void;
   removeUnderlay: (underlayId: string) => void;
   selectUnderlay: (underlayId: string | null) => void;
+  updateUnderlayLayer: (updater: (layer: DraftingLayer) => DraftingLayer) => void;
   updateUnderlay: (
     underlayId: string,
     updater: (underlay: DraftingUnderlay) => DraftingUnderlay,
@@ -589,6 +713,7 @@ const ActiveModeHarness = React.forwardRef<
   ref,
 ) {
   const [underlays, setUnderlays] = React.useState(initialUnderlays);
+  const [underlayLayer, setUnderlayLayer] = React.useState(createUnderlayLayer());
   const [selectedUnderlayId, setSelectedUnderlayId] = React.useState(initialSelectedUnderlayId);
   const [refreshVersion, setRefreshVersion] = React.useState(0);
   const [calibrationState, setCalibrationState] = React.useState<{
@@ -621,6 +746,7 @@ const ActiveModeHarness = React.forwardRef<
         setSelectedUnderlayId((current) => (current === underlayId ? null : current));
       },
       selectUnderlay: (underlayId: string | null) => setSelectedUnderlayId(underlayId),
+      updateUnderlayLayer: (updater) => setUnderlayLayer((current) => updater(current)),
       updateUnderlay: (underlayId, updater) =>
         setUnderlays((current) =>
           current.map((underlay) => (underlay.id === underlayId ? updater(underlay) : underlay)),
@@ -634,6 +760,7 @@ const ActiveModeHarness = React.forwardRef<
       drawingId="drawing-1"
       projectId="project-1"
       underlays={underlays}
+      underlayLayer={underlayLayer}
       selectedUnderlay={selectedUnderlay}
       calibrationState={calibrationState}
       cropModeUnderlayId={cropModeUnderlayId}
@@ -656,3 +783,14 @@ const ActiveModeHarness = React.forwardRef<
     />
   );
 });
+
+function getButton(label: string) {
+  const button = Array.from(document.querySelectorAll('button')).find(
+    (element) => element.textContent?.trim() === label,
+  );
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Expected button with label: ${label}`);
+  }
+
+  return button;
+}
