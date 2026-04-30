@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { DraftingLayer, DraftingPoint, DraftingUnderlay } from '@eng/shared';
+import type { Document, DraftingLayer, DraftingPoint, DraftingUnderlay } from '@eng/shared';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ type UnderlayModeBlockedCode =
   | 'layer-missing'
   | 'layer-locked'
   | 'layer-hidden'
+  | 'document-reference-unavailable'
   | 'locked'
   | 'hidden'
   | 'unavailable'
@@ -70,6 +71,10 @@ type ActiveUnderlayModeInvalidation = {
 };
 
 type SelectedUnderlayPropertyBlockedState = {
+  message: string;
+};
+
+type UnderlayDocumentReferenceState = {
   message: string;
 };
 
@@ -104,45 +109,77 @@ export function DraftingUnderlaysPanel({
   const lastInvalidationKeyRef = React.useRef<string | null>(null);
 
   const documents = React.useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
+  const pdfDocuments = React.useMemo(
+    () => documents.filter((document) => isPdfDocument(document)),
+    [documents],
+  );
+  const resolveUnderlayDocumentReferenceState = React.useCallback(
+    (underlay: DraftingUnderlay | null): UnderlayDocumentReferenceState | null => {
+      if (!underlay || documentsQuery.isFetching) {
+        return null;
+      }
+
+      return getUnderlayDocumentReferenceState(underlay, documents, pdfDocuments);
+    },
+    [documents, documentsQuery.isFetching, pdfDocuments],
+  );
   const visibleUnderlayCount = React.useMemo(
     () => underlays.filter((underlay) => underlay.visible).length,
     [underlays],
   );
   const skippedVisibleUnderlayCount = React.useMemo(
     () =>
-      underlays.filter((underlay) => underlay.visible && !isDraftingUnderlayRenderable(underlay))
-        .length,
-    [underlays],
+      underlays.filter(
+        (underlay) =>
+          underlay.visible &&
+          (!isDraftingUnderlayRenderable(underlay) ||
+            resolveUnderlayDocumentReferenceState(underlay) != null),
+      ).length,
+    [resolveUnderlayDocumentReferenceState, underlays],
   );
   const selectedUnderlayRenderable = selectedUnderlay
     ? isDraftingUnderlayRenderable(selectedUnderlay)
     : true;
+  const selectedUnderlayDocumentReferenceState =
+    resolveUnderlayDocumentReferenceState(selectedUnderlay);
+  const selectedUnderlayDocumentReferenceReason =
+    selectedUnderlayDocumentReferenceState?.message ?? null;
+  const selectedUnderlayAvailable =
+    selectedUnderlayRenderable && selectedUnderlayDocumentReferenceReason == null;
   const selectedUnderlayFileId =
     typeof selectedUnderlay?.fileId === 'string' && selectedUnderlay.fileId.trim().length > 0
       ? selectedUnderlay.fileId
       : null;
   const selectedDocument = React.useMemo(
-    () => documents.find((document) => document.id === selectedDocumentId) ?? documents[0] ?? null,
-    [documents, selectedDocumentId],
+    () =>
+      pdfDocuments.find((document) => document.id === selectedDocumentId) ??
+      pdfDocuments[0] ??
+      null,
+    [pdfDocuments, selectedDocumentId],
   );
   const selectedDocumentInfo = usePdfDocumentInfo(selectedDocument?.id ?? null);
   const selectedDocumentPage = usePdfPageRender(selectedDocument?.id ?? null, addPageNumber);
-  const selectedUnderlayDocumentInfo = usePdfDocumentInfo(selectedUnderlayFileId);
+  const selectedUnderlayDocumentInfo = usePdfDocumentInfo(
+    selectedUnderlayDocumentReferenceReason == null ? selectedUnderlayFileId : null,
+  );
   const selectedUnderlayPageRender = usePdfPageRender(
-    selectedUnderlayRenderable ? selectedUnderlayFileId : null,
-    selectedUnderlayRenderable ? (selectedUnderlay?.pageNumber ?? null) : null,
+    selectedUnderlayAvailable ? selectedUnderlayFileId : null,
+    selectedUnderlayAvailable ? (selectedUnderlay?.pageNumber ?? null) : null,
   );
 
   React.useEffect(() => {
-    if (!documents.length) {
+    if (!pdfDocuments.length) {
       setSelectedDocumentId('');
       return;
     }
 
-    if (!selectedDocumentId || !documents.some((document) => document.id === selectedDocumentId)) {
-      setSelectedDocumentId(documents[0]!.id);
+    if (
+      !selectedDocumentId ||
+      !pdfDocuments.some((document) => document.id === selectedDocumentId)
+    ) {
+      setSelectedDocumentId(pdfDocuments[0]!.id);
     }
-  }, [documents, selectedDocumentId]);
+  }, [pdfDocuments, selectedDocumentId]);
 
   React.useEffect(() => {
     if (!selectedDocument) {
@@ -177,6 +214,7 @@ export function DraftingUnderlaysPanel({
     action: 'calibration',
     underlay: selectedUnderlay,
     underlayLayer,
+    documentReferenceError: selectedUnderlayDocumentReferenceReason,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
@@ -184,6 +222,7 @@ export function DraftingUnderlaysPanel({
     action: 'crop',
     underlay: selectedUnderlay,
     underlayLayer,
+    documentReferenceError: selectedUnderlayDocumentReferenceReason,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
@@ -196,6 +235,7 @@ export function DraftingUnderlaysPanel({
       selectedUnderlay,
       underlays,
       underlayLayer,
+      documentReferenceError: selectedUnderlayDocumentReferenceReason,
       pageRenderError: selectedUnderlayPageRender.error,
     }) ??
     getActiveUnderlayModeInvalidation({
@@ -204,6 +244,7 @@ export function DraftingUnderlaysPanel({
       selectedUnderlay,
       underlays,
       underlayLayer,
+      documentReferenceError: selectedUnderlayDocumentReferenceReason,
       pageRenderError: selectedUnderlayPageRender.error,
     });
 
@@ -347,10 +388,10 @@ export function DraftingUnderlaysPanel({
               value={selectedDocument?.id ?? ''}
               onChange={(event) => setSelectedDocumentId(event.target.value)}
             >
-              {documents.length === 0 ? (
+              {pdfDocuments.length === 0 ? (
                 <option value="">No project PDFs uploaded yet</option>
               ) : null}
-              {documents.map((document) => (
+              {pdfDocuments.map((document) => (
                 <option key={document.id} value={document.id}>
                   {document.name} ({document.fileName})
                 </option>
@@ -476,6 +517,7 @@ export function DraftingUnderlaysPanel({
 
               {underlays.map((underlay) => {
                 const renderable = isDraftingUnderlayRenderable(underlay);
+                const documentReferenceState = resolveUnderlayDocumentReferenceState(underlay);
 
                 return (
                   <button
@@ -502,7 +544,9 @@ export function DraftingUnderlaysPanel({
                         <Badge variant={underlay.locked ? 'warning' : 'outline'}>
                           {underlay.locked ? 'Locked' : 'Unlocked'}
                         </Badge>
-                        {!renderable ? <Badge variant="warning">Unavailable</Badge> : null}
+                        {!renderable || documentReferenceState ? (
+                          <Badge variant="warning">Unavailable</Badge>
+                        ) : null}
                       </div>
                     </div>
                   </button>
@@ -572,8 +616,11 @@ export function DraftingUnderlaysPanel({
               </div>
             ) : null}
 
-            {!selectedUnderlayRenderable ? (
+            {!selectedUnderlayAvailable ? (
               <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                {selectedUnderlayDocumentReferenceReason
+                  ? `${selectedUnderlayDocumentReferenceReason} `
+                  : ''}
                 This PDF underlay is unavailable and is skipped on the canvas. Check the PDF file,
                 page, transform, opacity, and crop metadata before editing it. Calibration and crop
                 stay disabled until the underlay can render safely again.
@@ -851,16 +898,55 @@ function getSelectedUnderlayPropertyBlockedState(
   return null;
 }
 
+function isPdfDocument(document: Document) {
+  const mimeType = document.mimeType.trim().toLowerCase();
+  if (mimeType) {
+    return mimeType === 'application/pdf';
+  }
+
+  return document.fileName.trim().toLowerCase().endsWith('.pdf');
+}
+
+function getUnderlayDocumentReferenceState(
+  underlay: DraftingUnderlay,
+  documents: Document[],
+  pdfDocuments: Document[],
+): UnderlayDocumentReferenceState | null {
+  const fileId = underlay.fileId.trim();
+  if (!fileId) {
+    return {
+      message: 'This underlay does not reference a project PDF document.',
+    };
+  }
+
+  const matchingDocument = documents.find((document) => document.id === fileId) ?? null;
+  if (matchingDocument && !isPdfDocument(matchingDocument)) {
+    return {
+      message: 'The referenced project document is not a PDF.',
+    };
+  }
+
+  if (pdfDocuments.some((document) => document.id === fileId)) {
+    return null;
+  }
+
+  return {
+    message: 'The referenced project PDF is missing, inaccessible, or no longer available.',
+  };
+}
+
 function getUnderlayModeBlockedState({
   action,
   underlay,
   underlayLayer,
+  documentReferenceError,
   renderable,
   pageRenderError,
 }: {
   action: UnderlayModeAction;
   underlay: DraftingUnderlay | null;
   underlayLayer: DraftingLayer | null;
+  documentReferenceError: string | null;
   renderable: boolean;
   pageRenderError: Error | null;
 }): UnderlayModeBlockedState | null {
@@ -875,6 +961,14 @@ function getUnderlayModeBlockedState({
 
   const actionLabel = action === 'calibration' ? 'calibration' : 'crop';
   const actionTitle = action === 'calibration' ? 'Calibration' : 'Crop';
+
+  if (documentReferenceError) {
+    return {
+      code: 'document-reference-unavailable',
+      message: `${documentReferenceError} ${actionTitle} is disabled until the underlay references an accessible project PDF.`,
+      scope: 'underlay',
+    };
+  }
 
   if (underlay.locked) {
     return {
@@ -951,6 +1045,7 @@ function getActiveUnderlayModeInvalidation({
   selectedUnderlay,
   underlays,
   underlayLayer,
+  documentReferenceError,
   pageRenderError,
 }: {
   action: UnderlayModeAction;
@@ -958,6 +1053,7 @@ function getActiveUnderlayModeInvalidation({
   selectedUnderlay: DraftingUnderlay | null;
   underlays: DraftingUnderlay[];
   underlayLayer: DraftingLayer | null;
+  documentReferenceError: string | null;
   pageRenderError: Error | null;
 }): ActiveUnderlayModeInvalidation | null {
   if (!activeUnderlayId) {
@@ -989,6 +1085,7 @@ function getActiveUnderlayModeInvalidation({
     action,
     underlay: activeUnderlay,
     underlayLayer,
+    documentReferenceError,
     renderable: isDraftingUnderlayRenderable(activeUnderlay),
     pageRenderError,
   });
@@ -1016,6 +1113,8 @@ function getActiveUnderlayModeInvalidationMessage(
       return `${actionTitle} was cancelled because the Underlay layer is locked.`;
     case 'layer-hidden':
       return `${actionTitle} was cancelled because the Underlay layer is hidden.`;
+    case 'document-reference-unavailable':
+      return `${actionTitle} was cancelled because the active underlay no longer references an accessible project PDF.`;
     case 'locked':
       return `${actionTitle} was cancelled because the active underlay is locked.`;
     case 'hidden':
