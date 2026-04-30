@@ -39,10 +39,17 @@ type PdfUnderlayLoadState<T> = {
   isLoading: boolean;
 };
 
+type PdfUnderlayPageRenderCacheEntry = {
+  imageUrl: string | null;
+  promise: Promise<PdfUnderlayPageRender>;
+  references: number;
+  settled: boolean;
+};
+
 const PDF_RENDER_SCALE = 2;
 const documentCache = new Map<string, Promise<PDFDocumentProxy>>();
 const pageInfoCache = new Map<string, Promise<PdfUnderlayDocumentInfo>>();
-const pageRenderCache = new Map<string, Promise<PdfUnderlayPageRender>>();
+const pageRenderCache = new Map<string, PdfUnderlayPageRenderCacheEntry>();
 const pageImageUrlCache = new Map<string, string>();
 
 if (typeof window !== 'undefined') {
@@ -67,12 +74,12 @@ export function usePdfDocumentInfo(fileId: string | null | undefined) {
     }
 
     let cancelled = false;
-    setState((current) => ({
-      data: current.data,
+    setState({
+      data: null,
       error: null,
       errorKind: null,
-      isLoading: current.data == null,
-    }));
+      isLoading: true,
+    });
 
     getPdfDocumentInfo(fileId)
       .then((data) => {
@@ -118,14 +125,15 @@ export function usePdfPageRender(
     }
 
     let cancelled = false;
-    setState((current) => ({
-      data: current.data,
+    const renderRequest = acquirePdfPageRender(fileId, pageNumber);
+    setState({
+      data: null,
       error: null,
       errorKind: null,
-      isLoading: current.data == null,
-    }));
+      isLoading: true,
+    });
 
-    renderPdfPage(fileId, pageNumber)
+    renderRequest.promise
       .then((data) => {
         if (!cancelled) {
           setState({ data, error: null, errorKind: null, isLoading: false });
@@ -145,6 +153,7 @@ export function usePdfPageRender(
 
     return () => {
       cancelled = true;
+      releasePdfPageRender(renderRequest.cacheKey);
     };
   }, [fileId, pageNumber]);
 
@@ -309,66 +318,132 @@ async function getPdfDocumentInfo(fileId: string) {
   return promise;
 }
 
-async function renderPdfPage(fileId: string, pageNumber: number) {
-  const cacheKey = `${fileId}:${pageNumber}`;
-  const cached = pageRenderCache.get(cacheKey);
-  if (cached) {
-    return cached;
+function acquirePdfPageRender(fileId: string, pageNumber: number) {
+  const cacheKey = getPdfPageRenderCacheKey(fileId, pageNumber);
+  let entry = pageRenderCache.get(cacheKey);
+  if (!entry) {
+    entry = createPdfPageRenderCacheEntry(fileId, pageNumber, cacheKey);
+    pageRenderCache.set(cacheKey, entry);
   }
 
-  const promise = (async () => {
-    try {
-      const pdf = await loadPdfDocument(fileId);
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
+  entry.references += 1;
 
-      const context = canvas.getContext('2d');
-      if (!context) {
-        throw new Error('Canvas rendering context is unavailable');
-      }
+  return {
+    cacheKey,
+    promise: entry.promise,
+  };
+}
 
-      await page.render({
-        canvas,
-        canvasContext: context,
-        viewport,
-      }).promise;
+function createPdfPageRenderCacheEntry(
+  fileId: string,
+  pageNumber: number,
+  cacheKey: string,
+): PdfUnderlayPageRenderCacheEntry {
+  const entry: PdfUnderlayPageRenderCacheEntry = {
+    imageUrl: null,
+    promise: Promise.resolve(null as unknown as PdfUnderlayPageRender),
+    references: 0,
+    settled: false,
+  };
 
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((value) => {
-          if (value) {
-            resolve(value);
-            return;
-          }
-
-          reject(new Error('Failed to convert rendered PDF page to an image'));
-        }, 'image/png');
-      });
-
-      const existingUrl = pageImageUrlCache.get(cacheKey);
-      if (existingUrl) {
-        URL.revokeObjectURL(existingUrl);
-      }
-
-      const imageUrl = URL.createObjectURL(blob);
-      pageImageUrlCache.set(cacheKey, imageUrl);
-
-      return {
-        imageUrl,
-        width: viewport.width / PDF_RENDER_SCALE,
-        height: viewport.height / PDF_RENDER_SCALE,
-        pageCount: pdf.numPages,
-      } satisfies PdfUnderlayPageRender;
-    } catch (error) {
+  entry.promise = renderPdfPage(fileId, pageNumber, cacheKey)
+    .then((data) => {
+      entry.imageUrl = data.imageUrl;
+      entry.settled = true;
+      cleanupPdfPageRenderCacheEntryIfUnused(cacheKey, entry);
+      return data;
+    })
+    .catch((error: unknown) => {
+      entry.settled = true;
       pageRenderCache.delete(cacheKey);
       throw error;
-    }
-  })();
+    });
 
-  pageRenderCache.set(cacheKey, promise);
-  return promise;
+  return entry;
+}
+
+function releasePdfPageRender(cacheKey: string) {
+  const entry = pageRenderCache.get(cacheKey);
+  if (!entry) {
+    return;
+  }
+
+  entry.references = Math.max(0, entry.references - 1);
+  cleanupPdfPageRenderCacheEntryIfUnused(cacheKey, entry);
+}
+
+function cleanupPdfPageRenderCacheEntryIfUnused(
+  cacheKey: string,
+  entry: PdfUnderlayPageRenderCacheEntry,
+) {
+  if (!entry.settled || entry.references > 0) {
+    return;
+  }
+
+  pageRenderCache.delete(cacheKey);
+  revokePdfPageImageUrl(cacheKey);
+}
+
+function revokePdfPageImageUrl(cacheKey: string) {
+  const imageUrl = pageImageUrlCache.get(cacheKey);
+  if (!imageUrl) {
+    return;
+  }
+
+  URL.revokeObjectURL(imageUrl);
+  pageImageUrlCache.delete(cacheKey);
+}
+
+function getPdfPageRenderCacheKey(fileId: string, pageNumber: number) {
+  return `${fileId}:${pageNumber}`;
+}
+
+async function renderPdfPage(fileId: string, pageNumber: number, cacheKey: string) {
+  try {
+    const pdf = await loadPdfDocument(fileId);
+    const page = await pdf.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas rendering context is unavailable');
+    }
+
+    await page.render({
+      canvas,
+      canvasContext: context,
+      viewport,
+    }).promise;
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => {
+        if (value) {
+          resolve(value);
+          return;
+        }
+
+        reject(new Error('Failed to convert rendered PDF page to an image'));
+      }, 'image/png');
+    });
+
+    revokePdfPageImageUrl(cacheKey);
+
+    const imageUrl = URL.createObjectURL(blob);
+    pageImageUrlCache.set(cacheKey, imageUrl);
+
+    return {
+      imageUrl,
+      width: viewport.width / PDF_RENDER_SCALE,
+      height: viewport.height / PDF_RENDER_SCALE,
+      pageCount: pdf.numPages,
+    } satisfies PdfUnderlayPageRender;
+  } catch (error) {
+    pageRenderCache.delete(cacheKey);
+    throw error;
+  }
 }
 
 async function loadPdfDocument(fileId: string) {
