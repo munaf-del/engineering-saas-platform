@@ -46,6 +46,14 @@ describe('renderDraftingObject', () => {
     ]);
     const joint = createDraftingObject('structural_joint', { x: 500, y: 500, rl: 12.3 }, model);
     const projectGrid = createDraftingObject('project_grid', { x: -1000, y: -1000 }, model);
+    const projectGridLine = createDraftingObject('project_grid_line', { x: 0, y: -1600 }, model, [
+      { x: 0, y: -1600 },
+      { x: 3000, y: -1600 },
+    ]);
+    const shaft = createDraftingObject('shaft', { x: 4600, y: 5600 }, model, [
+      { x: 4600, y: 5600 },
+      { x: 6100, y: 5600 },
+    ]);
     const excavationLine = createDraftingObject('excavation_line', { x: 0, y: 0 }, model, [
       { x: 0, y: 0 },
       { x: 2500, y: 500 },
@@ -76,6 +84,8 @@ describe('renderDraftingObject', () => {
           polygon,
           joint,
           projectGrid,
+          projectGridLine,
+          shaft,
           excavationLine,
         ].map((object) => (
           <React.Fragment key={object.id}>
@@ -110,6 +120,9 @@ describe('renderDraftingObject', () => {
     expect(markup).not.toContain('J-NEW-001');
     expect(markup).toContain('data-project-grid-id="GRID1"');
     expect(markup).toContain('data-testid="drafting-project-grid-bubble"');
+    expect(markup).toContain('data-project-grid-line-id="GL1"');
+    expect(markup).toContain('data-testid="drafting-shaft"');
+    expect(markup).toContain('SH1');
     expect(markup).toContain('EX1');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
   });
@@ -136,6 +149,69 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('data-grid-line-role="major"');
     expect(markup).toContain('10M');
     expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('renders independent grid lines with bubble placement, module notation, and line roles', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid-line-render');
+    const baseLine = createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 3200, y: 0 },
+    ]);
+    if (baseLine.type !== 'project_grid_line') {
+      throw new Error('Expected project grid line');
+    }
+    const gridLine = {
+      ...baseLine,
+      metadata: {
+        ...baseLine.metadata,
+        label: 'A',
+        lineRole: 'axis' as const,
+        bubblePlacement: 'end' as const,
+        moduleNotation: '10M',
+        showModuleNotation: true,
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: true,
+          layer: model.layers.find((layer) => layer.id === gridLine.layerId) ?? null,
+          object: gridLine,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('data-testid="drafting-project-grid-line"');
+    expect(markup).toContain('data-project-grid-line-id="GL1"');
+    expect(markup).toContain('data-grid-line-role="axis"');
+    expect(markup.match(/data-testid="drafting-project-grid-bubble"/g)).toHaveLength(1);
+    expect(markup).toContain('10M');
+  });
+
+  it('renders shaft pile markers without creating separate pile model objects', () => {
+    const model = createEmptyDraftingModel('drawing-shaft-render');
+    const shaft = createDraftingObject('shaft', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 1800, y: 0 },
+    ]);
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === shaft.layerId) ?? null,
+          object: shaft,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('data-testid="drafting-shaft"');
+    expect(markup).toContain('data-testid="drafting-shaft-pile-marker"');
+    expect(markup).toContain('SH1');
+    expect(model.objects).toHaveLength(0);
   });
 
   it('renders dimensions as AS-style linework with witnesses and terminators', () => {

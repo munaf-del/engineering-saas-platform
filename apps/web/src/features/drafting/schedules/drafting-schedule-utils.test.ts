@@ -333,9 +333,21 @@ describe('drafting schedule utils', () => {
     ]);
   });
 
-  it('does not add project grid references to semantic schedules', () => {
+  it('does not add project grid references or shaft layout symbols to semantic schedules', () => {
     const model = createEmptyDraftingModel('drawing-grid-schedules');
     model.objects.push(createDraftingObject('project_grid', { x: 0, y: 0 }, model));
+    model.objects.push(
+      createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+      ]),
+    );
+    model.objects.push(
+      createDraftingObject('shaft', { x: 0, y: 0 }, model, [
+        { x: 0, y: 0 },
+        { x: 1500, y: 0 },
+      ]),
+    );
     const summary = buildDraftingScheduleSummary(model);
 
     expect(summary.groups.map((group) => [group.key, group.rows.length])).toEqual([

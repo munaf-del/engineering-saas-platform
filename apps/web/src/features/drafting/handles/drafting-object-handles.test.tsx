@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createEmptyDraftingModel,
   type DraftingPileObject,
+  type DraftingProjectGridLineObject,
   type DraftingProjectGridObject,
+  type DraftingShaftObject,
 } from '@eng/shared';
 import { createDraftingObject } from '../model-utils';
 import {
@@ -38,6 +40,8 @@ describe('drafting object handles', () => {
       'structural_joint',
       'geotech_surface',
       'project_grid',
+      'project_grid_line',
+      'shaft',
     ] as const;
 
     for (const type of types) {
@@ -206,6 +210,77 @@ describe('drafting object handles', () => {
       snapRef,
       z: 4,
     });
+
+    const baseGridLine = createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 2000, y: 0 },
+    ]);
+    if (baseGridLine.type !== 'project_grid_line') {
+      throw new Error('Expected project grid line');
+    }
+    const gridLine = {
+      ...baseGridLine,
+      geometry: {
+        start: { x: 0, y: 0, rl: 12.5, snapRef, z: 4 },
+        end: { x: 2000, y: 0 },
+      },
+    } as DraftingProjectGridLineObject;
+    const gridLineStartHandle = getDraftingObjectHandles(gridLine).find(
+      (handle) => handle.id === 'start',
+    );
+    const movedGridLine = updateDraftingObjectHandle(gridLine, 'start', {
+      x: 50,
+      y: 75,
+    }) as DraftingProjectGridLineObject;
+
+    expect(gridLineStartHandle).toMatchObject({
+      editable: true,
+      sourcePointMetadata: {
+        rl: 12.5,
+        snapRef,
+        z: 4,
+      },
+      updatePath: 'geometry.start',
+    });
+    expect(movedGridLine.geometry.start).toEqual({
+      x: 50,
+      y: 75,
+      rl: 12.5,
+      snapRef,
+      z: 4,
+    });
+
+    const baseShaft = createDraftingObject('shaft', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 1500, y: 0 },
+    ]);
+    if (baseShaft.type !== 'shaft') {
+      throw new Error('Expected shaft');
+    }
+    const shaft = {
+      ...baseShaft,
+      geometry: {
+        ...baseShaft.geometry,
+        centre: { x: 0, y: 0, rl: 12.5, snapRef, z: 4 },
+      },
+    } as DraftingShaftObject;
+    const movedShaft = updateDraftingObjectHandle(shaft, 'centre', {
+      x: 600,
+      y: 700,
+    }) as DraftingShaftObject;
+    const resizedShaft = updateDraftingObjectHandle(shaft, 'radius', {
+      x: 2100,
+      y: 0,
+    }) as DraftingShaftObject;
+
+    expect(movedShaft.geometry.centre).toEqual({
+      x: 600,
+      y: 700,
+      rl: 12.5,
+      snapRef,
+      z: 4,
+    });
+    expect(resizedShaft.geometry.radiusMm).toBe(2100);
   });
 });
 

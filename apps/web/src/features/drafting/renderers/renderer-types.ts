@@ -17,11 +17,14 @@ import type {
   DraftingPileObject,
   DraftingPolygonObject,
   DraftingPolylineObject,
+  DraftingProjectGridLineObject,
+  DraftingProjectGridObject,
   DraftingRectangleObject,
   DraftingSecantPileWallObject,
   DraftingSectionMarkerObject,
   DraftingServiceCrossingObject,
   DraftingServiceRunObject,
+  DraftingShaftObject,
   DraftingSoldierPileWallObject,
   DraftingStructuralJointObject,
   DraftingWalerObject,
@@ -277,3 +280,7 @@ export type DraftingStructuralJointRendererProps =
   DraftingRendererProps<DraftingStructuralJointObject>;
 export type DraftingGeotechSurfaceRendererProps =
   DraftingRendererProps<DraftingGeotechSurfaceObject>;
+export type DraftingProjectGridRendererProps = DraftingRendererProps<DraftingProjectGridObject>;
+export type DraftingProjectGridLineRendererProps =
+  DraftingRendererProps<DraftingProjectGridLineObject>;
+export type DraftingShaftRendererProps = DraftingRendererProps<DraftingShaftObject>;

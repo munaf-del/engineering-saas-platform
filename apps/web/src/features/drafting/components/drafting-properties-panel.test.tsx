@@ -178,6 +178,56 @@ describe('DraftingPropertiesPanel', () => {
     );
     expect(lockedMarkup).toContain('disabled=""');
   });
+
+  it('shows independent project grid line controls without grouped spacing edits', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid-line-properties');
+    const projectGridLine = createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 3000, y: 0 },
+    ]);
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={model.layers}
+        object={projectGridLine}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Project Grid Line');
+    expect(markup).toContain('Grid line ID');
+    expect(markup).toContain('Start X');
+    expect(markup).toContain('End Y');
+    expect(markup).toContain('Bubble placement');
+    expect(markup).toContain('Module notation');
+    expect(markup).toContain('independent editable object');
+    expect(markup).not.toContain('X direction labels');
+    expect(markup).not.toContain('Y direction labels');
+  });
+
+  it('shows shaft controls for secant and contiguous pile layout symbols', () => {
+    const model = createEmptyDraftingModel('drawing-shaft-properties');
+    const shaft = createDraftingObject('shaft', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 1500, y: 0 },
+    ]);
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={model.layers}
+        object={shaft}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Shaft Reference');
+    expect(markup).toContain('Construction type');
+    expect(markup).toContain('Secant piles');
+    expect(markup).toContain('Contiguous piles');
+    expect(markup).toContain('Pile diameter mm');
+    expect(markup).toContain('Spacing mm');
+    expect(markup).toContain('diagrammatic renderer output only');
+  });
 });
 
 function linkedPile(): DraftingObject {

@@ -31,6 +31,7 @@ import {
   updateLayer,
   zoomDraftingViewAtPoint,
 } from './model-utils';
+import { createProjectGridLineObjectsFromGridSet } from './tools/project-grid-line-tool';
 
 describe('drafting model utils', () => {
   it('updates drawing setup without moving drafting objects', () => {
@@ -748,6 +749,108 @@ describe('drafting model utils', () => {
     expect(translateDraftingObject(grid, 500, -250).geometry).toMatchObject({
       origin: { x: 1500, y: 1750, z: 3, rl: 12.5 },
     });
+  });
+
+  it('creates independent project grid line and shaft objects from authored points', () => {
+    const model = createEmptyDraftingModel('drawing-grid-line-shaft');
+    const start = {
+      x: 100,
+      y: 200,
+      z: 3,
+      rl: 12.5,
+      snapRef: {
+        anchorKind: 'endpoint' as const,
+        capturedCoordinate: { x: 100, y: 200, z: 3, rl: 12.5 },
+      },
+    };
+    const end = { x: 100, y: 3200, z: 3, rl: 12.5 };
+    const gridLine = createDraftingObject('project_grid_line', start, model, [start, end]);
+    const shaft = createDraftingObject('shaft', { x: 500, y: 500, rl: 9.1 }, model, [
+      { x: 500, y: 500, rl: 9.1 },
+      { x: 2000, y: 500 },
+    ]);
+
+    expect(gridLine).toMatchObject({
+      type: 'project_grid_line',
+      layerId: 'grid',
+      geometry: {
+        start,
+        end,
+      },
+      metadata: {
+        bubblePlacement: 'both',
+        lineRole: 'major',
+        as1100Profile: 'modular_grid_informed',
+      },
+      sourceRef: { sourceType: 'manual' },
+    });
+    expect(shaft).toMatchObject({
+      type: 'shaft',
+      layerId: 'shoring',
+      geometry: {
+        centre: { x: 500, y: 500, rl: 9.1 },
+        radiusMm: 1500,
+      },
+      parameters: {
+        constructionType: 'secant_piles',
+        sourceMode: 'manual_sketch',
+      },
+    });
+    if (gridLine.type !== 'project_grid_line') {
+      throw new Error('Expected project grid line');
+    }
+    if (shaft.type !== 'shaft') {
+      throw new Error('Expected shaft');
+    }
+    const movedGridLine = translateDraftingObject(gridLine, 50, -25);
+    const movedShaft = translateDraftingObject(shaft, -100, 75);
+    if (movedGridLine.type !== 'project_grid_line') {
+      throw new Error('Expected moved project grid line');
+    }
+    if (movedShaft.type !== 'shaft') {
+      throw new Error('Expected moved shaft');
+    }
+    expect(movedGridLine.geometry.start).toMatchObject({
+      x: 150,
+      y: 175,
+      z: 3,
+      rl: 12.5,
+    });
+    expect(movedShaft.geometry.centre).toMatchObject({
+      x: 400,
+      y: 575,
+      rl: 9.1,
+    });
+  });
+
+  it('creates grid set estimates as independently editable grid line objects', () => {
+    const model = createEmptyDraftingModel('drawing-grid-set-lines');
+    const lines = createProjectGridLineObjectsFromGridSet({ x: 0, y: 0 }, model, {
+      name: 'Test Grid',
+      xCount: 2,
+      yCount: 3,
+      xSpacingMm: 1200,
+      ySpacingMm: 900,
+    });
+
+    expect(lines).toHaveLength(5);
+    expect(lines.every((line) => line.type === 'project_grid_line')).toBe(true);
+    expect(new Set(lines.map((line) => line.id)).size).toBe(lines.length);
+    expect(new Set(lines.map((line) => line.metadata.gridSetId)).size).toBe(1);
+    expect(lines.map((line) => line.metadata.label)).toEqual(['A', 'B', '1', '2', '3']);
+
+    const editedLine = {
+      ...lines[0]!,
+      metadata: { ...lines[0]!.metadata, label: 'A1' },
+      geometry: {
+        ...lines[0]!.geometry,
+        end: { ...lines[0]!.geometry.end, y: 4800 },
+      },
+    };
+
+    expect(editedLine.metadata.gridSetId).toBe(lines[1]!.metadata.gridSetId);
+    expect(editedLine.metadata.label).not.toBe(lines[1]!.metadata.label);
+    expect(editedLine.geometry.end.y).not.toBe(lines[1]!.geometry.end.y);
   });
 });
 

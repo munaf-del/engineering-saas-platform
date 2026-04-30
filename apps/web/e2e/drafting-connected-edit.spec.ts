@@ -14,12 +14,13 @@ import type {
   DraftingPileObject,
   DraftingPolygonObject,
   DraftingPolylineObject,
-  DraftingProjectGridObject,
+  DraftingProjectGridLineObject,
   DraftingRectangleObject,
   DraftingSectionMarkerObject,
   DraftingSecantPileWallObject,
   DraftingServiceCrossingObject,
   DraftingServiceRunObject,
+  DraftingShaftObject,
   DraftingSoldierPileWallObject,
   DraftingStructuralJointObject,
   DraftingWalerObject,
@@ -41,7 +42,7 @@ const QA_LINE_ID = 'qa-line-1';
 const QA_LINE_DIMENSION_ID = 'qa-line-dimension-1';
 
 test.describe('Drafting connected-edit pointer QA', () => {
-  test('creates project grid references and keeps helper grid/focus controls separate', async ({
+  test('creates project grid lines, shaft symbols, and keeps helper grid/focus controls separate', async ({
     page,
   }) => {
     const { email, password } = await signInWithSeedUser(page);
@@ -63,15 +64,45 @@ test.describe('Drafting connected-edit pointer QA', () => {
       await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
       await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
 
-      await page.getByRole('button', { exact: true, name: 'Project grid lines' }).click();
+      const canvas = page.getByTestId('drafting-canvas-svg');
+      await authorTwoPointPrimitive({
+        canvas,
+        end: { xRatio: 0.62, yRatio: 0.32 },
+        page,
+        previewTestId: 'drafting-command-preview-project-grid-line',
+        start: { xRatio: 0.38, yRatio: 0.32 },
+        toolLabel: 'Project grid line',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(2);
+      const authoredGridLineId = await page
+        .locator('[data-drafting-object-id]')
+        .first()
+        .getAttribute('data-drafting-object-id');
+      expect(authoredGridLineId).toBeTruthy();
+
+      await authorTwoPointPrimitive({
+        canvas,
+        end: { xRatio: 0.58, yRatio: 0.52 },
+        page,
+        previewTestId: 'drafting-command-preview-shaft',
+        start: { xRatio: 0.48, yRatio: 0.52 },
+        toolLabel: 'Shaft',
+      });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(2);
+      await expect(page.getByTestId('drafting-shaft')).toHaveCount(1);
+      await expect(page.getByTestId('drafting-shaft-pile-marker').first()).toBeVisible();
+      const authoredShaftId = await page
+        .locator('[data-drafting-object-id]')
+        .nth(1)
+        .getAttribute('data-drafting-object-id');
+      expect(authoredShaftId).toBeTruthy();
+
+      await page.getByRole('button', { exact: true, name: 'Project grid line' }).click();
       await expect(page.getByTestId('drafting-project-grid-tool-panel')).toBeVisible();
       await page.getByTestId('drafting-project-grid-add').click();
-      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
-      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(16);
-      const authoredGridId = await page
-        .locator('[data-drafting-object-id]')
-        .getAttribute('data-drafting-object-id');
-      expect(authoredGridId).toBeTruthy();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(10);
+      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(18);
 
       const helperGridToggle = page.getByTestId('drafting-helper-grid-toggle');
       await expect(helperGridToggle).toBeVisible();
@@ -79,11 +110,13 @@ test.describe('Drafting connected-edit pointer QA', () => {
         await helperGridToggle.click();
       }
       await expect(helperGridToggle).toContainText('Helper Grid Off');
-      await expect(page.getByTestId(`drafting-object-${authoredGridId}`)).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredGridLineId}`)).toHaveCount(1);
 
       await page.getByTestId('drafting-canvas-maximize').click();
       await expect(page.getByTestId('drafting-floating-controls')).toBeVisible();
-      await expect(page.getByText('Tool Grid')).toBeVisible();
+      await expect(page.getByText('Tool Grid Line')).toBeVisible();
+      await expect(page.getByTestId('drafting-floating-project-grid-line-tool')).toBeVisible();
+      await expect(page.getByTestId('drafting-floating-shaft-tool')).toBeVisible();
       await page.getByTestId('drafting-canvas-maximize').click();
       await expect(page.getByTestId('drafting-floating-controls')).toHaveCount(0);
 
@@ -92,25 +125,40 @@ test.describe('Drafting connected-edit pointer QA', () => {
 
       await page.reload();
       await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
-      await expect(page.getByTestId(`drafting-object-${authoredGridId}`)).toHaveCount(1);
-      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(16);
+      await expect(page.getByTestId(`drafting-object-${authoredGridLineId}`)).toHaveCount(1);
+      await expect(page.getByTestId(`drafting-object-${authoredShaftId}`)).toHaveCount(1);
+      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(18);
 
       const reloadedDrawing = await apiRequest<DraftingDrawing>(
         token,
         `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
       );
-      const authoredGrid = reloadedDrawing.model.objects.find(
-        (object): object is DraftingProjectGridObject =>
-          object.id === authoredGridId && object.type === 'project_grid',
+      const authoredGridLine = reloadedDrawing.model.objects.find(
+        (object): object is DraftingProjectGridLineObject =>
+          object.id === authoredGridLineId && object.type === 'project_grid_line',
       );
-      expect(authoredGrid).toBeDefined();
-      expect(authoredGrid!.metadata).toMatchObject({
+      const authoredShaft = reloadedDrawing.model.objects.find(
+        (object): object is DraftingShaftObject =>
+          object.id === authoredShaftId && object.type === 'shaft',
+      );
+      const gridSetLines = reloadedDrawing.model.objects.filter(
+        (object): object is DraftingProjectGridLineObject =>
+          object.type === 'project_grid_line' && Boolean(object.metadata.gridSetId),
+      );
+      expect(authoredGridLine).toBeDefined();
+      expect(authoredGridLine!.metadata).toMatchObject({
         moduleSizeMm: 100,
         bubblePlacement: 'both',
         as1100Profile: 'modular_grid_informed',
       });
-      expect(authoredGrid!.geometry.xLines).toHaveLength(4);
-      expect(authoredGrid!.geometry.yLines).toHaveLength(4);
+      expect(authoredShaft).toBeDefined();
+      expect(authoredShaft!.parameters).toMatchObject({
+        constructionType: 'secant_piles',
+        sourceMode: 'manual_sketch',
+      });
+      expect(gridSetLines).toHaveLength(8);
+      expect(new Set(gridSetLines.map((object) => object.id)).size).toBe(8);
+      expect(new Set(gridSetLines.map((object) => object.metadata.gridSetId)).size).toBe(1);
 
       const downloadPromise = page.waitForEvent('download');
       await page.getByRole('button', { name: 'Export JSON' }).click();
@@ -119,12 +167,18 @@ test.describe('Drafting connected-edit pointer QA', () => {
       expect(downloadPath).toBeTruthy();
       const exportedJson = await readDownloadedText(downloadPath!);
       const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
-      const exportedGrid = exported.model.objects.find(
-        (object): object is DraftingProjectGridObject =>
-          object.id === authoredGridId && object.type === 'project_grid',
+      const exportedGridLine = exported.model.objects.find(
+        (object): object is DraftingProjectGridLineObject =>
+          object.id === authoredGridLineId && object.type === 'project_grid_line',
       );
-      expect(exportedGrid).toBeDefined();
-      expect(exportedGrid!.metadata.gridId).toBe('GRID1');
+      const exportedShaft = exported.model.objects.find(
+        (object): object is DraftingShaftObject =>
+          object.id === authoredShaftId && object.type === 'shaft',
+      );
+      expect(exportedGridLine).toBeDefined();
+      expect(exportedGridLine!.metadata.gridLineId).toBe('GL1');
+      expect(exportedShaft).toBeDefined();
+      expect(exportedShaft!.metadata.shaftId).toBe('SH1');
       expectExportIsMetadataOnly(exportedJson);
 
       await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);

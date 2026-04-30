@@ -462,14 +462,29 @@ describe('drafting export utils', () => {
       renderCacheKey: 'project-grid-render-cache',
       objectUrl: 'blob:project-grid-preview',
     } satisfies DraftingObject & Record<string, unknown>;
-    model.objects.push(projectGrid);
+    const projectGridLine = {
+      ...createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+      ]),
+      renderedImageData: 'data:image/png;base64,grid-line',
+      objectUrl: 'blob:grid-line-preview',
+    } satisfies DraftingObject & Record<string, unknown>;
+    const shaft = {
+      ...createDraftingObject('shaft', { x: 0, y: 0 }, model, [
+        { x: 0, y: 0 },
+        { x: 1500, y: 0 },
+      ]),
+      renderCacheKey: 'shaft-render-cache',
+    } satisfies DraftingObject & Record<string, unknown>;
+    model.objects.push(projectGrid, projectGridLine, shaft);
     const sourceSnapshot = JSON.stringify(model);
 
     const exported = serializeDraftingModelJson(model);
     const parsed = JSON.parse(exported);
     const parsedModel = DraftingModelSchema.parse(parsed.model);
 
-    expect(parsedModel.objects).toHaveLength(1);
+    expect(parsedModel.objects).toHaveLength(3);
     expect(parsedModel.objects[0]).toMatchObject({
       type: 'project_grid',
       layerId: 'grid',
@@ -480,9 +495,29 @@ describe('drafting export utils', () => {
         as1100Profile: 'modular_grid_informed',
       },
     });
+    expect(parsedModel.objects[1]).toMatchObject({
+      type: 'project_grid_line',
+      layerId: 'grid',
+      metadata: {
+        gridLineId: 'GL1',
+        bubblePlacement: 'both',
+        as1100Profile: 'modular_grid_informed',
+      },
+    });
+    expect(parsedModel.objects[2]).toMatchObject({
+      type: 'shaft',
+      layerId: 'shoring',
+      parameters: {
+        constructionType: 'secant_piles',
+        sourceMode: 'manual_sketch',
+      },
+    });
     expect(exported).toContain('"type": "project_grid"');
+    expect(exported).toContain('"type": "project_grid_line"');
+    expect(exported).toContain('"type": "shaft"');
     expect(exported).not.toContain('data:image/png');
     expect(exported).not.toContain('blob:project-grid-preview');
+    expect(exported).not.toContain('blob:grid-line-preview');
     expect(exported).not.toContain('"renderCacheKey"');
     expect(exported).not.toContain('"renderedImageData"');
     expect(exported).not.toContain('"objectUrl"');

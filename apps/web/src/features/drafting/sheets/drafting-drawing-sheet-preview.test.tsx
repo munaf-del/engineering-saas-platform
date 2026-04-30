@@ -277,14 +277,27 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('drafting-sheet-paper-preview');
   });
 
-  it('renders project grid objects in sheet preview and respects object/layer visibility', () => {
+  it('renders project grid and grid line objects in sheet preview and respects object/layer visibility', () => {
     const drawing = createDrawing();
     const sheet = {
       ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
       includeObjectLabels: true,
     };
     const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, drawing.model);
-    drawing.model.objects.push(projectGrid);
+    const projectGridLine = createDraftingObject(
+      'project_grid_line',
+      { x: 0, y: -1600 },
+      drawing.model,
+      [
+        { x: 0, y: -1600 },
+        { x: 3000, y: -1600 },
+      ],
+    );
+    const shaft = createDraftingObject('shaft', { x: 4500, y: 1000 }, drawing.model, [
+      { x: 4500, y: 1000 },
+      { x: 6000, y: 1000 },
+    ]);
+    drawing.model.objects.push(projectGrid, projectGridLine, shaft);
 
     const visibleMarkup = renderToStaticMarkup(
       <DraftingDrawingSheetPage
@@ -300,13 +313,22 @@ describe('drafting drawing sheet preview', () => {
 
     expect(visibleMarkup).toContain('data-testid="drafting-project-grid"');
     expect(visibleMarkup).toContain('data-testid="drafting-project-grid-bubble"');
+    expect(visibleMarkup).toContain('data-testid="drafting-project-grid-line"');
+    expect(visibleMarkup).toContain('data-testid="drafting-shaft"');
+    expect(visibleMarkup).toContain('data-testid="drafting-shaft-pile-marker"');
     expect(visibleMarkup).toContain('GRID1');
+    expect(visibleMarkup).toContain('GL1');
+    expect(visibleMarkup).toContain('SH1');
 
     const hiddenObjectDrawing = {
       ...drawing,
       model: {
         ...drawing.model,
-        objects: [{ ...projectGrid, visible: false }],
+        objects: [
+          { ...projectGrid, visible: false },
+          { ...projectGridLine, visible: false },
+          { ...shaft, visible: false },
+        ],
       },
     };
     const hiddenObjectMarkup = renderToStaticMarkup(
@@ -322,6 +344,8 @@ describe('drafting drawing sheet preview', () => {
     );
 
     expect(hiddenObjectMarkup).not.toContain('data-testid="drafting-project-grid"');
+    expect(hiddenObjectMarkup).not.toContain('data-testid="drafting-project-grid-line"');
+    expect(hiddenObjectMarkup).not.toContain('data-testid="drafting-shaft"');
 
     const hiddenLayerDrawing = {
       ...drawing,
@@ -345,6 +369,7 @@ describe('drafting drawing sheet preview', () => {
     );
 
     expect(hiddenLayerMarkup).not.toContain('data-testid="drafting-project-grid"');
+    expect(hiddenLayerMarkup).not.toContain('data-testid="drafting-project-grid-line"');
   });
 
   it('uses existing PDF underlay rendering when underlays are included and preserves fallback metadata', () => {

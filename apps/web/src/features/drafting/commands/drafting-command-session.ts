@@ -11,6 +11,7 @@ export type DraftingBoreholeCommandTool = 'borehole';
 export type DraftingPileCommandTool = 'pile';
 export type DraftingAnchorTiebackCommandTool = 'anchor_tieback';
 export type DraftingDimensionCommandTool = 'dimension_chain';
+export type DraftingTwoPointCommandTool = 'project_grid_line' | 'shaft';
 export type DraftingSketchPathCommandTool = 'draft_polyline' | 'draft_polygon';
 export type DraftingExcavationLineCommandTool = 'excavation_line';
 export type DraftingCappingBeamCommandTool = 'capping_beam';
@@ -38,6 +39,7 @@ export type DraftingCommandTool =
   | DraftingPileCommandTool
   | DraftingAnchorTiebackCommandTool
   | DraftingDimensionCommandTool
+  | DraftingTwoPointCommandTool
   | DraftingPathCommandTool;
 
 export const DRAFTING_PRIMITIVE_COMMAND_TOOLS = [
@@ -56,6 +58,11 @@ export const DRAFTING_PATH_COMMAND_TOOLS = [
   'draft_polyline',
   'draft_polygon',
 ] as const satisfies DraftingPathCommandTool[];
+
+export const DRAFTING_TWO_POINT_COMMAND_TOOLS = [
+  'project_grid_line',
+  'shaft',
+] as const satisfies DraftingTwoPointCommandTool[];
 
 export type DraftingCommandSession =
   | {
@@ -128,6 +135,12 @@ export type DraftingCommandSession =
       tool: DraftingDimensionCommandTool;
     }
   | {
+      phase: 'waiting_first_point' | 'waiting_second_point';
+      points: DraftingPoint[];
+      previewPoint: DraftingPoint | null;
+      tool: DraftingTwoPointCommandTool;
+    }
+  | {
       phase: 'waiting_first_point' | 'collecting_points';
       points: DraftingPoint[];
       previewPoint: DraftingPoint | null;
@@ -178,6 +191,10 @@ type ActiveDraftingAnchorTiebackCommandSession = Extract<
 type ActiveDraftingDimensionCommandSession = Extract<
   DraftingCommandSession,
   { tool: DraftingDimensionCommandTool }
+>;
+type ActiveDraftingTwoPointCommandSession = Extract<
+  DraftingCommandSession,
+  { tool: DraftingTwoPointCommandTool }
 >;
 type ActiveDraftingPathCommandSession = Extract<
   DraftingCommandSession,
@@ -342,6 +359,18 @@ export type DraftingDimensionCommandCommit =
       tool: DraftingDimensionCommandTool;
     };
 
+export type DraftingTwoPointCommandCommit =
+  | {
+      committed: false;
+      session: DraftingCommandSession;
+    }
+  | {
+      committed: true;
+      points: [DraftingPoint, DraftingPoint];
+      session: DraftingCommandSession;
+      tool: DraftingTwoPointCommandTool;
+    };
+
 export type DraftingPathCommandCommit =
   | {
       committed: false;
@@ -485,6 +514,17 @@ export function startDraftingDimensionCommand(): ActiveDraftingDimensionCommandS
   };
 }
 
+export function startDraftingTwoPointCommand(
+  tool: DraftingTwoPointCommandTool,
+): ActiveDraftingTwoPointCommandSession {
+  return {
+    phase: 'waiting_first_point',
+    points: [],
+    previewPoint: null,
+    tool,
+  };
+}
+
 export function startDraftingPathCommand(
   tool: DraftingPathCommandTool,
 ): ActiveDraftingPathCommandSession {
@@ -530,6 +570,10 @@ export function isDraftingPrimitiveCommandTool(tool: string): tool is DraftingPr
 
 export function isDraftingDimensionCommandTool(tool: string): tool is DraftingDimensionCommandTool {
   return tool === 'dimension_chain';
+}
+
+export function isDraftingTwoPointCommandTool(tool: string): tool is DraftingTwoPointCommandTool {
+  return DRAFTING_TWO_POINT_COMMAND_TOOLS.includes(tool as DraftingTwoPointCommandTool);
 }
 
 export function isDraftingSectionMarkerCommandTool(
@@ -597,6 +641,7 @@ export function isDraftingCommandTool(tool: string): tool is DraftingCommandTool
     isDraftingPileCommandTool(tool) ||
     isDraftingAnchorTiebackCommandTool(tool) ||
     isDraftingDimensionCommandTool(tool) ||
+    isDraftingTwoPointCommandTool(tool) ||
     isDraftingPathCommandTool(tool)
   );
 }
@@ -668,6 +713,13 @@ export function ensureDraftingAnchorTiebackCommand(
   return session.tool === 'anchor_tieback' ? session : startDraftingAnchorTiebackCommand();
 }
 
+export function ensureDraftingTwoPointCommand(
+  session: DraftingCommandSession,
+  tool: DraftingTwoPointCommandTool,
+): ActiveDraftingTwoPointCommandSession {
+  return session.tool === tool ? session : startDraftingTwoPointCommand(tool);
+}
+
 export function ensureDraftingPathCommand(
   session: DraftingCommandSession,
   tool: DraftingPathCommandTool,
@@ -691,6 +743,7 @@ export function updateDraftingPrimitiveCommandPreview(
     session.tool === 'borehole' ||
     session.tool === 'pile' ||
     session.tool === 'anchor_tieback' ||
+    isDraftingTwoPointCommandTool(session.tool) ||
     isDraftingPathCommandTool(session.tool) ||
     !point
   ) {
@@ -854,6 +907,24 @@ export function updateDraftingAnchorTiebackCommandPreview(
   };
 }
 
+export function updateDraftingTwoPointCommandPreview(
+  session: DraftingCommandSession,
+  point: DraftingPoint | null | undefined,
+): DraftingCommandSession {
+  if (session.tool !== 'project_grid_line' && session.tool !== 'shaft') {
+    return session;
+  }
+
+  if (session.points.length === 0 || !point) {
+    return session;
+  }
+
+  return {
+    ...session,
+    previewPoint: cloneDraftingPoint(point),
+  };
+}
+
 export function updateDraftingPathCommandPreview(
   session: DraftingCommandSession,
   point: DraftingPoint | null | undefined,
@@ -870,6 +941,7 @@ export function updateDraftingPathCommandPreview(
     session.tool === 'borehole' ||
     session.tool === 'pile' ||
     session.tool === 'anchor_tieback' ||
+    isDraftingTwoPointCommandTool(session.tool) ||
     isDraftingPrimitiveCommandTool(session.tool) ||
     session.points.length === 0 ||
     !point
@@ -1184,6 +1256,48 @@ export function commitDraftingDimensionCommandPoint(
     points: [firstWitnessPoint!, secondWitnessPoint!, nextPoint],
     session: IDLE_DRAFTING_COMMAND_SESSION,
     tool: 'dimension_chain',
+  };
+}
+
+export function commitDraftingTwoPointCommandPoint(
+  session: DraftingCommandSession,
+  tool: DraftingTwoPointCommandTool,
+  point: DraftingPoint | null | undefined,
+): DraftingTwoPointCommandCommit {
+  const activeSession = ensureDraftingTwoPointCommand(session, tool);
+  if (!point) {
+    return { committed: false, session: activeSession };
+  }
+
+  const nextPoint = cloneDraftingPoint(point);
+  if (activeSession.points.length === 0) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        phase: 'waiting_second_point',
+        points: [nextPoint],
+        previewPoint: null,
+      },
+    };
+  }
+
+  const startPoint = activeSession.points[0]!;
+  if (areDraftingPointsCoincident(startPoint, nextPoint)) {
+    return {
+      committed: false,
+      session: {
+        ...activeSession,
+        previewPoint: null,
+      },
+    };
+  }
+
+  return {
+    committed: true,
+    points: [startPoint, nextPoint],
+    session: IDLE_DRAFTING_COMMAND_SESSION,
+    tool: activeSession.tool,
   };
 }
 

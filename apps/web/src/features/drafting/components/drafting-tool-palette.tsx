@@ -69,6 +69,7 @@ const TOOL_GROUPS: Array<{
       { tool: 'pile', label: 'Pile', shortLabel: 'Pile', icon: Circle },
       { tool: 'secant_pile_wall', label: 'Secant pile wall', shortLabel: 'Secant', icon: Workflow },
       { tool: 'soldier_pile_wall', label: 'Soldier pile wall', shortLabel: 'Soldier', icon: Grip },
+      { tool: 'shaft', label: 'Shaft', shortLabel: 'Shaft', icon: Radius },
       { tool: 'anchor_tieback', label: 'Anchor / tieback', shortLabel: 'Anchor', icon: Anchor },
       {
         tool: 'capping_beam',
@@ -113,7 +114,18 @@ const TOOL_GROUPS: Array<{
   {
     title: 'Reference',
     tools: [
-      { tool: 'project_grid', label: 'Project grid lines', shortLabel: 'Grid', icon: Grid3X3 },
+      {
+        tool: 'project_grid_line',
+        label: 'Project grid line',
+        shortLabel: 'Grid Line',
+        icon: Grid3X3,
+      },
+      {
+        tool: 'project_grid',
+        label: 'Grid set estimate',
+        shortLabel: 'Grid Set',
+        icon: Grid3X3,
+      },
     ],
   },
   {
@@ -198,6 +210,7 @@ export function DraftingToolPalette({
             icon={entry.icon}
             label={entry.label}
             onClick={() => onToolChange(entry.tool)}
+            tool={entry.tool}
           >
             {entry.shortLabel}
           </ToolButton>
@@ -243,6 +256,7 @@ export function DraftingToolPalette({
                   icon={entry.icon}
                   label={entry.label}
                   onClick={() => onToolChange(entry.tool)}
+                  tool={entry.tool}
                   tile
                 >
                   {entry.shortLabel}
@@ -282,7 +296,7 @@ export function DraftingToolPalette({
           sourceLoading={sourceLoading}
           title={sourcePanel.title}
         />
-      ) : activeTool === 'project_grid' ? (
+      ) : activeTool === 'project_grid' || activeTool === 'project_grid_line' ? (
         <ProjectGridChoicePanel onAddProjectGrid={onAddProjectGrid} />
       ) : null}
 
@@ -1216,6 +1230,7 @@ function ToolButton({
   label,
   onClick,
   tile = false,
+  tool,
 }: {
   active: boolean;
   children: React.ReactNode;
@@ -1224,6 +1239,7 @@ function ToolButton({
   label: string;
   onClick: () => void;
   tile?: boolean;
+  tool: DraftingTool;
 }) {
   return (
     <Button
@@ -1233,6 +1249,7 @@ function ToolButton({
         'shrink-0 gap-1.5',
         tile ? 'h-7 min-w-0 justify-center px-1 text-[11px]' : 'h-8 px-2 text-xs',
       )}
+      data-testid={getToolButtonTestId(tool)}
       title={hint ? `${label} (${hint})` : label}
       variant={active ? 'default' : 'outline'}
       onClick={onClick}
@@ -1259,10 +1276,13 @@ function ProjectGridChoicePanel({ onAddProjectGrid }: { onAddProjectGrid?: () =>
       data-testid="drafting-project-grid-tool-panel"
     >
       <div className="min-w-0">
-        <div className="font-semibold text-foreground">Project grid reference</div>
+        <div className="font-semibold text-foreground">Project grid references</div>
         <p className="text-muted-foreground">
-          Add AS1100-informed modular grid style references, then edit labels, spacing, bubbles, and
-          module notation in Properties.
+          Place a precise two-point grid line, or create a grid set estimate as independent
+          grid-line objects. Edit each label, endpoint, bubble, and line role separately.
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          AS1100-informed modular grid style; requires project verification.
         </p>
       </div>
       <Button
@@ -1273,10 +1293,23 @@ function ProjectGridChoicePanel({ onAddProjectGrid }: { onAddProjectGrid?: () =>
         size="sm"
         type="button"
       >
-        Add Project Grid
+        Add Grid Set Estimate
       </Button>
     </div>
   );
+}
+
+function getToolButtonTestId(tool: DraftingTool) {
+  if (tool === 'project_grid_line') {
+    return 'drafting-project-grid-line-tool';
+  }
+  if (tool === 'project_grid') {
+    return 'drafting-project-grid-tool';
+  }
+  if (tool === 'shaft') {
+    return 'drafting-shaft-tool';
+  }
+  return undefined;
 }
 
 export function getDraftingToolShortLabel(tool: DraftingTool) {

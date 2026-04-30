@@ -21,6 +21,7 @@ import {
   DRAFTING_PILE_TYPES,
   DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS,
   DRAFTING_PROJECT_GRID_LABEL_MODES,
+  DRAFTING_PROJECT_GRID_LINE_AXES,
   DRAFTING_PROJECT_GRID_LINE_ROLES,
   DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES,
   DRAFTING_SCHEDULE_SHEET_ORIENTATIONS,
@@ -28,6 +29,7 @@ import {
   DRAFTING_SCHEDULE_SHEET_TABLE_DENSITIES,
   DRAFTING_SCHEDULE_SHEET_TEMPLATE_SNAPSHOT_SOURCES,
   DRAFTING_SECTION_ARROW_DIRECTIONS,
+  DRAFTING_SHAFT_CONSTRUCTION_TYPES,
   DRAFTING_SECANT_PRIMARY_SECONDARY_PATTERNS,
   DRAFTING_SECANT_TYPES,
   DRAFTING_SERVICE_CONFLICT_TYPES,
@@ -961,6 +963,51 @@ export const DraftingProjectGridObjectSchema = DraftingObjectBaseSchema.extend({
   }),
 });
 
+export const DraftingProjectGridLineObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('project_grid_line'),
+  geometry: z.object({
+    start: DraftingPointSchema,
+    end: DraftingPointSchema,
+  }),
+  metadata: z.object({
+    gridLineId: z.string().min(1),
+    label: z.string().min(1),
+    axis: z.enum(DRAFTING_PROJECT_GRID_LINE_AXES),
+    lineRole: z.enum(DRAFTING_PROJECT_GRID_LINE_ROLES),
+    bubblePlacement: z.enum(DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS),
+    bubbleRadiusMm: z.number().positive(),
+    moduleSizeMm: z.number().positive(),
+    moduleNotation: z.string().min(1).optional(),
+    showModuleNotation: z.boolean().optional(),
+    gridSetId: z.string().min(1).optional(),
+    gridSetName: z.string().min(1).optional(),
+    sequence: z.number().int().positive().optional(),
+    as1100Profile: z.literal('modular_grid_informed'),
+    notes: z.string().optional(),
+  }),
+});
+
+export const DraftingShaftObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('shaft'),
+  geometry: z.object({
+    centre: DraftingPointSchema,
+    radiusMm: z.number().positive(),
+    rotationDeg: z.number().finite().optional(),
+  }),
+  parameters: z.object({
+    constructionType: z.enum(DRAFTING_SHAFT_CONSTRUCTION_TYPES),
+    pileDiameterMm: z.number().positive(),
+    spacingMm: z.number().positive(),
+    startPileId: z.string().min(1).optional(),
+    sourceMode: z.literal('manual_sketch').optional(),
+  }),
+  metadata: z.object({
+    shaftId: z.string().min(1),
+    label: z.string().min(1).optional(),
+    notes: z.string().optional(),
+  }),
+});
+
 export const DraftingPlaceholderObjectSchema = DraftingObjectBaseSchema.extend({
   type: z.enum(DRAFTING_FUTURE_OBJECT_TYPES),
   geometry: z.record(z.unknown()),
@@ -992,6 +1039,8 @@ export const DraftingObjectSchema = z
     DraftingStructuralJointObjectSchema,
     DraftingGeotechSurfaceObjectSchema,
     DraftingProjectGridObjectSchema,
+    DraftingProjectGridLineObjectSchema,
+    DraftingShaftObjectSchema,
     DraftingPlaceholderObjectSchema,
   ])
   .superRefine((value, context) => {

@@ -383,6 +383,39 @@ export function getDraftingObjectHandles(object: DraftingObject): DraftingObject
           },
         ),
       ];
+    case 'project_grid_line':
+      return [
+        createHandle(object, 'start', 'endpoint', 'Grid line start', object.geometry.start, {
+          cursor: 'move',
+          updatePath: 'geometry.start',
+        }),
+        createHandle(object, 'end', 'endpoint', 'Grid line end', object.geometry.end, {
+          cursor: 'move',
+          updatePath: 'geometry.end',
+        }),
+      ];
+    case 'shaft':
+      return [
+        createHandle(object, 'centre', 'centre', 'Shaft centre', object.geometry.centre, {
+          cursor: 'move',
+          updatePath: 'geometry.centre',
+        }),
+        createHandle(
+          object,
+          'radius',
+          'radius',
+          'Shaft radius',
+          {
+            x: object.geometry.centre.x + object.geometry.radiusMm,
+            y: object.geometry.centre.y,
+          },
+          {
+            cursor: 'ew-resize',
+            tone: 'secondary',
+            updatePath: 'geometry.radiusMm',
+          },
+        ),
+      ];
     default:
       return [];
   }
@@ -823,6 +856,40 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           origin: preserveDraftingPointMetadata(object.geometry.origin, point),
+        },
+      });
+    case 'project_grid_line':
+      return moved({
+        ...object,
+        geometry:
+          handleId === 'start'
+            ? {
+                ...object.geometry,
+                start: preserveDraftingPointMetadata(object.geometry.start, point),
+              }
+            : {
+                ...object.geometry,
+                end: preserveDraftingPointMetadata(object.geometry.end, point),
+              },
+      });
+    case 'shaft':
+      if (handleId === 'radius') {
+        return moved({
+          ...object,
+          geometry: {
+            ...object.geometry,
+            radiusMm: Math.max(
+              1,
+              Math.hypot(point.x - object.geometry.centre.x, point.y - object.geometry.centre.y),
+            ),
+          },
+        });
+      }
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          centre: preserveDraftingPointMetadata(object.geometry.centre, point),
         },
       });
     default:

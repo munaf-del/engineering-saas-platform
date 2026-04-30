@@ -223,6 +223,28 @@ export function buildDraftingObjectLabelLines(context: LabelPolicyContext): stri
         ],
         context,
       );
+    case 'project_grid_line':
+      return filterLabelLines(
+        [
+          context.object.metadata.label ||
+            context.object.metadata.gridLineId ||
+            context.object.name,
+          mode !== 'minimal' ? 'Project grid reference' : null,
+          sourceLine,
+        ],
+        context,
+      );
+    case 'shaft':
+      return filterLabelLines(
+        [
+          context.object.metadata.label || context.object.metadata.shaftId,
+          mode !== 'minimal'
+            ? context.object.parameters.constructionType.replaceAll('_', ' ')
+            : null,
+          sourceLine,
+        ],
+        context,
+      );
     case 'draft_line':
     case 'draft_polyline':
     case 'draft_rectangle':

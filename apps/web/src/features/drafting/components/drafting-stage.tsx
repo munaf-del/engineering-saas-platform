@@ -54,6 +54,7 @@ import {
 } from '../standards/drafting-style-resolver';
 import { getDraftingStandardProfile } from '../standards/drafting-standard-profiles';
 import type { DraftingCommandTool } from '../commands/drafting-command-session';
+import type { DraftingTool } from '../tools/drafting-tool-types';
 import {
   DRAFTING_CANVAS_LABEL_MODES,
   type DraftingCanvasLabelMode,
@@ -62,6 +63,7 @@ import { DraftingPdfUnderlay } from './drafting-pdf-underlay';
 import { DraftingStatusBar } from './drafting-status-bar';
 
 export function DraftingStage({
+  activeTool = 'select',
   activeToolLabel = 'Select',
   canvasSize,
   commandPrompt,
@@ -83,6 +85,7 @@ export function DraftingStage({
   onResetZoom,
   onSetZoomScale,
   onLabelModeChange = () => {},
+  onToolChange,
   onToggleSnapEnabled = () => {},
   onToggleSnapMode = () => {},
   onViewLockedChange,
@@ -106,6 +109,7 @@ export function DraftingStage({
   visibleUnderlays,
   visibleObjects,
 }: {
+  activeTool?: DraftingTool;
   activeToolLabel?: string;
   canvasSize: DraftingCanvasSize;
   commandPrompt?: string;
@@ -131,6 +135,7 @@ export function DraftingStage({
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
   onLabelModeChange?: (mode: DraftingCanvasLabelMode) => void;
+  onToolChange?: (tool: DraftingTool) => void;
   onToggleSnapEnabled?: () => void;
   onToggleSnapMode?: (mode: DraftingSnapMode) => void;
   onViewLockedChange: (locked: boolean) => void;
@@ -346,6 +351,7 @@ export function DraftingStage({
         >
           <DraftingCanvasZoomControls
             activeToolLabel={activeToolLabel}
+            activeTool={activeTool}
             browserFullscreenActive={browserFullscreenActive}
             canvasFocusMode={canvasFocusMode}
             helperGridVisible={helperGridVisible}
@@ -361,6 +367,7 @@ export function DraftingStage({
             onToggleSnapEnabled={onToggleSnapEnabled}
             onToggleSnapMode={onToggleSnapMode}
             onLabelModeChange={onLabelModeChange}
+            onToolChange={onToolChange}
             onViewLockedChange={onViewLockedChange}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
@@ -499,6 +506,7 @@ export function DraftingStage({
 }
 
 function DraftingCanvasZoomControls({
+  activeTool,
   activeToolLabel,
   browserFullscreenActive,
   canvasFocusMode,
@@ -515,6 +523,7 @@ function DraftingCanvasZoomControls({
   onToggleSnapEnabled,
   onToggleSnapMode,
   onLabelModeChange,
+  onToolChange,
   onViewLockedChange,
   onZoomIn,
   onZoomOut,
@@ -526,6 +535,7 @@ function DraftingCanvasZoomControls({
   snapSettings,
   labelMode,
 }: {
+  activeTool: DraftingTool;
   activeToolLabel: string;
   browserFullscreenActive: boolean;
   canvasFocusMode: boolean;
@@ -542,6 +552,7 @@ function DraftingCanvasZoomControls({
   onToggleSnapEnabled: () => void;
   onToggleSnapMode: (mode: DraftingSnapMode) => void;
   onLabelModeChange: (mode: DraftingCanvasLabelMode) => void;
+  onToolChange?: (tool: DraftingTool) => void;
   onViewLockedChange: (locked: boolean) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -572,8 +583,79 @@ function DraftingCanvasZoomControls({
           className="flex flex-wrap items-center gap-2 text-xs"
           data-testid="drafting-floating-controls"
         >
-          <Badge variant="secondary">Tool {activeToolLabel}</Badge>
-          <Badge variant="outline">Focus canvas</Badge>
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
+            data-testid="drafting-floating-tool-cluster"
+          >
+            <Badge variant="secondary">Tool {activeToolLabel}</Badge>
+            {[
+              ['select', 'Select'],
+              ['pan', 'Pan'],
+              ['project_grid_line', 'Grid Line'],
+              ['shaft', 'Shaft'],
+              ['secant_pile_wall', 'Secant'],
+              ['draft_line', 'Line'],
+            ].map(([tool, label]) => (
+              <Button
+                aria-pressed={activeTool === tool}
+                className="h-7 px-2 text-[11px]"
+                data-testid={
+                  tool === 'project_grid_line'
+                    ? 'drafting-floating-project-grid-line-tool'
+                    : tool === 'shaft'
+                      ? 'drafting-floating-shaft-tool'
+                      : undefined
+                }
+                disabled={!onToolChange}
+                key={tool}
+                size="sm"
+                type="button"
+                variant={activeTool === tool ? 'secondary' : 'outline'}
+                onClick={() => onToolChange?.(tool as DraftingTool)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
+            data-testid="drafting-floating-view-cluster"
+          >
+            <Badge variant="outline">Focus canvas</Badge>
+            <Button
+              aria-label="Restore canvas"
+              className="h-7 px-2 text-[11px]"
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => onCanvasFocusModeChange(false)}
+            >
+              Restore
+            </Button>
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
+            data-testid="drafting-floating-aids-cluster"
+          >
+            <Badge variant={snapSettings.enabled ? 'secondary' : 'outline'}>
+              Snap {snapSettings.enabled ? 'on' : 'off'}
+            </Badge>
+            <Badge variant={helperGridVisible ? 'secondary' : 'outline'}>
+              Helper grid {helperGridVisible ? 'on' : 'off'}
+            </Badge>
+            <Badge variant={labelMode === 'minimal' ? 'outline' : 'secondary'}>
+              Labels {labelMode}
+            </Badge>
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
+            data-testid="drafting-floating-inspector-cluster"
+          >
+            <Badge variant={selectedObjectId ? 'secondary' : 'outline'}>
+              {selectedObjectId ? 'Object selected' : 'No selection'}
+            </Badge>
+            <Badge variant="outline">Sheet {sheetScale}</Badge>
+          </div>
         </div>
       ) : null}
       <div className="flex items-center gap-1" data-testid="drafting-canvas-view-controls">
@@ -1128,6 +1210,78 @@ function PendingCommandPreview({
           cy={previewPoint.y}
           fill="none"
           r={60}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
+  if (tool === 'project_grid_line') {
+    if (!previewPoint) {
+      return null;
+    }
+    return (
+      <g data-testid="drafting-command-preview-project-grid-line">
+        <line
+          fill="none"
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+          x1={startPoint!.x}
+          x2={previewPoint.x}
+          y1={startPoint!.y}
+          y2={previewPoint.y}
+        />
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="white"
+          r={140}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <circle
+          cx={previewPoint.x}
+          cy={previewPoint.y}
+          fill="white"
+          r={140}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
+  if (tool === 'shaft') {
+    if (!previewPoint) {
+      return null;
+    }
+    const radius = Math.hypot(previewPoint.x - startPoint!.x, previewPoint.y - startPoint!.y);
+    return (
+      <g data-testid="drafting-command-preview-shaft">
+        <circle
+          cx={startPoint!.x}
+          cy={startPoint!.y}
+          fill="none"
+          r={radius}
+          stroke={stroke}
+          strokeDasharray={strokeDasharray}
+          strokeWidth={strokeWidth}
+          vectorEffect="non-scaling-stroke"
+        />
+        <circle
+          cx={previewPoint.x}
+          cy={previewPoint.y}
+          fill="none"
+          r={120}
           stroke={stroke}
           strokeDasharray={strokeDasharray}
           strokeWidth={strokeWidth}

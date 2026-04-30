@@ -18,11 +18,13 @@ import { ExcavationLineProperties } from '../properties/excavation-line-properti
 import { LeaderNoteProperties } from '../properties/leader-note-properties';
 import { MonitoringPointProperties } from '../properties/monitoring-point-properties';
 import { PileProperties } from '../properties/pile-properties';
+import { ProjectGridLineProperties } from '../properties/project-grid-line-properties';
 import { ProjectGridProperties } from '../properties/project-grid-properties';
 import { SecantPileWallProperties } from '../properties/secant-pile-wall-properties';
 import { SectionMarkerProperties } from '../properties/section-marker-properties';
 import { ServiceCrossingProperties } from '../properties/service-crossing-properties';
 import { ServiceRunProperties } from '../properties/service-run-properties';
+import { ShaftProperties } from '../properties/shaft-properties';
 import { SoldierPileWallProperties } from '../properties/soldier-pile-wall-properties';
 import { WalerProperties } from '../properties/waler-properties';
 
@@ -144,6 +146,20 @@ export function DraftingPropertiesPanel({
             ) : null}
             {object.type === 'project_grid' ? (
               <ProjectGridProperties
+                disabled={Boolean(object.locked || objectLayer?.locked)}
+                object={object}
+                onUpdate={onUpdate}
+              />
+            ) : null}
+            {object.type === 'project_grid_line' ? (
+              <ProjectGridLineProperties
+                disabled={Boolean(object.locked || objectLayer?.locked)}
+                object={object}
+                onUpdate={onUpdate}
+              />
+            ) : null}
+            {object.type === 'shaft' ? (
+              <ShaftProperties
                 disabled={Boolean(object.locked || objectLayer?.locked)}
                 object={object}
                 onUpdate={onUpdate}
@@ -368,6 +384,10 @@ function getPrimaryCoordinatePoint(object: DraftingObject): DraftingPoint | null
       return object.geometry.points[0] ?? null;
     case 'project_grid':
       return object.geometry.origin;
+    case 'project_grid_line':
+      return object.geometry.start;
+    case 'shaft':
+      return object.geometry.centre;
     default:
       return null;
   }
@@ -479,6 +499,8 @@ function propertySectionTitle(object: DraftingObject) {
     case 'structural_joint':
     case 'geotech_surface':
     case 'project_grid':
+    case 'project_grid_line':
+    case 'shaft':
     case 'dimension_chain':
     case 'callout':
     case 'section_marker':

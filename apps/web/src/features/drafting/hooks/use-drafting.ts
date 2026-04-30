@@ -20,6 +20,7 @@ import {
   commitDraftingSectionMarkerCommandPoint,
   commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
+  commitDraftingTwoPointCommandPoint,
   finishDraftingPathCommand,
   getDraftingCommandPoints,
   getDraftingCommandPreviewPoints,
@@ -38,6 +39,7 @@ import {
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
+  isDraftingTwoPointCommandTool,
   startDraftingAnchorTiebackCommand,
   startDraftingBoreholeCommand,
   startDraftingCalloutCommand,
@@ -52,6 +54,7 @@ import {
   startDraftingServiceCrossingCommand,
   startDraftingSoldierPileWallCommand,
   startDraftingStructuralJointCommand,
+  startDraftingTwoPointCommand,
   updateDraftingAnchorTiebackCommandPreview,
   updateDraftingBoreholeCommandPreview,
   updateDraftingCalloutCommandPreview,
@@ -64,6 +67,7 @@ import {
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
+  updateDraftingTwoPointCommandPreview,
   type DraftingAnchorTiebackCommandCommit,
   type DraftingBoreholeCommandCommit,
   type DraftingCommandSession,
@@ -79,6 +83,8 @@ import {
   type DraftingSectionMarkerCommandCommit,
   type DraftingServiceCrossingCommandCommit,
   type DraftingStructuralJointCommandCommit,
+  type DraftingTwoPointCommandCommit,
+  type DraftingTwoPointCommandTool,
 } from '../commands/drafting-command-session';
 
 export type DraftingInspectorTab =
@@ -121,6 +127,10 @@ export function useDrafting() {
     }
     if (isDraftingDimensionCommandTool(tool)) {
       setCommandSession(startDraftingDimensionCommand());
+      return;
+    }
+    if (isDraftingTwoPointCommandTool(tool)) {
+      setCommandSession(startDraftingTwoPointCommand(tool));
       return;
     }
     if (isDraftingPathCommandTool(tool)) {
@@ -301,6 +311,19 @@ export function useDrafting() {
     setCommandSession((current) => updateDraftingDimensionCommandPreview(current, point));
   }
 
+  function commitTwoPointCommandPoint(
+    tool: DraftingTwoPointCommandTool,
+    point: DraftingPoint | null,
+  ): DraftingTwoPointCommandCommit {
+    const result = commitDraftingTwoPointCommandPoint(commandSession, tool, point);
+    setCommandSession(result.session);
+    return result;
+  }
+
+  function updateTwoPointCommandPreview(point: DraftingPoint | null) {
+    setCommandSession((current) => updateDraftingTwoPointCommandPreview(current, point));
+  }
+
   function commitPathCommandPoint(
     tool: DraftingPathCommandTool,
     point: DraftingPoint | null,
@@ -353,6 +376,7 @@ export function useDrafting() {
     commitSectionMarkerCommandPoint,
     commitServiceCrossingCommandPoint,
     commitStructuralJointCommandPoint,
+    commitTwoPointCommandPoint,
     finishPathCommand,
     pendingLinePoints: isDraftingCommandTool(activeTool)
       ? getDraftingCommandPoints(commandSession)
@@ -376,5 +400,6 @@ export function useDrafting() {
     updateSectionMarkerCommandPreview,
     updateServiceCrossingCommandPreview,
     updateStructuralJointCommandPreview,
+    updateTwoPointCommandPreview,
   };
 }

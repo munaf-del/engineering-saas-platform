@@ -51,6 +51,8 @@ export const DRAFTING_OBJECT_TYPES = [
   'title_block',
   'revision_block',
   'project_grid',
+  'project_grid_line',
+  'shaft',
 ] as const;
 
 export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
@@ -77,6 +79,8 @@ export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
   'structural_joint',
   'geotech_surface',
   'project_grid',
+  'project_grid_line',
+  'shaft',
 ] as const;
 
 export const DRAFTING_FUTURE_OBJECT_TYPES = [
@@ -184,11 +188,15 @@ export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[
 export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
 export const DRAFTING_PROJECT_GRID_LINE_ROLES = ['minor', 'major', 'axis', 'custom'] as const;
 export type DraftingProjectGridLineRole = (typeof DRAFTING_PROJECT_GRID_LINE_ROLES)[number];
+export const DRAFTING_PROJECT_GRID_LINE_AXES = ['x', 'y', 'custom'] as const;
+export type DraftingProjectGridLineAxis = (typeof DRAFTING_PROJECT_GRID_LINE_AXES)[number];
 export const DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS = ['both', 'start', 'end', 'none'] as const;
 export type DraftingProjectGridBubblePlacement =
   (typeof DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS)[number];
 export const DRAFTING_PROJECT_GRID_LABEL_MODES = ['letters', 'numbers', 'custom'] as const;
 export type DraftingProjectGridLabelMode = (typeof DRAFTING_PROJECT_GRID_LABEL_MODES)[number];
+export const DRAFTING_SHAFT_CONSTRUCTION_TYPES = ['secant_piles', 'contiguous_piles'] as const;
+export type DraftingShaftConstructionType = (typeof DRAFTING_SHAFT_CONSTRUCTION_TYPES)[number];
 export type DraftingObjectSourceType =
   | 'foundation_pile'
   | 'foundation_joint'
@@ -1255,6 +1263,51 @@ export type DraftingProjectGridObject = DraftingObjectBase & {
   };
 };
 
+export type DraftingProjectGridLineObject = DraftingObjectBase & {
+  type: 'project_grid_line';
+  geometry: {
+    start: DraftingPoint;
+    end: DraftingPoint;
+  };
+  metadata: {
+    gridLineId: string;
+    label: string;
+    axis: DraftingProjectGridLineAxis;
+    lineRole: DraftingProjectGridLineRole;
+    bubblePlacement: DraftingProjectGridBubblePlacement;
+    bubbleRadiusMm: number;
+    moduleSizeMm: number;
+    moduleNotation?: string;
+    showModuleNotation?: boolean;
+    gridSetId?: string;
+    gridSetName?: string;
+    sequence?: number;
+    as1100Profile: 'modular_grid_informed';
+    notes?: string;
+  };
+};
+
+export type DraftingShaftObject = DraftingObjectBase & {
+  type: 'shaft';
+  geometry: {
+    centre: DraftingPoint;
+    radiusMm: number;
+    rotationDeg?: number;
+  };
+  parameters: {
+    constructionType: DraftingShaftConstructionType;
+    pileDiameterMm: number;
+    spacingMm: number;
+    startPileId?: string;
+    sourceMode?: 'manual_sketch';
+  };
+  metadata: {
+    shaftId: string;
+    label?: string;
+    notes?: string;
+  };
+};
+
 export type DraftingPlaceholderObject = DraftingObjectBase & {
   type: DraftingFutureObjectType;
   geometry: Record<string, unknown>;
@@ -1285,6 +1338,8 @@ export type DraftingObject =
   | DraftingStructuralJointObject
   | DraftingGeotechSurfaceObject
   | DraftingProjectGridObject
+  | DraftingProjectGridLineObject
+  | DraftingShaftObject
   | DraftingPlaceholderObject;
 
 export type DraftingModel = {
@@ -1679,11 +1734,13 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
 export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): DraftingLayerId {
   switch (type) {
     case 'project_grid':
+    case 'project_grid_line':
       return 'grid';
     case 'pile':
       return 'piles';
     case 'secant_pile_wall':
     case 'soldier_pile_wall':
+    case 'shaft':
       return 'shoring';
     case 'anchor_tieback':
       return 'anchors';

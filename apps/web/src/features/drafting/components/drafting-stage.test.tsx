@@ -116,9 +116,13 @@ describe('DraftingStage', () => {
 
   it('renders compact floating controls in canvas focus mode', () => {
     const model = createEmptyDraftingModel('drawing-stage-focus-mode');
-    const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);
+    const projectGrid = createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [
+      { x: 0, y: 0 },
+      { x: 3000, y: 0 },
+    ]);
     const markup = renderToStaticMarkup(
       <DraftingStage
+        activeTool="project_grid_line"
         activeToolLabel="Grid"
         canvasSize={{ width: 1200, height: 640 }}
         containerRef={React.createRef<HTMLDivElement>()}
@@ -134,6 +138,7 @@ describe('DraftingStage', () => {
         onObjectPointerDown={() => undefined}
         onResetZoom={() => undefined}
         onSetZoomScale={() => undefined}
+        onToolChange={() => undefined}
         onViewLockedChange={() => undefined}
         onUnderlayPointerDown={() => undefined}
         onZoomIn={() => undefined}
@@ -154,6 +159,12 @@ describe('DraftingStage', () => {
     );
 
     expect(markup).toContain('data-testid="drafting-floating-controls"');
+    expect(markup).toContain('data-testid="drafting-floating-tool-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-view-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-aids-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-inspector-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-project-grid-line-tool"');
+    expect(markup).toContain('data-testid="drafting-floating-shaft-tool"');
     expect(markup).toContain('Tool Grid');
     expect(markup).toContain('Focus canvas');
     expect(markup).toContain('aria-label="Restore canvas"');
