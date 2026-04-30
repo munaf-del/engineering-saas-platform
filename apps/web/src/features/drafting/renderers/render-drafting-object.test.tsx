@@ -8,6 +8,7 @@ import {
 } from '@eng/shared';
 import { createDraftingObject } from '../model-utils';
 import { renderDraftingObject } from './render-drafting-object';
+import { createDraftingRendererContext, normalizeDraftingRendererProps } from './renderer-types';
 
 describe('renderDraftingObject', () => {
   it('dispatches the current drafting object types to renderable SVG output', () => {
@@ -232,6 +233,39 @@ describe('renderDraftingObject', () => {
       </svg>,
     );
 
+    expect(markup).toContain('stroke-width="0.35"');
+    expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('normalizes export and read-only renderer contexts without changing object hooks', () => {
+    const model = createEmptyDraftingModel('drawing-render-context');
+    const pile = createDraftingObject('pile', { x: 1000, y: 2000 }, model);
+    const exportContext = createDraftingRendererContext({
+      interactionEnabled: false,
+      labelMode: 'engineering',
+      readOnly: true,
+      selectedObjectId: null,
+      surface: 'export',
+      viewScale: 0.5,
+    });
+    const normalized = normalizeDraftingRendererProps({
+      context: exportContext,
+      drawingSetup: model.drawingSetup,
+      isSelected: false,
+      layer: model.layers.find((layer) => layer.id === pile.layerId) ?? null,
+      object: pile,
+      onPointerDown: () => undefined,
+    });
+    const markup = renderToStaticMarkup(
+      <svg>{renderDraftingObject({ ...normalized, object: pile })}</svg>,
+    );
+
+    expect(normalized.context.surface).toBe('export');
+    expect(normalized.context.interactionEnabled).toBe(false);
+    expect(normalized.context.readOnly).toBe(true);
+    expect(normalized.surface).toBe('sheet');
+    expect(markup).toContain(`data-drafting-object-id="${pile.id}"`);
+    expect(markup).toContain(`data-testid="drafting-object-${pile.id}"`);
     expect(markup).toContain('stroke-width="0.35"');
     expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
   });

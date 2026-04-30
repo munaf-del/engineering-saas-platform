@@ -8,13 +8,49 @@ import {
   rebuildSoldierPileWallObject,
 } from '../semantic-object-utils';
 import { canEditDraftingObject, stampDraftingObjectProvenance } from '../model-utils';
+import {
+  isDraftingRendererContextInteractive,
+  type DraftingRendererContext,
+  type DraftingRendererSurface,
+} from '../renderers/renderer-types';
+
+export type DraftingObjectHandleKind =
+  | 'anchor'
+  | 'baseline'
+  | 'centre'
+  | 'corner'
+  | 'endpoint'
+  | 'generated'
+  | 'label'
+  | 'offset'
+  | 'point'
+  | 'radius'
+  | 'vertex';
+
+export type DraftingObjectHandleMetadata = Pick<DraftingPoint, 'rl' | 'snapRef' | 'z'>;
 
 export type DraftingObjectHandle = {
+  blockedReason?: string;
   cursor?: string;
+  editable: boolean;
   id: string;
+  kind: DraftingObjectHandleKind;
   label: string;
+  objectId: string;
   point: DraftingPoint;
+  sourcePointMetadata?: DraftingObjectHandleMetadata;
   tone?: 'primary' | 'secondary' | 'warning';
+  updatePath?: string;
+};
+
+export type DraftingObjectHandleResolverOptions = {
+  context?: DraftingRendererContext;
+  includeBlocked?: boolean;
+  interactionEnabled?: boolean;
+  model?: DraftingModel;
+  object: DraftingObject | null;
+  readOnly?: boolean;
+  surface?: DraftingRendererSurface;
 };
 
 export function getDraftingObjectHandles(object: DraftingObject): DraftingObjectHandle[] {
@@ -22,188 +58,436 @@ export function getDraftingObjectHandles(object: DraftingObject): DraftingObject
     case 'pile': {
       const radius = object.geometry.diameterMm / 2;
       return [
-        { id: 'centre', label: 'Pile centre', point: object.geometry.centre, cursor: 'move' },
-        {
-          id: 'diameter',
-          label: 'Diameter grip',
-          point: { x: object.geometry.centre.x + radius, y: object.geometry.centre.y },
-          cursor: 'ew-resize',
-          tone: 'secondary',
-        },
+        createHandle(object, 'centre', 'centre', 'Pile centre', object.geometry.centre, {
+          cursor: 'move',
+          updatePath: 'geometry.centre',
+        }),
+        createHandle(
+          object,
+          'diameter',
+          'radius',
+          'Diameter grip',
+          { x: object.geometry.centre.x + radius, y: object.geometry.centre.y },
+          {
+            cursor: 'ew-resize',
+            tone: 'secondary',
+            updatePath: 'geometry.diameterMm',
+          },
+        ),
       ];
     }
     case 'secant_pile_wall':
       return [
-        ...object.geometry.baselinePoints.map((point, index) => ({
-          id: `baseline-${index}`,
-          label: index === 0 ? 'Baseline start' : 'Baseline end',
-          point,
-          cursor: 'move',
-        })),
-        ...object.geometry.pileCentres.map((point, index) => ({
-          id: `pile-centre-${index}`,
-          label: `Pile centre ${index + 1}`,
-          point,
-          tone: 'secondary' as const,
-        })),
+        ...object.geometry.baselinePoints.map((point, index) =>
+          createHandle(
+            object,
+            `baseline-${index}`,
+            'baseline',
+            index === 0 ? 'Baseline start' : 'Baseline end',
+            point,
+            {
+              cursor: 'move',
+              updatePath: `geometry.baselinePoints.${index}`,
+            },
+          ),
+        ),
+        ...object.geometry.pileCentres.map((point, index) =>
+          createHandle(
+            object,
+            `pile-centre-${index}`,
+            'generated',
+            `Pile centre ${index + 1}`,
+            point,
+            {
+              blockedReason: 'Generated from baseline points',
+              editable: false,
+              tone: 'secondary',
+            },
+          ),
+        ),
       ];
     case 'soldier_pile_wall':
       return [
-        ...object.geometry.baselinePoints.map((point, index) => ({
-          id: `baseline-${index}`,
-          label: index === 0 ? 'Baseline start' : 'Baseline end',
-          point,
-          cursor: 'move',
-        })),
-        ...object.geometry.pilePositions.map((point, index) => ({
-          id: `pile-position-${index}`,
-          label: `Soldier pile ${index + 1}`,
-          point,
-          tone: 'secondary' as const,
-        })),
+        ...object.geometry.baselinePoints.map((point, index) =>
+          createHandle(
+            object,
+            `baseline-${index}`,
+            'baseline',
+            index === 0 ? 'Baseline start' : 'Baseline end',
+            point,
+            {
+              cursor: 'move',
+              updatePath: `geometry.baselinePoints.${index}`,
+            },
+          ),
+        ),
+        ...object.geometry.pilePositions.map((point, index) =>
+          createHandle(
+            object,
+            `pile-position-${index}`,
+            'generated',
+            `Soldier pile ${index + 1}`,
+            point,
+            {
+              blockedReason: 'Generated from baseline points',
+              editable: false,
+              tone: 'secondary',
+            },
+          ),
+        ),
       ];
     case 'anchor_tieback':
       return [
-        { id: 'head', label: 'Anchor head', point: object.geometry.headPoint, cursor: 'move' },
-        { id: 'tail', label: 'Anchor tail', point: object.geometry.tailPoint, cursor: 'move' },
+        createHandle(object, 'head', 'endpoint', 'Anchor head', object.geometry.headPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.headPoint',
+        }),
+        createHandle(object, 'tail', 'endpoint', 'Anchor tail', object.geometry.tailPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.tailPoint',
+        }),
       ];
     case 'capping_beam':
     case 'waler':
-      return object.geometry.points.map((point, index) => ({
-        id: `point-${index}`,
-        label:
+      return object.geometry.points.map((point, index) =>
+        createHandle(
+          object,
+          `point-${index}`,
+          index === 0 || index === object.geometry.points.length - 1 ? 'endpoint' : 'vertex',
           index === 0
             ? 'Path start'
             : index === object.geometry.points.length - 1
               ? 'Path end'
               : `Path vertex ${index + 1}`,
-        point,
-        cursor: 'move',
-      }));
+          point,
+          {
+            cursor: 'move',
+            updatePath: `geometry.points.${index}`,
+          },
+        ),
+      );
     case 'service_run':
-      return object.geometry.path.map((point, index) => ({
-        id: `path-${index}`,
-        label:
+      return object.geometry.path.map((point, index) =>
+        createHandle(
+          object,
+          `path-${index}`,
+          index === 0 || index === object.geometry.path.length - 1 ? 'endpoint' : 'vertex',
           index === 0
             ? 'Service start'
             : index === object.geometry.path.length - 1
               ? 'Service end'
               : `Service vertex ${index + 1}`,
-        point,
-        cursor: 'move',
-      }));
+          point,
+          {
+            cursor: 'move',
+            updatePath: `geometry.path.${index}`,
+          },
+        ),
+      );
     case 'service_crossing':
       return [
-        {
-          id: 'crossing',
-          label: linkedServiceLabel(object),
-          point: object.geometry.crossingPoint,
-          cursor: 'move',
-          tone: 'warning',
-        },
+        createHandle(
+          object,
+          'crossing',
+          'point',
+          linkedServiceLabel(object),
+          object.geometry.crossingPoint,
+          {
+            cursor: 'move',
+            tone: 'warning',
+            updatePath: 'geometry.crossingPoint',
+          },
+        ),
       ];
     case 'monitoring_point':
     case 'borehole':
-      return [{ id: 'point', label: 'Point grip', point: object.geometry.point, cursor: 'move' }];
+      return [
+        createHandle(object, 'point', 'point', 'Point grip', object.geometry.point, {
+          cursor: 'move',
+          updatePath: 'geometry.point',
+        }),
+      ];
     case 'leader_note':
       return [
-        { id: 'anchor', label: 'Leader anchor', point: object.geometry.anchor, cursor: 'move' },
-        { id: 'text', label: 'Note text', point: object.geometry.textPoint, cursor: 'move' },
+        createHandle(object, 'anchor', 'anchor', 'Leader anchor', object.geometry.anchor, {
+          cursor: 'move',
+          updatePath: 'geometry.anchor',
+        }),
+        createHandle(object, 'text', 'label', 'Note text', object.geometry.textPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.textPoint',
+        }),
       ];
     case 'dimension_chain': {
       const offsetPoints = buildDimensionChainOffsetPoints(object);
       return [
-        ...object.geometry.points.map((point, index) => ({
-          id: `point-${index}`,
-          label: `Dimension witness ${index + 1}`,
-          point,
-          cursor: 'move',
-        })),
-        ...offsetPoints.map((point, index) => ({
-          id: `offset-${index}`,
-          label: `Dimension line ${index + 1}`,
-          point,
-          cursor: 'move',
-          tone: 'secondary' as const,
-        })),
+        ...object.geometry.points.map((point, index) =>
+          createHandle(object, `point-${index}`, 'point', `Dimension witness ${index + 1}`, point, {
+            cursor: 'move',
+            updatePath: `geometry.points.${index}`,
+          }),
+        ),
+        ...offsetPoints.map((point, index) =>
+          createHandle(object, `offset-${index}`, 'offset', `Dimension line ${index + 1}`, point, {
+            cursor: 'move',
+            tone: 'secondary',
+            updatePath: 'geometry.offsetVector',
+          }),
+        ),
       ];
     }
     case 'callout':
       return [
-        {
-          id: 'anchor',
-          label: 'Callout anchor',
-          point: object.geometry.anchorPoint,
+        createHandle(object, 'anchor', 'anchor', 'Callout anchor', object.geometry.anchorPoint, {
           cursor: 'move',
-        },
-        { id: 'label', label: 'Callout label', point: object.geometry.labelPoint, cursor: 'move' },
+          updatePath: 'geometry.anchorPoint',
+        }),
+        createHandle(object, 'label', 'label', 'Callout label', object.geometry.labelPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.labelPoint',
+        }),
       ];
     case 'section_marker':
       return [
-        { id: 'start', label: 'Section start', point: object.geometry.startPoint, cursor: 'move' },
-        { id: 'end', label: 'Section end', point: object.geometry.endPoint, cursor: 'move' },
+        createHandle(object, 'start', 'endpoint', 'Section start', object.geometry.startPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.startPoint',
+        }),
+        createHandle(object, 'end', 'endpoint', 'Section end', object.geometry.endPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.endPoint',
+        }),
       ];
     case 'excavation_line':
-      return object.geometry.points.map((point, index) => ({
-        id: `point-${index}`,
-        label: `Excavation vertex ${index + 1}`,
-        point,
-        cursor: 'move',
-      }));
+      return object.geometry.points.map((point, index) =>
+        createHandle(object, `point-${index}`, 'vertex', `Excavation vertex ${index + 1}`, point, {
+          cursor: 'move',
+          updatePath: `geometry.points.${index}`,
+        }),
+      );
     case 'draft_line':
       return [
-        { id: 'start', label: 'Line start', point: object.geometry.startPoint, cursor: 'move' },
-        { id: 'end', label: 'Line end', point: object.geometry.endPoint, cursor: 'move' },
+        createHandle(object, 'start', 'endpoint', 'Line start', object.geometry.startPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.startPoint',
+        }),
+        createHandle(object, 'end', 'endpoint', 'Line end', object.geometry.endPoint, {
+          cursor: 'move',
+          updatePath: 'geometry.endPoint',
+        }),
       ];
     case 'draft_polyline':
     case 'draft_polygon':
-      return object.geometry.points.map((point, index) => ({
-        id: `point-${index}`,
-        label: `Vertex ${index + 1}`,
-        point,
-        cursor: 'move',
-      }));
+      return object.geometry.points.map((point, index) =>
+        createHandle(object, `point-${index}`, 'vertex', `Vertex ${index + 1}`, point, {
+          cursor: 'move',
+          updatePath: `geometry.points.${index}`,
+        }),
+      );
     case 'draft_rectangle':
       return [
-        {
-          id: 'corner-a',
-          label: 'Rectangle first corner',
-          point: object.geometry.cornerA,
-          cursor: 'move',
-        },
-        {
-          id: 'corner-b',
-          label: 'Rectangle opposite corner',
-          point: object.geometry.cornerB,
-          cursor: 'move',
-        },
+        createHandle(
+          object,
+          'corner-a',
+          'corner',
+          'Rectangle first corner',
+          object.geometry.cornerA,
+          {
+            cursor: 'move',
+            updatePath: 'geometry.cornerA',
+          },
+        ),
+        createHandle(
+          object,
+          'corner-b',
+          'corner',
+          'Rectangle opposite corner',
+          object.geometry.cornerB,
+          {
+            cursor: 'move',
+            updatePath: 'geometry.cornerB',
+          },
+        ),
       ];
     case 'draft_circle':
       return [
-        { id: 'centre', label: 'Circle centre', point: object.geometry.centre, cursor: 'move' },
-        {
-          id: 'radius',
-          label: 'Circle radius',
-          point: {
+        createHandle(object, 'centre', 'centre', 'Circle centre', object.geometry.centre, {
+          cursor: 'move',
+          updatePath: 'geometry.centre',
+        }),
+        createHandle(
+          object,
+          'radius',
+          'radius',
+          'Circle radius',
+          {
             x: object.geometry.centre.x + object.geometry.radiusMm,
             y: object.geometry.centre.y,
           },
-          cursor: 'ew-resize',
-          tone: 'secondary',
-        },
+          {
+            cursor: 'ew-resize',
+            tone: 'secondary',
+            updatePath: 'geometry.radiusMm',
+          },
+        ),
       ];
     case 'structural_joint':
-      return [{ id: 'point', label: 'Joint point', point: object.geometry.point, cursor: 'move' }];
+      return [
+        createHandle(object, 'point', 'point', 'Joint point', object.geometry.point, {
+          cursor: 'move',
+          updatePath: 'geometry.point',
+        }),
+      ];
     case 'geotech_surface':
-      return object.geometry.points.map((point, index) => ({
-        id: `surface-point-${index}`,
-        label: `Surface RL point ${index + 1}`,
-        point,
-        cursor: 'move',
-      }));
+      return object.geometry.points.map((point, index) =>
+        createHandle(
+          object,
+          `surface-point-${index}`,
+          'point',
+          `Surface point ${index + 1}`,
+          point,
+          {
+            cursor: 'move',
+            updatePath: `geometry.points.${index}`,
+          },
+        ),
+      );
     default:
       return [];
   }
+}
+
+export function resolveDraftingObjectHandles({
+  context,
+  includeBlocked = true,
+  interactionEnabled,
+  model,
+  object,
+  readOnly,
+  surface,
+}: DraftingObjectHandleResolverOptions): DraftingObjectHandle[] {
+  if (!object) {
+    return [];
+  }
+
+  const handles = getDraftingObjectHandles(object);
+  const blockedReason = resolveObjectHandleBlockedReason({
+    context,
+    interactionEnabled,
+    model,
+    object,
+    readOnly,
+    surface,
+  });
+  const resolvedHandles = blockedReason
+    ? handles.map((handle) => ({ ...handle, blockedReason, editable: false }))
+    : handles;
+
+  return includeBlocked ? resolvedHandles : resolvedHandles.filter((handle) => handle.editable);
+}
+
+function createHandle(
+  object: DraftingObject,
+  id: string,
+  kind: DraftingObjectHandleKind,
+  label: string,
+  point: DraftingPoint,
+  options: {
+    blockedReason?: string;
+    cursor?: string;
+    editable?: boolean;
+    tone?: DraftingObjectHandle['tone'];
+    updatePath?: string;
+  } = {},
+): DraftingObjectHandle {
+  return {
+    editable: options.editable ?? true,
+    id,
+    kind,
+    label,
+    objectId: object.id,
+    point,
+    sourcePointMetadata: extractPointMetadata(point),
+    ...(options.blockedReason ? { blockedReason: options.blockedReason } : {}),
+    ...(options.cursor ? { cursor: options.cursor } : {}),
+    ...(options.tone ? { tone: options.tone } : {}),
+    ...(options.updatePath ? { updatePath: options.updatePath } : {}),
+  };
+}
+
+function resolveObjectHandleBlockedReason({
+  context,
+  interactionEnabled,
+  model,
+  object,
+  readOnly,
+  surface,
+}: Omit<DraftingObjectHandleResolverOptions, 'includeBlocked'> & {
+  object: DraftingObject;
+}) {
+  if (context) {
+    if (!isDraftingRendererContextInteractive(context)) {
+      return context.readOnly
+        ? 'Read-only surface'
+        : `${formatRendererSurface(context.surface)} surface is not interactive`;
+    }
+  } else {
+    if (readOnly || surface === 'read_only') {
+      return 'Read-only surface';
+    }
+    if (surface && surface !== 'editor') {
+      return `${formatRendererSurface(surface)} surface is not interactive`;
+    }
+    if (interactionEnabled === false) {
+      return 'Interaction disabled';
+    }
+  }
+
+  if (model) {
+    if (object.locked) {
+      return 'Object locked';
+    }
+    const layer = model.layers.find((candidate) => candidate.id === object.layerId);
+    if (layer?.locked) {
+      return 'Layer locked';
+    }
+  }
+
+  return null;
+}
+
+function formatRendererSurface(surface: DraftingRendererSurface) {
+  return surface.replaceAll('_', ' ');
+}
+
+function extractPointMetadata(point: DraftingPoint): DraftingObjectHandleMetadata | undefined {
+  const metadata: DraftingObjectHandleMetadata = {};
+  if (point.snapRef) {
+    metadata.snapRef = point.snapRef;
+  }
+  if (point.z !== undefined) {
+    metadata.z = point.z;
+  }
+  if (point.rl !== undefined) {
+    metadata.rl = point.rl;
+  }
+  return Object.keys(metadata).length ? metadata : undefined;
+}
+
+function preserveDraftingPointMetadata(
+  previousPoint: DraftingPoint | undefined,
+  nextPoint: DraftingPoint,
+): DraftingPoint {
+  if (!previousPoint) {
+    return nextPoint;
+  }
+
+  return {
+    ...nextPoint,
+    ...(previousPoint.snapRef ? { snapRef: previousPoint.snapRef } : {}),
+    ...(previousPoint.z !== undefined ? { z: previousPoint.z } : {}),
+    ...(previousPoint.rl !== undefined ? { rl: previousPoint.rl } : {}),
+  };
 }
 
 export function updateDraftingObjectHandle(
@@ -228,7 +512,13 @@ export function updateDraftingObjectHandle(
         );
         return moved({ ...object, geometry: { ...object.geometry, diameterMm } });
       }
-      return moved({ ...object, geometry: { ...object.geometry, centre: point } });
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          centre: preserveDraftingPointMetadata(object.geometry.centre, point),
+        },
+      });
     }
     case 'secant_pile_wall': {
       const index = Number(handleId.replace('baseline-', ''));
@@ -241,7 +531,7 @@ export function updateDraftingObjectHandle(
           geometry: {
             ...object.geometry,
             baselinePoints: object.geometry.baselinePoints.map((existing, existingIndex) =>
-              existingIndex === index ? point : existing,
+              existingIndex === index ? preserveDraftingPointMetadata(existing, point) : existing,
             ),
           },
         }),
@@ -258,7 +548,7 @@ export function updateDraftingObjectHandle(
           geometry: {
             ...object.geometry,
             baselinePoints: object.geometry.baselinePoints.map((existing, existingIndex) =>
-              existingIndex === index ? point : existing,
+              existingIndex === index ? preserveDraftingPointMetadata(existing, point) : existing,
             ),
           },
         }),
@@ -267,8 +557,14 @@ export function updateDraftingObjectHandle(
     case 'anchor_tieback': {
       const geometry =
         handleId === 'head'
-          ? { headPoint: point, tailPoint: object.geometry.tailPoint }
-          : { headPoint: object.geometry.headPoint, tailPoint: point };
+          ? {
+              headPoint: preserveDraftingPointMetadata(object.geometry.headPoint, point),
+              tailPoint: object.geometry.tailPoint,
+            }
+          : {
+              headPoint: object.geometry.headPoint,
+              tailPoint: preserveDraftingPointMetadata(object.geometry.tailPoint, point),
+            };
       return moved({
         ...object,
         geometry,
@@ -287,7 +583,9 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
-            existingIndex === index ? point : existing,
+            existingIndex === index
+              ? (preserveDraftingPointMetadata(existing, point) as typeof existing)
+              : existing,
           ),
         },
       });
@@ -299,23 +597,40 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           path: object.geometry.path.map((existing, existingIndex) =>
-            existingIndex === index ? point : existing,
+            existingIndex === index ? preserveDraftingPointMetadata(existing, point) : existing,
           ),
         },
       });
     }
     case 'service_crossing':
-      return moved({ ...object, geometry: { crossingPoint: point } });
+      return moved({
+        ...object,
+        geometry: {
+          crossingPoint: preserveDraftingPointMetadata(object.geometry.crossingPoint, point),
+        },
+      });
     case 'monitoring_point':
     case 'borehole':
-      return moved({ ...object, geometry: { ...object.geometry, point } });
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          point: preserveDraftingPointMetadata(object.geometry.point, point),
+        },
+      });
     case 'leader_note':
       return moved({
         ...object,
         geometry:
           handleId === 'anchor'
-            ? { ...object.geometry, anchor: point }
-            : { ...object.geometry, textPoint: point },
+            ? {
+                ...object.geometry,
+                anchor: preserveDraftingPointMetadata(object.geometry.anchor, point),
+              }
+            : {
+                ...object.geometry,
+                textPoint: preserveDraftingPointMetadata(object.geometry.textPoint, point),
+              },
       });
     case 'dimension_chain': {
       if (handleId.startsWith('offset-')) {
@@ -328,7 +643,10 @@ export function updateDraftingObjectHandle(
           ...object,
           geometry: {
             ...object.geometry,
-            offsetVector: { x: point.x - basePoint.x, y: point.y - basePoint.y },
+            offsetVector: preserveDraftingPointMetadata(object.geometry.offsetVector, {
+              x: point.x - basePoint.x,
+              y: point.y - basePoint.y,
+            }),
           },
         });
       }
@@ -338,7 +656,9 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
-            existingIndex === index ? point : existing,
+            existingIndex === index
+              ? (preserveDraftingPointMetadata(existing, point) as typeof existing)
+              : existing,
           ),
         },
       });
@@ -348,16 +668,28 @@ export function updateDraftingObjectHandle(
         ...object,
         geometry:
           handleId === 'anchor'
-            ? { ...object.geometry, anchorPoint: point }
-            : { ...object.geometry, labelPoint: point },
+            ? {
+                ...object.geometry,
+                anchorPoint: preserveDraftingPointMetadata(object.geometry.anchorPoint, point),
+              }
+            : {
+                ...object.geometry,
+                labelPoint: preserveDraftingPointMetadata(object.geometry.labelPoint, point),
+              },
       });
     case 'section_marker':
       return moved({
         ...object,
         geometry:
           handleId === 'start'
-            ? { ...object.geometry, startPoint: point }
-            : { ...object.geometry, endPoint: point },
+            ? {
+                ...object.geometry,
+                startPoint: preserveDraftingPointMetadata(object.geometry.startPoint, point),
+              }
+            : {
+                ...object.geometry,
+                endPoint: preserveDraftingPointMetadata(object.geometry.endPoint, point),
+              },
       });
     case 'excavation_line': {
       const index = Number(handleId.replace('point-', ''));
@@ -366,7 +698,7 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
-            existingIndex === index ? point : existing,
+            existingIndex === index ? preserveDraftingPointMetadata(existing, point) : existing,
           ),
         },
       });
@@ -376,8 +708,14 @@ export function updateDraftingObjectHandle(
         ...object,
         geometry:
           handleId === 'start'
-            ? { ...object.geometry, startPoint: point }
-            : { ...object.geometry, endPoint: point },
+            ? {
+                ...object.geometry,
+                startPoint: preserveDraftingPointMetadata(object.geometry.startPoint, point),
+              }
+            : {
+                ...object.geometry,
+                endPoint: preserveDraftingPointMetadata(object.geometry.endPoint, point),
+              },
       });
     case 'draft_polyline':
     case 'draft_polygon': {
@@ -387,7 +725,7 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
-            existingIndex === index ? point : existing,
+            existingIndex === index ? preserveDraftingPointMetadata(existing, point) : existing,
           ),
         },
       });
@@ -397,8 +735,14 @@ export function updateDraftingObjectHandle(
         ...object,
         geometry:
           handleId === 'corner-a'
-            ? { ...object.geometry, cornerA: point }
-            : { ...object.geometry, cornerB: point },
+            ? {
+                ...object.geometry,
+                cornerA: preserveDraftingPointMetadata(object.geometry.cornerA, point),
+              }
+            : {
+                ...object.geometry,
+                cornerB: preserveDraftingPointMetadata(object.geometry.cornerB, point),
+              },
       });
     case 'draft_circle':
       if (handleId === 'radius') {
@@ -413,9 +757,21 @@ export function updateDraftingObjectHandle(
           },
         });
       }
-      return moved({ ...object, geometry: { ...object.geometry, centre: point } });
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          centre: preserveDraftingPointMetadata(object.geometry.centre, point),
+        },
+      });
     case 'structural_joint':
-      return moved({ ...object, geometry: { ...object.geometry, point } });
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          point: preserveDraftingPointMetadata(object.geometry.point, point),
+        },
+      });
     case 'geotech_surface': {
       const index = Number(handleId.replace('surface-point-', ''));
       return moved({
@@ -423,7 +779,9 @@ export function updateDraftingObjectHandle(
         geometry: {
           ...object.geometry,
           points: object.geometry.points.map((existing, existingIndex) =>
-            existingIndex === index ? { ...existing, x: point.x, y: point.y } : existing,
+            existingIndex === index
+              ? (preserveDraftingPointMetadata(existing, point) as typeof existing)
+              : existing,
           ),
         },
       });
@@ -434,11 +792,13 @@ export function updateDraftingObjectHandle(
 }
 
 export function DraftingObjectHandles({
+  context,
   model,
   object,
   onHandlePointerDown,
   scale,
 }: {
+  context?: DraftingRendererContext;
   model: DraftingModel;
   object: DraftingObject | null;
   onHandlePointerDown: (
@@ -453,7 +813,10 @@ export function DraftingObjectHandles({
   }
 
   const safeScale = Math.max(0.0001, scale);
-  const handles = getDraftingObjectHandles(object);
+  const handles = resolveDraftingObjectHandles({ context, model, object });
+  if (!handles.length) {
+    return null;
+  }
 
   return (
     <g data-testid="drafting-object-handles">
@@ -461,10 +824,16 @@ export function DraftingObjectHandles({
         <g
           key={handle.id}
           data-drafting-handle="true"
+          data-drafting-handle-editable={handle.editable ? 'true' : 'false'}
+          data-drafting-handle-kind={handle.kind}
+          data-drafting-handle-update-path={handle.updatePath}
+          data-drafting-handle-blocked-reason={handle.blockedReason}
           data-handle-id={handle.id}
           data-testid={`drafting-handle-${object.id}-${handle.id}`}
-          onPointerDown={(event) => onHandlePointerDown(event, object, handle.id)}
-          style={{ cursor: handle.cursor ?? 'grab' }}
+          onPointerDown={
+            handle.editable ? (event) => onHandlePointerDown(event, object, handle.id) : undefined
+          }
+          style={{ cursor: handle.editable ? (handle.cursor ?? 'grab') : 'not-allowed' }}
           transform={`translate(${handle.point.x} ${handle.point.y}) scale(${1 / safeScale})`}
         >
           <circle
@@ -498,7 +867,9 @@ export function DraftingObjectHandles({
             y1={-9}
             y2={9}
           />
-          <title>{handle.label}</title>
+          <title>
+            {handle.blockedReason ? `${handle.label} - ${handle.blockedReason}` : handle.label}
+          </title>
         </g>
       ))}
     </g>

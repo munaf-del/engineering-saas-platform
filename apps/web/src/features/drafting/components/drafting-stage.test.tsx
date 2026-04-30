@@ -186,6 +186,50 @@ describe('DraftingStage', () => {
     expect(lockedMarkup).not.toContain('data-testid="drafting-object-handles"');
   });
 
+  it('renders generated wall handles as visible but non-editable', () => {
+    const model = createEmptyDraftingModel('drawing-stage-generated-handles');
+    const wall = createDraftingObject('secant_pile_wall', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        model={{ ...model, objects: [wall] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={wall.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[wall]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(markup).toContain('data-handle-id="baseline-0"');
+    expect(markup).toContain('data-drafting-handle-editable="true"');
+    expect(markup).toContain('data-handle-id="pile-centre-0"');
+    expect(markup).toContain('data-drafting-handle-editable="false"');
+    expect(markup).toContain('Generated from baseline points');
+  });
+
   it('renders the active command prompt in the canvas status bar', () => {
     const model = createEmptyDraftingModel('drawing-stage-command-prompt');
     const markup = renderToStaticMarkup(

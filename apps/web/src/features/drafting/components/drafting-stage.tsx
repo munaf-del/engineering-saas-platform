@@ -35,6 +35,7 @@ import {
 } from '../geometry-utils';
 import { getDraftingModelBounds, getLayerById } from '../model-utils';
 import { DraftingObjectHandles } from '../handles/drafting-object-handles';
+import { createDraftingRendererContext } from '../renderers/renderer-types';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
 import {
   resolveDraftingSnapPoint,
@@ -193,6 +194,18 @@ export function DraftingStage({
       }),
     [labelMode, model, selectedObjectId, view.scale, visibleObjects],
   );
+  const rendererContext = React.useMemo(
+    () =>
+      createDraftingRendererContext({
+        interactionEnabled: true,
+        labelMode,
+        readOnly: false,
+        selectedObjectId,
+        surface: 'editor',
+        viewScale: view.scale,
+      }),
+    [labelMode, selectedObjectId, view.scale],
+  );
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -332,6 +345,7 @@ export function DraftingStage({
               {visibleObjects.map((object) => (
                 <React.Fragment key={object.id}>
                   {renderDraftingObject({
+                    context: rendererContext,
                     drawingSetup: setup,
                     isSelected: object.id === selectedObjectId,
                     layer: getLayerById(model, object.layerId),
@@ -346,6 +360,7 @@ export function DraftingStage({
               ))}
 
               <DraftingObjectHandles
+                context={rendererContext}
                 model={model}
                 object={selectedObject}
                 onHandlePointerDown={onObjectHandlePointerDown}

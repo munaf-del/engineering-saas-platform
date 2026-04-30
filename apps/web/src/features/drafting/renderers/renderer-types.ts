@@ -39,7 +39,22 @@ import type { DraftingLineRole } from '../standards/drafting-standard-profiles';
 import type { DraftingCanvasLabelMode } from './label-policy';
 import type { DraftingLabelPlacement } from '../labels/drafting-label-layout';
 
+export type DraftingRendererSurface = 'editor' | 'sheet' | 'export' | 'preview' | 'read_only';
+
+export type DraftingRendererStyleSurface = 'editor' | 'sheet';
+
+export type DraftingRendererContext = {
+  interactionEnabled: boolean;
+  labelMode?: DraftingCanvasLabelMode;
+  readOnly: boolean;
+  selectedObjectId: string | null;
+  styleSurface: DraftingRendererStyleSurface;
+  surface: DraftingRendererSurface;
+  viewScale?: number;
+};
+
 export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
+  context?: DraftingRendererContext;
   drawingSetup?: DraftingDrawingSetup;
   isSelected: boolean;
   layer: DraftingLayer | null;
@@ -48,9 +63,77 @@ export type DraftingRendererProps<T extends DraftingObject = DraftingObject> = {
   allObjects?: DraftingObject[];
   labelMode?: DraftingCanvasLabelMode;
   labelPlacement?: DraftingLabelPlacement;
-  surface?: 'editor' | 'sheet';
+  surface?: DraftingRendererStyleSurface;
   viewScale?: number;
 };
+
+export type DraftingNormalizedRendererProps<T extends DraftingObject = DraftingObject> =
+  DraftingRendererProps<T> & {
+    context: DraftingRendererContext;
+    labelMode?: DraftingCanvasLabelMode;
+    surface: DraftingRendererStyleSurface;
+    viewScale?: number;
+  };
+
+export function createDraftingRendererContext(args: {
+  interactionEnabled?: boolean;
+  labelMode?: DraftingCanvasLabelMode;
+  readOnly?: boolean;
+  selectedObjectId?: string | null;
+  styleSurface?: DraftingRendererStyleSurface;
+  surface?: DraftingRendererSurface;
+  viewScale?: number;
+}): DraftingRendererContext {
+  const surface = args.surface ?? 'editor';
+  const readOnly = args.readOnly ?? surface === 'read_only';
+  const styleSurface = args.styleSurface ?? toDraftingRendererStyleSurface(surface);
+
+  return {
+    interactionEnabled: args.interactionEnabled ?? (surface === 'editor' && !readOnly),
+    labelMode: args.labelMode,
+    readOnly,
+    selectedObjectId: args.selectedObjectId ?? null,
+    styleSurface,
+    surface,
+    viewScale: args.viewScale,
+  };
+}
+
+export function normalizeDraftingRendererProps<T extends DraftingObject>(
+  props: DraftingRendererProps<T>,
+): DraftingNormalizedRendererProps<T> {
+  const context =
+    props.context ??
+    createDraftingRendererContext({
+      labelMode: props.labelMode,
+      selectedObjectId: props.isSelected ? props.object.id : null,
+      styleSurface: props.surface,
+      surface: props.surface ?? 'editor',
+      viewScale: props.viewScale,
+    });
+  const surface = props.surface ?? context.styleSurface;
+  const labelMode = props.labelMode ?? context.labelMode;
+  const viewScale = props.viewScale ?? context.viewScale;
+
+  return {
+    ...props,
+    context,
+    isSelected: props.isSelected || context.selectedObjectId === props.object.id,
+    labelMode,
+    surface,
+    viewScale,
+  };
+}
+
+export function toDraftingRendererStyleSurface(
+  surface?: DraftingRendererSurface,
+): DraftingRendererStyleSurface {
+  return surface === 'editor' ? 'editor' : 'sheet';
+}
+
+export function isDraftingRendererContextInteractive(context: DraftingRendererContext) {
+  return context.surface === 'editor' && !context.readOnly && context.interactionEnabled;
+}
 
 export function resolveRendererLineStyle(
   props: Pick<DraftingRendererProps, 'drawingSetup' | 'layer' | 'object' | 'surface'> & {
@@ -83,7 +166,7 @@ export const DRAFTING_TECHNICAL_FILLS = {
   annotation: 'rgba(255, 255, 255, 0.92)',
 } as const;
 
-export function resolveRendererVectorEffect(surface?: 'editor' | 'sheet') {
+export function resolveRendererVectorEffect(surface?: DraftingRendererStyleSurface) {
   return surface === 'sheet' ? undefined : 'non-scaling-stroke';
 }
 
@@ -103,7 +186,7 @@ export function resolveCanvasLabelSize(
 export function resolveCanvasLabelStyle(args: {
   drawingSetup?: DraftingDrawingSetup;
   fallback?: number;
-  surface?: 'editor' | 'sheet';
+  surface?: DraftingRendererStyleSurface;
   textSize?: number;
 }): ResolvedDraftingTextStyle {
   const resolved = resolveDraftingTextStyle({
@@ -126,7 +209,7 @@ export function resolveCanvasLabelStyle(args: {
 
 export function resolveCanvasLeaderStyle(args: {
   drawingSetup?: DraftingDrawingSetup;
-  surface?: 'editor' | 'sheet';
+  surface?: DraftingRendererStyleSurface;
 }) {
   return resolveDraftingLeaderStyle({
     setup: args.drawingSetup,
