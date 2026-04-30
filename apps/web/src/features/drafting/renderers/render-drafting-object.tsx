@@ -24,54 +24,56 @@ import { ServiceCrossingRenderer } from './service-crossing-renderer';
 import { ServiceRunRenderer } from './service-run-renderer';
 import { SoldierPileWallRenderer } from './soldier-pile-wall-renderer';
 import { WalerRenderer } from './waler-renderer';
-import type { DraftingRendererProps } from './renderer-types';
+import { normalizeDraftingRendererProps, type DraftingRendererProps } from './renderer-types';
 
 export function renderDraftingObject(props: DraftingRendererProps<DraftingObject>) {
-  switch (props.object.type) {
+  const normalizedProps = normalizeDraftingRendererProps(props);
+
+  switch (normalizedProps.object.type) {
     case 'pile':
-      return <PileRenderer {...props} object={props.object} />;
+      return <PileRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'secant_pile_wall':
-      return <SecantPileWallRenderer {...props} object={props.object} />;
+      return <SecantPileWallRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'soldier_pile_wall':
-      return <SoldierPileWallRenderer {...props} object={props.object} />;
+      return <SoldierPileWallRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'anchor_tieback':
-      return <AnchorTiebackRenderer {...props} object={props.object} />;
+      return <AnchorTiebackRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'capping_beam':
-      return <CappingBeamRenderer {...props} object={props.object} />;
+      return <CappingBeamRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'waler':
-      return <WalerRenderer {...props} object={props.object} />;
+      return <WalerRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'monitoring_point':
-      return <MonitoringPointRenderer {...props} object={props.object} />;
+      return <MonitoringPointRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'leader_note':
-      return <LeaderNoteRenderer {...props} object={props.object} />;
+      return <LeaderNoteRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'dimension_chain':
-      return <DimensionChainRenderer {...props} object={props.object} />;
+      return <DimensionChainRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'callout':
-      return <CalloutRenderer {...props} object={props.object} />;
+      return <CalloutRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'section_marker':
-      return <SectionMarkerRenderer {...props} object={props.object} />;
+      return <SectionMarkerRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'borehole':
-      return <BoreholeRenderer {...props} object={props.object} />;
+      return <BoreholeRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'service_run':
-      return <ServiceRunRenderer {...props} object={props.object} />;
+      return <ServiceRunRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'service_crossing':
-      return <ServiceCrossingRenderer {...props} object={props.object} />;
+      return <ServiceCrossingRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'excavation_line':
-      return <ExcavationLineRenderer {...props} object={props.object} />;
+      return <ExcavationLineRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'draft_line':
-      return <DraftLineRenderer {...props} object={props.object} />;
+      return <DraftLineRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'draft_polyline':
-      return <DraftPolylineRenderer {...props} object={props.object} />;
+      return <DraftPolylineRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'draft_rectangle':
-      return <DraftRectangleRenderer {...props} object={props.object} />;
+      return <DraftRectangleRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'draft_circle':
-      return <DraftCircleRenderer {...props} object={props.object} />;
+      return <DraftCircleRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'draft_polygon':
-      return <DraftPolygonRenderer {...props} object={props.object} />;
+      return <DraftPolygonRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'structural_joint':
-      return <StructuralJointRenderer {...props} object={props.object} />;
+      return <StructuralJointRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'geotech_surface':
-      return <GeotechSurfaceRenderer {...props} object={props.object} />;
+      return <GeotechSurfaceRenderer {...normalizedProps} object={normalizedProps.object} />;
     default:
       return null;
   }

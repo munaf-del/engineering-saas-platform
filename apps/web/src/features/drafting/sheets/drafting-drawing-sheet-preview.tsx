@@ -39,6 +39,7 @@ import {
   getLayerById,
 } from '../model-utils';
 import { DraftingPdfUnderlay } from '../components/drafting-pdf-underlay';
+import { createDraftingRendererContext } from '../renderers/renderer-types';
 import { renderDraftingObject } from '../renderers/render-drafting-object';
 import {
   resolveDraftingPaperLineStyle,
@@ -414,6 +415,14 @@ export function DraftingDrawingSheetPage({
     surface: 'sheet',
     viewScale: viewport.scale,
   });
+  const rendererContext = createDraftingRendererContext({
+    interactionEnabled: false,
+    labelMode: 'engineering',
+    readOnly: Boolean(templateSnapshot),
+    selectedObjectId: null,
+    surface: templateSnapshot ? 'read_only' : 'sheet',
+    viewScale: viewport.scale,
+  });
   const viewportClipPathId = `drafting-sheet-viewport-clip-${sanitizeSvgId(sheet.id)}`;
   const standardProfile = getDraftingStandardProfile(
     drawing.model.drawingSetup?.activeStandardProfileId,
@@ -504,6 +513,7 @@ export function DraftingDrawingSheetPage({
               {visibleObjects.map((object) => (
                 <React.Fragment key={object.id}>
                   {renderDraftingObject({
+                    context: rendererContext,
                     drawingSetup: drawing.model.drawingSetup,
                     isSelected: false,
                     layer: getLayerById(drawing.model, object.layerId),
