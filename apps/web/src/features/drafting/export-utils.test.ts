@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel } from '@eng/shared';
+import { DraftingModelSchema, createEmptyDraftingModel, type DraftingUnderlay } from '@eng/shared';
 import { serializeDraftingModelJson } from './export-utils';
 
 describe('drafting export utils', () => {
@@ -166,6 +166,125 @@ describe('drafting export utils', () => {
     expect(exported).not.toContain('"buffer"');
   });
 
+  it('exports PDF underlays as stable round-trippable metadata only', () => {
+    const model = createEmptyDraftingModel('drawing-underlay-export-guard');
+    const calibratedUnderlay = createUnderlay({
+      id: 'underlay-calibrated',
+      calibration: {
+        method: 'two_point_uniform_scale',
+        pdfPointA: { x: 0, y: 0 },
+        pdfPointB: { x: 100, y: 0 },
+        modelPointA: { x: 200, y: 300 },
+        modelPointB: { x: 1200, y: 300 },
+        modelDistanceMm: 1000,
+        calculatedScale: 10,
+        calibratedAt: '2026-04-22T00:00:00.000Z',
+        warningAcknowledged: true,
+      },
+      crop: {
+        x: 8,
+        y: 12,
+        width: 240,
+        height: 320,
+      },
+      locked: false,
+      name: 'Calibrated underlay',
+      opacity: 0.72,
+      pageNumber: 3,
+      transform: {
+        x: 120,
+        y: 240,
+        scale: 0.45,
+        rotationDeg: 12,
+      },
+      visible: true,
+    });
+    const hiddenLockedUnderlay = createUnderlay({
+      id: 'underlay-hidden-locked',
+      calibration: null,
+      crop: null,
+      fileId: 'document-hidden',
+      fileName: 'hidden.pdf',
+      locked: true,
+      name: 'Hidden locked underlay',
+      opacity: 0.3,
+      pageNumber: 1,
+      visible: false,
+    });
+    const runtimeUnderlay = {
+      ...createUnderlay({
+        id: 'underlay-runtime-noise',
+        fileId: 'document-runtime',
+        fileName: 'runtime.pdf',
+        name: 'Runtime underlay',
+      }),
+      base64: 'JVBERi0xLjQK',
+      buffer: { data: [37, 80, 68, 70] },
+      imageUrl: 'blob:rendered-page',
+      pdfBytes: 'data:application/pdf;base64,JVBERi0xLjQK',
+      renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+    } satisfies DraftingUnderlay & Record<string, unknown>;
+    model.underlays.push(calibratedUnderlay, hiddenLockedUnderlay, runtimeUnderlay);
+    const sourceSnapshot = JSON.stringify(model);
+
+    const exported = serializeDraftingModelJson(model);
+    const parsed = JSON.parse(exported);
+    const parsedModel = DraftingModelSchema.parse(parsed.model);
+
+    expect(parsed.binaryPolicy).toContain('Metadata only');
+    expect(parsedModel.underlays).toEqual([
+      calibratedUnderlay,
+      hiddenLockedUnderlay,
+      createUnderlay({
+        id: 'underlay-runtime-noise',
+        fileId: 'document-runtime',
+        fileName: 'runtime.pdf',
+        name: 'Runtime underlay',
+      }),
+    ]);
+    expect(parsedModel.underlays[0]).toMatchObject({
+      id: 'underlay-calibrated',
+      fileId: 'document-1',
+      pageNumber: 3,
+      name: 'Calibrated underlay',
+      opacity: 0.72,
+      visible: true,
+      locked: false,
+      transform: {
+        x: 120,
+        y: 240,
+        scale: 0.45,
+        rotationDeg: 12,
+      },
+      calibration: {
+        calculatedScale: 10,
+        warningAcknowledged: true,
+      },
+      crop: {
+        height: 320,
+        width: 240,
+      },
+    });
+    expect(parsedModel.underlays[1]).toMatchObject({
+      id: 'underlay-hidden-locked',
+      fileId: 'document-hidden',
+      locked: true,
+      visible: false,
+    });
+    expect(exported).not.toContain('data:application/pdf');
+    expect(exported).not.toContain('data:image/png');
+    expect(exported).not.toContain('blob:rendered-page');
+    expect(exported).not.toContain('"base64"');
+    expect(exported).not.toContain('"buffer"');
+    expect(exported).not.toContain('"imageUrl"');
+    expect(exported).not.toContain('"pdfBytes"');
+    expect(exported).not.toContain('"renderedImageData"');
+    expect(JSON.stringify(model)).toBe(sourceSnapshot);
+    expect((model.underlays[2] as DraftingUnderlay & { imageUrl?: string }).imageUrl).toBe(
+      'blob:rendered-page',
+    );
+  });
+
   it('serializes title block and revision block metadata through the DraftingModel export', () => {
     const model = createEmptyDraftingModel('drawing-title-revision-export');
     model.titleBlock = {
@@ -243,3 +362,27 @@ describe('drafting export utils', () => {
     });
   });
 });
+
+function createUnderlay(overrides: Partial<DraftingUnderlay> = {}): DraftingUnderlay {
+  return {
+    id: 'underlay-1',
+    name: 'Survey underlay',
+    fileId: 'document-1',
+    fileName: 'survey.pdf',
+    pageNumber: 1,
+    visible: true,
+    opacity: 0.6,
+    locked: false,
+    transform: {
+      x: 100,
+      y: 200,
+      scale: 1,
+      rotationDeg: 0,
+    },
+    crop: null,
+    calibration: null,
+    createdAt: '2026-04-22T00:00:00.000Z',
+    updatedAt: '2026-04-22T00:00:00.000Z',
+    ...overrides,
+  };
+}
