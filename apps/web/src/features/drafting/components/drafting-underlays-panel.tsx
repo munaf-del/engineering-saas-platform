@@ -9,6 +9,7 @@ import { Field, NumberField } from '../properties/common-object-properties';
 import { useProjectDocuments, useUploadProjectDocument } from '@/hooks/use-documents';
 import {
   getPdfUnderlayRenderErrorMessage,
+  getPdfUnderlayRenderLoadingMessage,
   usePdfDocumentInfo,
   usePdfPageRender,
   type PdfUnderlayRenderErrorKind,
@@ -58,6 +59,7 @@ type UnderlayModeBlockedCode =
   | 'locked'
   | 'hidden'
   | 'unavailable'
+  | 'page-render-loading'
   | 'page-render-error';
 
 type UnderlayModeBlockedScope = 'layer' | 'underlay';
@@ -221,6 +223,7 @@ export function DraftingUnderlaysPanel({
     underlayLayer,
     documentReferenceError: selectedUnderlayDocumentReferenceReason,
     renderable: selectedUnderlayRenderable,
+    pageRenderLoading: selectedUnderlayPageRender.isLoading,
     pageRenderError: selectedUnderlayPageRender.error,
     pageRenderErrorKind: selectedUnderlayPageRender.errorKind,
   });
@@ -230,6 +233,7 @@ export function DraftingUnderlaysPanel({
     underlayLayer,
     documentReferenceError: selectedUnderlayDocumentReferenceReason,
     renderable: selectedUnderlayRenderable,
+    pageRenderLoading: selectedUnderlayPageRender.isLoading,
     pageRenderError: selectedUnderlayPageRender.error,
     pageRenderErrorKind: selectedUnderlayPageRender.errorKind,
   });
@@ -243,6 +247,7 @@ export function DraftingUnderlaysPanel({
       underlays,
       underlayLayer,
       documentReferenceError: selectedUnderlayDocumentReferenceReason,
+      pageRenderLoading: selectedUnderlayPageRender.isLoading,
       pageRenderError: selectedUnderlayPageRender.error,
       pageRenderErrorKind: selectedUnderlayPageRender.errorKind,
     }) ??
@@ -253,6 +258,7 @@ export function DraftingUnderlaysPanel({
       underlays,
       underlayLayer,
       documentReferenceError: selectedUnderlayDocumentReferenceReason,
+      pageRenderLoading: selectedUnderlayPageRender.isLoading,
       pageRenderError: selectedUnderlayPageRender.error,
       pageRenderErrorKind: selectedUnderlayPageRender.errorKind,
     });
@@ -435,7 +441,9 @@ export function DraftingUnderlaysPanel({
 
           <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
             {!selectedDocument ? <p>Select or upload a PDF to inspect page availability.</p> : null}
-            {selectedDocumentInfo.isLoading ? <p>Loading PDF page count...</p> : null}
+            {selectedDocumentInfo.isLoading ? (
+              <p>{getPdfUnderlayRenderLoadingMessage('document_info_loading')}</p>
+            ) : null}
             {selectedDocumentInfo.error ? (
               <p>
                 {getPdfUnderlayRenderErrorMessage(selectedDocumentInfo.errorKind, {
@@ -449,7 +457,13 @@ export function DraftingUnderlaysPanel({
                 {selectedDocumentInfo.data.pageCount === 1 ? '' : 's'} available.
               </p>
             ) : null}
-            {selectedDocumentPage.isLoading ? <p>Checking page {addPageNumber}...</p> : null}
+            {selectedDocumentPage.isLoading ? (
+              <p>
+                {getPdfUnderlayRenderLoadingMessage('page_render_loading', {
+                  pageNumber: addPageNumber,
+                })}
+              </p>
+            ) : null}
             {selectedDocumentPage.error ? (
               <p>
                 {getPdfUnderlayRenderErrorMessage(selectedDocumentPage.errorKind, {
@@ -959,6 +973,7 @@ function getUnderlayModeBlockedState({
   underlayLayer,
   documentReferenceError,
   renderable,
+  pageRenderLoading,
   pageRenderError,
   pageRenderErrorKind,
 }: {
@@ -967,6 +982,7 @@ function getUnderlayModeBlockedState({
   underlayLayer: DraftingLayer | null;
   documentReferenceError: string | null;
   renderable: boolean;
+  pageRenderLoading: boolean;
   pageRenderError: Error | null;
   pageRenderErrorKind: PdfUnderlayRenderErrorKind | null;
 }): UnderlayModeBlockedState | null {
@@ -1010,6 +1026,18 @@ function getUnderlayModeBlockedState({
     return {
       code: 'unavailable',
       message: `This underlay is unavailable or its page metadata is invalid. ${actionTitle} is disabled until the underlay can render safely again.`,
+      scope: 'underlay',
+    };
+  }
+
+  if (pageRenderLoading) {
+    const renderLoadingMessage = getPdfUnderlayRenderLoadingMessage('page_render_loading', {
+      pageNumber: underlay.pageNumber,
+    });
+
+    return {
+      code: 'page-render-loading',
+      message: `${renderLoadingMessage} ${actionTitle} is disabled until the page is ready.`,
       scope: 'underlay',
     };
   }
@@ -1071,6 +1099,7 @@ function getActiveUnderlayModeInvalidation({
   underlays,
   underlayLayer,
   documentReferenceError,
+  pageRenderLoading,
   pageRenderError,
   pageRenderErrorKind,
 }: {
@@ -1080,6 +1109,7 @@ function getActiveUnderlayModeInvalidation({
   underlays: DraftingUnderlay[];
   underlayLayer: DraftingLayer | null;
   documentReferenceError: string | null;
+  pageRenderLoading: boolean;
   pageRenderError: Error | null;
   pageRenderErrorKind: PdfUnderlayRenderErrorKind | null;
 }): ActiveUnderlayModeInvalidation | null {
@@ -1114,6 +1144,7 @@ function getActiveUnderlayModeInvalidation({
     underlayLayer,
     documentReferenceError,
     renderable: isDraftingUnderlayRenderable(activeUnderlay),
+    pageRenderLoading,
     pageRenderError,
     pageRenderErrorKind,
   });
@@ -1149,6 +1180,8 @@ function getActiveUnderlayModeInvalidationMessage(
       return `${actionTitle} was cancelled because the active underlay is hidden.`;
     case 'unavailable':
       return `${actionTitle} was cancelled because the active underlay is unavailable or its page metadata is invalid.`;
+    case 'page-render-loading':
+      return `${actionTitle} was cancelled because the selected PDF page is still rendering.`;
     case 'page-render-error':
       return `${actionTitle} was cancelled because the selected PDF page cannot currently render.`;
   }

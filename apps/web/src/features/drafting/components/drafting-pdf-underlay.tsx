@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { DraftingPoint, DraftingUnderlay } from '@eng/shared';
 import {
   getPdfUnderlayRenderErrorMessage,
+  getPdfUnderlayRenderLoadingMessage,
   usePdfPageRender,
   type PdfUnderlayPageMetrics,
   type PdfUnderlayRenderErrorKind,
@@ -41,6 +42,17 @@ export function DraftingPdfUnderlay({
   const pageRender = render.data;
 
   if (!pageRender) {
+    if (render.isLoading) {
+      return (
+        <PdfUnderlayRenderFallback
+          isLoading
+          errorKind={null}
+          isSelected={isSelected}
+          underlay={underlay}
+        />
+      );
+    }
+
     if (render.error) {
       return (
         <PdfUnderlayRenderFallback
@@ -143,16 +155,23 @@ function PdfUnderlayRenderFallback({
   underlay,
   isSelected,
   errorKind,
+  isLoading = false,
 }: {
   underlay: DraftingUnderlay;
   isSelected: boolean;
   errorKind: PdfUnderlayRenderErrorKind | null;
+  isLoading?: boolean;
 }) {
   const matrix = buildSvgMatrix(underlay);
-  const message = getPdfUnderlayRenderErrorMessage(errorKind, {
-    fallback: 'The selected PDF page could not be rendered.',
-    pageNumber: underlay.pageNumber,
-  });
+  const title = isLoading ? 'Loading PDF underlay' : 'PDF underlay unavailable';
+  const message = isLoading
+    ? getPdfUnderlayRenderLoadingMessage('page_render_loading', {
+        pageNumber: underlay.pageNumber,
+      })
+    : getPdfUnderlayRenderErrorMessage(errorKind, {
+        fallback: 'The selected PDF page could not be rendered.',
+        pageNumber: underlay.pageNumber,
+      });
 
   return (
     <g data-testid="drafting-pdf-underlay-render-fallback" pointerEvents="none" transform={matrix}>
@@ -178,7 +197,7 @@ function PdfUnderlayRenderFallback({
         x={120}
         y={280}
       >
-        PDF underlay unavailable
+        {title}
       </text>
       <text fill="#64748b" fontSize={88} x={120} y={420}>
         {underlay.fileName} · page {underlay.pageNumber}

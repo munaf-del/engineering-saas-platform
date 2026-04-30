@@ -28,6 +28,8 @@ export type PdfUnderlayRenderErrorKind =
   | 'render_failed'
   | 'unknown';
 
+export type PdfUnderlayRenderLoadingKind = 'document_info_loading' | 'page_render_loading';
+
 type PdfUnderlayRenderErrorPhase = 'document_info' | 'page_render';
 
 type PdfUnderlayLoadState<T> = {
@@ -238,6 +240,22 @@ export function getPdfUnderlayRenderErrorMessage(
     case null:
     case undefined:
       return options.fallback ?? 'The PDF underlay could not be rendered.';
+  }
+}
+
+export function getPdfUnderlayRenderLoadingMessage(
+  kind: PdfUnderlayRenderLoadingKind,
+  options: {
+    pageNumber?: number | null;
+  } = {},
+) {
+  switch (kind) {
+    case 'document_info_loading':
+      return 'Inspecting the selected PDF page count.';
+    case 'page_render_loading':
+      return options.pageNumber
+        ? `Rendering PDF page ${options.pageNumber}.`
+        : 'Rendering the selected PDF page.';
   }
 }
 

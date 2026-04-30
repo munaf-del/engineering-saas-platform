@@ -29,10 +29,40 @@ vi.mock('../hooks/use-pdf-underlay-render', () => ({
 
     return options.fallback ?? 'The PDF underlay could not be rendered.';
   },
+  getPdfUnderlayRenderLoadingMessage: (
+    kind: string,
+    options: { pageNumber?: number | null } = {},
+  ) => (kind === 'page_render_loading' ? `Rendering PDF page ${options.pageNumber}.` : ''),
   usePdfPageRender: () => pdfPageRenderState.current,
 }));
 
 describe('DraftingPdfUnderlay', () => {
+  it('renders a lightweight placeholder while PDF page rendering is loading', () => {
+    pdfPageRenderState.current = {
+      data: null,
+      error: null,
+      errorKind: null,
+      isLoading: true,
+    };
+
+    const markup = renderToStaticMarkup(
+      <svg>
+        <DraftingPdfUnderlay
+          calibrationPoints={null}
+          cropPreview={null}
+          interactionEnabled={false}
+          isSelected
+          underlay={createUnderlay()}
+        />
+      </svg>,
+    );
+
+    expect(markup).toContain('data-testid="drafting-pdf-underlay-render-fallback"');
+    expect(markup).toContain('Loading PDF underlay');
+    expect(markup).toContain('Rendering PDF page 1.');
+    expect(markup).not.toContain('PDF underlay unavailable');
+  });
+
   it('renders a lightweight placeholder when PDF page rendering fails', () => {
     pdfPageRenderState.current = {
       data: null,
