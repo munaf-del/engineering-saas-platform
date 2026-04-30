@@ -19,6 +19,24 @@ export type PdfUnderlayPageRender = PdfUnderlayPageMetrics & {
   imageUrl: string;
 };
 
+export type PdfUnderlayRenderErrorKind =
+  | 'missing_document'
+  | 'inaccessible_document'
+  | 'not_pdf'
+  | 'invalid_pdf'
+  | 'page_unavailable'
+  | 'render_failed'
+  | 'unknown';
+
+type PdfUnderlayRenderErrorPhase = 'document_info' | 'page_render';
+
+type PdfUnderlayLoadState<T> = {
+  data: T | null;
+  error: Error | null;
+  errorKind: PdfUnderlayRenderErrorKind | null;
+  isLoading: boolean;
+};
+
 const PDF_RENDER_SCALE = 2;
 const documentCache = new Map<string, Promise<PDFDocumentProxy>>();
 const pageInfoCache = new Map<string, Promise<PdfUnderlayDocumentInfo>>();
@@ -33,19 +51,16 @@ if (typeof window !== 'undefined') {
 }
 
 export function usePdfDocumentInfo(fileId: string | null | undefined) {
-  const [state, setState] = React.useState<{
-    data: PdfUnderlayDocumentInfo | null;
-    error: Error | null;
-    isLoading: boolean;
-  }>({
+  const [state, setState] = React.useState<PdfUnderlayLoadState<PdfUnderlayDocumentInfo>>({
     data: null,
     error: null,
+    errorKind: null,
     isLoading: Boolean(fileId),
   });
 
   React.useEffect(() => {
     if (!fileId) {
-      setState({ data: null, error: null, isLoading: false });
+      setState({ data: null, error: null, errorKind: null, isLoading: false });
       return;
     }
 
@@ -53,20 +68,23 @@ export function usePdfDocumentInfo(fileId: string | null | undefined) {
     setState((current) => ({
       data: current.data,
       error: null,
+      errorKind: null,
       isLoading: current.data == null,
     }));
 
     getPdfDocumentInfo(fileId)
       .then((data) => {
         if (!cancelled) {
-          setState({ data, error: null, isLoading: false });
+          setState({ data, error: null, errorKind: null, isLoading: false });
         }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          const classifiedError = getClassifiedPdfUnderlayError(error, 'document_info');
           setState({
             data: null,
-            error: error instanceof Error ? error : new Error('Failed to load PDF info'),
+            error: classifiedError.error,
+            errorKind: classifiedError.kind,
             isLoading: false,
           });
         }
@@ -84,19 +102,16 @@ export function usePdfPageRender(
   fileId: string | null | undefined,
   pageNumber: number | null | undefined,
 ) {
-  const [state, setState] = React.useState<{
-    data: PdfUnderlayPageRender | null;
-    error: Error | null;
-    isLoading: boolean;
-  }>({
+  const [state, setState] = React.useState<PdfUnderlayLoadState<PdfUnderlayPageRender>>({
     data: null,
     error: null,
+    errorKind: null,
     isLoading: Boolean(fileId && pageNumber),
   });
 
   React.useEffect(() => {
     if (!fileId || !pageNumber) {
-      setState({ data: null, error: null, isLoading: false });
+      setState({ data: null, error: null, errorKind: null, isLoading: false });
       return;
     }
 
@@ -104,20 +119,23 @@ export function usePdfPageRender(
     setState((current) => ({
       data: current.data,
       error: null,
+      errorKind: null,
       isLoading: current.data == null,
     }));
 
     renderPdfPage(fileId, pageNumber)
       .then((data) => {
         if (!cancelled) {
-          setState({ data, error: null, isLoading: false });
+          setState({ data, error: null, errorKind: null, isLoading: false });
         }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          const classifiedError = getClassifiedPdfUnderlayError(error, 'page_render');
           setState({
             data: null,
-            error: error instanceof Error ? error : new Error('Failed to render PDF page'),
+            error: classifiedError.error,
+            errorKind: classifiedError.kind,
             isLoading: false,
           });
         }
@@ -129,6 +147,130 @@ export function usePdfPageRender(
   }, [fileId, pageNumber]);
 
   return state;
+}
+
+export function classifyPdfUnderlayRenderError(
+  error: unknown,
+  phase: PdfUnderlayRenderErrorPhase,
+): PdfUnderlayRenderErrorKind {
+  const status = getErrorStatus(error);
+  if (status === 404) {
+    return 'missing_document';
+  }
+
+  if (status === 401 || status === 403) {
+    return 'inaccessible_document';
+  }
+
+  if (status === 415) {
+    return 'not_pdf';
+  }
+
+  if (status === 416) {
+    return 'page_unavailable';
+  }
+
+  const message = getErrorMessage(error);
+  if (/\b(404|not found|missing|no such file)\b/i.test(message)) {
+    return 'missing_document';
+  }
+
+  if (
+    /\b(401|403|unauthori[sz]ed|forbidden|permission|access denied|inaccessible)\b/i.test(message)
+  ) {
+    return 'inaccessible_document';
+  }
+
+  if (/\b(non[-\s]?pdf|not a pdf|unsupported media|mime type|content type)\b/i.test(message)) {
+    return 'not_pdf';
+  }
+
+  if (
+    /\b(invalid pdf|malformed pdf|corrupt|corrupted|encrypted|password protected|pdf structure)\b/i.test(
+      message,
+    )
+  ) {
+    return 'invalid_pdf';
+  }
+
+  if (
+    phase === 'page_render' &&
+    /\b(page unavailable|page not found|invalid page|page index|page number|out of range)\b/i.test(
+      message,
+    )
+  ) {
+    return 'page_unavailable';
+  }
+
+  if (
+    phase === 'page_render' &&
+    /\b(render|canvas|viewport|blob|image|raster|bitmap)\b/i.test(message)
+  ) {
+    return 'render_failed';
+  }
+
+  return 'unknown';
+}
+
+export function getPdfUnderlayRenderErrorMessage(
+  kind: PdfUnderlayRenderErrorKind | null | undefined,
+  options: {
+    pageNumber?: number | null;
+    fallback?: string;
+  } = {},
+) {
+  const pageLabel = options.pageNumber ? `Page ${options.pageNumber}` : 'The selected page';
+
+  switch (kind) {
+    case 'missing_document':
+      return 'The referenced project PDF could not be found. It may have been removed or moved.';
+    case 'inaccessible_document':
+      return 'The referenced project PDF is not accessible from this project or session.';
+    case 'not_pdf':
+      return 'The referenced project document is not a PDF.';
+    case 'invalid_pdf':
+      return 'The PDF could not be read. It may be corrupt, encrypted, or unsupported.';
+    case 'page_unavailable':
+      return `${pageLabel} is not available in the selected PDF.`;
+    case 'render_failed':
+      return `${pageLabel} could not be rendered. Try refreshing or selecting another page.`;
+    case 'unknown':
+    case null:
+    case undefined:
+      return options.fallback ?? 'The PDF underlay could not be rendered.';
+  }
+}
+
+function getClassifiedPdfUnderlayError(error: unknown, phase: PdfUnderlayRenderErrorPhase) {
+  const fallbackMessage =
+    phase === 'document_info' ? 'Failed to load PDF info' : 'Failed to render PDF page';
+  const normalizedError = error instanceof Error ? error : new Error(fallbackMessage);
+
+  return {
+    error: normalizedError,
+    kind: classifyPdfUnderlayRenderError(error, phase),
+  };
+}
+
+function getErrorStatus(error: unknown) {
+  if (!error || typeof error !== 'object' || !('status' in error)) {
+    return null;
+  }
+
+  const status = (error as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return '';
 }
 
 async function getPdfDocumentInfo(fileId: string) {

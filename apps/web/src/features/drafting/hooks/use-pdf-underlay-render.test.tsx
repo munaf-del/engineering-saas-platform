@@ -5,7 +5,11 @@ import { createRoot } from 'react-dom/client';
 import * as pdfjsLib from 'pdfjs-dist';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiArrayBuffer } from '@/lib/api-client';
-import { usePdfDocumentInfo, usePdfPageRender } from './use-pdf-underlay-render';
+import {
+  classifyPdfUnderlayRenderError,
+  usePdfDocumentInfo,
+  usePdfPageRender,
+} from './use-pdf-underlay-render';
 
 vi.mock('@/lib/api-client', () => ({
   apiArrayBuffer: vi.fn(),
@@ -88,7 +92,118 @@ describe('PDF underlay render hooks', () => {
       width: 200,
     });
   });
+
+  it('classifies missing and inaccessible document download failures', async () => {
+    vi.mocked(apiArrayBuffer).mockRejectedValueOnce(createApiError(404, 'Not Found'));
+
+    const missing = await renderDocumentInfoHook('missing-document');
+    await waitFor(() => missing.current.error != null);
+    await missing.unmount();
+
+    vi.mocked(apiArrayBuffer).mockRejectedValueOnce(createApiError(403, 'Forbidden'));
+
+    const inaccessible = await renderDocumentInfoHook('inaccessible-document');
+    await waitFor(() => inaccessible.current.error != null);
+    await inaccessible.unmount();
+
+    expect(missing.current.errorKind).toBe('missing_document');
+    expect(missing.current.error).toBeInstanceOf(Error);
+    expect(inaccessible.current.errorKind).toBe('inaccessible_document');
+    expect(inaccessible.current.error).toBeInstanceOf(Error);
+  });
+
+  it('classifies non-PDF and invalid PDF document load failures', async () => {
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument)
+      .mockImplementationOnce(
+        () =>
+          ({
+            promise: Promise.reject(new Error('The selected document is not a PDF')),
+          }) as ReturnType<typeof pdfjsLib.getDocument>,
+      )
+      .mockImplementationOnce(
+        () =>
+          ({
+            promise: Promise.reject(new Error('Invalid PDF structure')),
+          }) as ReturnType<typeof pdfjsLib.getDocument>,
+      );
+
+    const nonPdf = await renderDocumentInfoHook('non-pdf-document');
+    await waitFor(() => nonPdf.current.error != null);
+    await nonPdf.unmount();
+
+    const invalidPdf = await renderDocumentInfoHook('invalid-pdf-document');
+    await waitFor(() => invalidPdf.current.error != null);
+    await invalidPdf.unmount();
+
+    expect(nonPdf.current.errorKind).toBe('not_pdf');
+    expect(invalidPdf.current.errorKind).toBe('invalid_pdf');
+  });
+
+  it('classifies page-unavailable and render failures while preserving valid renders', async () => {
+    const getPage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Invalid page request'))
+      .mockResolvedValueOnce({
+        getViewport: vi.fn(() => ({ width: 400, height: 200 })),
+        render: vi.fn(() => ({
+          promise: Promise.reject(new Error('PDF render task failed')),
+        })),
+      })
+      .mockResolvedValueOnce({
+        getViewport: vi.fn(() => ({ width: 400, height: 200 })),
+        render: vi.fn(() => ({ promise: Promise.resolve() })),
+      });
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({ numPages: 3, getPage }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const pageUnavailable = await renderPageRenderHook('page-unavailable-document', 9);
+    await waitFor(() => pageUnavailable.current.error != null);
+    await pageUnavailable.unmount();
+
+    const renderFailed = await renderPageRenderHook('render-failed-document', 1);
+    await waitFor(() => renderFailed.current.error != null);
+    await renderFailed.unmount();
+
+    const valid = await renderPageRenderHook('valid-render-document', 1);
+    await waitFor(() => valid.current.data != null);
+    await valid.unmount();
+
+    expect(pageUnavailable.current.errorKind).toBe('page_unavailable');
+    expect(renderFailed.current.errorKind).toBe('render_failed');
+    expect(valid.current.errorKind).toBeNull();
+    expect(valid.current.data).toMatchObject({
+      height: 100,
+      imageUrl: 'blob:pdf-render',
+      pageCount: 3,
+      width: 200,
+    });
+  });
+
+  it('keeps unknown render failures classified conservatively with the original error', async () => {
+    const unknownError = new Error('Socket melted');
+
+    vi.mocked(apiArrayBuffer).mockRejectedValueOnce(unknownError);
+
+    const info = await renderDocumentInfoHook('unknown-document-error');
+    await waitFor(() => info.current.error != null);
+    await info.unmount();
+
+    expect(info.current.errorKind).toBe('unknown');
+    expect(info.current.error).toBe(unknownError);
+    expect(classifyPdfUnderlayRenderError(unknownError, 'page_render')).toBe('unknown');
+  });
 });
+
+function createApiError(status: number, statusText: string) {
+  return Object.assign(new Error(`API ${status}: ${statusText}`), {
+    status,
+    statusText,
+  });
+}
 
 async function renderDocumentInfoHook(fileId: string) {
   return renderHook(() => usePdfDocumentInfo(fileId));

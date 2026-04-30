@@ -1,6 +1,11 @@
 import * as React from 'react';
 import type { DraftingPoint, DraftingUnderlay } from '@eng/shared';
-import { usePdfPageRender, type PdfUnderlayPageMetrics } from '../hooks/use-pdf-underlay-render';
+import {
+  getPdfUnderlayRenderErrorMessage,
+  usePdfPageRender,
+  type PdfUnderlayPageMetrics,
+  type PdfUnderlayRenderErrorKind,
+} from '../hooks/use-pdf-underlay-render';
 import { getDraftingUnderlayLocalRect } from '../model-utils';
 
 const FALLBACK_PLACEHOLDER_WIDTH = 1600;
@@ -37,7 +42,13 @@ export function DraftingPdfUnderlay({
 
   if (!pageRender) {
     if (render.error) {
-      return <PdfUnderlayRenderFallback isSelected={isSelected} underlay={underlay} />;
+      return (
+        <PdfUnderlayRenderFallback
+          errorKind={render.errorKind}
+          isSelected={isSelected}
+          underlay={underlay}
+        />
+      );
     }
 
     return null;
@@ -131,11 +142,17 @@ export function DraftingPdfUnderlay({
 function PdfUnderlayRenderFallback({
   underlay,
   isSelected,
+  errorKind,
 }: {
   underlay: DraftingUnderlay;
   isSelected: boolean;
+  errorKind: PdfUnderlayRenderErrorKind | null;
 }) {
   const matrix = buildSvgMatrix(underlay);
+  const message = getPdfUnderlayRenderErrorMessage(errorKind, {
+    fallback: 'The selected PDF page could not be rendered.',
+    pageNumber: underlay.pageNumber,
+  });
 
   return (
     <g data-testid="drafting-pdf-underlay-render-fallback" pointerEvents="none" transform={matrix}>
@@ -165,6 +182,9 @@ function PdfUnderlayRenderFallback({
       </text>
       <text fill="#64748b" fontSize={88} x={120} y={420}>
         {underlay.fileName} · page {underlay.pageNumber}
+      </text>
+      <text fill="#64748b" fontSize={72} x={120} y={540}>
+        {message}
       </text>
 
       {isSelected ? (
