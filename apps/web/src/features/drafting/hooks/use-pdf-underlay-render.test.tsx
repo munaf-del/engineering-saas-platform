@@ -108,6 +108,179 @@ describe('PDF underlay render hooks', () => {
     expect(loading.current.errorKind).toBeNull();
   });
 
+  it('clears stale rendered page data when switching file IDs', async () => {
+    const fileBRender = createDeferred<void>();
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument)
+      .mockImplementationOnce(
+        () =>
+          ({
+            promise: Promise.resolve({
+              numPages: 1,
+              getPage: vi.fn(() =>
+                Promise.resolve(
+                  createPdfPage({ height: 200, renderPromise: Promise.resolve(), width: 400 }),
+                ),
+              ),
+            }),
+          }) as unknown as ReturnType<typeof pdfjsLib.getDocument>,
+      )
+      .mockImplementationOnce(
+        () =>
+          ({
+            promise: Promise.resolve({
+              numPages: 1,
+              getPage: vi.fn(() =>
+                Promise.resolve(
+                  createPdfPage({ height: 300, renderPromise: fileBRender.promise, width: 600 }),
+                ),
+              ),
+            }),
+          }) as unknown as ReturnType<typeof pdfjsLib.getDocument>,
+      );
+
+    const hook = await renderMutablePageRenderHook('lifecycle-file-a', 1);
+    await waitFor(() => hook.current.data != null);
+
+    expect(hook.current.data).toMatchObject({ height: 100, width: 200 });
+
+    await hook.setArgs('lifecycle-file-b', 1);
+
+    expect(hook.current.data).toBeNull();
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.errorKind).toBeNull();
+    expect(hook.current.isLoading).toBe(true);
+
+    await act(async () => {
+      fileBRender.resolve();
+      await fileBRender.promise;
+    });
+    await waitFor(() => hook.current.data?.width === 300);
+    await hook.unmount();
+  });
+
+  it('ignores stale page render successes after switching page numbers and releases object URLs', async () => {
+    let imageUrlIndex = 0;
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:render-${++imageUrlIndex}`);
+
+    const pageOneRender = createDeferred<void>();
+    const pageTwoRender = createDeferred<void>();
+    const getPage = vi.fn((pageNumber: number) =>
+      Promise.resolve(
+        createPdfPage({
+          height: pageNumber === 1 ? 200 : 400,
+          renderPromise: pageNumber === 1 ? pageOneRender.promise : pageTwoRender.promise,
+          width: pageNumber === 1 ? 400 : 800,
+        }),
+      ),
+    );
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({ numPages: 2, getPage }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderMutablePageRenderHook('lifecycle-page-switch', 1);
+    await waitFor(() => getPage.mock.calls.some(([pageNumber]) => pageNumber === 1));
+
+    await hook.setArgs('lifecycle-page-switch', 2);
+    await waitFor(() => getPage.mock.calls.some(([pageNumber]) => pageNumber === 2));
+
+    await act(async () => {
+      pageTwoRender.resolve();
+      await pageTwoRender.promise;
+    });
+    await waitFor(() => hook.current.data?.imageUrl === 'blob:render-1');
+
+    await act(async () => {
+      pageOneRender.resolve();
+      await pageOneRender.promise;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hook.current.data).toMatchObject({
+      height: 200,
+      imageUrl: 'blob:render-1',
+      width: 400,
+    });
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:render-2');
+
+    await hook.unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:render-1');
+  });
+
+  it('ignores stale page render failures after switching page numbers', async () => {
+    const pageOneRender = createDeferred<void>();
+    const pageTwoRender = createDeferred<void>();
+    const getPage = vi.fn((pageNumber: number) =>
+      Promise.resolve(
+        createPdfPage({
+          height: pageNumber === 1 ? 200 : 400,
+          renderPromise: pageNumber === 1 ? pageOneRender.promise : pageTwoRender.promise,
+          width: pageNumber === 1 ? 400 : 800,
+        }),
+      ),
+    );
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({ numPages: 2, getPage }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderMutablePageRenderHook('lifecycle-page-error-switch', 1);
+    await waitFor(() => getPage.mock.calls.some(([pageNumber]) => pageNumber === 1));
+
+    await hook.setArgs('lifecycle-page-error-switch', 2);
+    await waitFor(() => getPage.mock.calls.some(([pageNumber]) => pageNumber === 2));
+
+    await act(async () => {
+      pageTwoRender.resolve();
+      await pageTwoRender.promise;
+    });
+    await waitFor(() => hook.current.data?.width === 400);
+
+    await act(async () => {
+      pageOneRender.reject(new Error('PDF render task failed'));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.errorKind).toBeNull();
+    expect(hook.current.data).toMatchObject({
+      height: 200,
+      width: 400,
+    });
+
+    await hook.unmount();
+  });
+
+  it('revokes a rendered page object URL when the hook unmounts', async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:owned-render');
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn(() =>
+          Promise.resolve(
+            createPdfPage({ height: 200, renderPromise: Promise.resolve(), width: 400 }),
+          ),
+        ),
+      }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderPageRenderHook('lifecycle-unmount', 1);
+    await waitFor(() => hook.current.data?.imageUrl === 'blob:owned-render');
+    await hook.unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:owned-render');
+  });
+
   it('classifies missing and inaccessible document download failures', async () => {
     vi.mocked(apiArrayBuffer).mockRejectedValueOnce(createApiError(404, 'Not Found'));
 
@@ -228,6 +401,42 @@ async function renderPageRenderHook(fileId: string, pageNumber: number) {
   return renderHook(() => usePdfPageRender(fileId, pageNumber));
 }
 
+async function renderMutablePageRenderHook(fileId: string, pageNumber: number) {
+  const element = document.createElement('div');
+  const root = createRoot(element);
+  const result: { current: ReturnType<typeof usePdfPageRender> } = {
+    current: null as unknown as ReturnType<typeof usePdfPageRender>,
+  };
+  let setArgs: React.Dispatch<React.SetStateAction<{ fileId: string; pageNumber: number }>>;
+
+  function Harness() {
+    const [args, setCurrentArgs] = React.useState({ fileId, pageNumber });
+    setArgs = setCurrentArgs;
+    result.current = usePdfPageRender(args.fileId, args.pageNumber);
+    return null;
+  }
+
+  await act(async () => {
+    root.render(<Harness />);
+  });
+
+  return {
+    get current() {
+      return result.current;
+    },
+    async setArgs(nextFileId: string, nextPageNumber: number) {
+      await act(async () => {
+        setArgs({ fileId: nextFileId, pageNumber: nextPageNumber });
+      });
+    },
+    async unmount() {
+      await act(async () => {
+        root.unmount();
+      });
+    },
+  };
+}
+
 async function renderHook<T>(useValue: () => T) {
   const element = document.createElement('div');
   const root = createRoot(element);
@@ -266,4 +475,34 @@ async function waitFor(assertion: () => boolean) {
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
   }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+}
+
+function createPdfPage({
+  height,
+  renderPromise,
+  width,
+}: {
+  height: number;
+  renderPromise: Promise<void>;
+  width: number;
+}) {
+  return {
+    getViewport: vi.fn(() => ({ height, width })),
+    render: vi.fn(() => ({ promise: renderPromise })),
+  };
 }
