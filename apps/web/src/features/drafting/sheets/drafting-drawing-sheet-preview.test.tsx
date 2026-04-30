@@ -333,6 +333,59 @@ describe('drafting drawing sheet preview', () => {
     );
   });
 
+  it('does not render PDF underlays when the sheet include-underlays toggle is off', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeUnderlays: false,
+    };
+    drawing.model.underlays.push(createUnderlay());
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).not.toContain('data-testid="mock-drafting-pdf-underlay"');
+    expect(markup).not.toContain('PDF underlay:');
+    expect(drawing.model.underlays).toHaveLength(1);
+  });
+
+  it('respects hidden Underlay layer state in sheet preview without deleting metadata', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeUnderlays: true,
+    };
+    drawing.model.underlays.push(createUnderlay());
+    drawing.model.layers = drawing.model.layers.map((layer) =>
+      layer.id === 'underlay' ? { ...layer, visible: false } : layer,
+    );
+
+    const markup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(markup).not.toContain('data-testid="mock-drafting-pdf-underlay"');
+    expect(markup).not.toContain('PDF underlay:');
+    expect(drawing.model.underlays[0]?.fileName).toBe('survey.pdf');
+  });
+
   it('applies sheet layer filters without mutating the editor model', () => {
     const drawing = createDrawing();
     const sheet = {
@@ -566,5 +619,23 @@ function createDrawing(): DraftingDrawing {
     updatedAt: '2026-04-24T00:00:00.000Z',
     model: createEmptyDraftingModel('drawing-1'),
     revisions: [],
+  };
+}
+
+function createUnderlay() {
+  return {
+    id: 'underlay-1',
+    name: 'Survey underlay',
+    fileId: 'document-1',
+    fileName: 'survey.pdf',
+    pageNumber: 2,
+    visible: true,
+    opacity: 0.65,
+    locked: false,
+    transform: { x: 0, y: 0, scale: 1, rotationDeg: 0 },
+    crop: null,
+    calibration: null,
+    createdAt: '2026-04-24T00:00:00.000Z',
+    updatedAt: '2026-04-24T00:00:00.000Z',
   };
 }

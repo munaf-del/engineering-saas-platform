@@ -62,6 +62,99 @@ describe('PDF underlay render hooks', () => {
     expect(second.current.data).toEqual({ pageCount: 3 });
   });
 
+  it('clears stale document info when switching file IDs', async () => {
+    const fileBDocument = createDeferred<{ numPages: number }>();
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument)
+      .mockReturnValueOnce({
+        promise: Promise.resolve({ numPages: 2 }),
+      } as ReturnType<typeof pdfjsLib.getDocument>)
+      .mockReturnValueOnce({
+        promise: fileBDocument.promise,
+      } as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderMutableDocumentInfoHook('document-info-file-a');
+    await waitFor(() => hook.current.data?.pageCount === 2);
+
+    await hook.setFileId('document-info-file-b');
+
+    expect(hook.current.data).toBeNull();
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.errorKind).toBeNull();
+    expect(hook.current.isLoading).toBe(true);
+
+    await act(async () => {
+      fileBDocument.resolve({ numPages: 5 });
+      await fileBDocument.promise;
+    });
+    await waitFor(() => hook.current.data?.pageCount === 5);
+    await hook.unmount();
+  });
+
+  it('ignores stale document info success after switching file IDs', async () => {
+    const fileADocument = createDeferred<{ numPages: number }>();
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument)
+      .mockReturnValueOnce({
+        promise: fileADocument.promise,
+      } as ReturnType<typeof pdfjsLib.getDocument>)
+      .mockReturnValueOnce({
+        promise: Promise.resolve({ numPages: 4 }),
+      } as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderMutableDocumentInfoHook('document-info-stale-success-a');
+    await waitFor(() => vi.mocked(pdfjsLib.getDocument).mock.calls.length === 1);
+
+    await hook.setFileId('document-info-stale-success-b');
+    await waitFor(() => hook.current.data?.pageCount === 4);
+
+    await act(async () => {
+      fileADocument.resolve({ numPages: 9 });
+      await fileADocument.promise;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hook.current.data).toEqual({ pageCount: 4 });
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.errorKind).toBeNull();
+    await hook.unmount();
+  });
+
+  it('ignores stale document info failures after switching file IDs', async () => {
+    const fileADocument = createDeferred<{ numPages: number }>();
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument)
+      .mockReturnValueOnce({
+        promise: fileADocument.promise,
+      } as ReturnType<typeof pdfjsLib.getDocument>)
+      .mockReturnValueOnce({
+        promise: Promise.resolve({ numPages: 6 }),
+      } as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderMutableDocumentInfoHook('document-info-stale-failure-a');
+    await waitFor(() => vi.mocked(pdfjsLib.getDocument).mock.calls.length === 1);
+
+    await hook.setFileId('document-info-stale-failure-b');
+    await waitFor(() => hook.current.data?.pageCount === 6);
+
+    await act(async () => {
+      fileADocument.reject(new Error('API 404: Not Found'));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hook.current.data).toEqual({ pageCount: 6 });
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.errorKind).toBeNull();
+    await hook.unmount();
+  });
+
   it('retries PDF page rendering after a transient page render failure', async () => {
     const getPage = vi
       .fn()
@@ -447,6 +540,42 @@ function createApiError(status: number, statusText: string) {
 
 async function renderDocumentInfoHook(fileId: string) {
   return renderHook(() => usePdfDocumentInfo(fileId));
+}
+
+async function renderMutableDocumentInfoHook(fileId: string) {
+  const element = document.createElement('div');
+  const root = createRoot(element);
+  const result: { current: ReturnType<typeof usePdfDocumentInfo> } = {
+    current: null as unknown as ReturnType<typeof usePdfDocumentInfo>,
+  };
+  let setFileId: React.Dispatch<React.SetStateAction<string>>;
+
+  function Harness() {
+    const [currentFileId, setCurrentFileId] = React.useState(fileId);
+    setFileId = setCurrentFileId;
+    result.current = usePdfDocumentInfo(currentFileId);
+    return null;
+  }
+
+  await act(async () => {
+    root.render(<Harness />);
+  });
+
+  return {
+    get current() {
+      return result.current;
+    },
+    async setFileId(nextFileId: string) {
+      await act(async () => {
+        setFileId(nextFileId);
+      });
+    },
+    async unmount() {
+      await act(async () => {
+        root.unmount();
+      });
+    },
+  };
 }
 
 async function renderPageRenderHook(fileId: string, pageNumber: number) {
