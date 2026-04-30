@@ -17,6 +17,48 @@ jest.mock('@eng/shared', () => {
     lineWeight: z.number().finite(),
   });
 
+  const underlayTransformSchema = z.object({
+    x: z.number().finite(),
+    y: z.number().finite(),
+    scale: z.number().positive(),
+    rotationDeg: z.number().finite(),
+  });
+
+  const underlayCropSchema = z.object({
+    x: z.number().finite(),
+    y: z.number().finite(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  });
+
+  const underlayCalibrationSchema = z.object({
+    method: z.literal('two_point_uniform_scale'),
+    pdfPointA: pointSchema,
+    pdfPointB: pointSchema,
+    modelPointA: pointSchema,
+    modelPointB: pointSchema,
+    modelDistanceMm: z.number().positive(),
+    calculatedScale: z.number().positive(),
+    calibratedAt: z.string().datetime(),
+    warningAcknowledged: z.literal(true),
+  });
+
+  const underlaySchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    fileId: z.string().min(1),
+    fileName: z.string().min(1),
+    pageNumber: z.number().int().positive(),
+    visible: z.boolean(),
+    opacity: z.number().min(0).max(1),
+    locked: z.boolean(),
+    transform: underlayTransformSchema,
+    crop: underlayCropSchema.nullable().optional(),
+    calibration: underlayCalibrationSchema.nullable().optional(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  });
+
   const objectBaseSchema = z.object({
     id: z.string(),
     layerId: z.string(),
@@ -37,7 +79,7 @@ jest.mock('@eng/shared', () => {
       offsetY: z.number().finite(),
     }),
     layers: z.array(layerSchema),
-    underlays: z.array(z.unknown()),
+    underlays: z.array(underlaySchema),
     objects: z.array(
       z.discriminatedUnion('type', [
         objectBaseSchema.extend({
@@ -509,6 +551,121 @@ describe('DraftingService', () => {
     );
   });
 
+  it('persists PDF underlay metadata through the model save path without runtime payloads', async () => {
+    const expectedUnderlay = createPdfUnderlay({
+      visible: false,
+      locked: true,
+    });
+    const rawUnderlay = createPdfUnderlay({
+      visible: false,
+      locked: true,
+      pdfBytes: 'data:application/pdf;base64,JVBERi0xLjQ=',
+      renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+      imageUrl: 'blob:rendered-underlay-page',
+      objectUrl: 'blob:pdf-object-url',
+      renderCache: {
+        viewport: { width: 800, height: 600 },
+      },
+    });
+    const model = {
+      ...createEmptyModel(drawingId),
+      underlays: [rawUnderlay],
+    };
+    const inputSnapshot = JSON.stringify(model);
+
+    const result = await service.saveModel(access, drawingId, model);
+    const savedModelJson = prisma.draftingDrawing.update.mock.calls[0]?.[0].data.modelJson;
+    const serializedSavedModel = JSON.stringify(savedModelJson);
+
+    expect(savedModelJson).toEqual(
+      expect.objectContaining({
+        underlays: [expectedUnderlay],
+      }),
+    );
+    expect(result.model.underlays).toEqual([expectedUnderlay]);
+    expect(serializedSavedModel).not.toContain('pdfBytes');
+    expect(serializedSavedModel).not.toContain('renderedImageData');
+    expect(serializedSavedModel).not.toContain('imageUrl');
+    expect(serializedSavedModel).not.toContain('objectUrl');
+    expect(serializedSavedModel).not.toContain('renderCache');
+    expect(serializedSavedModel).not.toContain('data:application/pdf');
+    expect(serializedSavedModel).not.toContain('data:image/png');
+    expect(serializedSavedModel).not.toContain('blob:');
+    expect(JSON.stringify(model)).toBe(inputSnapshot);
+  });
+
+  it('loads stored PDF underlay metadata without returning runtime payloads', async () => {
+    prisma.draftingDrawing.findFirst.mockResolvedValueOnce(
+      buildDrawingRecord({
+        modelJson: {
+          ...createEmptyModel(drawingId),
+          underlays: [
+            createPdfUnderlay({
+              pdfBytes: 'data:application/pdf;base64,JVBERi0xLjQ=',
+              renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+              imageUrl: 'blob:rendered-underlay-page',
+              objectUrl: 'blob:pdf-object-url',
+              renderCache: {
+                viewport: { width: 800, height: 600 },
+              },
+            }),
+          ],
+        },
+      }),
+    );
+
+    const result = await service.findDrawing(access, drawingId);
+    const serializedModel = JSON.stringify(result.model);
+
+    expect(result.model.underlays).toEqual([createPdfUnderlay()]);
+    expect(serializedModel).not.toContain('pdfBytes');
+    expect(serializedModel).not.toContain('renderedImageData');
+    expect(serializedModel).not.toContain('imageUrl');
+    expect(serializedModel).not.toContain('objectUrl');
+    expect(serializedModel).not.toContain('renderCache');
+    expect(serializedModel).not.toContain('data:application/pdf');
+    expect(serializedModel).not.toContain('data:image/png');
+    expect(serializedModel).not.toContain('blob:');
+  });
+
+  it('rejects malformed PDF underlay metadata before persisting', async () => {
+    const malformedCases = [
+      {
+        label: 'invalid page number',
+        underlay: createPdfUnderlay({ pageNumber: 0 }),
+      },
+      {
+        label: 'invalid transform scale',
+        underlay: createPdfUnderlay({ transform: { ...createPdfUnderlay().transform, scale: 0 } }),
+      },
+      {
+        label: 'invalid crop size',
+        underlay: createPdfUnderlay({ crop: { ...createPdfUnderlay().crop, width: 0 } }),
+      },
+      {
+        label: 'unacknowledged calibration warning',
+        underlay: createPdfUnderlay({
+          calibration: { ...createPdfUnderlay().calibration, warningAcknowledged: false },
+        }),
+      },
+    ];
+
+    for (const malformedCase of malformedCases) {
+      const model = {
+        ...createEmptyModel(drawingId),
+        underlays: [malformedCase.underlay],
+      };
+      const inputSnapshot = JSON.stringify(model);
+
+      await expect(service.saveModel(access, drawingId, model)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(JSON.stringify(model)).toBe(inputSnapshot);
+    }
+
+    expect(prisma.draftingDrawing.update).not.toHaveBeenCalled();
+  });
+
   it('builds a project engineering source registry for Drafting', async () => {
     prisma.draftingDrawing.findFirst.mockResolvedValue(
       buildDrawingRecord({
@@ -955,6 +1112,45 @@ function createEmptyModel(drawingId: string) {
     drawingSheets: [],
     drawingSheetIssues: [],
     drawingTransmittals: [],
+  };
+}
+
+function createPdfUnderlay(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'underlay-api-1',
+    name: 'API persisted PDF',
+    fileId: 'document-api-1',
+    fileName: 'api-underlay.pdf',
+    pageNumber: 2,
+    visible: true,
+    opacity: 0.55,
+    locked: false,
+    transform: {
+      x: 120,
+      y: 240,
+      scale: 0.75,
+      rotationDeg: 6,
+    },
+    crop: {
+      x: 12,
+      y: 18,
+      width: 280,
+      height: 360,
+    },
+    calibration: {
+      method: 'two_point_uniform_scale',
+      pdfPointA: { x: 10, y: 20 },
+      pdfPointB: { x: 210, y: 20 },
+      modelPointA: { x: 1200, y: 2400 },
+      modelPointB: { x: 3700, y: 2400 },
+      modelDistanceMm: 2500,
+      calculatedScale: 12.5,
+      calibratedAt: '2026-04-22T00:00:00.000Z',
+      warningAcknowledged: true,
+    },
+    createdAt: '2026-04-22T00:00:00.000Z',
+    updatedAt: '2026-04-22T00:00:00.000Z',
+    ...overrides,
   };
 }
 
