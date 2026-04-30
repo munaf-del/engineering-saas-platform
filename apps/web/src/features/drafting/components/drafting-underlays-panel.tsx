@@ -69,6 +69,10 @@ type ActiveUnderlayModeInvalidation = {
   shouldToast: boolean;
 };
 
+type SelectedUnderlayPropertyBlockedState = {
+  message: string;
+};
+
 export function DraftingUnderlaysPanel({
   drawingId,
   projectId,
@@ -163,7 +167,12 @@ export function DraftingUnderlaysPanel({
     selectedUnderlay?.id === calibrationState.underlayId &&
     calibrationState.pdfPointA != null &&
     calibrationState.pdfPointB != null;
-  const isEditingLocked = selectedUnderlay?.locked ?? false;
+  const selectedUnderlayPropertyBlockedState =
+    getSelectedUnderlayPropertyBlockedState(underlayLayer);
+  const selectedUnderlayPropertyBlockedReason =
+    selectedUnderlayPropertyBlockedState?.message ?? null;
+  const isSelectedUnderlayPropertyBlocked = selectedUnderlayPropertyBlockedReason != null;
+  const isEditingLocked = (selectedUnderlay?.locked ?? false) || isSelectedUnderlayPropertyBlocked;
   const calibrationBlockedState = getUnderlayModeBlockedState({
     action: 'calibration',
     underlay: selectedUnderlay,
@@ -526,6 +535,7 @@ export function DraftingUnderlaysPanel({
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={selectedUnderlay.visible ? 'outline' : 'secondary'}
+                disabled={isSelectedUnderlayPropertyBlocked}
                 onClick={() =>
                   updateSelectedUnderlay((underlay) => ({
                     ...underlay,
@@ -537,6 +547,7 @@ export function DraftingUnderlaysPanel({
               </Button>
               <Button
                 variant={selectedUnderlay.locked ? 'secondary' : 'outline'}
+                disabled={isSelectedUnderlayPropertyBlocked}
                 onClick={() =>
                   updateSelectedUnderlay((underlay) => ({
                     ...underlay,
@@ -546,10 +557,20 @@ export function DraftingUnderlaysPanel({
               >
                 {selectedUnderlay.locked ? 'Unlock Underlay' : 'Lock Underlay'}
               </Button>
-              <Button variant="destructive" onClick={onRemoveUnderlay}>
+              <Button
+                variant="destructive"
+                onClick={onRemoveUnderlay}
+                disabled={isSelectedUnderlayPropertyBlocked}
+              >
                 Remove Underlay
               </Button>
             </div>
+
+            {selectedUnderlayPropertyBlockedReason ? (
+              <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                {selectedUnderlayPropertyBlockedReason}
+              </div>
+            ) : null}
 
             {!selectedUnderlayRenderable ? (
               <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -774,7 +795,7 @@ export function DraftingUnderlaysPanel({
                       <Button
                         variant="outline"
                         onClick={() => onClearCrop(selectedUnderlay.id)}
-                        disabled={!selectedUnderlay.crop}
+                        disabled={!selectedUnderlay.crop || isSelectedUnderlayPropertyBlocked}
                       >
                         Clear Crop
                       </Button>
@@ -808,6 +829,26 @@ export function DraftingUnderlaysPanel({
       ) : null}
     </div>
   );
+}
+
+function getSelectedUnderlayPropertyBlockedState(
+  underlayLayer: DraftingLayer | null,
+): SelectedUnderlayPropertyBlockedState | null {
+  if (!underlayLayer) {
+    return {
+      message:
+        'The Underlay layer is unavailable. Restore the layer before editing selected underlay properties.',
+    };
+  }
+
+  if (underlayLayer.locked) {
+    return {
+      message:
+        'The Underlay layer is locked. Unlock the layer before editing selected underlay properties.',
+    };
+  }
+
+  return null;
 }
 
 function getUnderlayModeBlockedState({

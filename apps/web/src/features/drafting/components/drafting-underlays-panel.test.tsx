@@ -217,6 +217,109 @@ describe('DraftingUnderlaysPanel', () => {
     },
   );
 
+  it('locks selected underlay property controls when the shared Underlay layer is locked', async () => {
+    const selectedUnderlay = {
+      ...createUnderlay(),
+      crop: {
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 80,
+      },
+    };
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel
+          {...createPanelProps([selectedUnderlay], selectedUnderlay)}
+          underlayLayer={{
+            ...createUnderlayLayer(),
+            locked: true,
+          }}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'The Underlay layer is locked. Unlock the layer before editing selected underlay properties.',
+    );
+    expect(getButton('Hide Underlay').disabled).toBe(true);
+    expect(getButton('Lock Underlay').disabled).toBe(true);
+    expect(getButton('Remove Underlay').disabled).toBe(true);
+    expect(getButton('Start Calibration').disabled).toBe(true);
+    expect(getButton('Start Crop').disabled).toBe(true);
+    expect(getButton('Clear Crop').disabled).toBe(true);
+    expect(
+      getInputs().some((input) => input.value === selectedUnderlay.name && input.disabled),
+    ).toBe(true);
+    expect(getInputs().some((input) => input.type === 'range' && input.disabled)).toBe(true);
+    expect(getInputs().filter((input) => input.type === 'number' && input.disabled)).toHaveLength(
+      5,
+    );
+  });
+
+  it('guards selected underlay property controls when the shared Underlay layer is unavailable', async () => {
+    const selectedUnderlay = createUnderlay();
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel
+          {...createPanelProps([selectedUnderlay], selectedUnderlay)}
+          underlayLayer={null}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'The Underlay layer is unavailable. Restore the layer before editing selected underlay properties.',
+    );
+    expect(getButton('Hide Underlay').disabled).toBe(true);
+    expect(getButton('Lock Underlay').disabled).toBe(true);
+    expect(getButton('Remove Underlay').disabled).toBe(true);
+  });
+
+  it('preserves direct underlay locked action behaviour while disabling property fields', async () => {
+    const selectedUnderlay = {
+      ...createUnderlay(),
+      locked: true,
+    };
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+      );
+    });
+
+    expect(getButton('Hide Underlay').disabled).toBe(false);
+    expect(getButton('Unlock Underlay').disabled).toBe(false);
+    expect(getButton('Remove Underlay').disabled).toBe(false);
+    expect(getButton('Start Calibration').disabled).toBe(true);
+    expect(getButton('Start Crop').disabled).toBe(true);
+    expect(
+      getInputs().some((input) => input.value === selectedUnderlay.name && input.disabled),
+    ).toBe(true);
+  });
+
+  it('keeps selected underlay property controls editable when the Underlay layer is visible and unlocked', async () => {
+    const selectedUnderlay = createUnderlay();
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+      );
+    });
+
+    expect(getButton('Hide Underlay').disabled).toBe(false);
+    expect(getButton('Lock Underlay').disabled).toBe(false);
+    expect(getButton('Remove Underlay').disabled).toBe(false);
+    expect(getButton('Start Calibration').disabled).toBe(false);
+    expect(getButton('Start Crop').disabled).toBe(false);
+    expect(
+      getInputs().some((input) => input.value === selectedUnderlay.name && !input.disabled),
+    ).toBe(true);
+    expect(getInputs().some((input) => input.type === 'range' && !input.disabled)).toBe(true);
+  });
+
   it('shows page render feedback when an inspected PDF page cannot be rendered', () => {
     documentsQueryState.current.data = [createDocument()];
     pdfDocumentInfoState.current = {
@@ -793,4 +896,10 @@ function getButton(label: string) {
   }
 
   return button;
+}
+
+function getInputs() {
+  return Array.from(document.querySelectorAll('input')).filter(
+    (element): element is HTMLInputElement => element instanceof HTMLInputElement,
+  );
 }
