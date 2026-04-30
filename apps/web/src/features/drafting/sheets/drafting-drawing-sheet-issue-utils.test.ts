@@ -238,6 +238,46 @@ describe('drafting drawing sheet issue snapshots', () => {
     expect(manifest.comparison.hasDrift).toBe(false);
   });
 
+  it('keeps locked PDF underlay issue snapshots metadata-only and binary-free', () => {
+    const model = createIssueModel();
+    model.underlays = [
+      {
+        ...model.underlays[0]!,
+        imageUrl: 'blob:rendered-underlay-page',
+        pdfBytes: 'data:application/pdf;base64,JVBERi0xLjQK',
+        renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+      } as (typeof model.underlays)[number] & Record<string, unknown>,
+    ];
+    const sourceSnapshot = JSON.stringify(model);
+
+    const issue = createDraftingDrawingSheetIssueSnapshot(model, {
+      id: 'issue-underlay-metadata',
+      issueDate: now,
+      issueNumber: 'ISS-UNDERLAY',
+      purpose: 'For review',
+      revision: 'B',
+      sheetIds: ['sheet-1'],
+    });
+    const manifest = buildDraftingDrawingSheetIssueManifest({
+      issue,
+      model,
+    });
+    const serializedManifest = JSON.stringify(manifest);
+
+    expect(issue.lockedUnderlays[0]).toMatchObject({
+      fileId: 'document-1',
+      fileName: 'survey.pdf',
+      underlayId: 'underlay-1',
+    });
+    expect(issue.lockedUnderlays[0]).not.toHaveProperty('imageUrl');
+    expect(issue.lockedUnderlays[0]).not.toHaveProperty('pdfBytes');
+    expect(issue.lockedUnderlays[0]).not.toHaveProperty('renderedImageData');
+    expect(serializedManifest).not.toContain('blob:rendered-underlay-page');
+    expect(serializedManifest).not.toContain('data:application/pdf');
+    expect(serializedManifest).not.toContain('data:image/png');
+    expect(JSON.stringify(model)).toBe(sourceSnapshot);
+  });
+
   it('marks legacy issue manifests without stored profileAudit as fallback resolved', () => {
     const model = createIssueModel();
     const issue = createDraftingDrawingSheetIssueSnapshot(model, {
