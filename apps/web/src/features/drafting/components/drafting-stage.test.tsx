@@ -160,11 +160,18 @@ describe('DraftingStage', () => {
 
     expect(markup).toContain('data-testid="drafting-floating-controls"');
     expect(markup).toContain('data-testid="drafting-floating-tool-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-tool-palette"');
+    expect(markup).toContain('data-testid="drafting-floating-tool-trigger"');
     expect(markup).toContain('data-testid="drafting-floating-view-cluster"');
     expect(markup).toContain('data-testid="drafting-floating-aids-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-aids-controls"');
     expect(markup).toContain('data-testid="drafting-floating-inspector-cluster"');
+    expect(markup).toContain('data-testid="drafting-floating-inspector-toggle"');
+    expect(markup).toContain('data-testid="drafting-canvas-focus-restore"');
     expect(markup).toContain('data-testid="drafting-floating-project-grid-line-tool"');
     expect(markup).toContain('data-testid="drafting-floating-shaft-tool"');
+    expect(markup).toContain('Grid Line');
+    expect(markup).toContain('Shaft');
     expect(markup).toContain('Tool Grid');
     expect(markup).toContain('Focus canvas');
     expect(markup).toContain('aria-label="Restore canvas"');

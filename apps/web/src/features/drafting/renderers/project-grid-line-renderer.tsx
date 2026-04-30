@@ -1,6 +1,9 @@
 import * as React from 'react';
 import type { DraftingPoint, DraftingProjectGridLineObject } from '@eng/shared';
-import { resolveDraftingTextStyle } from '../standards/drafting-style-resolver';
+import {
+  applyDraftingTextCase,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
 import {
   DRAFTING_SELECTION_STYLE,
   resolveRendererLineStyle,
@@ -27,6 +30,7 @@ export function ProjectGridLineRenderer({
   const stroke = resolveTechnicalStroke(object.style?.stroke, lineStyle, []);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const textStyle = resolveDraftingTextStyle({
+    object,
     role: 'gridReference',
     setup: drawingSetup,
     surface,
@@ -127,22 +131,26 @@ function ProjectGridLineBubble({
       <text
         dominantBaseline="middle"
         fill={stroke}
+        fontFamily={textStyle.fontFamily}
         fontSize={Math.max(120, Math.min(radius * 1.08, textStyle.fontSize))}
+        fontStyle={textStyle.fontStyle}
         fontWeight={textStyle.fontWeight}
         textAnchor="middle"
       >
-        {label}
+        {applyDraftingTextCase(label, textStyle)}
       </text>
       {moduleNotation ? (
         <text
           dominantBaseline="hanging"
           fill={stroke}
+          fontFamily={textStyle.fontFamily}
           fontSize={Math.max(70, radius * 0.42)}
+          fontStyle={textStyle.fontStyle}
           opacity={0.7}
           textAnchor="middle"
           y={radius + 32}
         >
-          {moduleNotation}
+          {applyDraftingTextCase(moduleNotation, textStyle)}
         </text>
       ) : null}
     </g>

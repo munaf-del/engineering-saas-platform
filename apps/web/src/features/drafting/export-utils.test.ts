@@ -523,6 +523,52 @@ describe('drafting export utils', () => {
     expect(exported).not.toContain('"objectUrl"');
     expect(JSON.stringify(model)).toBe(sourceSnapshot);
   });
+
+  it('preserves text style and workspace metadata without exporting runtime fields', () => {
+    const model = createEmptyDraftingModel('drawing-text-workspace-export');
+    const note = {
+      ...createDraftingObject('leader_note', { x: 1000, y: 2000 }, model),
+      workspaceId: 'workspace-shoring',
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontWeight: 'bold' as const,
+        fontStyle: 'italic' as const,
+        textAlign: 'center' as const,
+        textCase: 'uppercase' as const,
+      },
+      renderedTextCache: 'runtime-cache',
+      objectUrl: 'blob:text-preview',
+    } satisfies DraftingObject & Record<string, unknown>;
+    model.objects.push(note);
+    const sourceSnapshot = JSON.stringify(model);
+
+    const exported = serializeDraftingModelJson(model, {
+      exportedAt: '2026-05-01T00:00:00.000Z',
+    });
+    const parsed = JSON.parse(exported);
+    const parsedModel = DraftingModelSchema.parse(parsed.model);
+
+    expect(parsed.metadata.counts.workspaces).toBe(8);
+    expect(parsedModel.workspaces?.map((workspace) => workspace.id)).toEqual(
+      expect.arrayContaining(['workspace-all', 'workspace-shoring', 'workspace-services']),
+    );
+    expect(parsedModel.objects[0]).toMatchObject({
+      type: 'leader_note',
+      workspaceId: 'workspace-shoring',
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        textCase: 'uppercase',
+      },
+    });
+    expect(exported).not.toContain('runtime-cache');
+    expect(exported).not.toContain('blob:text-preview');
+    expect(JSON.stringify(model)).toBe(sourceSnapshot);
+  });
 });
 
 function createUnderlay(overrides: Partial<DraftingUnderlay> = {}): DraftingUnderlay {

@@ -254,6 +254,7 @@ function buildDraftingModelJsonExportMetadata(
       scheduleSheets: model.scheduleSheets.length,
       transmittals: model.drawingTransmittals.length,
       underlays: model.underlays.length,
+      workspaces: model.workspaces?.length ?? 0,
     },
   };
 }

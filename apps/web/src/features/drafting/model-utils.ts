@@ -14,6 +14,7 @@ import {
   type DraftingUnderlay,
   type DraftingUnderlayCrop,
   type DraftingUnderlayTransform,
+  type DraftingWorkspace,
   createEmptyDraftingModel,
 } from '@eng/shared';
 import { createAnchorTiebackObject } from './tools/anchor-tieback-tool';
@@ -1341,6 +1342,63 @@ export function isDraftingObjectVisible(model: DraftingModel, object: DraftingOb
 
 export function getVisibleDraftingObjects(model: DraftingModel) {
   return model.objects.filter((object) => isDraftingObjectVisible(model, object));
+}
+
+export function getDraftingWorkspaces(model: DraftingModel) {
+  return model.workspaces ?? [];
+}
+
+export function getVisibleDraftingObjectsForWorkspace(
+  model: DraftingModel,
+  workspaceId: string | null,
+) {
+  const visibleObjects = getVisibleDraftingObjects(model);
+  if (!workspaceId || workspaceId === 'workspace-all') {
+    return visibleObjects;
+  }
+
+  const workspace = getDraftingWorkspaces(model).find((candidate) => candidate.id === workspaceId);
+  if (!workspace || workspace.visible === false) {
+    return visibleObjects;
+  }
+
+  return visibleObjects.filter((object) => isDraftingObjectInWorkspace(object, workspace));
+}
+
+export function isDraftingObjectInWorkspace(object: DraftingObject, workspace: DraftingWorkspace) {
+  if (workspace.kind === 'parent') {
+    return true;
+  }
+  if (object.workspaceId === workspace.id) {
+    return true;
+  }
+
+  const filter = workspace.objectFilter;
+  if (!filter) {
+    return false;
+  }
+  if (filter.objectIds?.includes(object.id)) {
+    return true;
+  }
+  if (filter.objectTypes?.includes(object.type)) {
+    return true;
+  }
+  if (filter.layerIds?.includes(object.layerId)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function assignDraftingObjectWorkspace(
+  object: DraftingObject,
+  workspaceId: string | undefined,
+): DraftingObject {
+  return {
+    ...object,
+    workspaceId: workspaceId && workspaceId !== 'workspace-all' ? workspaceId : undefined,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function isDraftingUnderlayVisible(model: DraftingModel, underlay: DraftingUnderlay) {

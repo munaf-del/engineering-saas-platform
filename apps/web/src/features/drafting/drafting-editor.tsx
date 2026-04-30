@@ -1,14 +1,31 @@
 'use client';
 
 import * as React from 'react';
-import type { DraftingImplementedObjectType, DraftingObject, Project } from '@eng/shared';
+import type {
+  DraftingImplementedObjectType,
+  DraftingObject,
+  DraftingWorkspace,
+  Project,
+} from '@eng/shared';
 import { toast } from 'sonner';
 import { PageLoading } from '@/components/loading';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth';
 import { useDraftingSourceRegistry } from '@/hooks/use-drafting';
 import { DraftingInspectorDrawer } from './components/drafting-inspector-drawer';
+import {
+  DraftingContextMenu,
+  type DraftingContextMenuState,
+} from './components/drafting-context-menu';
 import { DraftingLayerPanel } from './components/drafting-layer-panel';
 import { DraftingDrawingSheetsPanel } from './components/drafting-drawing-sheets-panel';
 import { DraftingPropertiesPanel } from './components/drafting-properties-panel';
@@ -41,11 +58,15 @@ import {
   createDraftingObject,
   formatDrawingRevision,
   formatDraftingTimestamp,
+  assignDraftingObjectWorkspace,
+  getDraftingWorkspaces,
   getDraftingCurrentRevisionLabel,
   getDraftingDrawingTitle,
   getLayerById,
   getVisibleDraftingUnderlays,
-  getVisibleDraftingObjects,
+  getVisibleDraftingObjectsForWorkspace,
+  removeDraftingObjectWithProvenance,
+  replaceDraftingObjectWithProvenance,
   updateDraftingDrawingSetup,
   updateLayer,
 } from './model-utils';
@@ -116,6 +137,8 @@ export function DraftingEditor({
   const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
   const [canvasLabelMode, setCanvasLabelMode] = React.useState<DraftingCanvasLabelMode>('minimal');
   const [helperGridVisible, setHelperGridVisible] = React.useState(true);
+  const [activeWorkspaceId, setActiveWorkspaceId] = React.useState('workspace-all');
+  const [contextMenu, setContextMenu] = React.useState<DraftingContextMenuState | null>(null);
   const [pileSourceMode, setPileSourceMode] =
     React.useState<DraftingPileSourceMode>('manual_sketch');
   const [selectedPileTypeSourceId, setSelectedPileTypeSourceId] = React.useState<string | null>(
@@ -275,6 +298,30 @@ export function DraftingEditor({
   }, [drawingId, helperGridVisible]);
 
   React.useEffect(() => {
+    if (!contextMenu) {
+      return;
+    }
+
+    function closeContextMenu(event: MouseEvent | KeyboardEvent) {
+      if (event instanceof KeyboardEvent && event.key !== 'Escape') {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('[data-drafting-context-menu="true"]')) {
+        return;
+      }
+      setContextMenu(null);
+    }
+
+    window.addEventListener('pointerdown', closeContextMenu);
+    window.addEventListener('keydown', closeContextMenu);
+    return () => {
+      window.removeEventListener('pointerdown', closeContextMenu);
+      window.removeEventListener('keydown', closeContextMenu);
+    };
+  }, [contextMenu]);
+
+  React.useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (isEditableKeyboardTarget(event.target)) {
         return;
@@ -326,8 +373,11 @@ export function DraftingEditor({
     projectName: currentModel.titleBlock?.projectName ?? project.name,
     revision: drawingRevisionLabel,
   };
+  const workspaces = getDraftingWorkspaces(currentModel);
+  const activeWorkspace =
+    workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? workspaces[0] ?? null;
   const visibleUnderlays = getVisibleDraftingUnderlays(currentModel);
-  const visibleObjects = getVisibleDraftingObjects(currentModel);
+  const visibleObjects = getVisibleDraftingObjectsForWorkspace(currentModel, activeWorkspaceId);
   const selectedDrawingSheet =
     currentModel.drawingSheets.find((sheet) => sheet.id === activeDrawingSheetId) ??
     currentModel.drawingSheets[0] ??
@@ -343,6 +393,10 @@ export function DraftingEditor({
   }
 
   function handleCanvasClick(event: React.MouseEvent<SVGSVGElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
     const target = event.target as SVGElement;
     const isUnderlayModeActive =
       underlays.activeCropUnderlayId !== null || underlays.calibrationState !== null;
@@ -700,6 +754,50 @@ export function DraftingEditor({
     history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
     selection.selectObject(nextObject.id);
     drafting.setActiveTab('properties');
+  }
+
+  function handleCanvasContextMenu(event: React.MouseEvent<SVGSVGElement>) {
+    event.preventDefault();
+    const target = event.target as SVGElement;
+    const objectElement = target.closest('[data-drafting-object-id]');
+    const objectId = objectElement?.getAttribute('data-drafting-object-id');
+
+    if (objectId && currentModel.objects.some((object) => object.id === objectId)) {
+      selection.selectObject(objectId);
+      drafting.setActiveTab('properties');
+      setContextMenu({
+        kind: 'object',
+        objectId,
+        x: event.clientX,
+        y: event.clientY,
+      });
+      return;
+    }
+
+    setContextMenu({
+      kind: 'canvas',
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  function updateContextObject(
+    objectId: string,
+    updater: (object: DraftingObject) => DraftingObject,
+  ) {
+    const object = currentModel.objects.find((candidate) => candidate.id === objectId);
+    if (!object) {
+      return;
+    }
+    const nextObject = updater(object);
+    history.replaceModel(
+      replaceDraftingObjectWithProvenance(currentModel, objectId, nextObject, {
+        action: 'updated',
+        at: nextObject.updatedAt,
+        by: currentUserName,
+      }),
+    );
+    selection.selectObject(objectId);
   }
 
   function resolveAuthoringPoint(point: { x: number; y: number }) {
@@ -1165,6 +1263,15 @@ export function DraftingEditor({
       />
 
       <div className="space-y-3" data-testid="drafting-workspace-layout">
+        <DraftingWorkspaceSelector
+          activeWorkspaceId={activeWorkspaceId}
+          objectCount={visibleObjects.length}
+          onWorkspaceChange={setActiveWorkspaceId}
+          totalObjectCount={currentModel.objects.length}
+          workspaceName={activeWorkspace?.name ?? 'All'}
+          workspaces={workspaces}
+        />
+
         <DraftingToolPalette
           activeTool={drafting.activeTool}
           drawingUpdatedAt={currentDrawing.updatedAt}
@@ -1206,6 +1313,7 @@ export function DraftingEditor({
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
+          onCanvasContextMenu={handleCanvasContextMenu}
           onCanvasPointerMove={(point) => {
             if (isDraftingPrimitiveCommandTool(drafting.activeTool)) {
               drafting.updatePrimitiveCommandPreview(point);
@@ -1327,6 +1435,11 @@ export function DraftingEditor({
                     objects={currentModel.objects}
                     onDelete={selection.deleteSelectedObject}
                     onRefreshSource={handleRefreshSourceObject}
+                    onWorkspaceChange={(object, workspaceId) =>
+                      selection.updateSelectedObject(
+                        assignDraftingObjectWorkspace(object, workspaceId),
+                      )
+                    }
                     onUpdate={(nextObject: DraftingObject) =>
                       selection.updateSelectedObject(nextObject)
                     }
@@ -1337,6 +1450,7 @@ export function DraftingEditor({
                         ? `/projects/${projectId}/pile-groups/${sourcePileGroupId}/multi-pile`
                         : `/projects/${projectId}/pile-groups`
                     }
+                    workspaces={workspaces}
                   />
                 </ScrollArea>
               </TabsContent>
@@ -1467,6 +1581,30 @@ export function DraftingEditor({
             ),
           }}
         />
+        <DraftingContextMenu
+          contextMenu={contextMenu}
+          helperGridVisible={helperGridVisible}
+          model={currentModel}
+          onClose={() => setContextMenu(null)}
+          onDeleteObject={(objectId) => {
+            history.replaceModel(
+              removeDraftingObjectWithProvenance(currentModel, objectId, {
+                by: currentUserName,
+              }),
+            );
+            selection.clearSelection();
+          }}
+          onFitModel={view.handleFitView}
+          onObjectUpdate={updateContextObject}
+          onOpenProperties={() => {
+            drafting.setActiveTab('properties');
+            setInspectorExpanded(true);
+          }}
+          onSetTool={drafting.setActiveTool}
+          onToggleHelperGrid={() => setHelperGridVisible((current) => !current)}
+          onToggleSnap={drafting.toggleSnapEnabled}
+          snapEnabled={drafting.snapSettings.enabled}
+        />
       </div>
     </>
   );
@@ -1482,6 +1620,57 @@ function getLabelModeStorageKey(drawingId: string) {
 
 function getHelperGridStorageKey(drawingId: string) {
   return `eng.drafting.helperGrid.${drawingId}`;
+}
+
+function DraftingWorkspaceSelector({
+  activeWorkspaceId,
+  objectCount,
+  onWorkspaceChange,
+  totalObjectCount,
+  workspaceName,
+  workspaces,
+}: {
+  activeWorkspaceId: string;
+  objectCount: number;
+  onWorkspaceChange: (workspaceId: string) => void;
+  totalObjectCount: number;
+  workspaceName: string;
+  workspaces: DraftingWorkspace[];
+}) {
+  return (
+    <section
+      aria-label="Drafting workspace filter"
+      className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+      data-testid="drafting-workspace-selector"
+    >
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Workspace
+        </span>
+        <Select value={activeWorkspaceId} onValueChange={onWorkspaceChange}>
+          <SelectTrigger className="h-8 w-[190px]" data-testid="drafting-workspace-select">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {workspaces.map((workspace) => (
+              <SelectItem key={workspace.id} value={workspace.id}>
+                {workspace.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Badge variant={activeWorkspaceId === 'workspace-all' ? 'secondary' : 'outline'}>
+          {workspaceName}
+        </Badge>
+        <Badge variant="outline">
+          {objectCount} of {totalObjectCount} object(s)
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Workspace filters model objects; source-linked spatial views will be connected later.
+      </p>
+    </section>
+  );
 }
 
 function getSelectedSourceRefreshState(

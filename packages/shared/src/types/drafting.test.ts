@@ -40,6 +40,16 @@ describe('drafting defaults', () => {
     expect(parsed.drawingSheets).toEqual([]);
     expect(parsed.drawingSheetIssues).toEqual([]);
     expect(parsed.drawingTransmittals).toEqual([]);
+    expect(parsed.workspaces?.map((workspace) => workspace.kind)).toEqual([
+      'parent',
+      'civil',
+      'survey',
+      'shoring',
+      'services',
+      'monitoring',
+      'geotech',
+      'custom',
+    ]);
   });
 
   it('accepts project model and sketch drawing summary classification', () => {
@@ -112,6 +122,52 @@ describe('drafting defaults', () => {
     expect(
       parsed.objects[0]?.type === 'pile' ? parsed.objects[0].metadata.designCompressionKn : null,
     ).toBe(0);
+  });
+
+  it('accepts AS1100-informed text style fields and child workspace assignment metadata', () => {
+    const model = createEmptyDraftingModel('drawing-text-workspace');
+    model.objects.push({
+      id: 'note-1',
+      type: 'leader_note',
+      layerId: 'notes',
+      name: 'Styled note',
+      visible: true,
+      locked: false,
+      workspaceId: 'workspace-shoring',
+      geometry: {
+        anchor: { x: 1000, y: 2000, z: 1, rl: 10.5 },
+        textPoint: { x: 1800, y: 1600 },
+      },
+      metadata: {
+        text: 'Project note',
+      },
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        textBaseline: 'middle',
+        textCase: 'uppercase',
+      },
+      createdAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    });
+
+    const parsed = DraftingModelSchema.parse(model);
+
+    expect(parsed.objects[0]).toMatchObject({
+      workspaceId: 'workspace-shoring',
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        textBaseline: 'middle',
+        textCase: 'uppercase',
+      },
+    });
   });
 
   it('hydrates older drafting models with drawing setup defaults', () => {

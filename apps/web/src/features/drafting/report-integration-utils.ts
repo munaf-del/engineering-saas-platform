@@ -8,6 +8,8 @@ import {
   buildDraftingExportFilename,
   getDraftingCurrentRevisionLabel,
   getDraftingDrawingTitle,
+  getDraftingWorkspaces,
+  getVisibleDraftingObjectsForWorkspace,
 } from './model-utils';
 import { buildDraftingScheduleSummary } from './schedules/drafting-schedule-utils';
 import { getDrawingSheetDefinitions } from './sheets/drafting-drawing-sheet-utils';
@@ -54,6 +56,13 @@ export type DraftingReportIntegrationIndex = {
     groupKey: string;
     rowCount: number;
     title: string;
+  }>;
+  workspaces: Array<{
+    id: string;
+    kind: string;
+    name: string;
+    objectCount: number;
+    visible: boolean;
   }>;
   revisionSnapshots: Array<{
     createdAt: string;
@@ -117,6 +126,13 @@ export function buildDraftingReportIntegrationIndex({
       groupKey: group.key,
       rowCount: group.rows.length,
       title: group.title,
+    })),
+    workspaces: getDraftingWorkspaces(model).map((workspace) => ({
+      id: workspace.id,
+      kind: workspace.kind,
+      name: workspace.name,
+      objectCount: getVisibleDraftingObjectsForWorkspace(model, workspace.id).length,
+      visible: workspace.visible !== false,
     })),
     revisionSnapshots: drawing.revisions.map((revision) => ({
       createdAt: revision.createdAt,

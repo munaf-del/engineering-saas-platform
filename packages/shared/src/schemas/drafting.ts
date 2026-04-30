@@ -9,6 +9,8 @@ import {
   DRAFTING_DRAWING_TRANSMITTAL_STATUSES,
   DRAFTING_DRAWING_SHEET_VIEWPORT_FIT_MODES,
   DRAFTING_DRAWING_STATUSES,
+  DRAFTING_FONT_STYLES,
+  DRAFTING_FONT_WEIGHTS,
   DRAFTING_FUTURE_OBJECT_TYPES,
   DRAFTING_LAYER_IDS,
   DRAFTING_LINE_WEIGHT_MODES,
@@ -37,7 +39,11 @@ import {
   DRAFTING_SERVICE_STATUSES,
   DRAFTING_SERVICE_TYPES,
   DRAFTING_TEXT_SCALE_MODES,
+  DRAFTING_TEXT_ALIGNMENTS,
+  DRAFTING_TEXT_BASELINES,
+  DRAFTING_TEXT_CASES,
   DRAFTING_TITLE_BLOCK_STATUSES,
+  DRAFTING_WORKSPACE_KINDS,
 } from '../types/drafting.js';
 
 const DraftingPointAnchorRefSchema = z.object({
@@ -79,6 +85,13 @@ const DraftingStyleSchema = z.object({
   lineWeightMm: z.number().finite().positive().optional(),
   lineStyle: z.enum(DRAFTING_LINE_STYLES).optional(),
   textSize: z.number().finite().optional(),
+  fontFamily: z.string().min(1).optional(),
+  textHeightMm: z.number().finite().positive().optional(),
+  fontWeight: z.enum(DRAFTING_FONT_WEIGHTS).optional(),
+  fontStyle: z.enum(DRAFTING_FONT_STYLES).optional(),
+  textAlign: z.enum(DRAFTING_TEXT_ALIGNMENTS).optional(),
+  textBaseline: z.enum(DRAFTING_TEXT_BASELINES).optional(),
+  textCase: z.enum(DRAFTING_TEXT_CASES).optional(),
 });
 
 const DraftingModelPoint3dSchema = DraftingPointSchema.extend({
@@ -497,6 +510,7 @@ const DraftingObjectBaseSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   provenance: DraftingObjectProvenanceSchema.optional(),
   sourceRef: DraftingObjectSourceRefSchema.optional(),
+  workspaceId: z.string().min(1).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -1067,6 +1081,26 @@ export const DraftingObjectSchema = z
     }
   });
 
+export const DraftingWorkspaceObjectFilterSchema = z.object({
+  layerIds: z.array(z.enum(DRAFTING_LAYER_IDS)).optional(),
+  objectTypes: z.array(z.enum(DRAFTING_OBJECT_TYPES)).optional(),
+  objectIds: z.array(z.string().min(1)).optional(),
+});
+
+export const DraftingWorkspaceSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  kind: z.enum(DRAFTING_WORKSPACE_KINDS),
+  description: z.string().optional(),
+  visible: z.boolean(),
+  locked: z.boolean(),
+  color: z.string().optional(),
+  objectFilter: DraftingWorkspaceObjectFilterSchema.optional(),
+  spatialViewRef: z.string().min(1).optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
 export const DraftingDrawingSheetIssueObjectSnapshotSchema = z.object({
   objectId: z.string().min(1),
   objectType: z.enum(DRAFTING_OBJECT_TYPES),
@@ -1250,6 +1284,7 @@ export const DraftingModelSchema = z.object({
   layers: z.array(DraftingLayerSchema),
   underlays: z.array(DraftingUnderlaySchema),
   objects: z.array(DraftingObjectSchema),
+  workspaces: z.array(DraftingWorkspaceSchema).default([]),
   objectChangeEvents: z.array(DraftingObjectChangeEventSchema).default([]),
   titleBlock: DraftingTitleBlockMetadataSchema.default({}),
   revisionBlock: DraftingRevisionBlockMetadataSchema.default({ revisions: [] }),

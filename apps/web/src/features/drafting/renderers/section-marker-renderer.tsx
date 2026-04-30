@@ -3,12 +3,15 @@ import type { DraftingPoint } from '@eng/shared';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
-  resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
   type DraftingSectionMarkerRendererProps,
 } from './renderer-types';
 import { resolveEffectiveLabelMode, shouldShowSecondaryCanvasLabel } from './label-policy';
+import {
+  applyDraftingTextCase,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
 
 export function SectionMarkerRenderer({
   drawingSetup,
@@ -29,7 +32,13 @@ export function SectionMarkerRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 170, drawingSetup);
+  const textStyle = resolveDraftingTextStyle({
+    object,
+    role: 'sectionLabel',
+    setup: drawingSetup,
+    surface,
+  });
+  const textSize = Math.min(textStyle.fontSize, surface === 'sheet' ? textStyle.fontSize : 230);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
   const showSecondary = shouldShowSecondaryCanvasLabel({
@@ -96,13 +105,15 @@ export function SectionMarkerRenderer({
             <text
               dominantBaseline="middle"
               fill={stroke}
+              fontFamily={textStyle.fontFamily}
               fontSize={textSize * 0.8}
+              fontStyle={textStyle.fontStyle}
               fontWeight={600}
               textAnchor="middle"
               x={point.x}
               y={point.y + 8}
             >
-              {object.parameters.sectionLabel}
+              {applyDraftingTextCase(object.parameters.sectionLabel, textStyle)}
             </text>
           ) : null}
         </g>
@@ -113,25 +124,29 @@ export function SectionMarkerRenderer({
       object.parameters.sectionId !== object.parameters.sectionLabel ? (
         <text
           fill={stroke}
+          fontFamily={textStyle.fontFamily}
           fontSize={textSize * 0.75}
+          fontStyle={textStyle.fontStyle}
           opacity={0.7}
           textAnchor="middle"
           x={midpoint.x}
           y={midpoint.y - 240}
         >
-          {object.parameters.sectionId}
+          {applyDraftingTextCase(object.parameters.sectionId, textStyle)}
         </text>
       ) : null}
       {showSecondary && object.parameters.sheetReference ? (
         <text
           fill={stroke}
+          fontFamily={textStyle.fontFamily}
           fontSize={textSize * 0.75}
+          fontStyle={textStyle.fontStyle}
           opacity={0.7}
           textAnchor="middle"
           x={midpoint.x}
           y={midpoint.y + 300}
         >
-          {object.parameters.sheetReference}
+          {applyDraftingTextCase(object.parameters.sheetReference, textStyle)}
         </text>
       ) : null}
     </g>

@@ -2,7 +2,6 @@ import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
-  resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
   resolveTechnicalFill,
@@ -12,6 +11,7 @@ import {
 import { DraftingCanvasLabel } from './label-components';
 import { buildDraftingObjectLabelLines } from './label-policy';
 import { calculateShaftPileMarkerCount } from '../tools/shaft-tool';
+import { resolveDraftingTextStyle } from '../standards/drafting-style-resolver';
 
 export function ShaftRenderer({
   drawingSetup,
@@ -44,7 +44,12 @@ export function ShaftRenderer({
   const vectorEffect = resolveRendererVectorEffect(surface);
   const pileRadius = object.parameters.pileDiameterMm / 2;
   const pileMarkers = buildShaftPileMarkers(object);
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, undefined, drawingSetup);
+  const textStyle = resolveDraftingTextStyle({
+    object,
+    role: 'generalNote',
+    setup: drawingSetup,
+    surface,
+  });
   const labelLines = buildDraftingObjectLabelLines({
     allObjects,
     isSelected,
@@ -111,7 +116,8 @@ export function ShaftRenderer({
           placement={labelPlacement}
           stroke={stroke}
           surface={surface}
-          textSize={textSize}
+          textSize={textStyle.fontSize}
+          textStyle={textStyle}
           x={object.geometry.centre.x + object.geometry.radiusMm + pileRadius + 220}
           y={object.geometry.centre.y - object.geometry.radiusMm}
         />
