@@ -382,6 +382,8 @@ function resolveLabelAnchor(object: DraftingObject): DraftingPoint | null {
       return object.geometry.point;
     case 'geotech_surface':
       return object.geometry.points[0] ?? null;
+    case 'project_grid':
+      return object.geometry.origin;
     case 'draft_line':
       return midpointOf([object.geometry.startPoint, object.geometry.endPoint]);
     case 'draft_polyline':

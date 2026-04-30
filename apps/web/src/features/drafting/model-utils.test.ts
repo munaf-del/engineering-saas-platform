@@ -712,6 +712,43 @@ describe('drafting model utils', () => {
       parameters: { loadEnabled: false, units: 'kN' },
     });
   });
+
+  it('creates project grid objects with editable modular defaults and preserves origin metadata', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid');
+    const grid = createDraftingObject(
+      'project_grid',
+      {
+        x: 1000,
+        y: 2000,
+        z: 3,
+        rl: 12.5,
+        snapRef: {
+          anchorKind: 'origin',
+          capturedCoordinate: { x: 1000, y: 2000, z: 3, rl: 12.5 },
+        },
+      },
+      model,
+    );
+
+    expect(grid).toMatchObject({
+      type: 'project_grid',
+      layerId: 'grid',
+      metadata: {
+        moduleSizeMm: 100,
+        bubblePlacement: 'both',
+        as1100Profile: 'modular_grid_informed',
+      },
+    });
+    if (grid.type !== 'project_grid') {
+      throw new Error('Expected project grid');
+    }
+    expect(grid.geometry.xLines.map((line) => line.label)).toEqual(['A', 'B', 'C', 'D']);
+    expect(grid.geometry.yLines.map((line) => line.label)).toEqual(['1', '2', '3', '4']);
+    expect(grid.geometry.origin).toMatchObject({ z: 3, rl: 12.5 });
+    expect(translateDraftingObject(grid, 500, -250).geometry).toMatchObject({
+      origin: { x: 1500, y: 1750, z: 3, rl: 12.5 },
+    });
+  });
 });
 
 function createTestUnderlay() {

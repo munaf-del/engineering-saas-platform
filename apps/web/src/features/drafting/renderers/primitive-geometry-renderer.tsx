@@ -26,6 +26,13 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
   const style = usePrimitiveStyle(props);
   const vectorEffect = resolveRendererVectorEffect(props.surface);
   const anchor = midpoint([props.object.geometry.startPoint, props.object.geometry.endPoint]);
+  const startPoint = props.object.geometry.startPoint;
+  const endPoint = props.object.geometry.endPoint;
+  const hitPadding = Math.max(120, 12 / Math.max(props.viewScale ?? 1, 0.05));
+  const hitX = Math.min(startPoint.x, endPoint.x) - hitPadding;
+  const hitY = Math.min(startPoint.y, endPoint.y) - hitPadding;
+  const hitWidth = Math.abs(endPoint.x - startPoint.x) + hitPadding * 2;
+  const hitHeight = Math.abs(endPoint.y - startPoint.y) + hitPadding * 2;
   return (
     <g
       data-drafting-object="true"
@@ -33,14 +40,29 @@ export function DraftLineRenderer(props: DraftingRendererProps<DraftingLineObjec
       data-testid={`drafting-object-${props.object.id}`}
       onPointerDown={props.onPointerDown}
     >
+      <rect
+        aria-hidden="true"
+        data-testid={`drafting-line-${props.object.id}-geometry`}
+        fill="#2563eb"
+        height={hitHeight}
+        opacity={0.001}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          props.onPointerDown(event);
+        }}
+        pointerEvents="all"
+        width={hitWidth}
+        x={hitX}
+        y={hitY}
+      />
       <line
         stroke={props.isSelected ? DRAFTING_SELECTION_STYLE.stroke : style.stroke}
         strokeWidth={style.strokeWidth}
         vectorEffect={vectorEffect}
-        x1={props.object.geometry.startPoint.x}
-        x2={props.object.geometry.endPoint.x}
-        y1={props.object.geometry.startPoint.y}
-        y2={props.object.geometry.endPoint.y}
+        x1={startPoint.x}
+        x2={endPoint.x}
+        y1={startPoint.y}
+        y2={endPoint.y}
       />
       <PrimitiveCanvasLabel anchor={anchor} props={props} stroke={style.stroke} />
     </g>

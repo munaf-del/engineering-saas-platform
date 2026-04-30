@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyDraftingModel, type DraftingPileObject } from '@eng/shared';
+import {
+  createEmptyDraftingModel,
+  type DraftingPileObject,
+  type DraftingProjectGridObject,
+} from '@eng/shared';
 import { createDraftingObject } from '../model-utils';
 import {
   getDraftingObjectHandles,
@@ -33,6 +37,7 @@ describe('drafting object handles', () => {
       'draft_circle',
       'structural_joint',
       'geotech_surface',
+      'project_grid',
     ] as const;
 
     for (const type of types) {
@@ -156,6 +161,47 @@ describe('drafting object handles', () => {
     expect(movedPile.geometry.centre).toEqual({
       x: 100,
       y: 200,
+      rl: 12.5,
+      snapRef,
+      z: 4,
+    });
+
+    const baseGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);
+    if (baseGrid.type !== 'project_grid') {
+      throw new Error('Expected project grid');
+    }
+    const grid = {
+      ...baseGrid,
+      geometry: {
+        ...baseGrid.geometry,
+        origin: { x: 0, y: 0, rl: 12.5, snapRef, z: 4 },
+      },
+    } as DraftingProjectGridObject;
+    const originHandle = getDraftingObjectHandles(grid).find((handle) => handle.id === 'origin');
+    const blockedExtentHandle = getDraftingObjectHandles(grid).find(
+      (handle) => handle.id === 'x-extent',
+    );
+    const movedGrid = updateDraftingObjectHandle(grid, 'origin', {
+      x: 300,
+      y: 400,
+    }) as DraftingProjectGridObject;
+
+    expect(originHandle).toMatchObject({
+      editable: true,
+      sourcePointMetadata: {
+        rl: 12.5,
+        snapRef,
+        z: 4,
+      },
+      updatePath: 'geometry.origin',
+    });
+    expect(blockedExtentHandle).toMatchObject({
+      editable: false,
+      blockedReason: 'Edit grid spacing and counts in Properties',
+    });
+    expect(movedGrid.geometry.origin).toEqual({
+      x: 300,
+      y: 400,
       rl: 12.5,
       snapRef,
       z: 4,

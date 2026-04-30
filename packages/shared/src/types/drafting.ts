@@ -5,6 +5,7 @@ export type DraftingDrawingKind = (typeof DRAFTING_DRAWING_KINDS)[number];
 
 export const DRAFTING_LAYER_IDS = [
   'underlay',
+  'grid',
   'shoring',
   'piles',
   'anchors',
@@ -49,6 +50,7 @@ export const DRAFTING_OBJECT_TYPES = [
   'dimension',
   'title_block',
   'revision_block',
+  'project_grid',
 ] as const;
 
 export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
@@ -74,6 +76,7 @@ export const DRAFTING_IMPLEMENTED_OBJECT_TYPES = [
   'draft_polygon',
   'structural_joint',
   'geotech_surface',
+  'project_grid',
 ] as const;
 
 export const DRAFTING_FUTURE_OBJECT_TYPES = [
@@ -179,6 +182,13 @@ export type DraftingServiceStatus = (typeof DRAFTING_SERVICE_STATUSES)[number];
 export type DraftingServiceConflictType = (typeof DRAFTING_SERVICE_CONFLICT_TYPES)[number];
 export type DraftingServiceRiskStatus = (typeof DRAFTING_SERVICE_RISK_STATUSES)[number];
 export type DraftingObjectProvenanceAction = (typeof DRAFTING_OBJECT_PROVENANCE_ACTIONS)[number];
+export const DRAFTING_PROJECT_GRID_LINE_ROLES = ['minor', 'major', 'axis', 'custom'] as const;
+export type DraftingProjectGridLineRole = (typeof DRAFTING_PROJECT_GRID_LINE_ROLES)[number];
+export const DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS = ['both', 'start', 'end', 'none'] as const;
+export type DraftingProjectGridBubblePlacement =
+  (typeof DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS)[number];
+export const DRAFTING_PROJECT_GRID_LABEL_MODES = ['letters', 'numbers', 'custom'] as const;
+export type DraftingProjectGridLabelMode = (typeof DRAFTING_PROJECT_GRID_LABEL_MODES)[number];
 export type DraftingObjectSourceType =
   | 'foundation_pile'
   | 'foundation_joint'
@@ -1207,6 +1217,44 @@ export type DraftingGeotechSurfaceObject = DraftingObjectBase & {
   };
 };
 
+export type DraftingProjectGridLineDefinition = {
+  id: string;
+  label: string;
+  offsetMm: number;
+  lineRole: DraftingProjectGridLineRole;
+  bubbleStart: boolean;
+  bubbleEnd: boolean;
+  moduleNotation?: string;
+  locked?: boolean;
+  visible?: boolean;
+};
+
+export type DraftingProjectGridObject = DraftingObjectBase & {
+  type: 'project_grid';
+  geometry: {
+    origin: DraftingPoint;
+    rotationDeg: number;
+    extentXPositiveMm: number;
+    extentXNegativeMm: number;
+    extentYPositiveMm: number;
+    extentYNegativeMm: number;
+    xLines: DraftingProjectGridLineDefinition[];
+    yLines: DraftingProjectGridLineDefinition[];
+  };
+  metadata: {
+    gridId: string;
+    moduleSizeMm: number;
+    xLabelMode: DraftingProjectGridLabelMode;
+    yLabelMode: DraftingProjectGridLabelMode;
+    bubbleRadiusMm: number;
+    bubblePlacement: DraftingProjectGridBubblePlacement;
+    showModuleNotation?: boolean;
+    majorEvery?: number;
+    as1100Profile: 'modular_grid_informed';
+    note?: string;
+  };
+};
+
 export type DraftingPlaceholderObject = DraftingObjectBase & {
   type: DraftingFutureObjectType;
   geometry: Record<string, unknown>;
@@ -1236,6 +1284,7 @@ export type DraftingObject =
   | DraftingPolygonObject
   | DraftingStructuralJointObject
   | DraftingGeotechSurfaceObject
+  | DraftingProjectGridObject
   | DraftingPlaceholderObject;
 
 export type DraftingModel = {
@@ -1392,6 +1441,14 @@ export const DEFAULT_DRAFTING_LAYERS: DraftingLayer[] = [
     visible: true,
     locked: false,
     color: '#94a3b8',
+    lineWeight: 1,
+  },
+  {
+    id: 'grid',
+    name: 'Project Grid',
+    visible: true,
+    locked: false,
+    color: '#475569',
     lineWeight: 1,
   },
   {
@@ -1621,6 +1678,8 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
 
 export function defaultLayerIdForDraftingObjectType(type: DraftingObjectType): DraftingLayerId {
   switch (type) {
+    case 'project_grid':
+      return 'grid';
     case 'pile':
       return 'piles';
     case 'secant_pile_wall':

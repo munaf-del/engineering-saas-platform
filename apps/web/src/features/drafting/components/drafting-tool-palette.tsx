@@ -6,6 +6,7 @@ import {
   Crosshair,
   Dot,
   Grip,
+  Grid3X3,
   Landmark,
   LineChart,
   LocateFixed,
@@ -110,6 +111,12 @@ const TOOL_GROUPS: Array<{
     ],
   },
   {
+    title: 'Reference',
+    tools: [
+      { tool: 'project_grid', label: 'Project grid lines', shortLabel: 'Grid', icon: Grid3X3 },
+    ],
+  },
+  {
     title: 'Annotation',
     tools: [
       { tool: 'dimension_chain', label: 'Dimension chain', shortLabel: 'Dim', icon: Ruler },
@@ -130,6 +137,7 @@ export function DraftingToolPalette({
   onCancelLine,
   onFinishLine,
   onPlacePileSource,
+  onAddProjectGrid,
   onPlaceSpatialSource,
   onPileSourceModeChange,
   onSelectPileTypeSource,
@@ -150,6 +158,7 @@ export function DraftingToolPalette({
   onCancelLine: () => void;
   onFinishLine: () => void;
   onPlacePileSource?: (source: DraftingPileSourceRecord) => void;
+  onAddProjectGrid?: () => void;
   onPlaceSpatialSource?: (source: DraftingSpatialSourceRecord) => void;
   onPileSourceModeChange?: (mode: DraftingPileSourceMode) => void;
   onSelectPileTypeSource?: (source: DraftingPileTypeSourceRecord | null) => void;
@@ -201,7 +210,7 @@ export function DraftingToolPalette({
             Manual + source-aware tools
           </span>
           <span>{model.objects.length} objects</span>
-          <span>Active {getToolShortLabel(activeTool)}</span>
+          <span>Active {getDraftingToolShortLabel(activeTool)}</span>
           <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
             Saved {formatDraftingTimestamp(drawingUpdatedAt)}
           </span>
@@ -273,6 +282,8 @@ export function DraftingToolPalette({
           sourceLoading={sourceLoading}
           title={sourcePanel.title}
         />
+      ) : activeTool === 'project_grid' ? (
+        <ProjectGridChoicePanel onAddProjectGrid={onAddProjectGrid} />
       ) : null}
 
       {isPathAuthoringTool(activeTool) ? (
@@ -1241,7 +1252,34 @@ function getAuthoringGroupGridClass(title: string) {
   return 'grid-cols-2';
 }
 
-function getToolShortLabel(tool: DraftingTool) {
+function ProjectGridChoicePanel({ onAddProjectGrid }: { onAddProjectGrid?: () => void }) {
+  return (
+    <div
+      className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/15 p-2 text-xs"
+      data-testid="drafting-project-grid-tool-panel"
+    >
+      <div className="min-w-0">
+        <div className="font-semibold text-foreground">Project grid reference</div>
+        <p className="text-muted-foreground">
+          Add AS1100-informed modular grid style references, then edit labels, spacing, bubbles, and
+          module notation in Properties.
+        </p>
+      </div>
+      <Button
+        className="h-8 shrink-0"
+        data-testid="drafting-project-grid-add"
+        disabled={!onAddProjectGrid}
+        onClick={onAddProjectGrid}
+        size="sm"
+        type="button"
+      >
+        Add Project Grid
+      </Button>
+    </div>
+  );
+}
+
+export function getDraftingToolShortLabel(tool: DraftingTool) {
   return (
     TOOL_GROUPS.flatMap((group) => group.tools).find((entry) => entry.tool === tool)?.shortLabel ??
     tool

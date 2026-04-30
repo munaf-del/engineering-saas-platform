@@ -352,6 +352,37 @@ export function getDraftingObjectHandles(object: DraftingObject): DraftingObject
           },
         ),
       );
+    case 'project_grid':
+      return [
+        createHandle(object, 'origin', 'anchor', 'Grid origin', object.geometry.origin, {
+          cursor: 'move',
+          updatePath: 'geometry.origin',
+        }),
+        createHandle(
+          object,
+          'x-extent',
+          'generated',
+          'X grid extent',
+          projectGridLocalToWorld(object, object.geometry.extentXPositiveMm, 0),
+          {
+            blockedReason: 'Edit grid spacing and counts in Properties',
+            editable: false,
+            tone: 'secondary',
+          },
+        ),
+        createHandle(
+          object,
+          'y-extent',
+          'generated',
+          'Y grid extent',
+          projectGridLocalToWorld(object, 0, object.geometry.extentYPositiveMm),
+          {
+            blockedReason: 'Edit grid spacing and counts in Properties',
+            editable: false,
+            tone: 'secondary',
+          },
+        ),
+      ];
     default:
       return [];
   }
@@ -786,9 +817,32 @@ export function updateDraftingObjectHandle(
         },
       });
     }
+    case 'project_grid':
+      return moved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          origin: preserveDraftingPointMetadata(object.geometry.origin, point),
+        },
+      });
     default:
       return object;
   }
+}
+
+function projectGridLocalToWorld(
+  object: Extract<DraftingObject, { type: 'project_grid' }>,
+  x: number,
+  y: number,
+) {
+  const angle = (object.geometry.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: object.geometry.origin.x + x * cos - y * sin,
+    y: object.geometry.origin.y + x * sin + y * cos,
+  };
 }
 
 export function DraftingObjectHandles({

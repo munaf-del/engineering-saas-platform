@@ -14,6 +14,7 @@ import type {
   DraftingPileObject,
   DraftingPolygonObject,
   DraftingPolylineObject,
+  DraftingProjectGridObject,
   DraftingRectangleObject,
   DraftingSectionMarkerObject,
   DraftingSecantPileWallObject,
@@ -40,6 +41,110 @@ const QA_LINE_ID = 'qa-line-1';
 const QA_LINE_DIMENSION_ID = 'qa-line-dimension-1';
 
 test.describe('Drafting connected-edit pointer QA', () => {
+  test('creates project grid references and keeps helper grid/focus controls separate', async ({
+    page,
+  }) => {
+    const { email, password } = await signInWithSeedUser(page);
+    const token = await getAuthToken(email, password);
+    const project = await createQaProject(token);
+    const projectModel = await createDraftingDrawing(token, project.id, {
+      kind: 'model',
+      title: 'Project Model',
+    });
+    const sandboxDrawing = await createDraftingDrawing(
+      token,
+      project.id,
+      createTemporaryDraftingQaSandboxDrawingInput(new Date('2026-04-30T00:00:00.000Z')),
+    );
+    let sandboxArchived = false;
+
+    try {
+      await page.goto(`/projects/${project.id}/drafting/${sandboxDrawing.id}`);
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(0);
+
+      await page.getByRole('button', { exact: true, name: 'Project grid lines' }).click();
+      await expect(page.getByTestId('drafting-project-grid-tool-panel')).toBeVisible();
+      await page.getByTestId('drafting-project-grid-add').click();
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(1);
+      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(16);
+      const authoredGridId = await page
+        .locator('[data-drafting-object-id]')
+        .getAttribute('data-drafting-object-id');
+      expect(authoredGridId).toBeTruthy();
+
+      const helperGridToggle = page.getByTestId('drafting-helper-grid-toggle');
+      await expect(helperGridToggle).toBeVisible();
+      if ((await helperGridToggle.textContent())?.includes('On')) {
+        await helperGridToggle.click();
+      }
+      await expect(helperGridToggle).toContainText('Helper Grid Off');
+      await expect(page.getByTestId(`drafting-object-${authoredGridId}`)).toHaveCount(1);
+
+      await page.getByTestId('drafting-canvas-maximize').click();
+      await expect(page.getByTestId('drafting-floating-controls')).toBeVisible();
+      await expect(page.getByText('Tool Grid')).toBeVisible();
+      await page.getByTestId('drafting-canvas-maximize').click();
+      await expect(page.getByTestId('drafting-floating-controls')).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByText('Saved').first()).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByTestId('drafting-canvas-stage')).toBeVisible();
+      await expect(page.getByTestId(`drafting-object-${authoredGridId}`)).toHaveCount(1);
+      await expect(page.getByTestId('drafting-project-grid-bubble')).toHaveCount(16);
+
+      const reloadedDrawing = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${sandboxDrawing.id}`,
+      );
+      const authoredGrid = reloadedDrawing.model.objects.find(
+        (object): object is DraftingProjectGridObject =>
+          object.id === authoredGridId && object.type === 'project_grid',
+      );
+      expect(authoredGrid).toBeDefined();
+      expect(authoredGrid!.metadata).toMatchObject({
+        moduleSizeMm: 100,
+        bubblePlacement: 'both',
+        as1100Profile: 'modular_grid_informed',
+      });
+      expect(authoredGrid!.geometry.xLines).toHaveLength(4);
+      expect(authoredGrid!.geometry.yLines).toHaveLength(4);
+
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export JSON' }).click();
+      const download = await downloadPromise;
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedJson = await readDownloadedText(downloadPath!);
+      const exported = JSON.parse(exportedJson) as { model: DraftingDrawing['model'] };
+      const exportedGrid = exported.model.objects.find(
+        (object): object is DraftingProjectGridObject =>
+          object.id === authoredGridId && object.type === 'project_grid',
+      );
+      expect(exportedGrid).toBeDefined();
+      expect(exportedGrid!.metadata.gridId).toBe('GRID1');
+      expectExportIsMetadataOnly(exportedJson);
+
+      await archiveDraftingSandbox(token, project.id, sandboxDrawing.id);
+      sandboxArchived = true;
+
+      await page.goto(`/projects/${project.id}/drafting`);
+      await expect(page.getByText(sandboxDrawing.title)).toBeHidden();
+
+      const untouchedProjectModel = await apiRequest<DraftingDrawing>(
+        token,
+        `/projects/${project.id}/drafting/drawings/${projectModel.id}`,
+      );
+      expect(untouchedProjectModel.model.objects).toHaveLength(0);
+    } finally {
+      if (!sandboxArchived) {
+        await archiveDraftingSandbox(token, project.id, sandboxDrawing.id).catch(() => undefined);
+      }
+    }
+  });
+
   test('authors rectangle and circle primitives with cancel-safe command lifecycle', async ({
     page,
   }) => {
@@ -2819,7 +2924,9 @@ test.describe('Drafting connected-edit pointer QA', () => {
         page.getByTestId(`drafting-dimension-label-${QA_LINE_DIMENSION_ID}-segment-0`),
       ).toContainText('4000 mm');
 
-      await page.getByTestId(`drafting-object-${QA_LINE_ID}`).click({ force: true });
+      await page
+        .locator(`[data-drafting-object-id="${QA_LINE_ID}"]`)
+        .dispatchEvent('click', { bubbles: true });
       const endpointHandle = page.getByTestId(`drafting-handle-${QA_LINE_ID}-end`);
       await expect(endpointHandle).toBeVisible();
       await dragLocatorBy(page, endpointHandle, { x: 60, y: 0 });
@@ -2936,9 +3043,48 @@ async function dragLocatorBy(page: Page, locator: Locator, delta: { x: number; y
   };
 
   await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(end.x, end.y, { steps: 6 });
-  await page.mouse.up();
+  await locator.dispatchEvent('pointerdown', {
+    bubbles: true,
+    button: 0,
+    buttons: 1,
+    cancelable: true,
+    clientX: start.x,
+    clientY: start.y,
+    pointerId: 1,
+    pointerType: 'mouse',
+  });
+  await page.waitForTimeout(16);
+  for (let step = 1; step <= 6; step += 1) {
+    const next = {
+      x: start.x + (delta.x * step) / 6,
+      y: start.y + (delta.y * step) / 6,
+    };
+    await page.evaluate(({ x, y }) => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: x,
+          clientY: y,
+          pointerId: 1,
+          pointerType: 'mouse',
+        }),
+      );
+    }, next);
+  }
+  await page.evaluate(({ x, y }) => {
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        buttons: 0,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        pointerType: 'mouse',
+      }),
+    );
+  }, end);
 }
 
 async function authorTwoPointPrimitive(args: {

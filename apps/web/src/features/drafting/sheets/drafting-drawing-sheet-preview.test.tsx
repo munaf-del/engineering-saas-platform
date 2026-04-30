@@ -277,6 +277,76 @@ describe('drafting drawing sheet preview', () => {
     expect(markup).toContain('drafting-sheet-paper-preview');
   });
 
+  it('renders project grid objects in sheet preview and respects object/layer visibility', () => {
+    const drawing = createDrawing();
+    const sheet = {
+      ...createDraftingDrawingSheetDefinition({ id: 'drawing-sheet-1' }),
+      includeObjectLabels: true,
+    };
+    const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, drawing.model);
+    drawing.model.objects.push(projectGrid);
+
+    const visibleMarkup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={drawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(visibleMarkup).toContain('data-testid="drafting-project-grid"');
+    expect(visibleMarkup).toContain('data-testid="drafting-project-grid-bubble"');
+    expect(visibleMarkup).toContain('GRID1');
+
+    const hiddenObjectDrawing = {
+      ...drawing,
+      model: {
+        ...drawing.model,
+        objects: [{ ...projectGrid, visible: false }],
+      },
+    };
+    const hiddenObjectMarkup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={hiddenObjectDrawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(hiddenObjectMarkup).not.toContain('data-testid="drafting-project-grid"');
+
+    const hiddenLayerDrawing = {
+      ...drawing,
+      model: {
+        ...drawing.model,
+        layers: drawing.model.layers.map((layer) =>
+          layer.id === 'grid' ? { ...layer, visible: false } : layer,
+        ),
+      },
+    };
+    const hiddenLayerMarkup = renderToStaticMarkup(
+      <DraftingDrawingSheetPage
+        currentRevisionRow={null}
+        drawing={hiddenLayerDrawing}
+        drawingRevision="R0"
+        drawingTitle="Drawing"
+        project={project}
+        rootTemplate={null}
+        sheet={sheet}
+      />,
+    );
+
+    expect(hiddenLayerMarkup).not.toContain('data-testid="drafting-project-grid"');
+  });
+
   it('uses existing PDF underlay rendering when underlays are included and preserves fallback metadata', () => {
     const drawing = createDrawing();
     const sheet = {

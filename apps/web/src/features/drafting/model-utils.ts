@@ -8,6 +8,7 @@ import {
   type DraftingObjectChangeEvent,
   type DraftingObjectProvenanceAction,
   type DraftingPoint,
+  type DraftingProjectGridObject,
   type DraftingUnderlay,
   type DraftingUnderlayCrop,
   type DraftingUnderlayTransform,
@@ -46,6 +47,7 @@ import {
   rebuildSoldierPileWallObject,
 } from './semantic-object-utils';
 import { createManualDraftingPointAnchorRef } from './anchors/drafting-anchor-resolution';
+import { createProjectGridObject } from './tools/project-grid-tool';
 
 const MAX_DRAFTING_OBJECT_CHANGE_EVENTS = 200;
 
@@ -289,6 +291,9 @@ export function createDraftingObject(
       break;
     case 'geotech_surface':
       object = createGeotechSurfaceObject(point, model);
+      break;
+    case 'project_grid':
+      object = createProjectGridObject(point, model);
       break;
     default:
       object = createPileObject(point, model);
@@ -906,6 +911,19 @@ export function translateDraftingObject(
         },
         updatedAt,
       });
+    case 'project_grid':
+      return stampMoved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          origin: {
+            ...object.geometry.origin,
+            x: object.geometry.origin.x + deltaX,
+            y: object.geometry.origin.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
     default:
       return stampMoved({
         ...object,
@@ -1185,9 +1203,49 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
         ],
         360,
       );
+    case 'project_grid':
+      return getProjectGridObjectBounds(object);
     default:
       return null;
   }
+}
+
+function getProjectGridObjectBounds(object: DraftingProjectGridObject): DraftingBounds {
+  const corners = [
+    projectGridLocalToWorld(
+      object,
+      -object.geometry.extentXNegativeMm,
+      -object.geometry.extentYNegativeMm,
+    ),
+    projectGridLocalToWorld(
+      object,
+      object.geometry.extentXPositiveMm,
+      -object.geometry.extentYNegativeMm,
+    ),
+    projectGridLocalToWorld(
+      object,
+      -object.geometry.extentXNegativeMm,
+      object.geometry.extentYPositiveMm,
+    ),
+    projectGridLocalToWorld(
+      object,
+      object.geometry.extentXPositiveMm,
+      object.geometry.extentYPositiveMm,
+    ),
+  ];
+  const bubblePadding = Math.max(object.metadata.bubbleRadiusMm * 2.4, 360);
+  return getPointCollectionBounds(corners, bubblePadding)!;
+}
+
+function projectGridLocalToWorld(object: DraftingProjectGridObject, x: number, y: number) {
+  const angle = (object.geometry.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: object.geometry.origin.x + x * cos - y * sin,
+    y: object.geometry.origin.y + x * sin + y * cos,
+  };
 }
 
 export function getLayerById(model: DraftingModel, layerId: string) {

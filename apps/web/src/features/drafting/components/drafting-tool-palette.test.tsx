@@ -23,13 +23,14 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-toolbar-authoring-row"');
     expect(markup).toContain('data-testid="drafting-tool-palette-mode"');
     expect(markup).toContain('Manual + source-aware tools');
-    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(5);
-    expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(5);
+    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(6);
+    expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(6);
     expect(markup).toContain('Navigate');
     expect(markup).toContain('Shoring');
     expect(markup).toContain('Survey / Monitoring');
     expect(markup).toContain('Services');
     expect(markup).toContain('Geometry');
+    expect(markup).toContain('Reference');
     expect(markup).toContain('Annotation');
     expect(markup).toContain('grid-cols-4');
     expect(markup).toContain('grid-cols-2');
@@ -40,6 +41,26 @@ describe('DraftingToolPalette', () => {
     expect(markup).not.toContain('Add Secant Pile Wall');
     expect(markup).not.toContain('Add Service Crossing');
     expect(markup).not.toContain('Choose a tool, then author typed objects');
+  });
+
+  it('shows a focused project grid action for persisted grid references', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingToolPalette
+        activeTool="project_grid"
+        drawingUpdatedAt="2026-04-25T00:00:00.000Z"
+        model={createEmptyDraftingModel('drawing-project-grid-tool')}
+        onAddProjectGrid={() => undefined}
+        onCancelLine={() => undefined}
+        onFinishLine={() => undefined}
+        onToolChange={() => undefined}
+        pendingLinePointsCount={0}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="drafting-project-grid-tool-panel"');
+    expect(markup).toContain('data-testid="drafting-project-grid-add"');
+    expect(markup).toContain('Project grid reference');
+    expect(markup).toContain('AS1100-informed modular grid style');
   });
 
   it('shows pile-only source choices for the pile tool without flattening the palette', () => {
@@ -97,7 +118,7 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-source-pile-option"');
     expect(markup).toContain('Select placed drafting object · P1');
     expect(markup).toContain('Place linked pile');
-    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(5);
+    expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(6);
     expect(markup).not.toContain('Linked boreholes');
   });
 

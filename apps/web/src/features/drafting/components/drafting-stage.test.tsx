@@ -62,9 +62,102 @@ describe('DraftingStage', () => {
     expect(markup).toContain('aria-label="Fit selected"');
     expect(markup).toContain('aria-label="Centre on reference point"');
     expect(markup).toContain('aria-label="Lock View"');
+    expect(markup).toContain('data-testid="drafting-helper-grid-toggle"');
+    expect(markup).toContain('aria-label="Maximize canvas"');
+    expect(markup).toContain('aria-label="Enter full screen"');
     expect(markup).toContain('Fit view (5%)');
     expect(markup).toContain('Sheet scale 1:100');
+    expect(markup).toContain('Helper grid on');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('can hide the helper display grid without hiding model objects', () => {
+    const model = createEmptyDraftingModel('drawing-stage-helper-grid');
+    const pile = createDraftingObject('pile', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <DraftingStage
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        helperGridVisible={false}
+        model={{ ...model, objects: [pile] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={pile.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[pile]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(markup).not.toContain('data-testid="drafting-helper-grid"');
+    expect(markup).toContain('Helper Grid Off');
+    expect(markup).toContain('data-drafting-object="true"');
+  });
+
+  it('renders compact floating controls in canvas focus mode', () => {
+    const model = createEmptyDraftingModel('drawing-stage-focus-mode');
+    const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <DraftingStage
+        activeToolLabel="Grid"
+        canvasSize={{ width: 1200, height: 640 }}
+        containerRef={React.createRef<HTMLDivElement>()}
+        initialCanvasFocusMode
+        model={{ ...model, objects: [projectGrid] }}
+        onBackgroundPointerDown={() => undefined}
+        onCanvasClick={() => undefined}
+        onCanvasWheel={() => undefined}
+        onCenterReference={() => undefined}
+        onFitModel={() => undefined}
+        onFitSelected={() => undefined}
+        onObjectHandlePointerDown={() => undefined}
+        onObjectPointerDown={() => undefined}
+        onResetZoom={() => undefined}
+        onSetZoomScale={() => undefined}
+        onViewLockedChange={() => undefined}
+        onUnderlayPointerDown={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+        pendingLinePoints={[]}
+        selectedDrawingSheet={null}
+        selectedObjectId={projectGrid.id}
+        selectedUnderlayId={null}
+        showDrawingSheetViewportOverlay={false}
+        underlayCalibrationState={null}
+        underlayCropPreview={null}
+        underlayInteractionEnabled={() => false}
+        view={model.view}
+        viewLocked={false}
+        visibleObjects={[projectGrid]}
+        visibleUnderlays={[]}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="drafting-floating-controls"');
+    expect(markup).toContain('Tool Grid');
+    expect(markup).toContain('Focus canvas');
+    expect(markup).toContain('aria-label="Restore canvas"');
+    expect(markup).toContain('data-testid="drafting-project-grid-bubble"');
   });
 
   it('renders a locked view state while preserving object editing surface', () => {

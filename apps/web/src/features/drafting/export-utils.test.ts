@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DraftingModelSchema, createEmptyDraftingModel, type DraftingUnderlay } from '@eng/shared';
+import {
+  DraftingModelSchema,
+  createEmptyDraftingModel,
+  type DraftingObject,
+  type DraftingUnderlay,
+} from '@eng/shared';
 import { serializeDraftingModelJson } from './export-utils';
+import { createDraftingObject } from './model-utils';
 
 describe('drafting export utils', () => {
   it('serializes underlay metadata without embedding binary content', () => {
@@ -446,6 +452,41 @@ describe('drafting export utils', () => {
         fitMode: 'model_extents',
       },
     });
+  });
+
+  it('exports project grid references as metadata-only model objects', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid-export');
+    const projectGrid = {
+      ...createDraftingObject('project_grid', { x: 1000, y: 2000 }, model),
+      renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+      renderCacheKey: 'project-grid-render-cache',
+      objectUrl: 'blob:project-grid-preview',
+    } satisfies DraftingObject & Record<string, unknown>;
+    model.objects.push(projectGrid);
+    const sourceSnapshot = JSON.stringify(model);
+
+    const exported = serializeDraftingModelJson(model);
+    const parsed = JSON.parse(exported);
+    const parsedModel = DraftingModelSchema.parse(parsed.model);
+
+    expect(parsedModel.objects).toHaveLength(1);
+    expect(parsedModel.objects[0]).toMatchObject({
+      type: 'project_grid',
+      layerId: 'grid',
+      metadata: {
+        gridId: 'GRID1',
+        moduleSizeMm: 100,
+        bubblePlacement: 'both',
+        as1100Profile: 'modular_grid_informed',
+      },
+    });
+    expect(exported).toContain('"type": "project_grid"');
+    expect(exported).not.toContain('data:image/png');
+    expect(exported).not.toContain('blob:project-grid-preview');
+    expect(exported).not.toContain('"renderCacheKey"');
+    expect(exported).not.toContain('"renderedImageData"');
+    expect(exported).not.toContain('"objectUrl"');
+    expect(JSON.stringify(model)).toBe(sourceSnapshot);
   });
 });
 

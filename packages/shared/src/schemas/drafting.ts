@@ -19,6 +19,9 @@ import {
   DRAFTING_OBJECT_PROVENANCE_ACTIONS,
   DRAFTING_PILE_MATERIALS,
   DRAFTING_PILE_TYPES,
+  DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS,
+  DRAFTING_PROJECT_GRID_LABEL_MODES,
+  DRAFTING_PROJECT_GRID_LINE_ROLES,
   DRAFTING_SCHEDULE_PACK_ISSUE_STATUSES,
   DRAFTING_SCHEDULE_SHEET_ORIENTATIONS,
   DRAFTING_SCHEDULE_SHEET_PAGE_SIZES,
@@ -920,6 +923,44 @@ export const DraftingGeotechSurfaceObjectSchema = DraftingObjectBaseSchema.exten
   }),
 });
 
+const DraftingProjectGridLineDefinitionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  offsetMm: z.number().finite(),
+  lineRole: z.enum(DRAFTING_PROJECT_GRID_LINE_ROLES),
+  bubbleStart: z.boolean(),
+  bubbleEnd: z.boolean(),
+  moduleNotation: z.string().min(1).optional(),
+  locked: z.boolean().optional(),
+  visible: z.boolean().optional(),
+});
+
+export const DraftingProjectGridObjectSchema = DraftingObjectBaseSchema.extend({
+  type: z.literal('project_grid'),
+  geometry: z.object({
+    origin: DraftingPointSchema,
+    rotationDeg: z.number().finite(),
+    extentXPositiveMm: z.number().positive(),
+    extentXNegativeMm: z.number().nonnegative(),
+    extentYPositiveMm: z.number().positive(),
+    extentYNegativeMm: z.number().nonnegative(),
+    xLines: z.array(DraftingProjectGridLineDefinitionSchema).min(1),
+    yLines: z.array(DraftingProjectGridLineDefinitionSchema).min(1),
+  }),
+  metadata: z.object({
+    gridId: z.string().min(1),
+    moduleSizeMm: z.number().positive(),
+    xLabelMode: z.enum(DRAFTING_PROJECT_GRID_LABEL_MODES),
+    yLabelMode: z.enum(DRAFTING_PROJECT_GRID_LABEL_MODES),
+    bubbleRadiusMm: z.number().positive(),
+    bubblePlacement: z.enum(DRAFTING_PROJECT_GRID_BUBBLE_PLACEMENTS),
+    showModuleNotation: z.boolean().optional(),
+    majorEvery: z.number().int().positive().optional(),
+    as1100Profile: z.literal('modular_grid_informed'),
+    note: z.string().optional(),
+  }),
+});
+
 export const DraftingPlaceholderObjectSchema = DraftingObjectBaseSchema.extend({
   type: z.enum(DRAFTING_FUTURE_OBJECT_TYPES),
   geometry: z.record(z.unknown()),
@@ -950,6 +991,7 @@ export const DraftingObjectSchema = z
     DraftingPolygonObjectSchema,
     DraftingStructuralJointObjectSchema,
     DraftingGeotechSurfaceObjectSchema,
+    DraftingProjectGridObjectSchema,
     DraftingPlaceholderObjectSchema,
   ])
   .superRefine((value, context) => {
