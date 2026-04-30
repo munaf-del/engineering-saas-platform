@@ -44,6 +44,18 @@ type DraftingUnderlaysPanelProps = {
 };
 
 type UnderlayModeAction = 'calibration' | 'crop';
+type UnderlayModeBlockedCode = 'locked' | 'hidden' | 'unavailable' | 'page-render-error';
+
+type UnderlayModeBlockedState = {
+  code: UnderlayModeBlockedCode;
+  message: string;
+};
+
+type ActiveUnderlayModeInvalidation = {
+  action: UnderlayModeAction;
+  key: string;
+  message: string;
+};
 
 export function DraftingUnderlaysPanel({
   drawingId,
@@ -71,6 +83,8 @@ export function DraftingUnderlaysPanel({
   const [uploadFile, setUploadFile] = React.useState<File | null>(null);
   const [calibrationDistanceMm, setCalibrationDistanceMm] = React.useState('');
   const [warningAcknowledged, setWarningAcknowledged] = React.useState(false);
+  const [activeModeFeedback, setActiveModeFeedback] = React.useState<string | null>(null);
+  const lastInvalidationKeyRef = React.useRef<string | null>(null);
 
   const documents = React.useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const visibleUnderlayCount = React.useMemo(
@@ -137,18 +151,56 @@ export function DraftingUnderlaysPanel({
     calibrationState.pdfPointA != null &&
     calibrationState.pdfPointB != null;
   const isEditingLocked = selectedUnderlay?.locked ?? false;
-  const calibrationBlockedReason = getUnderlayModeBlockedReason({
+  const calibrationBlockedState = getUnderlayModeBlockedState({
     action: 'calibration',
     underlay: selectedUnderlay,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
-  const cropBlockedReason = getUnderlayModeBlockedReason({
+  const cropBlockedState = getUnderlayModeBlockedState({
     action: 'crop',
     underlay: selectedUnderlay,
     renderable: selectedUnderlayRenderable,
     pageRenderError: selectedUnderlayPageRender.error,
   });
+  const calibrationBlockedReason = calibrationBlockedState?.message ?? null;
+  const cropBlockedReason = cropBlockedState?.message ?? null;
+  const activeModeInvalidation =
+    getActiveUnderlayModeInvalidation({
+      action: 'calibration',
+      activeUnderlayId: calibrationState?.underlayId ?? null,
+      selectedUnderlay,
+      underlays,
+      pageRenderError: selectedUnderlayPageRender.error,
+    }) ??
+    getActiveUnderlayModeInvalidation({
+      action: 'crop',
+      activeUnderlayId: cropModeUnderlayId,
+      selectedUnderlay,
+      underlays,
+      pageRenderError: selectedUnderlayPageRender.error,
+    });
+
+  React.useEffect(() => {
+    if (!activeModeInvalidation) {
+      lastInvalidationKeyRef.current = null;
+      return;
+    }
+
+    if (lastInvalidationKeyRef.current === activeModeInvalidation.key) {
+      return;
+    }
+
+    lastInvalidationKeyRef.current = activeModeInvalidation.key;
+    setActiveModeFeedback(activeModeInvalidation.message);
+
+    if (activeModeInvalidation.action === 'calibration') {
+      onCancelCalibration();
+      return;
+    }
+
+    onCancelCrop();
+  }, [activeModeInvalidation, onCancelCalibration, onCancelCrop]);
 
   async function handleUploadPdf() {
     if (!uploadFile) {
@@ -231,6 +283,7 @@ export function DraftingUnderlaysPanel({
       return;
     }
 
+    setActiveModeFeedback(null);
     onBeginCalibration(selectedUnderlay.id);
   }
 
@@ -244,6 +297,7 @@ export function DraftingUnderlaysPanel({
       return;
     }
 
+    setActiveModeFeedback(null);
     onBeginCrop(selectedUnderlay.id);
   }
 
@@ -429,6 +483,15 @@ export function DraftingUnderlaysPanel({
           )}
         </CardContent>
       </Card>
+
+      {activeModeFeedback ? (
+        <div
+          className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"
+          role="status"
+        >
+          {activeModeFeedback}
+        </div>
+      ) : null}
 
       {selectedUnderlay ? (
         <Card>
@@ -727,7 +790,7 @@ export function DraftingUnderlaysPanel({
   );
 }
 
-function getUnderlayModeBlockedReason({
+function getUnderlayModeBlockedState({
   action,
   underlay,
   renderable,
@@ -737,7 +800,7 @@ function getUnderlayModeBlockedReason({
   underlay: DraftingUnderlay | null;
   renderable: boolean;
   pageRenderError: Error | null;
-}) {
+}): UnderlayModeBlockedState | null {
   if (!underlay) {
     return null;
   }
@@ -746,20 +809,102 @@ function getUnderlayModeBlockedReason({
   const actionTitle = action === 'calibration' ? 'Calibration' : 'Crop';
 
   if (underlay.locked) {
-    return `Unlock the underlay before ${actionLabel}.`;
+    return {
+      code: 'locked',
+      message: `Unlock the underlay before ${actionLabel}.`,
+    };
   }
 
   if (!underlay.visible) {
-    return `Show the underlay before ${actionLabel}.`;
+    return {
+      code: 'hidden',
+      message: `Show the underlay before ${actionLabel}.`,
+    };
   }
 
   if (!renderable) {
-    return `This underlay is unavailable or its page metadata is invalid. ${actionTitle} is disabled until the underlay can render safely again.`;
+    return {
+      code: 'unavailable',
+      message: `This underlay is unavailable or its page metadata is invalid. ${actionTitle} is disabled until the underlay can render safely again.`,
+    };
   }
 
   if (pageRenderError) {
-    return `The selected PDF page cannot currently render. ${actionTitle} is disabled until the page renders again.`;
+    return {
+      code: 'page-render-error',
+      message: `The selected PDF page cannot currently render. ${actionTitle} is disabled until the page renders again.`,
+    };
   }
 
   return null;
+}
+
+function getActiveUnderlayModeInvalidation({
+  action,
+  activeUnderlayId,
+  selectedUnderlay,
+  underlays,
+  pageRenderError,
+}: {
+  action: UnderlayModeAction;
+  activeUnderlayId: string | null;
+  selectedUnderlay: DraftingUnderlay | null;
+  underlays: DraftingUnderlay[];
+  pageRenderError: Error | null;
+}): ActiveUnderlayModeInvalidation | null {
+  if (!activeUnderlayId) {
+    return null;
+  }
+
+  const actionTitle = action === 'calibration' ? 'Calibration' : 'Crop';
+  const activeUnderlay = underlays.find((underlay) => underlay.id === activeUnderlayId) ?? null;
+
+  if (!activeUnderlay) {
+    return {
+      action,
+      key: `${action}:removed:${activeUnderlayId}`,
+      message: `${actionTitle} was cancelled because the active underlay was removed.`,
+    };
+  }
+
+  if (selectedUnderlay?.id !== activeUnderlayId) {
+    return {
+      action,
+      key: `${action}:deselected:${activeUnderlayId}:${selectedUnderlay?.id ?? 'none'}`,
+      message: `${actionTitle} was cancelled because the active underlay is no longer selected.`,
+    };
+  }
+
+  const blockedState = getUnderlayModeBlockedState({
+    action,
+    underlay: activeUnderlay,
+    renderable: isDraftingUnderlayRenderable(activeUnderlay),
+    pageRenderError,
+  });
+
+  if (!blockedState) {
+    return null;
+  }
+
+  return {
+    action,
+    key: `${action}:${blockedState.code}:${activeUnderlayId}`,
+    message: getActiveUnderlayModeInvalidationMessage(actionTitle, blockedState.code),
+  };
+}
+
+function getActiveUnderlayModeInvalidationMessage(
+  actionTitle: 'Calibration' | 'Crop',
+  code: UnderlayModeBlockedCode,
+) {
+  switch (code) {
+    case 'locked':
+      return `${actionTitle} was cancelled because the active underlay is locked.`;
+    case 'hidden':
+      return `${actionTitle} was cancelled because the active underlay is hidden.`;
+    case 'unavailable':
+      return `${actionTitle} was cancelled because the active underlay is unavailable or its page metadata is invalid.`;
+    case 'page-render-error':
+      return `${actionTitle} was cancelled because the selected PDF page cannot currently render.`;
+  }
 }

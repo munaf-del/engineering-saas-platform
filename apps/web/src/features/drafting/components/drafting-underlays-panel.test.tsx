@@ -1,7 +1,10 @@
-import React from 'react';
+/* @vitest-environment jsdom */
+
+import React, { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Document, DraftingUnderlay } from '@eng/shared';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DraftingUnderlaysPanel } from './drafting-underlays-panel';
 
 const documentsQueryState = vi.hoisted(() => ({
@@ -51,8 +54,17 @@ vi.mock('../hooks/use-pdf-underlay-render', () => ({
   usePdfPageRender: () => pdfPageRenderState.current,
 }));
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 describe('DraftingUnderlaysPanel', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
   beforeEach(() => {
+    container = document.createElement('div');
+    document.body.innerHTML = '';
+    document.body.appendChild(container);
+    root = createRoot(container);
     documentsQueryState.current = {
       data: [],
       isFetching: false,
@@ -67,6 +79,12 @@ describe('DraftingUnderlaysPanel', () => {
       error: null,
       isLoading: false,
     };
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it('shows an unavailable state for visible underlays that are skipped by render guards', () => {
@@ -198,6 +216,285 @@ describe('DraftingUnderlaysPanel', () => {
     expect(markup).toContain('1 page available.');
     expect(markup).toContain('Page 1 renders at 400 × 200 PDF units.');
   });
+
+  it.each([
+    {
+      action: 'calibration' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({ ...underlay, locked: true })),
+      expectedFeedback: 'Calibration was cancelled because the active underlay is locked.',
+      staleInstruction: 'Click the first reference point on the PDF underlay.',
+      cancelSpy: 'calibration',
+    },
+    {
+      action: 'calibration' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({ ...underlay, visible: false })),
+      expectedFeedback: 'Calibration was cancelled because the active underlay is hidden.',
+      staleInstruction: 'Click the first reference point on the PDF underlay.',
+      cancelSpy: 'calibration',
+    },
+    {
+      action: 'calibration' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({
+          ...underlay,
+          transform: {
+            ...underlay.transform,
+            scale: 0,
+          },
+        })),
+      expectedFeedback:
+        'Calibration was cancelled because the active underlay is unavailable or its page metadata is invalid.',
+      staleInstruction: 'Click the first reference point on the PDF underlay.',
+      cancelSpy: 'calibration',
+    },
+    {
+      action: 'crop' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({ ...underlay, locked: true })),
+      expectedFeedback: 'Crop was cancelled because the active underlay is locked.',
+      staleInstruction: 'Click and drag on the selected PDF underlay to define a rectangular crop.',
+      cancelSpy: 'crop',
+    },
+    {
+      action: 'crop' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({ ...underlay, visible: false })),
+      expectedFeedback: 'Crop was cancelled because the active underlay is hidden.',
+      staleInstruction: 'Click and drag on the selected PDF underlay to define a rectangular crop.',
+      cancelSpy: 'crop',
+    },
+    {
+      action: 'crop' as const,
+      mutate: (handle: ActiveModeHarnessHandle, underlayId: string) =>
+        handle.updateUnderlay(underlayId, (underlay) => ({
+          ...underlay,
+          transform: {
+            ...underlay.transform,
+            scale: 0,
+          },
+        })),
+      expectedFeedback:
+        'Crop was cancelled because the active underlay is unavailable or its page metadata is invalid.',
+      staleInstruction: 'Click and drag on the selected PDF underlay to define a rectangular crop.',
+      cancelSpy: 'crop',
+    },
+  ])(
+    'cancels active $action mode when the selected underlay becomes unsafe',
+    async ({ action, mutate, expectedFeedback, staleInstruction, cancelSpy }) => {
+      const selectedUnderlay = createUnderlay();
+      const handle = React.createRef<ActiveModeHarnessHandle>();
+      const onCancelCalibration = vi.fn();
+      const onCancelCrop = vi.fn();
+
+      await act(async () => {
+        root.render(
+          <ActiveModeHarness
+            ref={handle}
+            initialSelectedUnderlayId={selectedUnderlay.id}
+            initialUnderlays={[selectedUnderlay]}
+            mode={action}
+            onCancelCalibration={onCancelCalibration}
+            onCancelCrop={onCancelCrop}
+          />,
+        );
+      });
+
+      expect(container.textContent).toContain(staleInstruction);
+
+      await act(async () => {
+        mutate(handle.current!, selectedUnderlay.id);
+      });
+
+      expect(container.textContent).toContain(expectedFeedback);
+      expect(container.textContent).not.toContain(staleInstruction);
+      expect(onCancelCalibration).toHaveBeenCalledTimes(cancelSpy === 'calibration' ? 1 : 0);
+      expect(onCancelCrop).toHaveBeenCalledTimes(cancelSpy === 'crop' ? 1 : 0);
+    },
+  );
+
+  it('cancels active calibration when the selected PDF page starts failing to render', async () => {
+    const selectedUnderlay = createUnderlay();
+    const handle = React.createRef<ActiveModeHarnessHandle>();
+    const onCancelCalibration = vi.fn();
+
+    pdfPageRenderState.current = {
+      data: {
+        height: 200,
+        imageUrl: 'blob:underlay-page',
+        pageCount: 1,
+        width: 400,
+      },
+      error: null,
+      isLoading: false,
+    };
+
+    await act(async () => {
+      root.render(
+        <ActiveModeHarness
+          ref={handle}
+          initialSelectedUnderlayId={selectedUnderlay.id}
+          initialUnderlays={[selectedUnderlay]}
+          mode="calibration"
+          onCancelCalibration={onCancelCalibration}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain('Click the first reference point on the PDF underlay.');
+
+    pdfPageRenderState.current = {
+      data: null,
+      error: new Error('Failed to render PDF page'),
+      isLoading: false,
+    };
+
+    await act(async () => {
+      handle.current!.refresh();
+    });
+
+    expect(container.textContent).toContain(
+      'Calibration was cancelled because the selected PDF page cannot currently render.',
+    );
+    expect(container.textContent).not.toContain(
+      'Click the first reference point on the PDF underlay.',
+    );
+    expect(onCancelCalibration).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels active crop when the selected PDF page starts failing to render', async () => {
+    const selectedUnderlay = createUnderlay();
+    const handle = React.createRef<ActiveModeHarnessHandle>();
+    const onCancelCrop = vi.fn();
+
+    pdfPageRenderState.current = {
+      data: {
+        height: 200,
+        imageUrl: 'blob:underlay-page',
+        pageCount: 1,
+        width: 400,
+      },
+      error: null,
+      isLoading: false,
+    };
+
+    await act(async () => {
+      root.render(
+        <ActiveModeHarness
+          ref={handle}
+          initialSelectedUnderlayId={selectedUnderlay.id}
+          initialUnderlays={[selectedUnderlay]}
+          mode="crop"
+          onCancelCrop={onCancelCrop}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'Click and drag on the selected PDF underlay to define a rectangular crop.',
+    );
+
+    pdfPageRenderState.current = {
+      data: null,
+      error: new Error('Failed to render PDF page'),
+      isLoading: false,
+    };
+
+    await act(async () => {
+      handle.current!.refresh();
+    });
+
+    expect(container.textContent).toContain(
+      'Crop was cancelled because the selected PDF page cannot currently render.',
+    );
+    expect(container.textContent).not.toContain(
+      'Click and drag on the selected PDF underlay to define a rectangular crop.',
+    );
+    expect(onCancelCrop).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels active calibration when its underlay is removed', async () => {
+    const selectedUnderlay = createUnderlay();
+    const handle = React.createRef<ActiveModeHarnessHandle>();
+    const onCancelCalibration = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <ActiveModeHarness
+          ref={handle}
+          initialSelectedUnderlayId={selectedUnderlay.id}
+          initialUnderlays={[selectedUnderlay]}
+          mode="calibration"
+          onCancelCalibration={onCancelCalibration}
+        />,
+      );
+    });
+
+    await act(async () => {
+      handle.current!.removeUnderlay(selectedUnderlay.id);
+    });
+
+    expect(container.textContent).toContain(
+      'Calibration was cancelled because the active underlay was removed.',
+    );
+    expect(container.textContent).not.toContain(
+      'Click the first reference point on the PDF underlay.',
+    );
+    expect(onCancelCalibration).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels active crop when its underlay is no longer selected', async () => {
+    const selectedUnderlay = createUnderlay();
+    const otherUnderlay = {
+      ...createUnderlay(),
+      id: 'underlay-2',
+      name: 'Other PDF',
+    };
+    const handle = React.createRef<ActiveModeHarnessHandle>();
+    const onCancelCrop = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <ActiveModeHarness
+          ref={handle}
+          initialSelectedUnderlayId={selectedUnderlay.id}
+          initialUnderlays={[selectedUnderlay, otherUnderlay]}
+          mode="crop"
+          onCancelCrop={onCancelCrop}
+        />,
+      );
+    });
+
+    await act(async () => {
+      handle.current!.selectUnderlay(otherUnderlay.id);
+    });
+
+    expect(container.textContent).toContain(
+      'Crop was cancelled because the active underlay is no longer selected.',
+    );
+    expect(container.textContent).not.toContain(
+      'Click and drag on the selected PDF underlay to define a rectangular crop.',
+    );
+    expect(onCancelCrop).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps valid active mode instructions visible for a safe selected underlay', async () => {
+    const selectedUnderlay = createUnderlay();
+
+    await act(async () => {
+      root.render(
+        <ActiveModeHarness
+          initialSelectedUnderlayId={selectedUnderlay.id}
+          initialUnderlays={[selectedUnderlay]}
+          mode="calibration"
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain('Click the first reference point on the PDF underlay.');
+    expect(container.textContent).not.toContain('was cancelled because');
+  });
 });
 
 function createPanelProps(
@@ -261,3 +558,101 @@ function createDocument(): Document {
     createdAt: '2026-04-29T00:00:00.000Z',
   };
 }
+
+type ActiveModeHarnessHandle = {
+  refresh: () => void;
+  removeUnderlay: (underlayId: string) => void;
+  selectUnderlay: (underlayId: string | null) => void;
+  updateUnderlay: (
+    underlayId: string,
+    updater: (underlay: DraftingUnderlay) => DraftingUnderlay,
+  ) => void;
+};
+
+const ActiveModeHarness = React.forwardRef<
+  ActiveModeHarnessHandle,
+  {
+    initialSelectedUnderlayId: string | null;
+    initialUnderlays: DraftingUnderlay[];
+    mode: 'calibration' | 'crop';
+    onCancelCalibration?: () => void;
+    onCancelCrop?: () => void;
+  }
+>(function ActiveModeHarness(
+  {
+    initialSelectedUnderlayId,
+    initialUnderlays,
+    mode,
+    onCancelCalibration = vi.fn(),
+    onCancelCrop = vi.fn(),
+  },
+  ref,
+) {
+  const [underlays, setUnderlays] = React.useState(initialUnderlays);
+  const [selectedUnderlayId, setSelectedUnderlayId] = React.useState(initialSelectedUnderlayId);
+  const [refreshVersion, setRefreshVersion] = React.useState(0);
+  const [calibrationState, setCalibrationState] = React.useState<{
+    underlayId: string;
+    pdfPointA: { x: number; y: number } | null;
+    pdfPointB: { x: number; y: number } | null;
+  } | null>(() =>
+    mode === 'calibration' && initialSelectedUnderlayId
+      ? {
+          underlayId: initialSelectedUnderlayId,
+          pdfPointA: null,
+          pdfPointB: null,
+        }
+      : null,
+  );
+  const [cropModeUnderlayId, setCropModeUnderlayId] = React.useState<string | null>(
+    mode === 'crop' ? initialSelectedUnderlayId : null,
+  );
+
+  void refreshVersion;
+
+  const selectedUnderlay = underlays.find((underlay) => underlay.id === selectedUnderlayId) ?? null;
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      refresh: () => setRefreshVersion((current) => current + 1),
+      removeUnderlay: (underlayId: string) => {
+        setUnderlays((current) => current.filter((underlay) => underlay.id !== underlayId));
+        setSelectedUnderlayId((current) => (current === underlayId ? null : current));
+      },
+      selectUnderlay: (underlayId: string | null) => setSelectedUnderlayId(underlayId),
+      updateUnderlay: (underlayId, updater) =>
+        setUnderlays((current) =>
+          current.map((underlay) => (underlay.id === underlayId ? updater(underlay) : underlay)),
+        ),
+    }),
+    [],
+  );
+
+  return (
+    <DraftingUnderlaysPanel
+      drawingId="drawing-1"
+      projectId="project-1"
+      underlays={underlays}
+      selectedUnderlay={selectedUnderlay}
+      calibrationState={calibrationState}
+      cropModeUnderlayId={cropModeUnderlayId}
+      onAddUnderlay={vi.fn()}
+      onSelectUnderlay={setSelectedUnderlayId}
+      onUpdateUnderlay={vi.fn()}
+      onRemoveUnderlay={vi.fn()}
+      onBeginCalibration={vi.fn()}
+      onCancelCalibration={() => {
+        onCancelCalibration();
+        setCalibrationState(null);
+      }}
+      onApplyCalibration={vi.fn()}
+      onBeginCrop={vi.fn()}
+      onCancelCrop={() => {
+        onCancelCrop();
+        setCropModeUnderlayId(null);
+      }}
+      onClearCrop={vi.fn()}
+    />
+  );
+});
