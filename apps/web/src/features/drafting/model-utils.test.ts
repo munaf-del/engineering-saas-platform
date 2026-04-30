@@ -15,7 +15,10 @@ import {
   createDraftingObject,
   fitDraftingModelView,
   fitDraftingObjectsView,
+  assignDraftingObjectWorkspace,
+  getDraftingWorkspaces,
   getVisibleDraftingObjects,
+  getVisibleDraftingObjectsForWorkspace,
   getVisibleDraftingUnderlays,
   isDraftingUnderlayRenderable,
   recordDraftingObjectChangeEvent,
@@ -851,6 +854,45 @@ describe('drafting model utils', () => {
     expect(editedLine.metadata.gridSetId).toBe(lines[1]!.metadata.gridSetId);
     expect(editedLine.metadata.label).not.toBe(lines[1]!.metadata.label);
     expect(editedLine.geometry.end.y).not.toBe(lines[1]!.geometry.end.y);
+  });
+
+  it('filters child drafting workspaces without hiding the parent model view', () => {
+    const model = createEmptyDraftingModel('drawing-child-workspaces');
+    const pile = createDraftingObject('pile', { x: 0, y: 0 }, model);
+    const serviceRun = createDraftingObject('service_run', { x: 1000, y: 0 }, model, [
+      { x: 1000, y: 0 },
+      { x: 2200, y: 0 },
+    ]);
+    const monitoringPoint = createDraftingObject('monitoring_point', { x: 500, y: 500 }, model);
+    const assignedPile = assignDraftingObjectWorkspace(pile, 'workspace-custom');
+    const withObjects = {
+      ...model,
+      objects: [assignedPile, serviceRun, monitoringPoint],
+    };
+
+    expect(getDraftingWorkspaces(withObjects).map((workspace) => workspace.id)).toEqual(
+      expect.arrayContaining([
+        'workspace-all',
+        'workspace-shoring',
+        'workspace-services',
+        'workspace-monitoring',
+        'workspace-custom',
+      ]),
+    );
+    expect(getVisibleDraftingObjectsForWorkspace(withObjects, 'workspace-all')).toHaveLength(3);
+    expect(getVisibleDraftingObjectsForWorkspace(withObjects, 'workspace-custom')).toEqual([
+      assignedPile,
+    ]);
+    expect(
+      getVisibleDraftingObjectsForWorkspace(withObjects, 'workspace-services').map(
+        (object) => object.id,
+      ),
+    ).toEqual([serviceRun.id]);
+    expect(
+      getVisibleDraftingObjectsForWorkspace(withObjects, 'workspace-monitoring').map(
+        (object) => object.id,
+      ),
+    ).toEqual([monitoringPoint.id]);
   });
 });
 

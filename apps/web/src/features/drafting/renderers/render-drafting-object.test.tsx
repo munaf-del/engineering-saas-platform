@@ -151,6 +151,44 @@ describe('renderDraftingObject', () => {
     expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
   });
 
+  it('applies object text style metadata to drafting labels without changing geometry', () => {
+    const model = createEmptyDraftingModel('drawing-text-render');
+    const baseLeaderNote = createDraftingObject('leader_note', { x: 1000, y: 2000 }, model);
+    if (baseLeaderNote.type !== 'leader_note') {
+      throw new Error('Expected leader note');
+    }
+    const leaderNote = {
+      ...baseLeaderNote,
+      metadata: {
+        text: 'verify text style',
+      },
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontStyle: 'italic' as const,
+        textCase: 'uppercase' as const,
+      },
+    };
+
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === leaderNote.layerId) ?? null,
+          object: leaderNote,
+          onPointerDown: () => undefined,
+        })}
+      </svg>,
+    );
+
+    expect(markup).toContain('font-family="ISOCP');
+    expect(markup).toContain('font-style="italic"');
+    expect(markup).toContain('font-size="245"');
+    expect(markup).toContain('VERIFY TEXT STYLE');
+    expect(markup).toContain('data-drafting-object-id');
+  });
+
   it('renders independent grid lines with bubble placement, module notation, and line roles', () => {
     const model = createEmptyDraftingModel('drawing-project-grid-line-render');
     const baseLine = createDraftingObject('project_grid_line', { x: 0, y: 0 }, model, [

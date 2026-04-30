@@ -14,6 +14,7 @@ import {
   type DraftingStandardTextPreset,
   type DraftingTextRole,
 } from './drafting-standard-profiles';
+import { toDraftingFontStack } from './drafting-text-style-presets';
 
 const LEGACY_LINE_WEIGHT_UNIT_MM = 0.18;
 const EDITOR_STROKE_PX_PER_MM = 4;
@@ -115,7 +116,9 @@ export function resolveDraftingTextHeightMm(args: {
 
 export type ResolvedDraftingTextStyle = {
   fill: string;
+  fontFamily: string;
   fontSize: number;
+  fontStyle: 'normal' | 'italic';
   fontWeight: number;
   haloColor: string;
   haloStrokeWidth: number;
@@ -123,10 +126,14 @@ export type ResolvedDraftingTextStyle = {
   secondaryFill: string;
   secondaryFontSize: number;
   secondaryFontWeight: number;
+  textAnchor: 'start' | 'middle' | 'end';
+  textBaseline: 'hanging' | 'middle' | 'baseline';
+  textCase: 'as_entered' | 'uppercase';
   textHeightMm: number;
 };
 
 export function resolveDraftingTextStyle(args: {
+  object?: Pick<DraftingObject, 'style' | 'type'> | null;
   role: DraftingTextRole | DraftingStandardTextPreset;
   setup?: DraftingDrawingSetup | null;
   sheetSize?: DraftingSheetSizePreset;
@@ -137,14 +144,19 @@ export function resolveDraftingTextStyle(args: {
   const preset = Object.values(profile.textPresets).find(
     (candidate) => candidate.textRole === resolvedRole,
   );
-  const textHeightMm = resolveDraftingTextHeightMm({ ...args, role: resolvedRole });
+  const profileTextHeightMm = resolveDraftingTextHeightMm({ ...args, role: resolvedRole });
+  const textHeightMm = args.object?.style?.textHeightMm ?? profileTextHeightMm;
   const fontSize =
     args.surface === 'sheet' ? textHeightMm : textHeightMm * CANVAS_TEXT_UNITS_PER_MM;
   const emphasis = preset?.emphasis ?? (resolvedRole === 'dimension' ? 'medium' : 'normal');
+  const textAlign = args.object?.style?.textAlign;
+  const textBaseline = args.object?.style?.textBaseline;
 
   return {
     fill: profile.palette.ink,
+    fontFamily: toDraftingFontStack(args.object?.style?.fontFamily),
     fontSize,
+    fontStyle: args.object?.style?.fontStyle ?? 'normal',
     fontWeight: emphasis === 'strong' ? 700 : emphasis === 'medium' ? 600 : 500,
     haloColor: profile.palette.halo,
     haloStrokeWidth: Math.max(args.surface === 'sheet' ? 0.18 : 14, fontSize * 0.08),
@@ -152,11 +164,16 @@ export function resolveDraftingTextStyle(args: {
     secondaryFill: profile.palette.softInk,
     secondaryFontSize: fontSize * 0.74,
     secondaryFontWeight: 500,
+    textAnchor: textAlign === 'center' ? 'middle' : textAlign === 'right' ? 'end' : 'start',
+    textBaseline:
+      textBaseline === 'top' ? 'hanging' : textBaseline === 'middle' ? 'middle' : 'baseline',
+    textCase: args.object?.style?.textCase ?? 'as_entered',
     textHeightMm,
   };
 }
 
 export function resolveDraftingDimensionStyle(args: {
+  object?: Pick<DraftingObject, 'style' | 'type'> | null;
   setup?: DraftingDrawingSetup | null;
   surface?: 'editor' | 'sheet';
 }) {
@@ -173,6 +190,7 @@ export function resolveDraftingDimensionStyle(args: {
     extensionStyle,
     lineStyle,
     textStyle: resolveDraftingTextStyle({
+      object: args.object,
       role: profile.dimensionStyle.textPreset,
       setup: args.setup,
       surface: args.surface,
@@ -181,6 +199,7 @@ export function resolveDraftingDimensionStyle(args: {
 }
 
 export function resolveDraftingLeaderStyle(args: {
+  object?: Pick<DraftingObject, 'style' | 'type'> | null;
   setup?: DraftingDrawingSetup | null;
   surface?: 'editor' | 'sheet';
 }) {
@@ -191,6 +210,7 @@ export function resolveDraftingLeaderStyle(args: {
     ...profile.leaderStyle,
     lineStyle: lineResolver({ role: profile.leaderStyle.lineRole, setup: args.setup }),
     textStyle: resolveDraftingTextStyle({
+      object: args.object,
       role: profile.leaderStyle.textPreset,
       setup: args.setup,
       surface: args.surface,
@@ -200,6 +220,13 @@ export function resolveDraftingLeaderStyle(args: {
 
 export const getLineStyle = resolveDraftingLineStyle;
 export const getTextStyle = resolveDraftingTextStyle;
+
+export function applyDraftingTextCase(
+  value: string,
+  style: Pick<ResolvedDraftingTextStyle, 'textCase'>,
+) {
+  return style.textCase === 'uppercase' ? value.toUpperCase() : value;
+}
 
 function resolveDraftingTextRole(
   role: DraftingTextRole | DraftingStandardTextPreset,

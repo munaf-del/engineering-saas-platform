@@ -142,6 +142,39 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).toContain('endpoint 2');
   });
 
+  it('shows project text style and child workspace controls for text-bearing objects', () => {
+    const model = createEmptyDraftingModel('drawing-text-style-properties');
+    const note = {
+      ...createDraftingObject('leader_note', { x: 0, y: 0 }, model),
+      workspaceId: 'workspace-shoring',
+      style: {
+        fontFamily: 'ISOCP',
+        textHeightMm: 3.5,
+        fontWeight: 'bold' as const,
+        textAlign: 'center' as const,
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={model.layers}
+        object={note}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+        onWorkspaceChange={() => undefined}
+        workspaces={model.workspaces ?? []}
+      />,
+    );
+
+    expect(markup).toContain('Text');
+    expect(markup).toContain('AS1100 profile text presets');
+    expect(markup).toContain('data-testid="drafting-text-font-family"');
+    expect(markup).toContain('data-testid="drafting-text-height"');
+    expect(markup).toContain('Custom height (mm)');
+    expect(markup).toContain('Assigned workspace');
+    expect(markup).toContain('data-testid="drafting-object-workspace-select"');
+    expect(markup).toContain('Workspace filters model objects');
+  });
+
   it('shows project grid editing controls and honours locked grid layers', () => {
     const model = createEmptyDraftingModel('drawing-project-grid-properties');
     const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);

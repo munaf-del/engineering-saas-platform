@@ -2,11 +2,14 @@ import * as React from 'react';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
-  resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
   type DraftingLeaderNoteRendererProps,
 } from './renderer-types';
+import {
+  applyDraftingTextCase,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
 
 export function LeaderNoteRenderer({
   drawingSetup,
@@ -26,7 +29,12 @@ export function LeaderNoteRenderer({
     surface,
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160, drawingSetup);
+  const textStyle = resolveDraftingTextStyle({
+    object,
+    role: 'generalNote',
+    setup: drawingSetup,
+    surface,
+  });
   const vectorEffect = resolveRendererVectorEffect(surface);
   const { anchor, textPoint } = object.geometry;
   const compactAtScale =
@@ -62,8 +70,16 @@ export function LeaderNoteRenderer({
           y={textPoint.y - 250}
         />
       )}
-      <text fill={stroke} fontSize={textSize} x={textPoint.x + 100} y={textPoint.y - 45}>
-        {object.metadata.text}
+      <text
+        fill={stroke}
+        fontFamily={textStyle.fontFamily}
+        fontSize={textStyle.fontSize}
+        fontStyle={textStyle.fontStyle}
+        fontWeight={textStyle.fontWeight}
+        x={textPoint.x + 100}
+        y={textPoint.y - 45}
+      >
+        {applyDraftingTextCase(object.metadata.text, textStyle)}
       </text>
     </g>
   );

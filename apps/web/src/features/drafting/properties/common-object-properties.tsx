@@ -1,5 +1,18 @@
 import * as React from 'react';
-import type { DraftingLayer, DraftingObject } from '@eng/shared';
+import type {
+  DraftingFontStyle,
+  DraftingFontWeight,
+  DraftingLayer,
+  DraftingObject,
+  DraftingTextAlignment,
+  DraftingTextCase,
+} from '@eng/shared';
+import {
+  DRAFTING_FONT_STYLES,
+  DRAFTING_FONT_WEIGHTS,
+  DRAFTING_TEXT_ALIGNMENTS,
+  DRAFTING_TEXT_CASES,
+} from '@eng/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -9,6 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DEFAULT_DRAFTING_TEXT_FONT_FAMILY,
+  DEFAULT_DRAFTING_TEXT_HEIGHT_MM,
+  DRAFTING_EXTENDED_TEXT_HEIGHT_PRESETS_MM,
+  DRAFTING_TEXT_FONT_FAMILIES,
+} from '../standards/drafting-text-style-presets';
 
 export function DraftingCommonObjectProperties({
   layers,
@@ -99,8 +118,226 @@ export function DraftingCommonObjectProperties({
           </Field>
         </div>
       </PropertySection>
+
+      {isDraftingTextStyleTarget(object) ? (
+        <PropertySection title="Text">
+          <p className="text-xs text-muted-foreground">
+            AS1100 profile text presets provide drafting defaults; project verification remains
+            required.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Font family">
+              <Select
+                value={object.style?.fontFamily ?? DEFAULT_DRAFTING_TEXT_FONT_FAMILY}
+                onValueChange={(value) =>
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      fontFamily: value,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              >
+                <SelectTrigger data-testid="drafting-text-font-family">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_TEXT_FONT_FAMILIES.map((fontFamily) => (
+                    <SelectItem key={fontFamily} value={fontFamily}>
+                      {fontFamily}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Text height">
+              <Select
+                value={String(object.style?.textHeightMm ?? DEFAULT_DRAFTING_TEXT_HEIGHT_MM)}
+                onValueChange={(value) => {
+                  const textHeightMm = Number(value);
+                  if (!Number.isFinite(textHeightMm) || textHeightMm <= 0) {
+                    return;
+                  }
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      textHeightMm,
+                      textSize: textHeightMm * 70,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  });
+                }}
+              >
+                <SelectTrigger data-testid="drafting-text-height">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_EXTENDED_TEXT_HEIGHT_PRESETS_MM.map((height) => (
+                    <SelectItem key={height} value={String(height)}>
+                      {height} mm
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <NumberField
+              label="Custom height (mm)"
+              value={object.style?.textHeightMm ?? DEFAULT_DRAFTING_TEXT_HEIGHT_MM}
+              onChange={(value) => {
+                const textHeightMm = Math.max(0.1, value);
+                onUpdate({
+                  ...object,
+                  style: {
+                    ...object.style,
+                    textHeightMm,
+                    textSize: textHeightMm * 70,
+                  },
+                  updatedAt: new Date().toISOString(),
+                });
+              }}
+            />
+
+            <Field label="Weight">
+              <Select
+                value={object.style?.fontWeight ?? 'regular'}
+                onValueChange={(value) =>
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      fontWeight: value as DraftingFontWeight,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_FONT_WEIGHTS.map((weight) => (
+                    <SelectItem key={weight} value={weight}>
+                      {weight.replaceAll('_', ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Style">
+              <Select
+                value={object.style?.fontStyle ?? 'normal'}
+                onValueChange={(value) =>
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      fontStyle: value as DraftingFontStyle,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_FONT_STYLES.map((style) => (
+                    <SelectItem key={style} value={style}>
+                      {style.replaceAll('_', ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Case">
+              <Select
+                value={object.style?.textCase ?? 'as_entered'}
+                onValueChange={(value) =>
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      textCase: value as DraftingTextCase,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_TEXT_CASES.map((textCase) => (
+                    <SelectItem key={textCase} value={textCase}>
+                      {textCase === 'as_entered' ? 'As entered' : 'Uppercase'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Alignment">
+              <Select
+                value={object.style?.textAlign ?? 'left'}
+                onValueChange={(value) =>
+                  onUpdate({
+                    ...object,
+                    style: {
+                      ...object.style,
+                      textAlign: value as DraftingTextAlignment,
+                    },
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DRAFTING_TEXT_ALIGNMENTS.map((alignment) => (
+                    <SelectItem key={alignment} value={alignment}>
+                      {alignment}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        </PropertySection>
+      ) : null}
     </div>
   );
+}
+
+function isDraftingTextStyleTarget(object: DraftingObject) {
+  return [
+    'leader_note',
+    'callout',
+    'section_marker',
+    'dimension_chain',
+    'project_grid',
+    'project_grid_line',
+    'shaft',
+    'pile',
+    'secant_pile_wall',
+    'soldier_pile_wall',
+    'anchor_tieback',
+    'capping_beam',
+    'waler',
+    'excavation_line',
+    'monitoring_point',
+    'borehole',
+    'service_run',
+    'service_crossing',
+    'structural_joint',
+  ].includes(object.type);
 }
 
 export function PropertySection({ children, title }: { children: React.ReactNode; title: string }) {

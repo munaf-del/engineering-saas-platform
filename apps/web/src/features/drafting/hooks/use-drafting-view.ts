@@ -173,10 +173,12 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
   }
 
   function handleBackgroundPointerDown(event: React.PointerEvent<SVGSVGElement>) {
-    if (activeTool !== 'pan' || !model || editorView.locked) {
+    const isMiddleButton = event.button === 1;
+    if ((!isMiddleButton && activeTool !== 'pan') || !model || editorView.locked) {
       return;
     }
 
+    event.preventDefault();
     setPanState({
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -304,6 +306,7 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
     handleSetZoomScale,
     handleZoomIn,
     handleZoomOut,
+    isPanning: Boolean(panState),
     isViewLocked: editorView.locked,
     setViewLocked,
   };

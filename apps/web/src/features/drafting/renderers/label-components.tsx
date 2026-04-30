@@ -51,7 +51,9 @@ export function DraftingCanvasLabel({
     textStyle ??
     ({
       fill: stroke,
+      fontFamily: 'Arial, Helvetica, sans-serif',
       fontSize: textSize,
+      fontStyle: 'normal',
       fontWeight: 600,
       haloColor: defaultLeaderStyle.labelHaloColor,
       haloStrokeWidth: Math.max(surface === 'sheet' ? 0.18 : 14, textSize * 0.08),
@@ -59,6 +61,9 @@ export function DraftingCanvasLabel({
       secondaryFill: profile.palette.softInk,
       secondaryFontSize: textSize * 0.74,
       secondaryFontWeight: 500,
+      textAnchor: 'start',
+      textBaseline: 'middle',
+      textCase: 'as_entered',
       textHeightMm: surface === 'sheet' ? textSize : textSize / 70,
     } satisfies ResolvedDraftingTextStyle);
 
@@ -80,7 +85,9 @@ export function DraftingCanvasLabel({
         <text
           dominantBaseline="middle"
           fill={index === 0 ? stroke : resolvedTextStyle.secondaryFill}
+          fontFamily={resolvedTextStyle.fontFamily}
           fontSize={index === 0 ? resolvedTextStyle.fontSize : resolvedTextStyle.secondaryFontSize}
+          fontStyle={resolvedTextStyle.fontStyle}
           fontWeight={
             index === 0 ? resolvedTextStyle.fontWeight : resolvedTextStyle.secondaryFontWeight
           }

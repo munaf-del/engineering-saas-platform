@@ -3,12 +3,15 @@ import type { DraftingCalloutArrowStyle, DraftingPoint } from '@eng/shared';
 import {
   DRAFTING_SELECTION_STYLE,
   DRAFTING_TECHNICAL_FILLS,
-  resolveCanvasLabelSize,
   resolveRendererLineStyle,
   resolveRendererVectorEffect,
   type DraftingCalloutRendererProps,
 } from './renderer-types';
 import { buildFullAnnotationFooter, resolveEffectiveLabelMode } from './label-policy';
+import {
+  applyDraftingTextCase,
+  resolveDraftingTextStyle,
+} from '../standards/drafting-style-resolver';
 
 const BOX_WIDTH = 1900;
 
@@ -31,7 +34,13 @@ export function CalloutRenderer({
   });
   const stroke = object.style?.stroke ?? lineStyle.color;
   const fill = object.style?.fill ?? DRAFTING_TECHNICAL_FILLS.annotation;
-  const textSize = resolveCanvasLabelSize(object.style?.textSize, 160, drawingSetup);
+  const textStyle = resolveDraftingTextStyle({
+    object,
+    role: 'callout',
+    setup: drawingSetup,
+    surface,
+  });
+  const textSize = Math.min(textStyle.fontSize, surface === 'sheet' ? textStyle.fontSize : 220);
   const vectorEffect = resolveRendererVectorEffect(surface);
   const effectiveLabelMode = resolveEffectiveLabelMode({ labelMode, surface });
   const compactAtScale = surface !== 'sheet' && !isSelected && (viewScale ?? 1) < 0.08;
@@ -93,8 +102,16 @@ export function CalloutRenderer({
         x={boxX}
         y={boxY}
       />
-      <text fill={stroke} fontSize={textSize} fontWeight={600} x={boxX + 120} y={boxY + 220}>
-        {object.parameters.title}
+      <text
+        fill={stroke}
+        fontFamily={textStyle.fontFamily}
+        fontSize={textSize}
+        fontStyle={textStyle.fontStyle}
+        fontWeight={600}
+        x={boxX + 120}
+        y={boxY + 220}
+      >
+        {applyDraftingTextCase(object.parameters.title, textStyle)}
       </text>
       <line
         stroke={stroke}
@@ -110,22 +127,26 @@ export function CalloutRenderer({
         <text
           key={`${object.id}-line-${index}`}
           fill={stroke}
+          fontFamily={textStyle.fontFamily}
           fontSize={textSize * 0.95}
+          fontStyle={textStyle.fontStyle}
           x={boxX + 120}
           y={boxY + 500 + index * 190}
         >
-          {line}
+          {applyDraftingTextCase(line, textStyle)}
         </text>
       ))}
       {footer ? (
         <text
           fill={stroke}
+          fontFamily={textStyle.fontFamily}
           fontSize={textSize * 0.7}
+          fontStyle={textStyle.fontStyle}
           opacity={0.62}
           x={boxX + BOX_WIDTH - 520}
           y={boxY + boxHeight - 90}
         >
-          {footer}
+          {applyDraftingTextCase(footer, textStyle)}
         </text>
       ) : null}
     </g>

@@ -101,10 +101,31 @@ export const DRAFTING_MODEL_UNITS = ['mm'] as const;
 export const DRAFTING_DISPLAY_UNITS = ['mm', 'm'] as const;
 export const DRAFTING_LINE_WEIGHT_MODES = ['screen_constant', 'paper_preview'] as const;
 export const DRAFTING_TEXT_SCALE_MODES = ['model', 'screen_constant'] as const;
+export const DRAFTING_FONT_WEIGHTS = ['regular', 'bold'] as const;
+export const DRAFTING_FONT_STYLES = ['normal', 'italic'] as const;
+export const DRAFTING_TEXT_ALIGNMENTS = ['left', 'center', 'right'] as const;
+export const DRAFTING_TEXT_BASELINES = ['top', 'middle', 'bottom'] as const;
+export const DRAFTING_TEXT_CASES = ['as_entered', 'uppercase'] as const;
+export const DRAFTING_WORKSPACE_KINDS = [
+  'parent',
+  'civil',
+  'survey',
+  'shoring',
+  'services',
+  'monitoring',
+  'geotech',
+  'custom',
+] as const;
 export type DraftingModelUnits = (typeof DRAFTING_MODEL_UNITS)[number];
 export type DraftingDisplayUnits = (typeof DRAFTING_DISPLAY_UNITS)[number];
 export type DraftingLineWeightMode = (typeof DRAFTING_LINE_WEIGHT_MODES)[number];
 export type DraftingTextScaleMode = (typeof DRAFTING_TEXT_SCALE_MODES)[number];
+export type DraftingFontWeight = (typeof DRAFTING_FONT_WEIGHTS)[number];
+export type DraftingFontStyle = (typeof DRAFTING_FONT_STYLES)[number];
+export type DraftingTextAlignment = (typeof DRAFTING_TEXT_ALIGNMENTS)[number];
+export type DraftingTextBaseline = (typeof DRAFTING_TEXT_BASELINES)[number];
+export type DraftingTextCase = (typeof DRAFTING_TEXT_CASES)[number];
+export type DraftingWorkspaceKind = (typeof DRAFTING_WORKSPACE_KINDS)[number];
 
 export const DRAFTING_PILE_TYPES = [
   'bored',
@@ -329,6 +350,13 @@ export type DraftingStyle = {
   lineWeightMm?: number;
   lineStyle?: DraftingLineStyle;
   textSize?: number;
+  fontFamily?: string;
+  textHeightMm?: number;
+  fontWeight?: DraftingFontWeight;
+  fontStyle?: DraftingFontStyle;
+  textAlign?: DraftingTextAlignment;
+  textBaseline?: DraftingTextBaseline;
+  textCase?: DraftingTextCase;
 };
 
 export type DraftingLayer = {
@@ -807,6 +835,7 @@ export type DraftingObjectBase = {
   metadata?: Record<string, unknown>;
   provenance?: DraftingObjectProvenance;
   sourceRef?: DraftingObjectSourceRef;
+  workspaceId?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -1342,6 +1371,26 @@ export type DraftingObject =
   | DraftingShaftObject
   | DraftingPlaceholderObject;
 
+export type DraftingWorkspaceObjectFilter = {
+  layerIds?: DraftingLayerId[];
+  objectTypes?: DraftingObjectType[];
+  objectIds?: string[];
+};
+
+export type DraftingWorkspace = {
+  id: string;
+  name: string;
+  kind: DraftingWorkspaceKind;
+  description?: string;
+  visible: boolean;
+  locked: boolean;
+  color?: string;
+  objectFilter?: DraftingWorkspaceObjectFilter;
+  spatialViewRef?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DraftingModel = {
   version: 1;
   units: 'mm';
@@ -1355,6 +1404,7 @@ export type DraftingModel = {
   layers: DraftingLayer[];
   underlays: DraftingUnderlay[];
   objects: DraftingObject[];
+  workspaces?: DraftingWorkspace[];
   objectChangeEvents?: DraftingObjectChangeEvent[];
   titleBlock?: DraftingTitleBlockMetadata;
   revisionBlock?: DraftingRevisionBlockMetadata;
@@ -1608,6 +1658,98 @@ export function createDefaultDraftingLayers(): DraftingLayer[] {
   return DEFAULT_DRAFTING_LAYERS.map((layer) => ({ ...layer }));
 }
 
+const DEFAULT_DRAFTING_WORKSPACES: DraftingWorkspace[] = [
+  {
+    id: 'workspace-all',
+    name: 'All',
+    kind: 'parent',
+    description: 'Parent project model view.',
+    visible: true,
+    locked: true,
+    color: '#111827',
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+  },
+  workspace('workspace-civil', 'Civil', 'civil', '#2563eb', ['grid', 'excavation', 'dimensions']),
+  workspace('workspace-survey', 'Survey', 'survey', '#0f766e', [
+    'grid',
+    'boreholes',
+    'monitoring',
+    'dimensions',
+  ]),
+  workspace('workspace-shoring', 'Shoring', 'shoring', '#7c2d12', [
+    'grid',
+    'shoring',
+    'piles',
+    'anchors',
+    'beams_walers',
+    'excavation',
+    'dimensions',
+    'notes',
+  ]),
+  workspace('workspace-services', 'Services', 'services', '#6d28d9', [
+    'grid',
+    'services',
+    'services_conflicts',
+    'dimensions',
+    'notes',
+  ]),
+  workspace('workspace-monitoring', 'Monitoring', 'monitoring', '#b45309', [
+    'grid',
+    'monitoring',
+    'dimensions',
+    'notes',
+  ]),
+  workspace('workspace-geotech', 'Geotech', 'geotech', '#166534', [
+    'grid',
+    'boreholes',
+    'monitoring',
+    'excavation',
+    'dimensions',
+    'notes',
+  ]),
+  workspace('workspace-custom', 'Custom', 'custom', '#475569', []),
+];
+
+export function createDefaultDraftingWorkspaces(): DraftingWorkspace[] {
+  return DEFAULT_DRAFTING_WORKSPACES.map((workspace) => ({
+    ...workspace,
+    objectFilter: workspace.objectFilter
+      ? {
+          ...workspace.objectFilter,
+          layerIds: workspace.objectFilter.layerIds ? [...workspace.objectFilter.layerIds] : [],
+          objectTypes: workspace.objectFilter.objectTypes
+            ? [...workspace.objectFilter.objectTypes]
+            : undefined,
+          objectIds: workspace.objectFilter.objectIds ? [...workspace.objectFilter.objectIds] : [],
+        }
+      : undefined,
+  }));
+}
+
+function workspace(
+  id: string,
+  name: string,
+  kind: DraftingWorkspaceKind,
+  color: string,
+  layerIds: DraftingLayerId[],
+): DraftingWorkspace {
+  return {
+    id,
+    name,
+    kind,
+    description: `${name} discipline workspace filter.`,
+    visible: true,
+    locked: false,
+    color,
+    objectFilter: {
+      layerIds,
+    },
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+  };
+}
+
 export function createDefaultDraftingDrawingSetup(
   patch: Partial<DraftingDrawingSetup> = {},
 ): DraftingDrawingSetup {
@@ -1691,6 +1833,7 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     ...model,
     drawingSetup: ensureDraftingDrawingSetup(model),
     layers: [...orderedLayers, ...extraLayers],
+    workspaces: ensureDraftingModelWorkspaces(model),
     objectChangeEvents: model.objectChangeEvents ?? [],
     titleBlock: model.titleBlock ?? {},
     revisionBlock: {
@@ -1703,6 +1846,18 @@ export function ensureDraftingModelLayers(model: DraftingModel): DraftingModel {
     drawingSheetIssues: model.drawingSheetIssues ?? [],
     drawingTransmittals: model.drawingTransmittals ?? [],
   };
+}
+
+export function ensureDraftingModelWorkspaces(model: DraftingModel): DraftingWorkspace[] {
+  const existingWorkspaces = model.workspaces ?? [];
+  const existingById = new Map(existingWorkspaces.map((workspace) => [workspace.id, workspace]));
+  const defaultIds = new Set(DEFAULT_DRAFTING_WORKSPACES.map((workspace) => workspace.id));
+  const orderedDefaults = createDefaultDraftingWorkspaces().map(
+    (workspace) => existingById.get(workspace.id) ?? workspace,
+  );
+  const extras = existingWorkspaces.filter((workspace) => !defaultIds.has(workspace.id));
+
+  return [...orderedDefaults, ...extras];
 }
 
 export function createEmptyDraftingModel(drawingId: string): DraftingModel {
@@ -1718,6 +1873,7 @@ export function createEmptyDraftingModel(drawingId: string): DraftingModel {
     layers: createDefaultDraftingLayers(),
     underlays: [],
     objects: [],
+    workspaces: createDefaultDraftingWorkspaces(),
     objectChangeEvents: [],
     titleBlock: {},
     revisionBlock: {

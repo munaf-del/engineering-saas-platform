@@ -76,6 +76,22 @@ describe('drafting report integration utils', () => {
         }),
       ]),
     );
+    expect(index.workspaces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'workspace-all',
+          kind: 'parent',
+          objectCount: 1,
+          visible: true,
+        }),
+        expect.objectContaining({
+          id: 'workspace-shoring',
+          kind: 'shoring',
+          objectCount: 1,
+          visible: true,
+        }),
+      ]),
+    );
     expect(index.revisionSnapshots).toEqual([
       {
         createdAt: NOW,

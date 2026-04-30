@@ -23,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -74,6 +75,7 @@ export function DraftingStage({
   labelMode = 'minimal',
   onBackgroundPointerDown,
   onCanvasClick,
+  onCanvasContextMenu,
   onCanvasPointerMove,
   onCanvasWheel,
   onCenterReference,
@@ -120,6 +122,7 @@ export function DraftingStage({
   labelMode?: DraftingCanvasLabelMode;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onCanvasClick: (event: React.MouseEvent<SVGSVGElement>) => void;
+  onCanvasContextMenu?: (event: React.MouseEvent<SVGSVGElement>) => void;
   onCanvasPointerMove?: (point: DraftingPoint | null) => void;
   onCanvasWheel: (event: React.WheelEvent<SVGSVGElement>) => void;
   onCenterReference: () => void;
@@ -384,6 +387,12 @@ export function DraftingStage({
             data-testid="drafting-canvas-svg"
             onWheel={onCanvasWheel}
             onClick={onCanvasClick}
+            onAuxClick={(event) => {
+              if (event.button === 1) {
+                event.preventDefault();
+              }
+            }}
+            onContextMenu={onCanvasContextMenu}
             onPointerMove={handlePointerMove}
             onPointerDown={onBackgroundPointerDown}
           >
@@ -505,6 +514,73 @@ export function DraftingStage({
   );
 }
 
+const FLOATING_TOOL_GROUPS: Array<{
+  title: string;
+  tools: Array<{ tool: DraftingTool; label: string }>;
+}> = [
+  {
+    title: 'Navigate',
+    tools: [
+      { tool: 'select', label: 'Select / Move' },
+      { tool: 'pan', label: 'Pan' },
+    ],
+  },
+  {
+    title: 'Shoring',
+    tools: [
+      { tool: 'pile', label: 'Pile' },
+      { tool: 'secant_pile_wall', label: 'Secant pile wall' },
+      { tool: 'soldier_pile_wall', label: 'Soldier pile wall' },
+      { tool: 'shaft', label: 'Shaft' },
+      { tool: 'anchor_tieback', label: 'Anchor / tieback' },
+      { tool: 'capping_beam', label: 'Capping beam' },
+      { tool: 'waler', label: 'Waler' },
+      { tool: 'excavation_line', label: 'Excavation line' },
+    ],
+  },
+  {
+    title: 'Survey / Monitoring',
+    tools: [
+      { tool: 'monitoring_point', label: 'Monitoring point' },
+      { tool: 'borehole', label: 'Borehole' },
+    ],
+  },
+  {
+    title: 'Services',
+    tools: [
+      { tool: 'service_run', label: 'Service run' },
+      { tool: 'service_crossing', label: 'Service crossing' },
+    ],
+  },
+  {
+    title: 'Geometry',
+    tools: [
+      { tool: 'draft_line', label: 'Line' },
+      { tool: 'draft_polyline', label: 'Polyline' },
+      { tool: 'draft_rectangle', label: 'Rectangle' },
+      { tool: 'draft_circle', label: 'Circle' },
+      { tool: 'draft_polygon', label: 'Polygon' },
+      { tool: 'structural_joint', label: 'Joint / node' },
+    ],
+  },
+  {
+    title: 'Reference',
+    tools: [
+      { tool: 'project_grid_line', label: 'Project grid line' },
+      { tool: 'project_grid', label: 'Grid set estimate' },
+    ],
+  },
+  {
+    title: 'Annotation',
+    tools: [
+      { tool: 'dimension_chain', label: 'Dimension chain' },
+      { tool: 'callout', label: 'Callout' },
+      { tool: 'section_marker', label: 'Section marker' },
+      { tool: 'leader_note', label: 'Leader note' },
+    ],
+  },
+];
+
 function DraftingCanvasZoomControls({
   activeTool,
   activeToolLabel,
@@ -584,10 +660,38 @@ function DraftingCanvasZoomControls({
           data-testid="drafting-floating-controls"
         >
           <div
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
+            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/90 p-1"
             data-testid="drafting-floating-tool-cluster"
           >
             <Badge variant="secondary">Tool {activeToolLabel}</Badge>
+            <div data-testid="drafting-floating-tool-palette">
+              <Select
+                disabled={!onToolChange}
+                value={activeTool}
+                onValueChange={(tool) => onToolChange?.(tool as DraftingTool)}
+              >
+                <SelectTrigger
+                  className="h-7 w-[168px] text-[11px]"
+                  data-testid="drafting-floating-tool-trigger"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent data-testid="drafting-floating-tool-select">
+                  {FLOATING_TOOL_GROUPS.map((group) => (
+                    <SelectGroup key={group.title}>
+                      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.title}
+                      </div>
+                      {group.tools.map((entry) => (
+                        <SelectItem key={entry.tool} value={entry.tool}>
+                          {entry.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {[
               ['select', 'Select'],
               ['pan', 'Pan'],
@@ -625,6 +729,7 @@ function DraftingCanvasZoomControls({
             <Button
               aria-label="Restore canvas"
               className="h-7 px-2 text-[11px]"
+              data-testid="drafting-canvas-focus-restore"
               size="sm"
               type="button"
               variant="outline"
@@ -637,6 +742,7 @@ function DraftingCanvasZoomControls({
             className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
             data-testid="drafting-floating-aids-cluster"
           >
+            <div className="contents" data-testid="drafting-floating-aids-controls" />
             <Badge variant={snapSettings.enabled ? 'secondary' : 'outline'}>
               Snap {snapSettings.enabled ? 'on' : 'off'}
             </Badge>
@@ -651,6 +757,7 @@ function DraftingCanvasZoomControls({
             className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
             data-testid="drafting-floating-inspector-cluster"
           >
+            <div className="contents" data-testid="drafting-floating-inspector-toggle" />
             <Badge variant={selectedObjectId ? 'secondary' : 'outline'}>
               {selectedObjectId ? 'Object selected' : 'No selection'}
             </Badge>
@@ -658,7 +765,11 @@ function DraftingCanvasZoomControls({
           </div>
         </div>
       ) : null}
-      <div className="flex items-center gap-1" data-testid="drafting-canvas-view-controls">
+      <div
+        className="flex items-center gap-1"
+        data-testid="drafting-canvas-view-controls"
+        data-floating-view-controls={canvasFocusMode || browserFullscreenActive ? 'true' : 'false'}
+      >
         <span className="px-1 text-xs font-medium text-muted-foreground">View</span>
         <Button
           aria-label="Zoom out"

@@ -1,9 +1,16 @@
 import * as React from 'react';
-import type { DraftingLayer, DraftingObject, DraftingPoint } from '@eng/shared';
+import type { DraftingLayer, DraftingObject, DraftingPoint, DraftingWorkspace } from '@eng/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { AnchorTiebackProperties } from '../properties/anchor-tieback-properties';
 import { BoreholeProperties } from '../properties/borehole-properties';
 import { CalloutProperties } from '../properties/callout-properties';
@@ -35,9 +42,11 @@ export function DraftingPropertiesPanel({
   onDelete,
   onRefreshSource,
   onUpdate,
+  onWorkspaceChange,
   referenceDatum,
   sourceRefreshState = 'current',
   sourceManageHref,
+  workspaces = [],
 }: {
   layers: DraftingLayer[];
   object: DraftingObject | null;
@@ -45,9 +54,11 @@ export function DraftingPropertiesPanel({
   onDelete: () => void;
   onRefreshSource?: (object: DraftingObject, options?: { updateCoordinates?: boolean }) => void;
   onUpdate: (nextObject: DraftingObject) => void;
+  onWorkspaceChange?: (object: DraftingObject, workspaceId: string | undefined) => void;
   referenceDatum?: string;
   sourceRefreshState?: 'current' | 'stale' | 'missing';
   sourceManageHref?: string;
+  workspaces?: DraftingWorkspace[];
 }) {
   if (!object) {
     return (
@@ -97,6 +108,12 @@ export function DraftingPropertiesPanel({
           />
 
           <DraftingCommonObjectProperties layers={layers} object={object} onUpdate={onUpdate} />
+
+          <DraftingWorkspaceAssignmentProperties
+            object={object}
+            onWorkspaceChange={onWorkspaceChange}
+            workspaces={workspaces}
+          />
 
           <DraftingCoordinateSummary object={object} referenceDatum={referenceDatum} />
 
@@ -177,6 +194,50 @@ export function DraftingPropertiesPanel({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function DraftingWorkspaceAssignmentProperties({
+  object,
+  onWorkspaceChange,
+  workspaces,
+}: {
+  object: DraftingObject;
+  onWorkspaceChange?: (object: DraftingObject, workspaceId: string | undefined) => void;
+  workspaces: DraftingWorkspace[];
+}) {
+  if (workspaces.length === 0) {
+    return null;
+  }
+
+  return (
+    <PropertySection title="Workspace">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Assigned workspace</div>
+          <Select
+            value={object.workspaceId ?? 'workspace-all'}
+            onValueChange={(value) =>
+              onWorkspaceChange?.(object, value === 'workspace-all' ? undefined : value)
+            }
+          >
+            <SelectTrigger data-testid="drafting-object-workspace-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {workspaces.map((workspace) => (
+                <SelectItem key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="self-end text-xs text-muted-foreground">
+          Workspace filters model objects; source-linked spatial views will be connected later.
+        </p>
+      </div>
+    </PropertySection>
   );
 }
 

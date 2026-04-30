@@ -216,16 +216,55 @@ describe('useDraftingView', () => {
 
     await hook.unmount();
   });
+
+  it('uses middle-button hold as temporary pan without changing the active tool contract', async () => {
+    const model = createEmptyDraftingModel('drawing-middle-pan-hook');
+    const hook = await renderDraftingViewHook(model, 'project_grid_line');
+    const preventDefault = vi.fn();
+    const initialView = hook.current.currentView;
+
+    await act(async () => {
+      hook.current.handleBackgroundPointerDown({
+        button: 1,
+        clientX: 100,
+        clientY: 120,
+        preventDefault,
+      } as unknown as React.PointerEvent<SVGSVGElement>);
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+
+    await act(async () => {
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 160, clientY: 200 }));
+    });
+
+    expect(hook.current.currentView).toMatchObject({
+      offsetX: initialView.offsetX + 60,
+      offsetY: initialView.offsetY + 80,
+      mode: 'custom',
+    });
+    expect(hook.current.isPanning).toBe(true);
+
+    await act(async () => {
+      window.dispatchEvent(new PointerEvent('pointerup'));
+    });
+
+    expect(hook.current.isPanning).toBe(false);
+    await hook.unmount();
+  });
 });
 
-async function renderDraftingViewHook(model: ReturnType<typeof createEmptyDraftingModel>) {
+async function renderDraftingViewHook(
+  model: ReturnType<typeof createEmptyDraftingModel>,
+  activeTool: Parameters<typeof useDraftingView>[0]['activeTool'] = 'select',
+) {
   const element = document.createElement('div');
   const root = createRoot(element);
   let current: ReturnType<typeof useDraftingView> | null = null;
 
   function Harness() {
     current = useDraftingView({
-      activeTool: 'select',
+      activeTool,
       drawingId: model.drawingId,
       model,
     });

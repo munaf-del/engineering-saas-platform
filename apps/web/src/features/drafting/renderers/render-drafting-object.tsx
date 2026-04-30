@@ -28,10 +28,28 @@ import { ShaftRenderer } from './shaft-renderer';
 import { SoldierPileWallRenderer } from './soldier-pile-wall-renderer';
 import { WalerRenderer } from './waler-renderer';
 import { normalizeDraftingRendererProps, type DraftingRendererProps } from './renderer-types';
+import { toDraftingFontStack } from '../standards/drafting-text-style-presets';
 
 export function renderDraftingObject(props: DraftingRendererProps<DraftingObject>) {
   const normalizedProps = normalizeDraftingRendererProps(props);
+  const rendered = renderDraftingObjectInner(normalizedProps);
 
+  if (!rendered) {
+    return null;
+  }
+
+  return (
+    <g
+      fontFamily={toDraftingFontStack(normalizedProps.object.style?.fontFamily)}
+      fontStyle={normalizedProps.object.style?.fontStyle ?? 'normal'}
+    >
+      {rendered}
+    </g>
+  );
+}
+
+function renderDraftingObjectInner(props: DraftingRendererProps<DraftingObject>) {
+  const normalizedProps = normalizeDraftingRendererProps(props);
   switch (normalizedProps.object.type) {
     case 'pile':
       return <PileRenderer {...normalizedProps} object={normalizedProps.object} />;

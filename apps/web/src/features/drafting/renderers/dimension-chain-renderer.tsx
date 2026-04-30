@@ -14,7 +14,10 @@ import {
   type DraftingDimensionChainRendererProps,
 } from './renderer-types';
 import { resolveEffectiveLabelMode } from './label-policy';
-import { resolveDraftingDimensionStyle } from '../standards/drafting-style-resolver';
+import {
+  applyDraftingTextCase,
+  resolveDraftingDimensionStyle,
+} from '../standards/drafting-style-resolver';
 
 export function DimensionChainRenderer({
   drawingSetup,
@@ -28,6 +31,7 @@ export function DimensionChainRenderer({
   viewScale,
 }: DraftingDimensionChainRendererProps) {
   const dimensionStyle = resolveDraftingDimensionStyle({
+    object,
     setup: drawingSetup,
     surface,
   });
@@ -328,7 +332,9 @@ function DimensionLabel({
       data-testid={testId}
       dominantBaseline="middle"
       fill={stroke}
+      fontFamily={textStyle.fontFamily}
       fontSize={textSize}
+      fontStyle={textStyle.fontStyle}
       fontWeight={bold ? 700 : textStyle.fontWeight}
       paintOrder="stroke"
       stroke={textStyle.haloColor}
@@ -338,7 +344,7 @@ function DimensionLabel({
       x={point.x}
       y={point.y}
     >
-      {label}
+      {applyDraftingTextCase(label, textStyle)}
     </text>
   );
 }
