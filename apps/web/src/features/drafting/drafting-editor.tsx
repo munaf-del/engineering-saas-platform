@@ -1082,7 +1082,15 @@ export function DraftingEditor({
         isDirty={history.isDirty}
         isSaving={history.isSaving}
         currentRevisionLabel={drawingRevisionLabel}
-        onExportJson={() => downloadDraftingModelJson(currentModel, currentDrawing.title)}
+        onExportJson={() =>
+          downloadDraftingModelJson(currentModel, currentDrawing.title, {
+            currentRevision: drawingRevisionLabel,
+            drawingId: currentDrawing.id,
+            drawingStatus: currentDrawing.status,
+            drawingTitle: currentDrawing.title,
+            projectId,
+          })
+        }
         onFitView={view.handleFitView}
         onOpenTitleRevision={() => setTitleRevisionOpen(true)}
         onSave={handleSaveModel}
