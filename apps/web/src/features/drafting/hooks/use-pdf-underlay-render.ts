@@ -395,6 +395,8 @@ function revokePdfPageImageUrl(cacheKey: string) {
 }
 
 function getPdfPageRenderCacheKey(fileId: string, pageNumber: number) {
+  // The page bitmap is rendered at a fixed PDF viewport scale. Underlay transform,
+  // crop, calibration, opacity, visibility, and lock state are applied later in SVG.
   return `${fileId}:${pageNumber}`;
 }
 
