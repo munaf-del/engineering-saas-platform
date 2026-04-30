@@ -2,6 +2,7 @@ import type {
   DraftingDrawingSheetIssue,
   DraftingDrawingTransmittal,
   DraftingModel,
+  DraftingUnderlay,
 } from '@eng/shared';
 import type { DraftingSchedulePackIssue } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
@@ -34,13 +35,15 @@ import {
 import { buildDraftingSheetProfileAudit } from './standards/drafting-profile-audit';
 
 export function serializeDraftingModelJson(model: DraftingModel) {
+  const exportModel = sanitizeDraftingModelForJsonExport(model);
+
   return JSON.stringify(
     {
       exportSchemaVersion: 'drafting.model-export.v2',
       binaryPolicy:
         'Metadata only. No PDF bytes, rendered images, tokens, secrets, passwords, sessions, or unrelated document content.',
-      profileAudit: buildDraftingSheetProfileAudit({ model }),
-      model,
+      profileAudit: buildDraftingSheetProfileAudit({ model: exportModel }),
+      model: exportModel,
     },
     null,
     2,
@@ -172,4 +175,45 @@ function sanitizeFilenameSegment(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function sanitizeDraftingModelForJsonExport(model: DraftingModel): DraftingModel {
+  return {
+    ...model,
+    underlays: model.underlays.map(toDraftingUnderlayMetadataExport),
+  };
+}
+
+function toDraftingUnderlayMetadataExport(underlay: DraftingUnderlay): DraftingUnderlay {
+  const exported: DraftingUnderlay = {
+    id: underlay.id,
+    name: underlay.name,
+    fileId: underlay.fileId,
+    fileName: underlay.fileName,
+    pageNumber: underlay.pageNumber,
+    visible: underlay.visible,
+    opacity: underlay.opacity,
+    locked: underlay.locked,
+    transform: { ...underlay.transform },
+    createdAt: underlay.createdAt,
+    updatedAt: underlay.updatedAt,
+  };
+
+  if (underlay.crop !== undefined) {
+    exported.crop = underlay.crop ? { ...underlay.crop } : null;
+  }
+
+  if (underlay.calibration !== undefined) {
+    exported.calibration = underlay.calibration
+      ? {
+          ...underlay.calibration,
+          modelPointA: { ...underlay.calibration.modelPointA },
+          modelPointB: { ...underlay.calibration.modelPointB },
+          pdfPointA: { ...underlay.calibration.pdfPointA },
+          pdfPointB: { ...underlay.calibration.pdfPointB },
+        }
+      : null;
+  }
+
+  return exported;
 }
