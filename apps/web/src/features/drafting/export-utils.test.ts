@@ -321,6 +321,92 @@ describe('drafting export utils', () => {
     });
   });
 
+  it('adds report-friendly drawing metadata without changing the exported model payload', () => {
+    const model = createEmptyDraftingModel('drawing-export-metadata');
+    model.revisionBlock = {
+      currentRevision: 'C',
+      revisions: [],
+    };
+    model.drawingSheets.push({
+      id: 'sheet-1',
+      name: 'Geometry Sheet',
+      title: 'Retention Plan',
+      sheetNumber: 'S-101',
+      rootSheetTemplateId: null,
+      pageSize: 'a3',
+      orientation: 'landscape',
+      scaleLabel: 'Fit',
+      viewport: {
+        center: { x: 0, y: 0 },
+        fitMode: 'model_extents',
+        heightMm: 220,
+        rotationDeg: 0,
+        scale: 0.02,
+        widthMm: 360,
+      },
+      includeUnderlays: true,
+      includeGrid: true,
+      includeObjectLabels: true,
+      createdAt: '2026-04-30T00:00:00.000Z',
+      updatedAt: '2026-04-30T00:00:00.000Z',
+    });
+    model.drawingSheetIssues.push({
+      id: 'issue-1',
+      issueDate: '2026-04-30T00:00:00.000Z',
+      issueNumber: 'ISS-001',
+      lockedDrawingSheets: [],
+      lockedObjects: [],
+      lockedRevisionBlock: { currentRevision: 'C', revisions: [] },
+      lockedTitleBlock: {},
+      lockedUnderlays: [],
+      purpose: 'For review',
+      revision: 'C',
+      sheetIds: [],
+      status: 'issued',
+      createdAt: '2026-04-30T00:00:00.000Z',
+      updatedAt: '2026-04-30T00:00:00.000Z',
+    });
+    const sourceSnapshot = JSON.stringify(model);
+
+    const parsed = JSON.parse(
+      serializeDraftingModelJson(model, {
+        currentIssue: model.drawingSheetIssues[0]!,
+        currentRevision: 'C',
+        drawingId: 'drawing-export-metadata',
+        drawingStatus: 'draft',
+        drawingTitle: 'Retention Plan Export',
+        exportedAt: '2026-04-30T01:00:00.000Z',
+        projectId: 'project-1',
+      }),
+    );
+
+    expect(parsed.exportedAt).toBe('2026-04-30T01:00:00.000Z');
+    expect(parsed.metadata).toMatchObject({
+      modelVersion: 1,
+      units: 'mm',
+      drawingId: 'drawing-export-metadata',
+      projectId: 'project-1',
+      drawingTitle: 'Retention Plan Export',
+      drawingStatus: 'draft',
+      currentRevision: 'C',
+      currentIssue: {
+        id: 'issue-1',
+        issueNumber: 'ISS-001',
+        purpose: 'For review',
+        revision: 'C',
+        status: 'issued',
+      },
+      counts: {
+        drawingSheetIssues: 1,
+        drawingSheets: 1,
+        objects: 0,
+        underlays: 0,
+      },
+    });
+    expect(parsed.model).toEqual(model);
+    expect(JSON.stringify(model)).toBe(sourceSnapshot);
+  });
+
   it('serializes drawing sheet definitions through the DraftingModel export', () => {
     const model = createEmptyDraftingModel('drawing-sheet-export');
     model.drawingSheets.push({

@@ -1,5 +1,6 @@
 import type {
   DraftingDrawingSheetIssue,
+  DraftingDrawingStatus,
   DraftingDrawingTransmittal,
   DraftingModel,
   DraftingUnderlay,
@@ -34,14 +35,32 @@ import {
 } from './schedules/drafting-schedule-utils';
 import { buildDraftingSheetProfileAudit } from './standards/drafting-profile-audit';
 
-export function serializeDraftingModelJson(model: DraftingModel) {
+export type DraftingModelJsonExportContext = {
+  currentIssue?: Pick<
+    DraftingDrawingSheetIssue,
+    'id' | 'issueDate' | 'issueNumber' | 'purpose' | 'revision' | 'status'
+  >;
+  currentRevision?: string | null;
+  drawingId?: string;
+  drawingStatus?: DraftingDrawingStatus;
+  drawingTitle?: string;
+  exportedAt?: string;
+  projectId?: string;
+};
+
+export function serializeDraftingModelJson(
+  model: DraftingModel,
+  context: DraftingModelJsonExportContext = {},
+) {
   const exportModel = sanitizeDraftingModelForJsonExport(model);
 
   return JSON.stringify(
     {
       exportSchemaVersion: 'drafting.model-export.v2',
+      exportedAt: context.exportedAt ?? new Date().toISOString(),
       binaryPolicy:
         'Metadata only. No PDF bytes, rendered images, tokens, secrets, passwords, sessions, or unrelated document content.',
+      metadata: buildDraftingModelJsonExportMetadata(exportModel, context),
       profileAudit: buildDraftingSheetProfileAudit({ model: exportModel }),
       model: exportModel,
     },
@@ -50,10 +69,17 @@ export function serializeDraftingModelJson(model: DraftingModel) {
   );
 }
 
-export function downloadDraftingModelJson(model: DraftingModel, title: string) {
+export function downloadDraftingModelJson(
+  model: DraftingModel,
+  title: string,
+  context: DraftingModelJsonExportContext = {},
+) {
   downloadTextFile(
     `${buildDraftingExportFilename(title)}.json`,
-    serializeDraftingModelJson(model),
+    serializeDraftingModelJson(model, {
+      ...context,
+      drawingTitle: context.drawingTitle ?? title,
+    }),
     'application/json',
   );
 }
@@ -181,6 +207,47 @@ function sanitizeDraftingModelForJsonExport(model: DraftingModel): DraftingModel
   return {
     ...model,
     underlays: model.underlays.map(toDraftingUnderlayMetadataExport),
+  };
+}
+
+function buildDraftingModelJsonExportMetadata(
+  model: DraftingModel,
+  context: DraftingModelJsonExportContext,
+) {
+  return {
+    modelVersion: model.version,
+    units: model.units,
+    drawingId: context.drawingId ?? model.drawingId,
+    ...(context.projectId ? { projectId: context.projectId } : {}),
+    ...(context.drawingTitle ? { drawingTitle: context.drawingTitle } : {}),
+    ...(context.drawingStatus ? { drawingStatus: context.drawingStatus } : {}),
+    currentRevision:
+      context.currentRevision ??
+      model.revisionBlock?.currentRevision ??
+      model.revisionBlock?.revisions.at(-1)?.revision ??
+      null,
+    ...(context.currentIssue
+      ? {
+          currentIssue: {
+            id: context.currentIssue.id,
+            issueDate: context.currentIssue.issueDate,
+            issueNumber: context.currentIssue.issueNumber,
+            purpose: context.currentIssue.purpose,
+            revision: context.currentIssue.revision,
+            status: context.currentIssue.status,
+          },
+        }
+      : {}),
+    counts: {
+      drawingSheetIssues: model.drawingSheetIssues.length,
+      drawingSheets: model.drawingSheets.length,
+      layers: model.layers.length,
+      objects: model.objects.length,
+      schedulePackIssues: model.schedulePackIssues.length,
+      scheduleSheets: model.scheduleSheets.length,
+      transmittals: model.drawingTransmittals.length,
+      underlays: model.underlays.length,
+    },
   };
 }
 
