@@ -38,15 +38,19 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('title="Service run"');
     expect(markup).toContain('aria-label="Service run"');
     expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain('data-testid="drafting-project-grid-line-tool"');
+    expect(markup).toContain('data-testid="drafting-shaft-tool"');
+    expect(markup).toContain('Project grid line');
+    expect(markup).toContain('Shaft');
     expect(markup).not.toContain('Add Secant Pile Wall');
     expect(markup).not.toContain('Add Service Crossing');
     expect(markup).not.toContain('Choose a tool, then author typed objects');
   });
 
-  it('shows a focused project grid action for persisted grid references', () => {
+  it('shows a focused project grid action for independent persisted grid references', () => {
     const markup = renderToStaticMarkup(
       <DraftingToolPalette
-        activeTool="project_grid"
+        activeTool="project_grid_line"
         drawingUpdatedAt="2026-04-25T00:00:00.000Z"
         model={createEmptyDraftingModel('drawing-project-grid-tool')}
         onAddProjectGrid={() => undefined}
@@ -59,7 +63,10 @@ describe('DraftingToolPalette', () => {
 
     expect(markup).toContain('data-testid="drafting-project-grid-tool-panel"');
     expect(markup).toContain('data-testid="drafting-project-grid-add"');
-    expect(markup).toContain('Project grid reference');
+    expect(markup).toContain('Project grid references');
+    expect(markup).toContain('precise two-point grid line');
+    expect(markup).toContain('independent grid-line objects');
+    expect(markup).toContain('Add Grid Set Estimate');
     expect(markup).toContain('AS1100-informed modular grid style');
   });
 

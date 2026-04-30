@@ -384,6 +384,10 @@ function resolveLabelAnchor(object: DraftingObject): DraftingPoint | null {
       return object.geometry.points[0] ?? null;
     case 'project_grid':
       return object.geometry.origin;
+    case 'project_grid_line':
+      return midpointOf([object.geometry.start, object.geometry.end]);
+    case 'shaft':
+      return object.geometry.centre;
     case 'draft_line':
       return midpointOf([object.geometry.startPoint, object.geometry.endPoint]);
     case 'draft_polyline':
@@ -424,6 +428,17 @@ function resolveObjectObstacleBounds(object: DraftingObject): DraftingLabelRect 
         object.geometry.pilePositions,
         (object.parameters.pileDiameterMm ?? 600) + 160,
       );
+    case 'project_grid_line':
+      return rectAroundPoints(
+        [object.geometry.start, object.geometry.end],
+        Math.max(object.metadata.bubbleRadiusMm * 2.4, 360),
+      );
+    case 'shaft':
+      return rectAroundPoint(
+        object.geometry.centre,
+        object.geometry.radiusMm * 2 + object.parameters.pileDiameterMm + 320,
+        object.geometry.radiusMm * 2 + object.parameters.pileDiameterMm + 320,
+      );
     case 'service_run':
       return rectAroundPoints(object.geometry.path, 360);
     case 'anchor_tieback':
@@ -448,6 +463,7 @@ function resolveLabelFamily(object: DraftingObject) {
     case 'pile':
     case 'secant_pile_wall':
     case 'soldier_pile_wall':
+    case 'shaft':
     case 'capping_beam':
     case 'waler':
     case 'anchor_tieback':
@@ -479,6 +495,7 @@ function resolveLabelPriority(object: DraftingObject, selected: boolean) {
     case 'pile':
     case 'secant_pile_wall':
     case 'soldier_pile_wall':
+    case 'shaft':
     case 'capping_beam':
     case 'waler':
     case 'anchor_tieback':
@@ -541,6 +558,8 @@ function resolveLabelOffset(object: DraftingObject) {
       return { x: object.parameters.pileDiameterMm / 2 + 180, y: 300 };
     case 'soldier_pile_wall':
       return { x: (object.parameters.pileDiameterMm ?? 600) / 2 + 180, y: 300 };
+    case 'shaft':
+      return { x: object.geometry.radiusMm + object.parameters.pileDiameterMm / 2 + 220, y: 300 };
     case 'borehole':
       return { x: 280, y: 220 };
     case 'monitoring_point':

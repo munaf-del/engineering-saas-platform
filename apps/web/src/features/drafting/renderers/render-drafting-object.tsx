@@ -9,6 +9,7 @@ import { ExcavationLineRenderer } from './excavation-line-renderer';
 import { LeaderNoteRenderer } from './leader-note-renderer';
 import { MonitoringPointRenderer } from './monitoring-point-renderer';
 import { PileRenderer } from './pile-renderer';
+import { ProjectGridLineRenderer } from './project-grid-line-renderer';
 import { ProjectGridRenderer } from './project-grid-renderer';
 import {
   DraftCircleRenderer,
@@ -23,6 +24,7 @@ import { SecantPileWallRenderer } from './secant-pile-wall-renderer';
 import { SectionMarkerRenderer } from './section-marker-renderer';
 import { ServiceCrossingRenderer } from './service-crossing-renderer';
 import { ServiceRunRenderer } from './service-run-renderer';
+import { ShaftRenderer } from './shaft-renderer';
 import { SoldierPileWallRenderer } from './soldier-pile-wall-renderer';
 import { WalerRenderer } from './waler-renderer';
 import { normalizeDraftingRendererProps, type DraftingRendererProps } from './renderer-types';
@@ -77,6 +79,10 @@ export function renderDraftingObject(props: DraftingRendererProps<DraftingObject
       return <GeotechSurfaceRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'project_grid':
       return <ProjectGridRenderer {...normalizedProps} object={normalizedProps.object} />;
+    case 'project_grid_line':
+      return <ProjectGridLineRenderer {...normalizedProps} object={normalizedProps.object} />;
+    case 'shaft':
+      return <ShaftRenderer {...normalizedProps} object={normalizedProps.object} />;
     default:
       return null;
   }

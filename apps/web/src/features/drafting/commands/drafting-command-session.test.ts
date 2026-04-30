@@ -15,6 +15,7 @@ import {
   commitDraftingSectionMarkerCommandPoint,
   commitDraftingServiceCrossingCommandPoint,
   commitDraftingStructuralJointCommandPoint,
+  commitDraftingTwoPointCommandPoint,
   createManualDraftingPointPlacement,
   createManualGeneratedWallBaselinePlacement,
   createManualPathEngineeringPlacement,
@@ -44,6 +45,7 @@ import {
   startDraftingSoldierPileWallCommand,
   startDraftingStructuralJointCommand,
   startDraftingLineCommand,
+  startDraftingTwoPointCommand,
   startDraftingWalerCommand,
   updateDraftingAnchorTiebackCommandPreview,
   updateDraftingBoreholeCommandPreview,
@@ -58,6 +60,7 @@ import {
   updateDraftingSectionMarkerCommandPreview,
   updateDraftingServiceCrossingCommandPreview,
   updateDraftingStructuralJointCommandPreview,
+  updateDraftingTwoPointCommandPreview,
 } from './drafting-command-session';
 
 describe('drafting command session', () => {
@@ -109,6 +112,64 @@ describe('drafting command session', () => {
       ]);
       expect(result.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
       expect(result.tool).toBe('draft_line');
+    }
+  });
+
+  it('accepts, previews, and commits independent grid line and shaft commands', () => {
+    const start: DraftingPoint = {
+      x: 100,
+      y: 200,
+      z: 2,
+      rl: 12.5,
+      snapRef: {
+        sourceObjectId: 'grid-anchor-1',
+        anchorKind: 'endpoint',
+        anchorIndex: 0,
+        anchorName: 'A start',
+        capturedCoordinate: { x: 100, y: 200, z: 2, rl: 12.5 },
+      },
+    };
+    const end: DraftingPoint = { x: 100, y: 3200, z: 2, rl: 12.5 };
+
+    const firstGridPoint = commitDraftingTwoPointCommandPoint(
+      startDraftingTwoPointCommand('project_grid_line'),
+      'project_grid_line',
+      start,
+    );
+    expect(firstGridPoint.committed).toBe(false);
+    expect(firstGridPoint.session).toMatchObject({
+      phase: 'waiting_second_point',
+      points: [start],
+      previewPoint: null,
+      tool: 'project_grid_line',
+    });
+
+    const gridPreview = updateDraftingTwoPointCommandPreview(firstGridPoint.session, end);
+    expect(getDraftingCommandPreviewPoints(gridPreview)).toEqual([start, end]);
+
+    const gridCommit = commitDraftingTwoPointCommandPoint(gridPreview, 'project_grid_line', end);
+    expect(gridCommit.committed).toBe(true);
+    if (gridCommit.committed) {
+      expect(gridCommit.tool).toBe('project_grid_line');
+      expect(gridCommit.points).toEqual([start, end]);
+      expect(gridCommit.session).toEqual(IDLE_DRAFTING_COMMAND_SESSION);
+    }
+
+    const shaftCentre: DraftingPoint = { x: 500, y: 500 };
+    const shaftRadius: DraftingPoint = { x: 2000, y: 500 };
+    const firstShaftPoint = commitDraftingTwoPointCommandPoint(
+      startDraftingTwoPointCommand('shaft'),
+      'shaft',
+      shaftCentre,
+    );
+    const shaftPreview = updateDraftingTwoPointCommandPreview(firstShaftPoint.session, shaftRadius);
+    const shaftCommit = commitDraftingTwoPointCommandPoint(shaftPreview, 'shaft', shaftRadius);
+
+    expect(getDraftingCommandPreviewPoints(shaftPreview)).toEqual([shaftCentre, shaftRadius]);
+    expect(shaftCommit.committed).toBe(true);
+    if (shaftCommit.committed) {
+      expect(shaftCommit.tool).toBe('shaft');
+      expect(shaftCommit.points).toEqual([shaftCentre, shaftRadius]);
     }
   });
 

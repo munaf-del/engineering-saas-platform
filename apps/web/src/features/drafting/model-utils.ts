@@ -8,7 +8,9 @@ import {
   type DraftingObjectChangeEvent,
   type DraftingObjectProvenanceAction,
   type DraftingPoint,
+  type DraftingProjectGridLineObject,
   type DraftingProjectGridObject,
+  type DraftingShaftObject,
   type DraftingUnderlay,
   type DraftingUnderlayCrop,
   type DraftingUnderlayTransform,
@@ -48,6 +50,8 @@ import {
 } from './semantic-object-utils';
 import { createManualDraftingPointAnchorRef } from './anchors/drafting-anchor-resolution';
 import { createProjectGridObject } from './tools/project-grid-tool';
+import { createProjectGridLineObject } from './tools/project-grid-line-tool';
+import { createShaftObject } from './tools/shaft-tool';
 
 const MAX_DRAFTING_OBJECT_CHANGE_EVENTS = 200;
 
@@ -294,6 +298,12 @@ export function createDraftingObject(
       break;
     case 'project_grid':
       object = createProjectGridObject(point, model);
+      break;
+    case 'project_grid_line':
+      object = createProjectGridLineObject(point, model, pendingLinePoints[1]);
+      break;
+    case 'shaft':
+      object = createShaftObject(point, model, pendingLinePoints[1]);
       break;
     default:
       object = createPileObject(point, model);
@@ -924,6 +934,36 @@ export function translateDraftingObject(
         },
         updatedAt,
       });
+    case 'project_grid_line':
+      return stampMoved({
+        ...object,
+        geometry: {
+          start: {
+            ...object.geometry.start,
+            x: object.geometry.start.x + deltaX,
+            y: object.geometry.start.y + deltaY,
+          },
+          end: {
+            ...object.geometry.end,
+            x: object.geometry.end.x + deltaX,
+            y: object.geometry.end.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
+    case 'shaft':
+      return stampMoved({
+        ...object,
+        geometry: {
+          ...object.geometry,
+          centre: {
+            ...object.geometry.centre,
+            x: object.geometry.centre.x + deltaX,
+            y: object.geometry.centre.y + deltaY,
+          },
+        },
+        updatedAt,
+      });
     default:
       return stampMoved({
         ...object,
@@ -1011,6 +1051,12 @@ function getDraftingObjectSemanticLabel(object: DraftingObject) {
       return object.parameters.jointId;
     case 'geotech_surface':
       return object.parameters.surfaceId;
+    case 'project_grid':
+      return object.metadata.gridId;
+    case 'project_grid_line':
+      return object.metadata.gridLineId;
+    case 'shaft':
+      return object.metadata.shaftId;
     default:
       return object.id;
   }
@@ -1205,9 +1251,29 @@ export function getDraftingObjectBounds(object: DraftingObject): DraftingBounds 
       );
     case 'project_grid':
       return getProjectGridObjectBounds(object);
+    case 'project_grid_line':
+      return getProjectGridLineObjectBounds(object);
+    case 'shaft':
+      return getShaftObjectBounds(object);
     default:
       return null;
   }
+}
+
+function getProjectGridLineObjectBounds(object: DraftingProjectGridLineObject): DraftingBounds {
+  const padding = Math.max(object.metadata.bubbleRadiusMm * 2.4, 360);
+  return getPointCollectionBounds([object.geometry.start, object.geometry.end], padding)!;
+}
+
+function getShaftObjectBounds(object: DraftingShaftObject): DraftingBounds {
+  const radius =
+    object.geometry.radiusMm + Math.max(object.parameters.pileDiameterMm / 2, 180) + 160;
+  return {
+    minX: object.geometry.centre.x - radius,
+    minY: object.geometry.centre.y - radius,
+    maxX: object.geometry.centre.x + radius,
+    maxY: object.geometry.centre.y + radius,
+  };
 }
 
 function getProjectGridObjectBounds(object: DraftingProjectGridObject): DraftingBounds {

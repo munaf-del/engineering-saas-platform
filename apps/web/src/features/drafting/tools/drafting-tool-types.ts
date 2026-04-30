@@ -7,6 +7,7 @@ export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
   'pile',
   'secant_pile_wall',
   'soldier_pile_wall',
+  'shaft',
   'anchor_tieback',
   'capping_beam',
   'waler',
@@ -26,6 +27,7 @@ export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
   'draft_polygon',
   'structural_joint',
   'geotech_surface',
+  'project_grid_line',
   'project_grid',
 ];
 

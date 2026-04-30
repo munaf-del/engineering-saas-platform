@@ -411,6 +411,8 @@ export const DRAFTING_OBJECT_LINE_ROLE_MAP: Record<DraftingObject['type'], Draft
   structural_joint: 'structuralPrimary',
   geotech_surface: 'constructionSetout',
   project_grid: 'gridLine',
+  project_grid_line: 'gridLine',
+  shaft: 'structuralPrimary',
   survey_point: 'surveyReferenceMark',
   service_line: 'serviceExisting',
   dimension: 'dimension',

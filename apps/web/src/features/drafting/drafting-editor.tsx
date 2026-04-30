@@ -76,11 +76,13 @@ import {
   isDraftingSectionMarkerCommandTool,
   isDraftingServiceCrossingCommandTool,
   isDraftingStructuralJointCommandTool,
+  isDraftingTwoPointCommandTool,
   isDraftingBoreholeCommandTool,
 } from './commands/drafting-command-session';
 import { resolveDraftingSnapPoint } from './snapping/drafting-snap-utils';
 import type { DraftingTool } from './tools/drafting-tool-types';
 import type { DraftingPileSourceMode } from './components/drafting-tool-palette';
+import { createProjectGridLineObjectsFromGridSet } from './tools/project-grid-line-tool';
 
 const PDF_POINT_TO_MM = 25.4 / 72;
 
@@ -603,6 +605,25 @@ export function DraftingEditor({
       return;
     }
 
+    if (isDraftingTwoPointCommandTool(drafting.activeTool)) {
+      const commandResult = drafting.commitTwoPointCommandPoint(drafting.activeTool, point);
+      if (!commandResult.committed) {
+        return;
+      }
+
+      const nextObject = createDraftingObject(
+        commandResult.tool,
+        commandResult.points[0],
+        currentModel,
+        commandResult.points,
+        currentUserName,
+      );
+      history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+      selection.selectObject(nextObject.id);
+      drafting.setActiveTab('properties');
+      return;
+    }
+
     if (PATH_AUTHORING_TOOLS.has(drafting.activeTool)) {
       drafting.addPendingLinePoint(point);
       return;
@@ -739,17 +760,24 @@ export function DraftingEditor({
   }
 
   function handleAddProjectGrid() {
-    const nextObject = createDraftingObject(
-      'project_grid',
+    const nextObjects = createProjectGridLineObjectsFromGridSet(
       getViewportCentrePoint(),
       currentModel,
-      [],
-      currentUserName,
     );
-    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
-    selection.selectObject(nextObject.id);
+    const nextModel = nextObjects.reduce(
+      (model, object) =>
+        addDraftingObject(model, object, {
+          by: currentUserName,
+          summary: `Created independent project grid line ${object.metadata.label}`,
+        }),
+      currentModel,
+    );
+    history.replaceModel(nextModel);
+    if (nextObjects[0]) {
+      selection.selectObject(nextObjects[0].id);
+    }
     drafting.setActiveTab('properties');
-    toast.success('Added project grid reference');
+    toast.success('Added grid set as independent grid lines');
   }
 
   function underlayInteractionEnabled(underlayId: string) {
@@ -1165,6 +1193,7 @@ export function DraftingEditor({
         />
 
         <DraftingStage
+          activeTool={drafting.activeTool}
           canvasSize={view.canvasSize}
           commandPrompt={getDraftingCommandPrompt(
             drafting.activeTool,
@@ -1205,6 +1234,8 @@ export function DraftingEditor({
               drafting.updatePileCommandPreview(point);
             } else if (isDraftingAnchorTiebackCommandTool(drafting.activeTool)) {
               drafting.updateAnchorTiebackCommandPreview(point);
+            } else if (isDraftingTwoPointCommandTool(drafting.activeTool)) {
+              drafting.updateTwoPointCommandPreview(point);
             }
           }}
           onCanvasWheel={view.handleCanvasWheel}
@@ -1217,6 +1248,7 @@ export function DraftingEditor({
           onSetZoomScale={view.handleSetZoomScale}
           onLabelModeChange={setCanvasLabelMode}
           onHelperGridVisibleChange={setHelperGridVisible}
+          onToolChange={drafting.setActiveTool}
           onToggleSnapEnabled={drafting.toggleSnapEnabled}
           onToggleSnapMode={drafting.toggleSnapMode}
           onViewLockedChange={view.setViewLocked}
@@ -1523,7 +1555,15 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 
 function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number) {
   if (tool === 'project_grid') {
-    return 'Click a grid origin, or use Add Project Grid and edit spacing in Properties.';
+    return 'Use Grid Line for precise two-point references, or add a grid set estimate as independent lines.';
+  }
+
+  if (tool === 'project_grid_line') {
+    return pendingPointCount === 0 ? 'Pick grid line start point' : 'Pick grid line end point';
+  }
+
+  if (tool === 'shaft') {
+    return pendingPointCount === 0 ? 'Pick shaft centre' : 'Pick shaft radius point';
   }
 
   if (isDraftingPrimitiveCommandTool(tool)) {

@@ -469,6 +469,8 @@ describe('drafting defaults', () => {
     expect(defaultLayerIdForDraftingObjectType('structural_joint')).toBe('shoring');
     expect(defaultLayerIdForDraftingObjectType('geotech_surface')).toBe('boreholes');
     expect(defaultLayerIdForDraftingObjectType('project_grid')).toBe('grid');
+    expect(defaultLayerIdForDraftingObjectType('project_grid_line')).toBe('grid');
+    expect(defaultLayerIdForDraftingObjectType('shaft')).toBe('shoring');
   });
 
   it('hydrates missing default layers without disturbing existing layer settings', () => {
@@ -577,6 +579,95 @@ describe('drafting defaults', () => {
       },
     });
     expect(parsed.objects[0]?.geometry).not.toHaveProperty('renderedImage');
+  });
+
+  it('accepts independent project grid line and shaft drafting objects', () => {
+    const now = '2026-05-01T00:00:00.000Z';
+    const model = createEmptyDraftingModel('drawing-grid-line-shaft');
+    const parsed = DraftingModelSchema.parse({
+      ...model,
+      objects: [
+        {
+          id: 'project-grid-line-1',
+          type: 'project_grid_line',
+          layerId: 'grid',
+          name: 'Grid Line A',
+          visible: true,
+          locked: false,
+          geometry: {
+            start: {
+              x: 0,
+              y: 0,
+              snapRef: {
+                anchorKind: 'endpoint',
+                capturedCoordinate: { x: 0, y: 0 },
+              },
+            },
+            end: { x: 3000, y: 0 },
+          },
+          metadata: {
+            gridLineId: 'GL1',
+            label: 'A',
+            axis: 'x',
+            lineRole: 'major',
+            bubblePlacement: 'both',
+            bubbleRadiusMm: 180,
+            moduleSizeMm: 100,
+            moduleNotation: '10M',
+            showModuleNotation: true,
+            gridSetId: 'grid-set-1',
+            gridSetName: 'Grid Set 1',
+            as1100Profile: 'modular_grid_informed',
+            notes: 'AS1100-informed modular grid style; requires project verification.',
+          },
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'shaft-1',
+          type: 'shaft',
+          layerId: 'shoring',
+          name: 'Shaft 1',
+          visible: true,
+          locked: false,
+          geometry: {
+            centre: { x: 1200, y: 1500, rl: 10.5 },
+            radiusMm: 1800,
+            rotationDeg: 0,
+          },
+          parameters: {
+            constructionType: 'secant_piles',
+            pileDiameterMm: 600,
+            spacingMm: 600,
+            sourceMode: 'manual_sketch',
+          },
+          metadata: {
+            shaftId: 'SH1',
+            label: 'SH1',
+            notes: '',
+          },
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    expect(parsed.objects[0]).toMatchObject({
+      type: 'project_grid_line',
+      metadata: {
+        as1100Profile: 'modular_grid_informed',
+        bubblePlacement: 'both',
+      },
+    });
+    expect(parsed.objects[1]).toMatchObject({
+      type: 'shaft',
+      parameters: {
+        constructionType: 'secant_piles',
+        sourceMode: 'manual_sketch',
+      },
+    });
+    expect(parsed.objects[0]?.geometry).not.toHaveProperty('renderCacheKey');
+    expect(parsed.objects[1]?.geometry).not.toHaveProperty('renderedImage');
   });
 
   it('rejects invalid project grid spacing and bubble metadata', () => {
