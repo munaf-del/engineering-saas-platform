@@ -67,7 +67,7 @@ describe('DraftingUnderlaysPanel', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     documentsQueryState.current = {
-      data: [],
+      data: [createDocument()],
       isFetching: false,
     };
     pdfDocumentInfoState.current = {
@@ -361,6 +361,47 @@ describe('DraftingUnderlaysPanel', () => {
 
     expect(markup).toContain('1 page available.');
     expect(markup).toContain('Page 1 renders at 400 × 200 PDF units.');
+  });
+
+  it('marks selected underlays with missing project PDF references as unavailable', async () => {
+    documentsQueryState.current.data = [];
+    const selectedUnderlay = createUnderlay();
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+      );
+    });
+
+    expect(container.textContent).toContain(
+      'The referenced project PDF is missing, inaccessible, or no longer available.',
+    );
+    expect(container.textContent).toContain('This PDF underlay is unavailable and is skipped');
+    expect(container.textContent).toContain('survey.pdf · page 1');
+    expect(container.textContent).not.toContain('Start Calibration');
+    expect(container.textContent).not.toContain('Start Crop');
+  });
+
+  it('does not treat non-PDF project documents as renderable underlay references', async () => {
+    documentsQueryState.current.data = [
+      createDocument({
+        fileName: 'survey.png',
+        mimeType: 'image/png',
+      }),
+    ];
+    const selectedUnderlay = createUnderlay();
+
+    await act(async () => {
+      root.render(
+        <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+      );
+    });
+
+    expect(container.textContent).toContain('No project PDFs uploaded yet');
+    expect(container.textContent).toContain('The referenced project document is not a PDF.');
+    expect(container.textContent).toContain('This PDF underlay is unavailable and is skipped');
+    expect(container.textContent).not.toContain('Start Calibration');
+    expect(container.textContent).not.toContain('Start Crop');
   });
 
   it.each([
@@ -770,7 +811,7 @@ function createUnderlay(): DraftingUnderlay {
   };
 }
 
-function createDocument(): Document {
+function createDocument(overrides: Partial<Document> = {}): Document {
   return {
     id: 'document-1',
     organisationId: 'org-1',
@@ -782,6 +823,7 @@ function createDocument(): Document {
     storagePath: 'documents/survey.pdf',
     uploadedBy: 'user-1',
     createdAt: '2026-04-29T00:00:00.000Z',
+    ...overrides,
   };
 }
 
