@@ -25,10 +25,15 @@ describe('DraftingToolbar', () => {
     );
 
     expect(markup).toContain('/projects/project-1/drafting/drawing-1/schedules/preview');
+    expect(markup).toContain('data-testid="drafting-editor-toolbar"');
+    expect(markup).toContain('data-testid="drafting-toolbar-status-rail"');
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('Schedule Preview');
     expect(markup).toContain('Title / Revision');
     expect(markup).toContain('Project Model Workspace');
+    expect(markup).toContain('Workspace');
+    expect(markup).toContain('Project model');
+    expect(markup).toContain('Save state');
     expect(markup).not.toContain('Drafting Schedule Sheet QA</');
   });
 

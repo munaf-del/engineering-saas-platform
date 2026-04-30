@@ -31,8 +31,11 @@ describe('DraftingInspectorDrawer', () => {
 
     expect(markup).toContain('data-testid="drafting-inspector-drawer"');
     expect(markup).toContain('data-state="collapsed"');
+    expect(markup).toContain('Drafting Inspector');
+    expect(markup).toContain('Properties, layers, sources, underlays, sheets, transmittals');
     expect(markup).toContain('No object selected');
     expect(markup).toContain('Expand Inspector');
+    expect(markup).toContain('data-testid="drafting-inspector-tab-scroll"');
     expect(markup).not.toContain('Selected pile P1 properties');
     expect(markup).not.toContain('Schedule content only when active');
   });

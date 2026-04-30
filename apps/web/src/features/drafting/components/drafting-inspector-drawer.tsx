@@ -42,13 +42,16 @@ export function DraftingInspectorDrawer({
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">Project Model Inspector</span>
+            <span className="text-sm font-semibold">Drafting Inspector</span>
             <Badge variant="outline" className="capitalize">
               {activeTab}
             </Badge>
             <Badge variant="secondary">{objectCount} objects</Badge>
           </div>
-          <p className="truncate text-xs text-muted-foreground">{selectedObjectSummary}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {selectedObjectSummary} · Properties, layers, sources, underlays, sheets, transmittals,
+            and schedules share this panel.
+          </p>
         </div>
         <Button
           className="h-8"
@@ -61,10 +64,18 @@ export function DraftingInspectorDrawer({
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DraftingInspectorTab)}>
-        <div className="overflow-x-auto px-3 py-2">
-          <TabsList className="inline-flex h-8 w-max">
+        <div className="overflow-x-auto px-3 py-2" data-testid="drafting-inspector-tab-scroll">
+          <TabsList
+            aria-label="Drafting inspector tabs"
+            className="inline-flex h-auto min-h-8 w-max flex-nowrap"
+          >
             {INSPECTOR_TABS.map((tab) => (
-              <TabsTrigger className="h-7 px-2 text-xs" key={tab.value} value={tab.value}>
+              <TabsTrigger
+                className="h-7 px-2 text-xs"
+                key={tab.value}
+                title={`${tab.label} panel`}
+                value={tab.value}
+              >
                 {tab.label}
               </TabsTrigger>
             ))}
@@ -77,8 +88,8 @@ export function DraftingInspectorDrawer({
           </div>
         ) : (
           <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-            Inspector collapsed. Select objects normally; expand for setup, properties, layers,
-            sources, underlays, sheets, transmittals, or schedules.
+            Inspector collapsed. Editing still works on the canvas; expand for setup, properties,
+            layers, sources, underlays, sheets, transmittals, or schedules.
           </div>
         )}
       </Tabs>

@@ -175,8 +175,11 @@ export function DraftingToolPalette({
         className="flex min-h-9 flex-wrap items-center gap-2 border-b pb-1"
         data-testid="drafting-toolbar-view-row"
       >
-        <div className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Navigate
+        <div className="shrink-0">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Navigate
+          </div>
+          <div className="text-[11px] text-muted-foreground">Select, pan, then author.</div>
         </div>
         {NAVIGATE_GROUP?.tools.map((entry) => (
           <ToolButton
@@ -191,6 +194,12 @@ export function DraftingToolPalette({
           </ToolButton>
         ))}
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span
+            className="rounded-sm border bg-muted/25 px-2 py-0.5 text-[11px] font-medium text-foreground"
+            data-testid="drafting-tool-palette-mode"
+          >
+            Manual + source-aware tools
+          </span>
           <span>{model.objects.length} objects</span>
           <span>Active {getToolShortLabel(activeTool)}</span>
           <span title={`Last saved ${formatDraftingTimestamp(drawingUpdatedAt)}`}>
@@ -236,8 +245,13 @@ export function DraftingToolPalette({
       </div>
 
       {activeTool === 'select' || activeTool === 'pan' ? (
-        <div className="mt-2 rounded-md border bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
-          Select a tool to place source-linked project objects.
+        <div
+          className="mt-2 rounded-md border bg-muted/15 px-3 py-2 text-xs text-muted-foreground"
+          data-testid="drafting-tool-source-readiness-note"
+        >
+          <span className="font-medium text-foreground">Drafting tools ready.</span> Select a tool
+          to place drafting objects. Source-linked tools preserve project provenance where
+          available.
         </div>
       ) : sourcePanel ? (
         <SourceChoicePanel

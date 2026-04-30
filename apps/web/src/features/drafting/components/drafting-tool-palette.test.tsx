@@ -21,6 +21,8 @@ describe('DraftingToolPalette', () => {
     expect(markup).toContain('data-testid="drafting-compact-tool-toolbar"');
     expect(markup).toContain('data-testid="drafting-toolbar-view-row"');
     expect(markup).toContain('data-testid="drafting-toolbar-authoring-row"');
+    expect(markup).toContain('data-testid="drafting-tool-palette-mode"');
+    expect(markup).toContain('Manual + source-aware tools');
     expect(markup.match(/data-testid="drafting-tool-group-block"/g)).toHaveLength(5);
     expect(markup.match(/data-testid="drafting-tool-group-grid"/g)).toHaveLength(5);
     expect(markup).toContain('Navigate');
@@ -306,7 +308,10 @@ describe('DraftingToolPalette', () => {
         />,
       );
 
-      expect(markup).toContain('Select a tool to place source-linked project objects.');
+      expect(markup).toContain('data-testid="drafting-tool-source-readiness-note"');
+      expect(markup).toContain(
+        'Select a tool to place drafting objects. Source-linked tools preserve project provenance where available.',
+      );
       expect(markup).not.toContain('data-testid="drafting-source-choice-panel"');
     }
   });

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { DraftingLayer, DraftingObject, DraftingPoint } from '@eng/shared';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -51,20 +52,36 @@ export function DraftingPropertiesPanel({
         <CardHeader>
           <CardTitle className="text-base">No selection</CardTitle>
           <CardDescription>
-            Select a drafting object to edit its layer, geometry, style, and metadata.
+            Select a drafting object to edit properties. Layers, sources, underlays, sheets, and
+            schedules stay available in their own inspector tabs.
           </CardDescription>
         </CardHeader>
+        <CardContent className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <PanelHint title="Properties">
+            Edit geometry, style, layer, and object metadata.
+          </PanelHint>
+          <PanelHint title="Locks">Object and layer locks are shown after selection.</PanelHint>
+          <PanelHint title="Sources">Source provenance appears only for linked objects.</PanelHint>
+        </CardContent>
       </Card>
     );
   }
+
+  const objectLayer = layers.find((layer) => layer.id === object.layerId);
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Selected Object</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-base">Selected Object</CardTitle>
+            {object.locked ? <Badge variant="secondary">Object locked</Badge> : null}
+            {objectLayer?.locked ? <Badge variant="secondary">Layer locked</Badge> : null}
+            {object.visible === false ? <Badge variant="outline">Hidden</Badge> : null}
+          </div>
           <CardDescription>
             {object.type.replaceAll('_', ' ')} · Created {formatDraftingTimestamp(object.createdAt)}
+            {objectLayer ? ` · Layer ${objectLayer.name}` : ''}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -135,6 +152,15 @@ export function DraftingPropertiesPanel({
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PanelHint({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <div className="rounded-md border border-dashed px-2 py-1.5">
+      <div className="font-medium text-foreground">{title}</div>
+      <div>{children}</div>
     </div>
   );
 }
