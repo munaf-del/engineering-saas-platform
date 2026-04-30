@@ -109,16 +109,63 @@ test.describe('Drafting connected-edit pointer QA', () => {
       if ((await helperGridToggle.textContent())?.includes('On')) {
         await helperGridToggle.click();
       }
-      await expect(helperGridToggle).toContainText('Helper Grid Off');
+      await expect(helperGridToggle).toContainText('Helper Off');
       await expect(page.getByTestId(`drafting-object-${authoredGridLineId}`)).toHaveCount(1);
 
       await page.getByTestId('drafting-canvas-maximize').click();
       await expect(page.getByTestId('drafting-floating-controls')).toBeVisible();
-      await expect(page.getByText('Tool Grid Line')).toBeVisible();
-      await expect(page.getByTestId('drafting-floating-project-grid-line-tool')).toBeVisible();
-      await expect(page.getByTestId('drafting-floating-shaft-tool')).toBeVisible();
-      await page.getByTestId('drafting-canvas-maximize').click();
+      await expect(page.getByTestId('drafting-canvas-controls')).toHaveCount(0);
+      await expect(page.getByTestId('drafting-floating-tool-cluster')).toBeVisible();
+      await expect(page.getByTestId('drafting-floating-view-cluster')).toBeVisible();
+      await expect(page.getByTestId('drafting-floating-aids-cluster')).toBeVisible();
+      await expect(page.getByTestId('drafting-floating-inspector-cluster')).toBeVisible();
+      await expect(page.getByTestId('drafting-tool-button-project-grid-line')).toBeVisible();
+      await expect(page.getByTestId('drafting-tool-button-shaft')).toBeVisible();
+      await page.getByTestId('drafting-floating-tools-trigger').click();
+      await expect(page.getByTestId('drafting-floating-tools-menu')).toBeVisible();
+      await expect(page.getByRole('option', { name: 'Project grid line' })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.getByTestId('drafting-tool-button-project-grid-line').click();
+      await expect(page.getByTestId('drafting-tool-button-project-grid-line')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await page.getByTestId('drafting-tool-button-shaft').click();
+      await expect(page.getByTestId('drafting-tool-button-shaft')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await page.getByTestId('drafting-canvas-focus-restore').click();
       await expect(page.getByTestId('drafting-floating-controls')).toHaveCount(0);
+
+      await expect(page.getByTestId('drafting-workspace-selector')).toBeVisible();
+      await page.getByTestId(`drafting-object-${authoredGridLineId}`).click({ force: true });
+      await page.getByTestId(`drafting-object-${authoredGridLineId}`).click({
+        button: 'right',
+        force: true,
+      });
+      await expect(page.getByTestId('drafting-object-context-menu')).toBeVisible();
+      await expect(page.getByText('Edit text style')).toBeVisible();
+      await expect(page.getByTestId('drafting-context-move-workspace')).toBeVisible();
+      await page.getByText('Open properties').click();
+      await expect(page.getByTestId('drafting-text-style-section')).toBeVisible();
+      await expect(page.getByTestId('drafting-text-font-family')).toBeVisible();
+      await expect(page.getByTestId('drafting-text-height')).toBeVisible();
+      await expect(page.getByTestId('drafting-object-workspace-select')).toBeVisible();
+
+      await page.getByRole('button', { exact: true, name: 'Project grid line' }).click();
+      const objectCountBeforeMiddlePan = await page.locator('[data-drafting-object-id]').count();
+      const panStart = await pointInLocator(canvas, { xRatio: 0.45, yRatio: 0.42 });
+      await page.mouse.move(panStart.x, panStart.y);
+      await page.mouse.down({ button: 'middle' });
+      await page.mouse.move(panStart.x + 36, panStart.y + 24);
+      await page.mouse.up({ button: 'middle' });
+      await expect(page.locator('[data-drafting-object-id]')).toHaveCount(
+        objectCountBeforeMiddlePan,
+      );
+      await expect(
+        page.getByRole('button', { exact: true, name: 'Project grid line' }),
+      ).toHaveAttribute('aria-pressed', 'true');
 
       await page.getByRole('button', { name: 'Save' }).click();
       await expect(page.getByText('Saved').first()).toBeVisible();

@@ -25,7 +25,7 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).toContain('Select a drafting object to edit properties');
     expect(markup).toContain('Layers, sources, underlays, sheets, and schedules');
     expect(markup).toContain('Object and layer locks are shown after selection.');
-    expect(markup).toContain('Source provenance appears only for linked objects.');
+    expect(markup).toContain('Text style and workspace assignment appear here');
   });
 
   it('shows compact source controls for source-linked objects', () => {
@@ -165,12 +165,15 @@ describe('DraftingPropertiesPanel', () => {
       />,
     );
 
-    expect(markup).toContain('Text');
-    expect(markup).toContain('AS1100 profile text presets');
+    expect(markup).toContain('Text style');
+    expect(markup).toContain('Project text style');
+    expect(markup).toContain('data-testid="drafting-text-style-section"');
     expect(markup).toContain('data-testid="drafting-text-font-family"');
     expect(markup).toContain('data-testid="drafting-text-height"');
+    expect(markup).toContain('data-testid="drafting-text-height-custom"');
     expect(markup).toContain('Custom height (mm)');
     expect(markup).toContain('Assigned workspace');
+    expect(markup).toContain('data-testid="drafting-workspace-assignment-section"');
     expect(markup).toContain('data-testid="drafting-object-workspace-select"');
     expect(markup).toContain('Workspace filters model objects');
   });

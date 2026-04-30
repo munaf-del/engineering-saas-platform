@@ -7,14 +7,20 @@ import type {
   DraftingUnderlay,
 } from '@eng/shared';
 import {
+  Circle,
   Crosshair,
+  Grid3X3,
   Lock,
   Maximize2,
   Minimize2,
   Minus,
+  MousePointer2,
+  Move,
   Plus,
   RotateCcw,
+  Ruler,
   ScanSearch,
+  SlidersHorizontal,
   Unlock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +77,7 @@ export function DraftingStage({
   containerRef,
   helperGridVisible = true,
   initialCanvasFocusMode = false,
+  isPanning = false,
   model,
   labelMode = 'minimal',
   onBackgroundPointerDown,
@@ -118,6 +125,7 @@ export function DraftingStage({
   containerRef: React.RefObject<HTMLDivElement | null>;
   helperGridVisible?: boolean;
   initialCanvasFocusMode?: boolean;
+  isPanning?: boolean;
   model: DraftingModel;
   labelMode?: DraftingCanvasLabelMode;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
@@ -228,6 +236,7 @@ export function DraftingStage({
   const [canvasFocusMode, setCanvasFocusMode] = React.useState(initialCanvasFocusMode);
   const [canvasHeight, setCanvasHeight] = React.useState(660);
   const [browserFullscreenActive, setBrowserFullscreenActive] = React.useState(false);
+  const canvasFocused = canvasFocusMode || browserFullscreenActive;
 
   React.useEffect(() => {
     const storedHeight = Number(window.localStorage.getItem('eng.drafting.canvasHeight'));
@@ -316,41 +325,43 @@ export function DraftingStage({
   return (
     <Card
       className={cn(
-        canvasFocusMode
+        canvasFocused
           ? 'fixed inset-3 z-50 flex flex-col overflow-hidden bg-background shadow-2xl'
           : '',
       )}
       data-testid="drafting-canvas-stage"
       ref={stageShellRef}
     >
-      <CardHeader className="pb-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Project Model Canvas</CardTitle>
-            <CardDescription>
-              Model space uses reference point / survey mark coordinates. Model units, display
-              units, canvas zoom, and plotted sheet scale are separate.
-            </CardDescription>
+      {!canvasFocused ? (
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Project Model Canvas</CardTitle>
+              <CardDescription>
+                Model space uses reference point / survey mark coordinates. Model units, display
+                units, canvas zoom, and plotted sheet scale are separate.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Badge variant="outline">Model units {setup.modelUnits}</Badge>
+              <Badge variant="outline">Display {setup.displayUnits}</Badge>
+              <Badge variant="outline">{viewStatus}</Badge>
+              {viewLocked ? <Badge variant="secondary">View locked</Badge> : null}
+              <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
+            </div>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Badge variant="outline">Model units {setup.modelUnits}</Badge>
-            <Badge variant="outline">Display {setup.displayUnits}</Badge>
-            <Badge variant="outline">{viewStatus}</Badge>
-            {viewLocked ? <Badge variant="secondary">View locked</Badge> : null}
-            <Badge variant="secondary">Sheet {selectedSheetScale}</Badge>
-          </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
+      ) : null}
 
-      <CardContent className={cn('pt-0', canvasFocusMode ? 'flex min-h-0 flex-1' : '')}>
+      <CardContent className={cn('pt-0', canvasFocused ? 'flex min-h-0 flex-1 p-0' : '')}>
         <div
           ref={containerRef}
           className={cn(
-            'relative overflow-hidden rounded-lg border bg-slate-50',
-            canvasFocusMode ? 'min-h-0 flex-1' : '',
+            'relative overflow-hidden border bg-slate-50',
+            canvasFocused ? 'min-h-0 flex-1 rounded-none' : 'rounded-lg',
           )}
-          data-canvas-focus-mode={canvasFocusMode ? 'true' : 'false'}
-          style={canvasFocusMode ? undefined : { height: `${canvasHeight}px` }}
+          data-canvas-focus-mode={canvasFocused ? 'true' : 'false'}
+          style={canvasFocused ? undefined : { height: `${canvasHeight}px` }}
         >
           <DraftingCanvasZoomControls
             activeToolLabel={activeToolLabel}
@@ -381,6 +392,9 @@ export function DraftingStage({
             zoomPercent={zoomPercent}
             snapSettings={activeSnapSettings}
             labelMode={labelMode}
+            cursorPoint={cursorPoint}
+            isPanning={isPanning}
+            visibleObjectCount={visibleObjects.length}
           />
           <svg
             className="h-full w-full touch-none"
@@ -610,6 +624,9 @@ function DraftingCanvasZoomControls({
   zoomPercent,
   snapSettings,
   labelMode,
+  cursorPoint,
+  isPanning,
+  visibleObjectCount,
 }: {
   activeTool: DraftingTool;
   activeToolLabel: string;
@@ -639,138 +656,294 @@ function DraftingCanvasZoomControls({
   zoomPercent: number;
   snapSettings: DraftingSnapSettings;
   labelMode: DraftingCanvasLabelMode;
+  cursorPoint: DraftingPoint | null;
+  isPanning: boolean;
+  visibleObjectCount: number;
 }) {
   const lockedTitle = viewLocked
     ? 'View lock disables pan, zoom, fit, and recenter controls only.'
     : undefined;
   const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
+  const focusMode = canvasFocusMode || browserFullscreenActive;
+  const quickTools: Array<{
+    tool: DraftingTool;
+    label: string;
+    testId: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }> = [
+    { tool: 'select', label: 'Select', testId: 'drafting-tool-button-select', icon: MousePointer2 },
+    { tool: 'pan', label: 'Pan', testId: 'drafting-tool-button-pan', icon: Move },
+    {
+      tool: 'project_grid_line',
+      label: 'Grid Line',
+      testId: 'drafting-tool-button-project-grid-line',
+      icon: Grid3X3,
+    },
+    { tool: 'shaft', label: 'Shaft', testId: 'drafting-tool-button-shaft', icon: Circle },
+  ];
+
+  if (focusMode) {
+    return (
+      <div
+        aria-label="Drafting floating canvas controls"
+        className="pointer-events-none absolute inset-0 z-20"
+        data-testid="drafting-floating-controls"
+      >
+        <div
+          className="pointer-events-auto absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/90 p-1.5 shadow-lg backdrop-blur"
+          data-testid="drafting-floating-tool-cluster"
+        >
+          {quickTools.map(({ icon: Icon, label, testId, tool }) => (
+            <Button
+              aria-label={label}
+              aria-pressed={activeTool === tool}
+              className="h-8 w-8 p-0"
+              data-testid={testId}
+              disabled={!onToolChange}
+              key={tool}
+              title={label}
+              type="button"
+              variant={activeTool === tool ? 'secondary' : 'outline'}
+              onClick={() => onToolChange?.(tool)}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="sr-only">{label}</span>
+            </Button>
+          ))}
+          <Select
+            disabled={!onToolChange}
+            value={activeTool}
+            onValueChange={(tool) => onToolChange?.(tool as DraftingTool)}
+          >
+            <SelectTrigger
+              aria-label="Open floating tools menu"
+              className="h-8 w-[86px] gap-1 text-xs"
+              data-testid="drafting-floating-tools-trigger"
+              title="Open all drafting tools"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span>Tools</span>
+            </SelectTrigger>
+            <SelectContent data-testid="drafting-floating-tools-menu">
+              {FLOATING_TOOL_GROUPS.map((group) => (
+                <SelectGroup key={group.title}>
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.title}
+                  </div>
+                  {group.tools.map((entry) => (
+                    <SelectItem key={entry.tool} value={entry.tool}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+          <Badge className="max-w-[132px] truncate text-[11px]" title={activeToolLabel}>
+            {activeToolLabel}
+          </Badge>
+        </div>
+
+        <div
+          className="pointer-events-auto absolute right-3 top-3 flex flex-wrap items-center justify-end gap-1 rounded-md border bg-background/90 p-1.5 shadow-lg backdrop-blur"
+          data-testid="drafting-floating-view-cluster"
+        >
+          <Button
+            aria-label="Zoom out"
+            className="h-8 w-8 p-0"
+            disabled={viewLocked}
+            title={lockedTitle ?? 'Zoom out'}
+            type="button"
+            variant="outline"
+            onClick={onZoomOut}
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Badge className="min-w-16 justify-center text-[11px]" variant="outline">
+            {viewStatus}
+          </Badge>
+          <Button
+            aria-label="Zoom in"
+            className="h-8 w-8 p-0"
+            disabled={viewLocked}
+            title={lockedTitle ?? 'Zoom in'}
+            type="button"
+            variant="outline"
+            onClick={onZoomIn}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            aria-label="Fit model"
+            className="h-8 w-8 p-0"
+            disabled={viewLocked}
+            title={lockedTitle ?? 'Fit model'}
+            type="button"
+            variant="outline"
+            onClick={onFitModel}
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button
+            aria-label="Fit selected"
+            className="h-8 w-8 p-0"
+            disabled={viewLocked || !selectedObjectId}
+            title={lockedTitle ?? 'Fit selected'}
+            type="button"
+            variant="outline"
+            onClick={onFitSelected}
+          >
+            <ScanSearch className="h-4 w-4" />
+          </Button>
+          <Button
+            aria-label="Centre on reference point"
+            className="h-8 w-8 p-0"
+            disabled={viewLocked}
+            title={lockedTitle ?? 'Centre on reference point'}
+            type="button"
+            variant="outline"
+            onClick={onCenterReference}
+          >
+            <Crosshair className="h-4 w-4" />
+          </Button>
+          <Button
+            aria-label={viewLocked ? 'Unlock view' : 'Lock view'}
+            className="h-8 w-8 p-0"
+            data-testid="drafting-view-lock-control"
+            title={lockedTitle ?? 'Lock view pan and zoom'}
+            type="button"
+            variant={viewLocked ? 'secondary' : 'outline'}
+            onClick={() => onViewLockedChange(!viewLocked)}
+          >
+            {viewLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+          </Button>
+          {browserFullscreenActive ? (
+            <Button
+              aria-label="Exit full screen"
+              className="h-8 px-2 text-xs"
+              data-testid="drafting-canvas-fullscreen-exit"
+              title="Exit browser full screen"
+              type="button"
+              variant="secondary"
+              onClick={() => void onCanvasFullscreenToggle()}
+            >
+              Exit
+            </Button>
+          ) : null}
+          <Button
+            aria-label="Restore canvas"
+            className="h-8 px-2 text-xs"
+            data-testid="drafting-canvas-focus-restore"
+            title="Restore normal canvas layout"
+            type="button"
+            variant="secondary"
+            onClick={() => onCanvasFocusModeChange(false)}
+          >
+            Restore
+          </Button>
+        </div>
+
+        <div
+          className="pointer-events-auto absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/90 p-1.5 shadow-lg backdrop-blur"
+          data-testid="drafting-floating-aids-cluster"
+        >
+          <Button
+            aria-label="Toggle snap"
+            className="h-8 px-2 text-xs"
+            title="S toggles snap"
+            type="button"
+            variant={snapSettings.enabled ? 'secondary' : 'outline'}
+            onClick={onToggleSnapEnabled}
+          >
+            Snap
+          </Button>
+          <Button
+            aria-label="Toggle grid snap"
+            className="h-8 px-2 text-xs"
+            title="G toggles grid snap"
+            type="button"
+            variant={snapSettings.modes.grid ? 'secondary' : 'outline'}
+            onClick={() => onToggleSnapMode('grid')}
+          >
+            Grid snap
+          </Button>
+          <Button
+            aria-label="Toggle helper display grid"
+            className="h-8 px-2 text-xs"
+            data-testid="drafting-helper-grid-toggle"
+            title="Helper display grid is a view aid; grid snap can stay on separately."
+            type="button"
+            variant={helperGridVisible ? 'secondary' : 'outline'}
+            onClick={() => onHelperGridVisibleChange(!helperGridVisible)}
+          >
+            Helper
+          </Button>
+          <Button
+            aria-label="Toggle orthogonal mode"
+            className="h-8 px-2 text-xs"
+            title="O toggles ortho mode"
+            type="button"
+            variant={snapSettings.modes.orthogonal ? 'secondary' : 'outline'}
+            onClick={() => onToggleSnapMode('orthogonal')}
+          >
+            Ortho
+          </Button>
+          <Select
+            value={labelMode}
+            onValueChange={(mode) => onLabelModeChange(mode as DraftingCanvasLabelMode)}
+          >
+            <SelectTrigger
+              aria-label="Canvas label mode"
+              className="h-8 w-[88px] text-xs"
+              title="Canvas label mode"
+            >
+              <Ruler className="h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DRAFTING_CANVAS_LABEL_MODES.map((mode) => (
+                <SelectItem key={mode} value={mode}>
+                  {mode}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Badge variant="outline">{visibleObjectCount} visible</Badge>
+          <Badge variant={isPanning ? 'secondary' : 'outline'}>
+            {isPanning ? 'Middle pan' : `Snap ${snapSettings.enabled ? 'on' : 'off'}`}
+          </Badge>
+        </div>
+
+        <div
+          className="pointer-events-auto absolute bottom-3 right-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-md border bg-background/90 p-1.5 shadow-lg backdrop-blur"
+          data-testid="drafting-floating-inspector-cluster"
+        >
+          <Badge variant={selectedObjectId ? 'secondary' : 'outline'}>
+            {selectedObjectId ? 'Object selected' : 'No selection'}
+          </Badge>
+          <Badge variant="outline">Sheet {sheetScale}</Badge>
+          <Badge variant="outline">
+            {cursorPoint
+              ? `${Math.round(cursorPoint.x)}, ${Math.round(cursorPoint.y)}`
+              : 'Cursor -'}
+          </Badge>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       aria-label="Drafting canvas controls"
-      className={cn(
-        'absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm',
-        canvasFocusMode || browserFullscreenActive ? 'left-3 right-3 justify-between' : '',
-      )}
+      className="absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-md border bg-background/95 p-1.5 shadow-sm"
       data-testid="drafting-canvas-controls"
     >
-      {canvasFocusMode || browserFullscreenActive ? (
-        <div
-          className="flex flex-wrap items-center gap-2 text-xs"
-          data-testid="drafting-floating-controls"
-        >
-          <div
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/90 p-1"
-            data-testid="drafting-floating-tool-cluster"
-          >
-            <Badge variant="secondary">Tool {activeToolLabel}</Badge>
-            <div data-testid="drafting-floating-tool-palette">
-              <Select
-                disabled={!onToolChange}
-                value={activeTool}
-                onValueChange={(tool) => onToolChange?.(tool as DraftingTool)}
-              >
-                <SelectTrigger
-                  className="h-7 w-[168px] text-[11px]"
-                  data-testid="drafting-floating-tool-trigger"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-testid="drafting-floating-tool-select">
-                  {FLOATING_TOOL_GROUPS.map((group) => (
-                    <SelectGroup key={group.title}>
-                      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {group.title}
-                      </div>
-                      {group.tools.map((entry) => (
-                        <SelectItem key={entry.tool} value={entry.tool}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {[
-              ['select', 'Select'],
-              ['pan', 'Pan'],
-              ['project_grid_line', 'Grid Line'],
-              ['shaft', 'Shaft'],
-              ['secant_pile_wall', 'Secant'],
-              ['draft_line', 'Line'],
-            ].map(([tool, label]) => (
-              <Button
-                aria-pressed={activeTool === tool}
-                className="h-7 px-2 text-[11px]"
-                data-testid={
-                  tool === 'project_grid_line'
-                    ? 'drafting-floating-project-grid-line-tool'
-                    : tool === 'shaft'
-                      ? 'drafting-floating-shaft-tool'
-                      : undefined
-                }
-                disabled={!onToolChange}
-                key={tool}
-                size="sm"
-                type="button"
-                variant={activeTool === tool ? 'secondary' : 'outline'}
-                onClick={() => onToolChange?.(tool as DraftingTool)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-          <div
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
-            data-testid="drafting-floating-view-cluster"
-          >
-            <Badge variant="outline">Focus canvas</Badge>
-            <Button
-              aria-label="Restore canvas"
-              className="h-7 px-2 text-[11px]"
-              data-testid="drafting-canvas-focus-restore"
-              size="sm"
-              type="button"
-              variant="outline"
-              onClick={() => onCanvasFocusModeChange(false)}
-            >
-              Restore
-            </Button>
-          </div>
-          <div
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
-            data-testid="drafting-floating-aids-cluster"
-          >
-            <div className="contents" data-testid="drafting-floating-aids-controls" />
-            <Badge variant={snapSettings.enabled ? 'secondary' : 'outline'}>
-              Snap {snapSettings.enabled ? 'on' : 'off'}
-            </Badge>
-            <Badge variant={helperGridVisible ? 'secondary' : 'outline'}>
-              Helper grid {helperGridVisible ? 'on' : 'off'}
-            </Badge>
-            <Badge variant={labelMode === 'minimal' ? 'outline' : 'secondary'}>
-              Labels {labelMode}
-            </Badge>
-          </div>
-          <div
-            className="flex flex-wrap items-center gap-1 rounded-md border bg-background/80 p-1"
-            data-testid="drafting-floating-inspector-cluster"
-          >
-            <div className="contents" data-testid="drafting-floating-inspector-toggle" />
-            <Badge variant={selectedObjectId ? 'secondary' : 'outline'}>
-              {selectedObjectId ? 'Object selected' : 'No selection'}
-            </Badge>
-            <Badge variant="outline">Sheet {sheetScale}</Badge>
-          </div>
-        </div>
-      ) : null}
       <div
         className="flex items-center gap-1"
         data-testid="drafting-canvas-view-controls"
-        data-floating-view-controls={canvasFocusMode || browserFullscreenActive ? 'true' : 'false'}
+        data-floating-view-controls="false"
       >
-        <span className="px-1 text-xs font-medium text-muted-foreground">View</span>
+        <span className="px-1 text-[11px] font-medium text-muted-foreground">View</span>
         <Button
           aria-label="Zoom out"
           disabled={viewLocked}
@@ -781,7 +954,7 @@ function DraftingCanvasZoomControls({
         >
           <Minus className="h-4 w-4" />
         </Button>
-        <div className="min-w-24 text-center text-sm font-medium" aria-label="Current canvas zoom">
+        <div className="min-w-20 text-center text-xs font-medium" aria-label="Current canvas zoom">
           {viewStatus}
         </div>
         <Button
@@ -825,52 +998,49 @@ function DraftingCanvasZoomControls({
       <div className="flex items-center gap-1">
         <Button
           aria-label={canvasFocusMode ? 'Restore canvas' : 'Maximize canvas'}
-          className="h-9"
+          className="h-8 w-8 p-0"
           data-testid="drafting-canvas-maximize"
-          size="sm"
+          size="icon"
           type="button"
           variant={canvasFocusMode ? 'secondary' : 'outline'}
+          title={canvasFocusMode ? 'Restore canvas' : 'Maximize canvas'}
           onClick={() => onCanvasFocusModeChange(!canvasFocusMode)}
         >
-          {canvasFocusMode ? (
-            <Minimize2 className="mr-2 h-4 w-4" />
-          ) : (
-            <Maximize2 className="mr-2 h-4 w-4" />
-          )}
-          {canvasFocusMode ? 'Restore' : 'Maximize'}
+          {canvasFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          <span className="sr-only">{canvasFocusMode ? 'Restore' : 'Maximize'}</span>
         </Button>
         <Button
           aria-label={browserFullscreenActive ? 'Exit full screen' : 'Enter full screen'}
-          className="h-9"
+          className="h-8 px-2 text-xs"
           data-testid="drafting-canvas-fullscreen"
           size="sm"
           type="button"
           variant={browserFullscreenActive ? 'secondary' : 'outline'}
           onClick={() => void onCanvasFullscreenToggle()}
         >
-          {browserFullscreenActive ? 'Exit full screen' : 'Full screen'}
+          {browserFullscreenActive ? 'Exit' : 'Full'}
         </Button>
         {!canvasFocusMode ? (
           <>
             <Button
               aria-label="Reduce canvas height"
-              className="h-9 px-2"
+              className="h-8 px-2 text-xs"
               size="sm"
               type="button"
               variant="outline"
               onClick={() => onCanvasHeightChange(-80)}
             >
-              Shorter
+              Short
             </Button>
             <Button
               aria-label="Increase canvas height"
-              className="h-9 px-2"
+              className="h-8 px-2 text-xs"
               size="sm"
               type="button"
               variant="outline"
               onClick={() => onCanvasHeightChange(80)}
             >
-              Taller
+              Tall
             </Button>
           </>
         ) : null}
@@ -917,15 +1087,15 @@ function DraftingCanvasZoomControls({
       </div>
       <Button
         aria-label="Lock View"
-        className="h-9"
+        className="h-8 px-2 text-xs"
         data-testid="drafting-view-lock-control"
         size="sm"
         type="button"
         variant={viewLocked ? 'secondary' : 'outline'}
         onClick={() => onViewLockedChange(!viewLocked)}
       >
-        {viewLocked ? <Lock className="mr-2 h-4 w-4" /> : <Unlock className="mr-2 h-4 w-4" />}
-        {viewLocked ? 'View Locked' : 'Lock View'}
+        {viewLocked ? <Lock className="mr-1.5 h-4 w-4" /> : <Unlock className="mr-1.5 h-4 w-4" />}
+        {viewLocked ? 'Locked' : 'Lock'}
       </Button>
       <div className="flex items-center gap-1 border-l pl-2">
         <span className="px-1 text-xs font-medium text-muted-foreground">Snap</span>
@@ -958,7 +1128,7 @@ function DraftingCanvasZoomControls({
           onClick={() => onHelperGridVisibleChange(!helperGridVisible)}
           title="Helper display grid is a view aid; grid snap can stay on separately."
         >
-          Helper Grid {helperGridVisible ? 'On' : 'Off'}
+          Helper {helperGridVisible ? 'On' : 'Off'}
         </Button>
         <Button
           aria-label="Toggle orthogonal mode"
