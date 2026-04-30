@@ -214,6 +214,15 @@ export function buildDraftingObjectLabelLines(context: LabelPolicyContext): stri
       );
     case 'geotech_surface':
       return filterLabelLines([context.object.parameters.name, sourceLine], context);
+    case 'project_grid':
+      return filterLabelLines(
+        [
+          context.object.metadata.gridId || context.object.name,
+          mode !== 'minimal' ? 'Project grid reference' : null,
+          sourceLine,
+        ],
+        context,
+      );
     case 'draft_line':
     case 'draft_polyline':
     case 'draft_rectangle':

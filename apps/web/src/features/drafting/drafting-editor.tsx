@@ -18,7 +18,7 @@ import { DraftingSourceCoveragePanel } from './components/drafting-source-covera
 import { DraftingStandardsProfilePanel } from './components/drafting-standards-profile-panel';
 import { DraftingStage } from './components/drafting-stage';
 import { DraftingTitleRevisionDialog } from './components/drafting-title-revision-dialog';
-import { DraftingToolPalette } from './components/drafting-tool-palette';
+import { DraftingToolPalette, getDraftingToolShortLabel } from './components/drafting-tool-palette';
 import { DraftingTransmittalsPanel } from './components/drafting-transmittals-panel';
 import { DraftingToolbar } from './components/drafting-toolbar';
 import { DraftingUnderlaysPanel } from './components/drafting-underlays-panel';
@@ -113,6 +113,7 @@ export function DraftingEditor({
     React.useState(true);
   const [inspectorExpanded, setInspectorExpanded] = React.useState(false);
   const [canvasLabelMode, setCanvasLabelMode] = React.useState<DraftingCanvasLabelMode>('minimal');
+  const [helperGridVisible, setHelperGridVisible] = React.useState(true);
   const [pileSourceMode, setPileSourceMode] =
     React.useState<DraftingPileSourceMode>('manual_sketch');
   const [selectedPileTypeSourceId, setSelectedPileTypeSourceId] = React.useState<string | null>(
@@ -249,6 +250,11 @@ export function DraftingEditor({
   }, [drawingId]);
 
   React.useEffect(() => {
+    const storedValue = window.localStorage.getItem(getHelperGridStorageKey(drawingId));
+    setHelperGridVisible(storedValue !== 'hidden');
+  }, [drawingId]);
+
+  React.useEffect(() => {
     window.localStorage.setItem(
       getInspectorStorageKey(drawingId),
       inspectorExpanded ? 'expanded' : 'collapsed',
@@ -258,6 +264,13 @@ export function DraftingEditor({
   React.useEffect(() => {
     window.localStorage.setItem(getLabelModeStorageKey(drawingId), canvasLabelMode);
   }, [canvasLabelMode, drawingId]);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(
+      getHelperGridStorageKey(drawingId),
+      helperGridVisible ? 'visible' : 'hidden',
+    );
+  }, [drawingId, helperGridVisible]);
 
   React.useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -332,10 +345,15 @@ export function DraftingEditor({
     const isUnderlayModeActive =
       underlays.activeCropUnderlayId !== null || underlays.calibrationState !== null;
 
-    if (
-      target.closest('[data-drafting-object="true"]') &&
-      (drafting.activeTool === 'select' || drafting.activeTool === 'pan')
-    ) {
+    const objectElement = target.closest('[data-drafting-object-id]');
+    if (objectElement && (drafting.activeTool === 'select' || drafting.activeTool === 'pan')) {
+      if (drafting.activeTool === 'select') {
+        const objectId = objectElement.getAttribute('data-drafting-object-id');
+        if (objectId) {
+          selection.selectObject(objectId);
+          drafting.setActiveTab('properties');
+        }
+      }
       return;
     }
     if (isUnderlayModeActive && !target.closest('[data-drafting-underlay="true"]')) {
@@ -718,6 +736,20 @@ export function DraftingEditor({
     history.replaceModel(addDraftingUnderlay(currentModel, nextUnderlay));
     underlays.selectUnderlay(nextUnderlay.id);
     drafting.setActiveTab('underlays');
+  }
+
+  function handleAddProjectGrid() {
+    const nextObject = createDraftingObject(
+      'project_grid',
+      getViewportCentrePoint(),
+      currentModel,
+      [],
+      currentUserName,
+    );
+    history.replaceModel(addDraftingObject(currentModel, nextObject, { by: currentUserName }));
+    selection.selectObject(nextObject.id);
+    drafting.setActiveTab('properties');
+    toast.success('Added project grid reference');
   }
 
   function underlayInteractionEnabled(underlayId: string) {
@@ -1110,6 +1142,7 @@ export function DraftingEditor({
           drawingUpdatedAt={currentDrawing.updatedAt}
           model={currentModel}
           onCancelLine={drafting.clearPendingLine}
+          onAddProjectGrid={handleAddProjectGrid}
           onFinishLine={handleFinishPendingPath}
           onPlacePileSource={handlePlacePileSource}
           onPlaceSpatialSource={handlePlaceSpatialSource}
@@ -1139,6 +1172,8 @@ export function DraftingEditor({
           )}
           containerRef={view.containerRef}
           labelMode={canvasLabelMode}
+          activeToolLabel={getDraftingToolShortLabel(drafting.activeTool)}
+          helperGridVisible={helperGridVisible}
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
@@ -1181,6 +1216,7 @@ export function DraftingEditor({
           onResetZoom={view.handleResetZoom}
           onSetZoomScale={view.handleSetZoomScale}
           onLabelModeChange={setCanvasLabelMode}
+          onHelperGridVisibleChange={setHelperGridVisible}
           onToggleSnapEnabled={drafting.toggleSnapEnabled}
           onToggleSnapMode={drafting.toggleSnapMode}
           onViewLockedChange={view.setViewLocked}
@@ -1412,6 +1448,10 @@ function getLabelModeStorageKey(drawingId: string) {
   return `eng.drafting.labelMode.${drawingId}`;
 }
 
+function getHelperGridStorageKey(drawingId: string) {
+  return `eng.drafting.helperGrid.${drawingId}`;
+}
+
 function getSelectedSourceRefreshState(
   object: DraftingObject | null,
   pileSources: DraftingPileSourceRecord[],
@@ -1482,6 +1522,10 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 }
 
 function getDraftingCommandPrompt(tool: DraftingTool, pendingPointCount: number) {
+  if (tool === 'project_grid') {
+    return 'Click a grid origin, or use Add Project Grid and edit spacing in Properties.';
+  }
+
   if (isDraftingPrimitiveCommandTool(tool)) {
     if (tool === 'draft_circle') {
       return pendingPointCount === 0 ? 'Pick centre point' : 'Pick radius point';

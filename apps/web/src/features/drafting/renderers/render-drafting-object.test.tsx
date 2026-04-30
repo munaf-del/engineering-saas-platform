@@ -45,6 +45,7 @@ describe('renderDraftingObject', () => {
       { x: 400, y: 700 },
     ]);
     const joint = createDraftingObject('structural_joint', { x: 500, y: 500, rl: 12.3 }, model);
+    const projectGrid = createDraftingObject('project_grid', { x: -1000, y: -1000 }, model);
     const excavationLine = createDraftingObject('excavation_line', { x: 0, y: 0 }, model, [
       { x: 0, y: 0 },
       { x: 2500, y: 500 },
@@ -74,6 +75,7 @@ describe('renderDraftingObject', () => {
           circle,
           polygon,
           joint,
+          projectGrid,
           excavationLine,
         ].map((object) => (
           <React.Fragment key={object.id}>
@@ -104,9 +106,36 @@ describe('renderDraftingObject', () => {
     expect(markup).toContain('BH-01');
     expect(markup).toContain('SR1');
     expect(markup).toContain('SC1');
+    expect(markup).toContain(`data-testid="drafting-line-${line.id}-geometry"`);
     expect(markup).not.toContain('J-NEW-001');
+    expect(markup).toContain('data-project-grid-id="GRID1"');
+    expect(markup).toContain('data-testid="drafting-project-grid-bubble"');
     expect(markup).toContain('EX1');
     expect(markup).toContain('vector-effect="non-scaling-stroke"');
+  });
+
+  it('renders project grid bubbles, line roles, and sheet-safe strokes', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid-render');
+    const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <svg>
+        {renderDraftingObject({
+          drawingSetup: model.drawingSetup,
+          isSelected: false,
+          layer: model.layers.find((layer) => layer.id === projectGrid.layerId) ?? null,
+          object: projectGrid,
+          onPointerDown: () => undefined,
+          surface: 'sheet',
+        })}
+      </svg>,
+    );
+
+    expect(markup.match(/data-testid="drafting-project-grid-line"/g)).toHaveLength(8);
+    expect(markup.match(/data-testid="drafting-project-grid-bubble"/g)).toHaveLength(16);
+    expect(markup).toContain('data-grid-line-role="axis"');
+    expect(markup).toContain('data-grid-line-role="major"');
+    expect(markup).toContain('10M');
+    expect(markup).not.toContain('vector-effect="non-scaling-stroke"');
   });
 
   it('renders dimensions as AS-style linework with witnesses and terminators', () => {

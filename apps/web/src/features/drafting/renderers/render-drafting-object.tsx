@@ -9,6 +9,7 @@ import { ExcavationLineRenderer } from './excavation-line-renderer';
 import { LeaderNoteRenderer } from './leader-note-renderer';
 import { MonitoringPointRenderer } from './monitoring-point-renderer';
 import { PileRenderer } from './pile-renderer';
+import { ProjectGridRenderer } from './project-grid-renderer';
 import {
   DraftCircleRenderer,
   DraftLineRenderer,
@@ -74,6 +75,8 @@ export function renderDraftingObject(props: DraftingRendererProps<DraftingObject
       return <StructuralJointRenderer {...normalizedProps} object={normalizedProps.object} />;
     case 'geotech_surface':
       return <GeotechSurfaceRenderer {...normalizedProps} object={normalizedProps.object} />;
+    case 'project_grid':
+      return <ProjectGridRenderer {...normalizedProps} object={normalizedProps.object} />;
     default:
       return null;
   }

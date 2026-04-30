@@ -10,6 +10,7 @@ import {
   Crosshair,
   Lock,
   Maximize2,
+  Minimize2,
   Minus,
   Plus,
   RotateCcw,
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import {
   createGridAxisValues,
   getGridStep,
@@ -60,9 +62,12 @@ import { DraftingPdfUnderlay } from './drafting-pdf-underlay';
 import { DraftingStatusBar } from './drafting-status-bar';
 
 export function DraftingStage({
+  activeToolLabel = 'Select',
   canvasSize,
   commandPrompt,
   containerRef,
+  helperGridVisible = true,
+  initialCanvasFocusMode = false,
   model,
   labelMode = 'minimal',
   onBackgroundPointerDown,
@@ -72,6 +77,7 @@ export function DraftingStage({
   onCenterReference,
   onFitModel,
   onFitSelected,
+  onHelperGridVisibleChange = () => {},
   onObjectHandlePointerDown,
   onObjectPointerDown,
   onResetZoom,
@@ -100,9 +106,12 @@ export function DraftingStage({
   visibleUnderlays,
   visibleObjects,
 }: {
+  activeToolLabel?: string;
   canvasSize: DraftingCanvasSize;
   commandPrompt?: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  helperGridVisible?: boolean;
+  initialCanvasFocusMode?: boolean;
   model: DraftingModel;
   labelMode?: DraftingCanvasLabelMode;
   onBackgroundPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
@@ -112,6 +121,7 @@ export function DraftingStage({
   onCenterReference: () => void;
   onFitModel: () => void;
   onFitSelected: () => void;
+  onHelperGridVisibleChange?: (visible: boolean) => void;
   onObjectHandlePointerDown: (
     event: React.PointerEvent,
     object: DraftingObject,
@@ -155,6 +165,7 @@ export function DraftingStage({
   visibleUnderlays: DraftingUnderlay[];
   visibleObjects: DraftingObject[];
 }) {
+  const stageShellRef = React.useRef<HTMLDivElement | null>(null);
   const visibleWorldBounds = getVisibleWorldBounds(view, canvasSize);
   const gridStep = getGridStep(view.scale);
   const [cursorPoint, setCursorPoint] = React.useState<DraftingPoint | null>(null);
@@ -206,6 +217,56 @@ export function DraftingStage({
       }),
     [labelMode, selectedObjectId, view.scale],
   );
+  const [canvasFocusMode, setCanvasFocusMode] = React.useState(initialCanvasFocusMode);
+  const [canvasHeight, setCanvasHeight] = React.useState(660);
+  const [browserFullscreenActive, setBrowserFullscreenActive] = React.useState(false);
+
+  React.useEffect(() => {
+    const storedHeight = Number(window.localStorage.getItem('eng.drafting.canvasHeight'));
+    if (Number.isFinite(storedHeight) && storedHeight >= 480 && storedHeight <= 960) {
+      setCanvasHeight(storedHeight);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    window.localStorage.setItem('eng.drafting.canvasHeight', String(canvasHeight));
+  }, [canvasHeight]);
+
+  React.useEffect(() => {
+    function handleFullscreenChange() {
+      setBrowserFullscreenActive(document.fullscreenElement === stageShellRef.current);
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  async function toggleBrowserFullscreen() {
+    const shell = stageShellRef.current;
+    if (!shell) {
+      setCanvasFocusMode((current) => !current);
+      return;
+    }
+
+    if (document.fullscreenElement === shell) {
+      await document.exitFullscreen?.();
+      setBrowserFullscreenActive(false);
+      return;
+    }
+
+    if (shell.requestFullscreen) {
+      setCanvasFocusMode(true);
+      await shell.requestFullscreen();
+      setBrowserFullscreenActive(true);
+      return;
+    }
+
+    setCanvasFocusMode((current) => !current);
+  }
+
+  function resizeCanvasHeight(delta: number) {
+    setCanvasHeight((current) => Math.min(960, Math.max(480, current + delta)));
+  }
 
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -245,7 +306,15 @@ export function DraftingStage({
       : pendingPreviewPoints;
 
   return (
-    <Card data-testid="drafting-canvas-stage">
+    <Card
+      className={cn(
+        canvasFocusMode
+          ? 'fixed inset-3 z-50 flex flex-col overflow-hidden bg-background shadow-2xl'
+          : '',
+      )}
+      data-testid="drafting-canvas-stage"
+      ref={stageShellRef}
+    >
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -265,17 +334,30 @@ export function DraftingStage({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className={cn('pt-0', canvasFocusMode ? 'flex min-h-0 flex-1' : '')}>
         <div
           ref={containerRef}
-          className="relative h-[clamp(560px,66vh,760px)] overflow-hidden rounded-lg border bg-slate-50"
+          className={cn(
+            'relative overflow-hidden rounded-lg border bg-slate-50',
+            canvasFocusMode ? 'min-h-0 flex-1' : '',
+          )}
+          data-canvas-focus-mode={canvasFocusMode ? 'true' : 'false'}
+          style={canvasFocusMode ? undefined : { height: `${canvasHeight}px` }}
         >
           <DraftingCanvasZoomControls
+            activeToolLabel={activeToolLabel}
+            browserFullscreenActive={browserFullscreenActive}
+            canvasFocusMode={canvasFocusMode}
+            helperGridVisible={helperGridVisible}
             onCenterReference={onCenterReference}
+            onCanvasFocusModeChange={setCanvasFocusMode}
+            onCanvasFullscreenToggle={toggleBrowserFullscreen}
+            onCanvasHeightChange={resizeCanvasHeight}
             onFitModel={onFitModel}
             onFitSelected={onFitSelected}
             onResetZoom={onResetZoom}
             onSetZoomScale={onSetZoomScale}
+            onHelperGridVisibleChange={onHelperGridVisibleChange}
             onToggleSnapEnabled={onToggleSnapEnabled}
             onToggleSnapMode={onToggleSnapMode}
             onLabelModeChange={onLabelModeChange}
@@ -305,16 +387,18 @@ export function DraftingStage({
               height={canvasSize.height}
               fill={standardProfile.palette.background}
             />
-            <GridLayer
-              bounds={visibleWorldBounds}
-              height={canvasSize.height}
-              offsetX={view.offsetX}
-              offsetY={view.offsetY}
-              scale={view.scale}
-              setup={setup}
-              step={gridStep}
-              width={canvasSize.width}
-            />
+            {helperGridVisible ? (
+              <GridLayer
+                bounds={visibleWorldBounds}
+                height={canvasSize.height}
+                offsetX={view.offsetX}
+                offsetY={view.offsetY}
+                scale={view.scale}
+                setup={setup}
+                step={gridStep}
+                width={canvasSize.width}
+              />
+            ) : null}
 
             <g transform={`translate(${view.offsetX} ${view.offsetY}) scale(${view.scale})`}>
               {visibleUnderlays.map((underlay) => (
@@ -401,10 +485,10 @@ export function DraftingStage({
             hasModelExtents={Boolean(getDraftingModelBounds(visibleObjects))}
             snapLabel={
               snapPreview?.candidate
-                ? `${snapPreview.candidate.label}`
+                ? `${snapPreview.candidate.label} · Helper grid ${helperGridVisible ? 'on' : 'off'}`
                 : activeSnapSettings.enabled
-                  ? 'Snap on'
-                  : 'Snap off'
+                  ? `Snap on · Helper grid ${helperGridVisible ? 'on' : 'off'}`
+                  : `Snap off · Helper grid ${helperGridVisible ? 'on' : 'off'}`
             }
             visibleObjectCount={visibleObjects.length}
           />
@@ -415,9 +499,17 @@ export function DraftingStage({
 }
 
 function DraftingCanvasZoomControls({
+  activeToolLabel,
+  browserFullscreenActive,
+  canvasFocusMode,
+  helperGridVisible,
   onCenterReference,
+  onCanvasFocusModeChange,
+  onCanvasFullscreenToggle,
+  onCanvasHeightChange,
   onFitModel,
   onFitSelected,
+  onHelperGridVisibleChange,
   onResetZoom,
   onSetZoomScale,
   onToggleSnapEnabled,
@@ -434,9 +526,17 @@ function DraftingCanvasZoomControls({
   snapSettings,
   labelMode,
 }: {
+  activeToolLabel: string;
+  browserFullscreenActive: boolean;
+  canvasFocusMode: boolean;
+  helperGridVisible: boolean;
   onCenterReference: () => void;
+  onCanvasFocusModeChange: (enabled: boolean) => void;
+  onCanvasFullscreenToggle: () => void | Promise<void>;
+  onCanvasHeightChange: (delta: number) => void;
   onFitModel: () => void;
   onFitSelected: () => void;
+  onHelperGridVisibleChange: (visible: boolean) => void;
   onResetZoom: () => void;
   onSetZoomScale: (scale: number) => void;
   onToggleSnapEnabled: () => void;
@@ -461,9 +561,21 @@ function DraftingCanvasZoomControls({
   return (
     <div
       aria-label="Drafting canvas controls"
-      className="absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm"
+      className={cn(
+        'absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm',
+        canvasFocusMode || browserFullscreenActive ? 'left-3 right-3 justify-between' : '',
+      )}
       data-testid="drafting-canvas-controls"
     >
+      {canvasFocusMode || browserFullscreenActive ? (
+        <div
+          className="flex flex-wrap items-center gap-2 text-xs"
+          data-testid="drafting-floating-controls"
+        >
+          <Badge variant="secondary">Tool {activeToolLabel}</Badge>
+          <Badge variant="outline">Focus canvas</Badge>
+        </div>
+      ) : null}
       <div className="flex items-center gap-1" data-testid="drafting-canvas-view-controls">
         <span className="px-1 text-xs font-medium text-muted-foreground">View</span>
         <Button
@@ -518,6 +630,57 @@ function DraftingCanvasZoomControls({
         </SelectContent>
       </Select>
       <div className="flex items-center gap-1">
+        <Button
+          aria-label={canvasFocusMode ? 'Restore canvas' : 'Maximize canvas'}
+          className="h-9"
+          data-testid="drafting-canvas-maximize"
+          size="sm"
+          type="button"
+          variant={canvasFocusMode ? 'secondary' : 'outline'}
+          onClick={() => onCanvasFocusModeChange(!canvasFocusMode)}
+        >
+          {canvasFocusMode ? (
+            <Minimize2 className="mr-2 h-4 w-4" />
+          ) : (
+            <Maximize2 className="mr-2 h-4 w-4" />
+          )}
+          {canvasFocusMode ? 'Restore' : 'Maximize'}
+        </Button>
+        <Button
+          aria-label={browserFullscreenActive ? 'Exit full screen' : 'Enter full screen'}
+          className="h-9"
+          data-testid="drafting-canvas-fullscreen"
+          size="sm"
+          type="button"
+          variant={browserFullscreenActive ? 'secondary' : 'outline'}
+          onClick={() => void onCanvasFullscreenToggle()}
+        >
+          {browserFullscreenActive ? 'Exit full screen' : 'Full screen'}
+        </Button>
+        {!canvasFocusMode ? (
+          <>
+            <Button
+              aria-label="Reduce canvas height"
+              className="h-9 px-2"
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => onCanvasHeightChange(-80)}
+            >
+              Shorter
+            </Button>
+            <Button
+              aria-label="Increase canvas height"
+              className="h-9 px-2"
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => onCanvasHeightChange(80)}
+            >
+              Taller
+            </Button>
+          </>
+        ) : null}
         <Button
           aria-label="Reset zoom to 100%"
           disabled={viewLocked}
@@ -591,7 +754,18 @@ function DraftingCanvasZoomControls({
           onClick={() => onToggleSnapMode('grid')}
           title="G toggles grid snap"
         >
-          Grid
+          Grid Snap
+        </Button>
+        <Button
+          aria-label="Toggle helper display grid"
+          className="h-8 px-2 text-xs"
+          data-testid="drafting-helper-grid-toggle"
+          type="button"
+          variant={helperGridVisible ? 'secondary' : 'outline'}
+          onClick={() => onHelperGridVisibleChange(!helperGridVisible)}
+          title="Helper display grid is a view aid; grid snap can stay on separately."
+        >
+          Helper Grid {helperGridVisible ? 'On' : 'Off'}
         </Button>
         <Button
           aria-label="Toggle orthogonal mode"
@@ -624,7 +798,7 @@ function DraftingCanvasZoomControls({
           ? 'View lock protects pan/zoom only; object, layer, and underlay locks stay separate. '
           : ''}
         Canvas view separate from sheet scale · Sheet scale {sheetScale} · Labels {labelMode} · Snap{' '}
-        {snapSettings.enabled ? 'on' : 'off'}
+        {snapSettings.enabled ? 'on' : 'off'} · Helper grid {helperGridVisible ? 'on' : 'off'}
       </div>
     </div>
   );
@@ -1520,7 +1694,7 @@ function GridLayer({
   const majorGridStyle = resolveDraftingLineStyle({ role: 'underlay', setup });
 
   return (
-    <g>
+    <g data-testid="drafting-helper-grid">
       {verticalLines.map((x) => {
         const screenX = x * scale + offsetX;
         const isMajor = Math.round(x / majorStep) === x / majorStep;

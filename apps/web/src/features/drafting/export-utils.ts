@@ -3,8 +3,10 @@ import type {
   DraftingDrawingStatus,
   DraftingDrawingTransmittal,
   DraftingModel,
+  DraftingObject,
   DraftingUnderlay,
 } from '@eng/shared';
+import { DraftingObjectSchema } from '@eng/shared';
 import type { DraftingSchedulePackIssue } from '@eng/shared';
 import type { RootSheetTemplate } from '@/features/templates/root-sheet-template-types';
 import { buildDraftingExportFilename } from './model-utils';
@@ -206,8 +208,13 @@ function sanitizeFilenameSegment(value: string) {
 function sanitizeDraftingModelForJsonExport(model: DraftingModel): DraftingModel {
   return {
     ...model,
+    objects: model.objects.map(toDraftingObjectMetadataExport),
     underlays: model.underlays.map(toDraftingUnderlayMetadataExport),
   };
+}
+
+function toDraftingObjectMetadataExport(object: DraftingObject): DraftingObject {
+  return DraftingObjectSchema.parse(object);
 }
 
 function buildDraftingModelJsonExportMetadata(

@@ -18,6 +18,7 @@ import { ExcavationLineProperties } from '../properties/excavation-line-properti
 import { LeaderNoteProperties } from '../properties/leader-note-properties';
 import { MonitoringPointProperties } from '../properties/monitoring-point-properties';
 import { PileProperties } from '../properties/pile-properties';
+import { ProjectGridProperties } from '../properties/project-grid-properties';
 import { SecantPileWallProperties } from '../properties/secant-pile-wall-properties';
 import { SectionMarkerProperties } from '../properties/section-marker-properties';
 import { ServiceCrossingProperties } from '../properties/service-crossing-properties';
@@ -140,6 +141,13 @@ export function DraftingPropertiesPanel({
             ) : null}
             {object.type === 'service_crossing' ? (
               <ServiceCrossingProperties object={object} onUpdate={onUpdate} />
+            ) : null}
+            {object.type === 'project_grid' ? (
+              <ProjectGridProperties
+                disabled={Boolean(object.locked || objectLayer?.locked)}
+                object={object}
+                onUpdate={onUpdate}
+              />
             ) : null}
           </PropertySection>
 
@@ -358,6 +366,8 @@ function getPrimaryCoordinatePoint(object: DraftingObject): DraftingPoint | null
       return object.geometry.point;
     case 'geotech_surface':
       return object.geometry.points[0] ?? null;
+    case 'project_grid':
+      return object.geometry.origin;
     default:
       return null;
   }
@@ -468,6 +478,7 @@ function propertySectionTitle(object: DraftingObject) {
     case 'draft_polygon':
     case 'structural_joint':
     case 'geotech_surface':
+    case 'project_grid':
     case 'dimension_chain':
     case 'callout':
     case 'section_marker':

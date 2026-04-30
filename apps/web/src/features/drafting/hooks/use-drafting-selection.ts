@@ -212,13 +212,13 @@ export function useDraftingSelection({
       return;
     }
 
+    setSelectedObjectId(object.id);
+    onSelectPropertiesTab();
+
     const point = clientToWorldPoint(event.clientX, event.clientY, containerRef.current, view);
     if (!point) {
       return;
     }
-
-    setSelectedObjectId(object.id);
-    onSelectPropertiesTab();
 
     if (activeTool === 'select' && canEditDraftingObject(model, object)) {
       setDragState({

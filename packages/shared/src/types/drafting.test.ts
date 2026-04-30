@@ -31,7 +31,7 @@ describe('drafting defaults', () => {
     expect(parsed.drawingSetup?.titleTextHeightMm).toBe(5);
     expect(parsed.drawingSetup?.dimensionTextHeightMm).toBe(2.5);
     expect(parsed.drawingSetup?.lineWeightTableId).toBe('as1100-style-lineweights-v1');
-    expect(parsed.layers).toHaveLength(13);
+    expect(parsed.layers).toHaveLength(14);
     expect(parsed.objects).toHaveLength(0);
     expect(parsed.titleBlock).toEqual({});
     expect(parsed.revisionBlock).toEqual({ revisions: [] });
@@ -468,6 +468,7 @@ describe('drafting defaults', () => {
     expect(defaultLayerIdForDraftingObjectType('draft_polygon')).toBe('notes');
     expect(defaultLayerIdForDraftingObjectType('structural_joint')).toBe('shoring');
     expect(defaultLayerIdForDraftingObjectType('geotech_surface')).toBe('boreholes');
+    expect(defaultLayerIdForDraftingObjectType('project_grid')).toBe('grid');
   });
 
   it('hydrates missing default layers without disturbing existing layer settings', () => {
@@ -494,6 +495,138 @@ describe('drafting defaults', () => {
       name: 'Services / Conflicts',
       visible: true,
     });
+    expect(hydrated.layers.find((layer) => layer.id === 'grid')).toMatchObject({
+      name: 'Project Grid',
+      visible: true,
+    });
+  });
+
+  it('accepts AS1100-informed project grid objects with modular metadata', () => {
+    const now = '2026-04-30T00:00:00.000Z';
+    const model = createEmptyDraftingModel('drawing-project-grid');
+    const parsed = DraftingModelSchema.parse({
+      ...model,
+      objects: [
+        {
+          id: 'project-grid-1',
+          type: 'project_grid',
+          layerId: 'grid',
+          name: 'Project Grid 1',
+          visible: true,
+          locked: false,
+          geometry: {
+            origin: {
+              x: 1000,
+              y: 2000,
+              snapRef: {
+                anchorKind: 'origin',
+                capturedCoordinate: { x: 1000, y: 2000 },
+              },
+            },
+            rotationDeg: 0,
+            extentXPositiveMm: 3000,
+            extentXNegativeMm: 0,
+            extentYPositiveMm: 3000,
+            extentYNegativeMm: 0,
+            xLines: [
+              {
+                id: 'x-1',
+                label: 'A',
+                offsetMm: 0,
+                lineRole: 'axis',
+                bubbleStart: true,
+                bubbleEnd: true,
+                moduleNotation: '10M',
+              },
+            ],
+            yLines: [
+              {
+                id: 'y-1',
+                label: '1',
+                offsetMm: 0,
+                lineRole: 'axis',
+                bubbleStart: true,
+                bubbleEnd: true,
+                moduleNotation: '10M',
+              },
+            ],
+          },
+          metadata: {
+            gridId: 'GRID1',
+            moduleSizeMm: 100,
+            xLabelMode: 'letters',
+            yLabelMode: 'numbers',
+            bubbleRadiusMm: 180,
+            bubblePlacement: 'both',
+            showModuleNotation: true,
+            majorEvery: 3,
+            as1100Profile: 'modular_grid_informed',
+            note: 'Project verification required.',
+          },
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    expect(parsed.objects[0]).toMatchObject({
+      type: 'project_grid',
+      metadata: {
+        moduleSizeMm: 100,
+        as1100Profile: 'modular_grid_informed',
+      },
+    });
+    expect(parsed.objects[0]?.geometry).not.toHaveProperty('renderedImage');
+  });
+
+  it('rejects invalid project grid spacing and bubble metadata', () => {
+    const now = '2026-04-30T00:00:00.000Z';
+    const model = createEmptyDraftingModel('drawing-invalid-project-grid');
+    const invalidModel = {
+      ...model,
+      objects: [
+        {
+          id: 'project-grid-invalid',
+          type: 'project_grid',
+          layerId: 'grid',
+          name: 'Invalid project grid',
+          visible: true,
+          locked: false,
+          geometry: {
+            origin: { x: 0, y: 0 },
+            rotationDeg: 0,
+            extentXPositiveMm: 3000,
+            extentXNegativeMm: 0,
+            extentYPositiveMm: 3000,
+            extentYNegativeMm: 0,
+            xLines: [
+              {
+                id: 'x-1',
+                label: 'A',
+                offsetMm: -100,
+                lineRole: 'axis',
+                bubbleStart: true,
+                bubbleEnd: true,
+              },
+            ],
+            yLines: [],
+          },
+          metadata: {
+            gridId: 'GRID1',
+            moduleSizeMm: 0,
+            xLabelMode: 'letters',
+            yLabelMode: 'numbers',
+            bubbleRadiusMm: 0,
+            bubblePlacement: 'both',
+            as1100Profile: 'modular_grid_informed',
+          },
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    };
+
+    expect(() => DraftingModelSchema.parse(invalidModel)).toThrow();
   });
 
   it('validates PDF underlay configuration with uniform calibration metadata', () => {

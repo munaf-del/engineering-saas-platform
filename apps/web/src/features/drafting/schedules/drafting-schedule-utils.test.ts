@@ -6,6 +6,7 @@ import {
   serializeDraftingScheduleGroupCsv,
   serializeDraftingSchedulesJson,
 } from './drafting-schedule-utils';
+import { createDraftingObject } from '../model-utils';
 
 const NOW = '2026-04-22T00:00:00.000Z';
 const BASE_OBJECT_FIELDS = {
@@ -321,6 +322,21 @@ describe('drafting schedule utils', () => {
 
   it('returns empty groups for an empty drafting model', () => {
     const summary = buildDraftingScheduleSummary(createEmptyDraftingModel('empty-drawing'));
+
+    expect(summary.groups.map((group) => [group.key, group.rows.length])).toEqual([
+      ['shoring_piles', 0],
+      ['anchors', 0],
+      ['beams_walers', 0],
+      ['boreholes', 0],
+      ['services_conflicts', 0],
+      ['annotations_references', 0],
+    ]);
+  });
+
+  it('does not add project grid references to semantic schedules', () => {
+    const model = createEmptyDraftingModel('drawing-grid-schedules');
+    model.objects.push(createDraftingObject('project_grid', { x: 0, y: 0 }, model));
+    const summary = buildDraftingScheduleSummary(model);
 
     expect(summary.groups.map((group) => [group.key, group.rows.length])).toEqual([
       ['shoring_piles', 0],

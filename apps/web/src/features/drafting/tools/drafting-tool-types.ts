@@ -26,6 +26,7 @@ export const DRAFTING_CREATE_TOOLS: DraftingCreateTool[] = [
   'draft_polygon',
   'structural_joint',
   'geotech_surface',
+  'project_grid',
 ];
 
 export function nextDraftingObjectSequence(

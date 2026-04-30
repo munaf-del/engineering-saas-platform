@@ -3,9 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
   createDefaultDraftingLayers,
+  createEmptyDraftingModel,
   type DraftingDimensionChainObject,
   type DraftingObject,
 } from '@eng/shared';
+import { createDraftingObject } from '../model-utils';
 import { DraftingPropertiesPanel } from './drafting-properties-panel';
 
 describe('DraftingPropertiesPanel', () => {
@@ -138,6 +140,43 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).toContain('Resolved');
     expect(markup).toContain('draft line');
     expect(markup).toContain('endpoint 2');
+  });
+
+  it('shows project grid editing controls and honours locked grid layers', () => {
+    const model = createEmptyDraftingModel('drawing-project-grid-properties');
+    const projectGrid = createDraftingObject('project_grid', { x: 0, y: 0 }, model);
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={model.layers}
+        object={projectGrid}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Project Grid Reference');
+    expect(markup).toContain('Module size mm');
+    expect(markup).toContain('X direction labels');
+    expect(markup).toContain('Y direction labels');
+    expect(markup).toContain('Bubble placement');
+    expect(markup).toContain('requires project verification');
+
+    const lockedMarkup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={model.layers.map((layer) =>
+          layer.id === 'grid' ? { ...layer, locked: true } : layer,
+        )}
+        object={projectGrid}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(lockedMarkup).toContain('Layer locked');
+    expect(lockedMarkup).toContain(
+      'Grid geometry and style edits are disabled while the object or layer is locked.',
+    );
+    expect(lockedMarkup).toContain('disabled=""');
   });
 });
 
