@@ -9,6 +9,23 @@ import {
 import { DraftingPropertiesPanel } from './drafting-properties-panel';
 
 describe('DraftingPropertiesPanel', () => {
+  it('shows a reconciled no-selection state across inspector tabs', () => {
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={createDefaultDraftingLayers()}
+        object={null}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('No selection');
+    expect(markup).toContain('Select a drafting object to edit properties');
+    expect(markup).toContain('Layers, sources, underlays, sheets, and schedules');
+    expect(markup).toContain('Object and layer locks are shown after selection.');
+    expect(markup).toContain('Source provenance appears only for linked objects.');
+  });
+
   it('shows compact source controls for source-linked objects', () => {
     const markup = renderToStaticMarkup(
       <DraftingPropertiesPanel
@@ -30,6 +47,26 @@ describe('DraftingPropertiesPanel', () => {
     expect(markup).toContain('Manage source');
     expect(markup).toContain('Unlink');
     expect(markup).toContain('Convert to sketch/unlinked');
+  });
+
+  it('distinguishes selected object, layer, and hidden states', () => {
+    const layers = createDefaultDraftingLayers().map((layer) =>
+      layer.id === 'piles' ? { ...layer, locked: true } : layer,
+    );
+    const object = { ...linkedPile(), locked: true, visible: false };
+    const markup = renderToStaticMarkup(
+      <DraftingPropertiesPanel
+        layers={layers}
+        object={object}
+        onDelete={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Object locked');
+    expect(markup).toContain('Layer locked');
+    expect(markup).toContain('Hidden');
+    expect(markup).toContain('Layer Piles');
   });
 
   it('shows stale pile type sources without moving the drafting position automatically', () => {

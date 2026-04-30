@@ -16,23 +16,22 @@ export function DraftingStatusBar({
   visibleObjectCount: number;
 }) {
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-white/90 px-3 py-2 text-xs text-muted-foreground shadow">
-      {commandPrompt ? (
-        <>
-          <span className="font-medium text-foreground">{commandPrompt}</span>
-          {' · '}
-        </>
-      ) : null}
-      {visibleObjectCount} visible object(s) ·{' '}
-      {hasModelExtents ? 'Model extents ready' : 'Place the first object to establish extents'}
+    <div
+      className="pointer-events-none absolute bottom-3 left-3 right-3 flex max-w-fit flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-white/90 px-3 py-2 text-xs text-muted-foreground shadow"
+      data-testid="drafting-canvas-status-bar"
+    >
+      {commandPrompt ? <span className="font-medium text-foreground">{commandPrompt}</span> : null}
+      <span>{visibleObjectCount} visible object(s)</span>
+      <span>
+        {hasModelExtents ? 'Model extents ready' : 'Place the first object to establish extents'}
+      </span>
       {cursorPoint ? (
-        <>
-          {' '}
-          · Cursor {formatCoordinate(cursorPoint.x, displayUnits)},{' '}
+        <span>
+          Cursor {formatCoordinate(cursorPoint.x, displayUnits)},{' '}
           {formatCoordinate(cursorPoint.y, displayUnits)}
-        </>
+        </span>
       ) : null}
-      {snapLabel ? <> · {snapLabel}</> : null}
+      {snapLabel ? <span>{snapLabel}</span> : null}
     </div>
   );
 }

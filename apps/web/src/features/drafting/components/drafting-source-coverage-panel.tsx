@@ -4,7 +4,6 @@ import type {
   DraftingObjectSourceRef,
   DraftingModel,
   DraftingRegistrySourceBase,
-  FoundationPileTypeSource,
   ProjectEngineeringSourceRegistry,
   SpatialFeatureSource,
   SpatialServiceSource,
@@ -186,6 +185,16 @@ export function DraftingSourceCoveragePanel({
             Clear selection
           </Button>
         </div>
+      </div>
+
+      <div
+        className="rounded-md border bg-muted/15 px-3 py-2 text-xs text-muted-foreground"
+        data-testid="drafting-source-adapter-readiness"
+      >
+        <span className="font-medium text-foreground">Source linking is opt-in.</span> Manual
+        drafting objects remain editable without source data. Linked placement and refresh actions
+        appear only for configured project registries; this panel does not invent missing source
+        records.
       </div>
 
       <div className="grid gap-2 md:grid-cols-4">

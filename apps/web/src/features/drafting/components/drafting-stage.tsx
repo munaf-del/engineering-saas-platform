@@ -453,12 +453,19 @@ function DraftingCanvasZoomControls({
   snapSettings: DraftingSnapSettings;
   labelMode: DraftingCanvasLabelMode;
 }) {
-  const lockedTitle = viewLocked ? 'Unlock view to pan, zoom, fit, or recenter.' : undefined;
+  const lockedTitle = viewLocked
+    ? 'View lock disables pan, zoom, fit, and recenter controls only.'
+    : undefined;
   const viewStatus = formatDraftingCanvasViewStatus(viewMode, zoomPercent);
 
   return (
-    <div className="absolute right-3 top-3 z-10 flex flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm">
-      <div className="flex items-center gap-1">
+    <div
+      aria-label="Drafting canvas controls"
+      className="absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-md border bg-background/95 p-2 shadow-sm"
+      data-testid="drafting-canvas-controls"
+    >
+      <div className="flex items-center gap-1" data-testid="drafting-canvas-view-controls">
+        <span className="px-1 text-xs font-medium text-muted-foreground">View</span>
         <Button
           aria-label="Zoom out"
           disabled={viewLocked}
@@ -555,6 +562,7 @@ function DraftingCanvasZoomControls({
       <Button
         aria-label="Lock View"
         className="h-9"
+        data-testid="drafting-view-lock-control"
         size="sm"
         type="button"
         variant={viewLocked ? 'secondary' : 'outline'}
@@ -564,6 +572,7 @@ function DraftingCanvasZoomControls({
         {viewLocked ? 'View Locked' : 'Lock View'}
       </Button>
       <div className="flex items-center gap-1 border-l pl-2">
+        <span className="px-1 text-xs font-medium text-muted-foreground">Snap</span>
         <Button
           aria-label="Toggle snap"
           className="h-8 px-2 text-xs"
@@ -611,8 +620,10 @@ function DraftingCanvasZoomControls({
         ))}
       </div>
       <div className="basis-full text-right text-[11px] text-muted-foreground">
-        {viewLocked ? 'Unlock view to pan, zoom, fit, or recenter. ' : ''}
-        Canvas view separate · Sheet scale {sheetScale} · Labels {labelMode} · Snap{' '}
+        {viewLocked
+          ? 'View lock protects pan/zoom only; object, layer, and underlay locks stay separate. '
+          : ''}
+        Canvas view separate from sheet scale · Sheet scale {sheetScale} · Labels {labelMode} · Snap{' '}
         {snapSettings.enabled ? 'on' : 'off'}
       </div>
     </div>

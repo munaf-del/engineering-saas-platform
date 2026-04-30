@@ -53,6 +53,8 @@ describe('DraftingStage', () => {
     );
 
     expect(markup).toContain('data-testid="drafting-canvas-stage"');
+    expect(markup).toContain('data-testid="drafting-canvas-controls"');
+    expect(markup).toContain('data-testid="drafting-canvas-status-bar"');
     expect(markup).toContain('aria-label="Zoom in"');
     expect(markup).toContain('aria-label="Zoom out"');
     expect(markup).toContain('aria-label="Reset zoom to 100%"');
@@ -103,7 +105,10 @@ describe('DraftingStage', () => {
     );
 
     expect(markup).toContain('View locked');
-    expect(markup).toContain('Unlock view to pan, zoom, fit, or recenter.');
+    expect(markup).toContain(
+      'View lock protects pan/zoom only; object, layer, and underlay locks stay separate.',
+    );
+    expect(markup).toContain('View lock disables pan, zoom, fit, and recenter controls only.');
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('data-drafting-object="true"');
   });

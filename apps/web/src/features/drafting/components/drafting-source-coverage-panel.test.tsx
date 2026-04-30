@@ -74,6 +74,9 @@ describe('DraftingSourceCoveragePanel', () => {
 
     expect(markup).toContain('data-testid="drafting-source-coverage-panel"');
     expect(markup).toContain('Project Source Coverage');
+    expect(markup).toContain('data-testid="drafting-source-adapter-readiness"');
+    expect(markup).toContain('Source linking is opt-in.');
+    expect(markup).toContain('this panel does not invent missing source records');
     expect(markup).toContain('Foundation / Pile type library');
     expect(markup).toContain('BP1');
     expect(markup).toContain('Used by 0');
