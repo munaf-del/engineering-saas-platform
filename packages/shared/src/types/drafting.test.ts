@@ -571,6 +571,181 @@ describe('drafting defaults', () => {
     expect(parsed.underlays[0]).toEqual(model.underlays[0]);
   });
 
+  it('strips PDF underlay runtime payload fields when a drafting model is parsed and reloaded', () => {
+    const model = createEmptyDraftingModel('drawing-underlay-runtime-payload');
+    const rawUnderlay = {
+      id: 'underlay-runtime-1',
+      name: 'Runtime contaminated PDF',
+      fileId: 'document-runtime-1',
+      fileName: 'runtime.pdf',
+      pageNumber: 3,
+      visible: false,
+      opacity: 0.45,
+      locked: true,
+      transform: {
+        x: 120,
+        y: 240,
+        scale: 0.75,
+        rotationDeg: 6,
+      },
+      crop: {
+        x: 12,
+        y: 18,
+        width: 280,
+        height: 360,
+      },
+      calibration: {
+        method: 'two_point_uniform_scale',
+        pdfPointA: { x: 10, y: 20 },
+        pdfPointB: { x: 210, y: 20 },
+        modelPointA: { x: 1200, y: 2400 },
+        modelPointB: { x: 3700, y: 2400 },
+        modelDistanceMm: 2500,
+        calculatedScale: 12.5,
+        calibratedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+        warningAcknowledged: true,
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      pdfBytes: 'data:application/pdf;base64,JVBERi0xLjQ=',
+      renderedImageData: 'data:image/png;base64,iVBORw0KGgo=',
+      imageUrl: 'blob:rendered-underlay-page',
+      objectUrl: 'blob:pdf-object-url',
+      buffer: { data: [37, 80, 68, 70] },
+      renderCache: {
+        viewport: { width: 800, height: 600 },
+      },
+    };
+    const rawModel = {
+      ...model,
+      underlays: [rawUnderlay],
+    };
+    const inputSnapshot = JSON.stringify(rawModel);
+
+    const parsed = DraftingModelSchema.parse(rawModel);
+    const serialized = JSON.stringify(parsed);
+
+    expect(parsed.underlays).toHaveLength(1);
+    expect(parsed.underlays[0]).toEqual({
+      id: 'underlay-runtime-1',
+      name: 'Runtime contaminated PDF',
+      fileId: 'document-runtime-1',
+      fileName: 'runtime.pdf',
+      pageNumber: 3,
+      visible: false,
+      opacity: 0.45,
+      locked: true,
+      transform: {
+        x: 120,
+        y: 240,
+        scale: 0.75,
+        rotationDeg: 6,
+      },
+      crop: {
+        x: 12,
+        y: 18,
+        width: 280,
+        height: 360,
+      },
+      calibration: {
+        method: 'two_point_uniform_scale',
+        pdfPointA: { x: 10, y: 20 },
+        pdfPointB: { x: 210, y: 20 },
+        modelPointA: { x: 1200, y: 2400 },
+        modelPointB: { x: 3700, y: 2400 },
+        modelDistanceMm: 2500,
+        calculatedScale: 12.5,
+        calibratedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+        warningAcknowledged: true,
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+    });
+    expect(serialized).not.toContain('pdfBytes');
+    expect(serialized).not.toContain('renderedImageData');
+    expect(serialized).not.toContain('imageUrl');
+    expect(serialized).not.toContain('objectUrl');
+    expect(serialized).not.toContain('buffer');
+    expect(serialized).not.toContain('renderCache');
+    expect(serialized).not.toContain('data:application/pdf');
+    expect(serialized).not.toContain('data:image/png');
+    expect(serialized).not.toContain('blob:');
+    expect(JSON.stringify(rawModel)).toBe(inputSnapshot);
+  });
+
+  it('rejects malformed PDF underlay metadata without mutating the readback input', () => {
+    const model = createEmptyDraftingModel('drawing-underlay-malformed-readback');
+    const validUnderlay = {
+      id: 'underlay-malformed-base',
+      name: 'Malformed readback base',
+      fileId: 'document-malformed-base',
+      fileName: 'malformed.pdf',
+      pageNumber: 1,
+      visible: true,
+      opacity: 0.6,
+      locked: false,
+      transform: {
+        x: 10,
+        y: 20,
+        scale: 1,
+        rotationDeg: 0,
+      },
+      crop: {
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 120,
+      },
+      calibration: {
+        method: 'two_point_uniform_scale',
+        pdfPointA: { x: 0, y: 0 },
+        pdfPointB: { x: 100, y: 0 },
+        modelPointA: { x: 1000, y: 2000 },
+        modelPointB: { x: 2000, y: 2000 },
+        modelDistanceMm: 1000,
+        calculatedScale: 10,
+        calibratedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+        warningAcknowledged: true,
+      },
+      createdAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z').toISOString(),
+    };
+    const malformedCases = [
+      {
+        label: 'invalid page number',
+        underlay: { ...validUnderlay, pageNumber: 0 },
+      },
+      {
+        label: 'invalid transform scale',
+        underlay: { ...validUnderlay, transform: { ...validUnderlay.transform, scale: 0 } },
+      },
+      {
+        label: 'invalid crop size',
+        underlay: { ...validUnderlay, crop: { ...validUnderlay.crop, width: 0 } },
+      },
+      {
+        label: 'unacknowledged calibration warning',
+        underlay: {
+          ...validUnderlay,
+          calibration: { ...validUnderlay.calibration, warningAcknowledged: false },
+        },
+      },
+    ];
+
+    for (const malformedCase of malformedCases) {
+      const rawModel = {
+        ...model,
+        underlays: [malformedCase.underlay],
+      };
+      const inputSnapshot = JSON.stringify(rawModel);
+
+      const result = DraftingModelSchema.safeParse(rawModel);
+
+      expect(result.success, malformedCase.label).toBe(false);
+      expect(JSON.stringify(rawModel), malformedCase.label).toBe(inputSnapshot);
+    }
+  });
+
   it('accepts and preserves saved schedule sheet definitions', () => {
     const model = createEmptyDraftingModel('drawing-schedule-pack');
     model.scheduleSheets.push({
