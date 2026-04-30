@@ -252,6 +252,49 @@ describe('useDraftingView', () => {
     expect(hook.current.isPanning).toBe(false);
     await hook.unmount();
   });
+
+  it('does not treat right-click or locked middle-click as panning gestures', async () => {
+    const model = createEmptyDraftingModel('drawing-middle-pan-guards');
+    const hook = await renderDraftingViewHook(model, 'pan');
+    const rightClickPreventDefault = vi.fn();
+    const middlePreventDefault = vi.fn();
+    const initialView = hook.current.currentView;
+
+    await act(async () => {
+      hook.current.handleBackgroundPointerDown({
+        button: 2,
+        clientX: 100,
+        clientY: 120,
+        preventDefault: rightClickPreventDefault,
+        target: document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      } as unknown as React.PointerEvent<SVGSVGElement>);
+    });
+
+    expect(rightClickPreventDefault).not.toHaveBeenCalled();
+    expect(hook.current.isPanning).toBe(false);
+
+    await act(async () => {
+      hook.current.setViewLocked(true);
+    });
+
+    await act(async () => {
+      hook.current.handleBackgroundPointerDown({
+        button: 1,
+        clientX: 100,
+        clientY: 120,
+        preventDefault: middlePreventDefault,
+        target: document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      } as unknown as React.PointerEvent<SVGSVGElement>);
+    });
+
+    expect(middlePreventDefault).not.toHaveBeenCalled();
+    expect(hook.current.isPanning).toBe(false);
+    expect(hook.current.currentView).toMatchObject({
+      offsetX: initialView.offsetX,
+      offsetY: initialView.offsetY,
+    });
+    await hook.unmount();
+  });
 });
 
 async function renderDraftingViewHook(

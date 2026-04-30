@@ -120,10 +120,9 @@ export function DraftingCommonObjectProperties({
       </PropertySection>
 
       {isDraftingTextStyleTarget(object) ? (
-        <PropertySection title="Text">
+        <PropertySection title="Text style" testId="drafting-text-style-section">
           <p className="text-xs text-muted-foreground">
-            AS1100 profile text presets provide drafting defaults; project verification remains
-            required.
+            Project text style. Presets are AS1100-informed and require project verification.
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Font family">
@@ -187,6 +186,7 @@ export function DraftingCommonObjectProperties({
 
             <NumberField
               label="Custom height (mm)"
+              inputTestId="drafting-text-height-custom"
               value={object.style?.textHeightMm ?? DEFAULT_DRAFTING_TEXT_HEIGHT_MM}
               onChange={(value) => {
                 const textHeightMm = Math.max(0.1, value);
@@ -340,9 +340,17 @@ function isDraftingTextStyleTarget(object: DraftingObject) {
   ].includes(object.type);
 }
 
-export function PropertySection({ children, title }: { children: React.ReactNode; title: string }) {
+export function PropertySection({
+  children,
+  testId,
+  title,
+}: {
+  children: React.ReactNode;
+  testId?: string;
+  title: string;
+}) {
   return (
-    <section className="space-y-3 rounded-md border bg-background p-3">
+    <section className="space-y-3 rounded-md border bg-background p-3" data-testid={testId}>
       <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h4>
@@ -362,11 +370,13 @@ export function Field({ children, label }: { children: React.ReactNode; label: s
 
 export function NumberField({
   disabled,
+  inputTestId,
   label,
   onChange,
   value,
 }: {
   disabled?: boolean;
+  inputTestId?: string;
   label: string;
   onChange: (value: number) => void;
   value: number | string;
@@ -374,6 +384,7 @@ export function NumberField({
   return (
     <Field label={label}>
       <Input
+        data-testid={inputTestId}
         type="number"
         value={formatNumberInputValue(value)}
         disabled={disabled}

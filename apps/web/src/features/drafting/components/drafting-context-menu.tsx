@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { DraftingModel, DraftingObject } from '@eng/shared';
+import type { DraftingModel, DraftingObject, DraftingWorkspace } from '@eng/shared';
 import { Button } from '@/components/ui/button';
 import { canEditDraftingObject } from '../model-utils';
 import type { DraftingTool } from '../tools/drafting-tool-types';
@@ -25,11 +25,14 @@ export function DraftingContextMenu({
   onDeleteObject,
   onFitModel,
   onObjectUpdate,
+  onObjectWorkspaceChange,
   onOpenProperties,
   onSetTool,
   onToggleHelperGrid,
   onToggleSnap,
+  readOnly = false,
   snapEnabled,
+  workspaces = [],
 }: {
   contextMenu: DraftingContextMenuState | null;
   helperGridVisible: boolean;
@@ -38,11 +41,14 @@ export function DraftingContextMenu({
   onDeleteObject: (objectId: string) => void;
   onFitModel: () => void;
   onObjectUpdate: (objectId: string, updater: (object: DraftingObject) => DraftingObject) => void;
+  onObjectWorkspaceChange?: (objectId: string, workspaceId: string | undefined) => void;
   onOpenProperties: () => void;
   onSetTool: (tool: DraftingTool) => void;
   onToggleHelperGrid: () => void;
   onToggleSnap: () => void;
+  readOnly?: boolean;
   snapEnabled: boolean;
+  workspaces?: DraftingWorkspace[];
 }) {
   if (!contextMenu) {
     return null;
@@ -52,7 +58,13 @@ export function DraftingContextMenu({
     contextMenu.kind === 'object'
       ? model.objects.find((candidate) => candidate.id === contextMenu.objectId)
       : null;
-  const editable = object ? canEditDraftingObject(model, object) : false;
+  const objectEditable = object ? canEditDraftingObject(model, object) : false;
+  const editable = objectEditable && !readOnly;
+  const blockedReason = readOnly
+    ? 'Read-only view blocks editing actions.'
+    : object && !objectEditable
+      ? 'Locked object or layer blocks editing actions.'
+      : null;
   const viewportWidth = typeof window === 'undefined' ? 1024 : window.innerWidth;
   const viewportHeight = typeof window === 'undefined' ? 768 : window.innerHeight;
   const style = {
@@ -79,7 +91,13 @@ export function DraftingContextMenu({
           <ContextMenuButton onClick={() => run(onOpenProperties)}>
             Open properties
           </ContextMenuButton>
+          {isTextBearingDraftingObject(object) ? (
+            <ContextMenuButton onClick={() => run(onOpenProperties)}>
+              Edit text style
+            </ContextMenuButton>
+          ) : null}
           <ContextMenuButton
+            disabled={readOnly}
             onClick={() =>
               run(() =>
                 onObjectUpdate(object.id, (current) => ({
@@ -92,8 +110,35 @@ export function DraftingContextMenu({
           >
             {object.locked ? 'Unlock object' : 'Lock object'}
           </ContextMenuButton>
+          {workspaces.length > 0 && onObjectWorkspaceChange ? (
+            <div className="px-2 py-1.5" role="none">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Move to workspace
+              </label>
+              <select
+                className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                data-testid="drafting-context-move-workspace"
+                disabled={!editable}
+                value={object.workspaceId ?? 'workspace-all'}
+                onChange={(event) =>
+                  run(() =>
+                    onObjectWorkspaceChange(
+                      object.id,
+                      event.target.value === 'workspace-all' ? undefined : event.target.value,
+                    ),
+                  )
+                }
+              >
+                {workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <ContextMenuButton
-            disabled={!editable && object.locked !== true}
+            disabled={!editable}
             onClick={() =>
               run(() =>
                 onObjectUpdate(object.id, (current) => ({
@@ -107,54 +152,64 @@ export function DraftingContextMenu({
             {object.visible === false ? 'Show object' : 'Hide object'}
           </ContextMenuButton>
           {object.type === 'project_grid_line' ? (
-            <ContextMenuButton
-              disabled={!editable}
-              onClick={() =>
-                run(() =>
-                  onObjectUpdate(object.id, (current) =>
-                    current.type === 'project_grid_line'
-                      ? {
-                          ...current,
-                          metadata: {
-                            ...current.metadata,
-                            bubblePlacement:
-                              current.metadata.bubblePlacement === 'none' ? 'both' : 'none',
-                          },
-                          updatedAt: new Date().toISOString(),
-                        }
-                      : current,
-                  ),
-                )
-              }
-            >
-              Toggle grid bubbles
-            </ContextMenuButton>
+            <>
+              <ContextMenuButton onClick={() => run(onOpenProperties)}>
+                Edit grid label
+              </ContextMenuButton>
+              <ContextMenuButton
+                disabled={!editable}
+                onClick={() =>
+                  run(() =>
+                    onObjectUpdate(object.id, (current) =>
+                      current.type === 'project_grid_line'
+                        ? {
+                            ...current,
+                            metadata: {
+                              ...current.metadata,
+                              bubblePlacement:
+                                current.metadata.bubblePlacement === 'none' ? 'both' : 'none',
+                            },
+                            updatedAt: new Date().toISOString(),
+                          }
+                        : current,
+                    ),
+                  )
+                }
+              >
+                Toggle grid bubbles
+              </ContextMenuButton>
+            </>
           ) : null}
           {object.type === 'shaft' ? (
-            <ContextMenuButton
-              disabled={!editable}
-              onClick={() =>
-                run(() =>
-                  onObjectUpdate(object.id, (current) =>
-                    current.type === 'shaft'
-                      ? {
-                          ...current,
-                          parameters: {
-                            ...current.parameters,
-                            constructionType:
-                              current.parameters.constructionType === 'secant_piles'
-                                ? 'contiguous_piles'
-                                : 'secant_piles',
-                          },
-                          updatedAt: new Date().toISOString(),
-                        }
-                      : current,
-                  ),
-                )
-              }
-            >
-              Toggle shaft pile type
-            </ContextMenuButton>
+            <>
+              <ContextMenuButton onClick={() => run(onOpenProperties)}>
+                Edit shaft properties
+              </ContextMenuButton>
+              <ContextMenuButton
+                disabled={!editable}
+                onClick={() =>
+                  run(() =>
+                    onObjectUpdate(object.id, (current) =>
+                      current.type === 'shaft'
+                        ? {
+                            ...current,
+                            parameters: {
+                              ...current.parameters,
+                              constructionType:
+                                current.parameters.constructionType === 'secant_piles'
+                                  ? 'contiguous_piles'
+                                  : 'secant_piles',
+                            },
+                            updatedAt: new Date().toISOString(),
+                          }
+                        : current,
+                    ),
+                  )
+                }
+              >
+                Toggle shaft pile type
+              </ContextMenuButton>
+            </>
           ) : null}
           <ContextMenuButton
             disabled={!editable}
@@ -162,10 +217,8 @@ export function DraftingContextMenu({
           >
             Delete object
           </ContextMenuButton>
-          {!editable ? (
-            <p className="px-2 py-1 text-xs text-muted-foreground">
-              Locked object or layer blocks editing actions.
-            </p>
+          {blockedReason ? (
+            <p className="px-2 py-1 text-xs text-muted-foreground">{blockedReason}</p>
           ) : null}
         </>
       ) : (
@@ -193,6 +246,29 @@ export function DraftingContextMenu({
       )}
     </div>
   );
+}
+
+function isTextBearingDraftingObject(object: DraftingObject) {
+  return [
+    'leader_note',
+    'callout',
+    'section_marker',
+    'dimension_chain',
+    'project_grid',
+    'project_grid_line',
+    'shaft',
+    'pile',
+    'secant_pile_wall',
+    'soldier_pile_wall',
+    'capping_beam',
+    'waler',
+    'excavation_line',
+    'monitoring_point',
+    'borehole',
+    'service_run',
+    'service_crossing',
+    'structural_joint',
+  ].includes(object.type);
 }
 
 function ContextMenuButton({

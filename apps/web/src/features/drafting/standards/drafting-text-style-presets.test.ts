@@ -13,8 +13,8 @@ import {
 describe('drafting text style presets', () => {
   it('provides one AS1100-informed text profile without bundling font files', () => {
     expect(DRAFTING_TEXT_STANDARD_PROFILE_ID).toBe('AS1100');
-    expect(DRAFTING_TEXT_HEIGHT_PRESETS_MM).toEqual([2.5, 3.5, 5, 7]);
-    expect(DRAFTING_EXTENDED_TEXT_HEIGHT_PRESETS_MM).toEqual([2.5, 3.5, 5, 7, 10, 14]);
+    expect(DRAFTING_TEXT_HEIGHT_PRESETS_MM).toEqual([2.5, 3.5, 5, 7, 10, 14, 20]);
+    expect(DRAFTING_EXTENDED_TEXT_HEIGHT_PRESETS_MM).toEqual([2.5, 3.5, 5, 7, 10, 14, 20]);
     expect(DEFAULT_DRAFTING_TEXT_HEIGHT_MM).toBe(2.5);
     expect(DEFAULT_DRAFTING_TEXT_FONT_FAMILY).toBe('ISOCP');
     expect(DRAFTING_TEXT_FONT_FAMILIES).toEqual(

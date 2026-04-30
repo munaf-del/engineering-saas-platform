@@ -75,7 +75,9 @@ export function DraftingPropertiesPanel({
             Edit geometry, style, layer, and object metadata.
           </PanelHint>
           <PanelHint title="Locks">Object and layer locks are shown after selection.</PanelHint>
-          <PanelHint title="Sources">Source provenance appears only for linked objects.</PanelHint>
+          <PanelHint title="Text / Workspaces">
+            Text style and workspace assignment appear here for selected drafting objects.
+          </PanelHint>
         </CardContent>
       </Card>
     );
@@ -211,7 +213,7 @@ function DraftingWorkspaceAssignmentProperties({
   }
 
   return (
-    <PropertySection title="Workspace">
+    <PropertySection title="Workspace" testId="drafting-workspace-assignment-section">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <div className="text-sm font-medium">Assigned workspace</div>

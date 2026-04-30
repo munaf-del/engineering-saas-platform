@@ -174,7 +174,13 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
 
   function handleBackgroundPointerDown(event: React.PointerEvent<SVGSVGElement>) {
     const isMiddleButton = event.button === 1;
-    if ((!isMiddleButton && activeTool !== 'pan') || !model || editorView.locked) {
+    const isPanToolPrimaryButton = activeTool === 'pan' && event.button === 0;
+    if (
+      (!isMiddleButton && !isPanToolPrimaryButton) ||
+      !model ||
+      editorView.locked ||
+      isInteractivePointerTarget(event.target)
+    ) {
       return;
     }
 
@@ -314,6 +320,16 @@ export function useDraftingView({ activeTool, drawingId, model }: UseDraftingVie
 
 export function getDraftingEditorViewStorageKey(drawingId: string) {
   return `${DRAFTING_EDITOR_VIEW_STORAGE_PREFIX}.${drawingId}`;
+}
+
+function isInteractivePointerTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest('input, textarea, select, button, [role="menu"], [data-drafting-context-menu]'),
+  );
 }
 
 export function createDraftingEditorViewState(

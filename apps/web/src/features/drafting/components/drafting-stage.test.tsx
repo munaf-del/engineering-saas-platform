@@ -110,7 +110,7 @@ describe('DraftingStage', () => {
     );
 
     expect(markup).not.toContain('data-testid="drafting-helper-grid"');
-    expect(markup).toContain('Helper Grid Off');
+    expect(markup).toContain('Helper Off');
     expect(markup).toContain('data-drafting-object="true"');
   });
 
@@ -160,20 +160,19 @@ describe('DraftingStage', () => {
 
     expect(markup).toContain('data-testid="drafting-floating-controls"');
     expect(markup).toContain('data-testid="drafting-floating-tool-cluster"');
-    expect(markup).toContain('data-testid="drafting-floating-tool-palette"');
-    expect(markup).toContain('data-testid="drafting-floating-tool-trigger"');
+    expect(markup).toContain('data-testid="drafting-floating-tools-trigger"');
     expect(markup).toContain('data-testid="drafting-floating-view-cluster"');
     expect(markup).toContain('data-testid="drafting-floating-aids-cluster"');
-    expect(markup).toContain('data-testid="drafting-floating-aids-controls"');
     expect(markup).toContain('data-testid="drafting-floating-inspector-cluster"');
-    expect(markup).toContain('data-testid="drafting-floating-inspector-toggle"');
     expect(markup).toContain('data-testid="drafting-canvas-focus-restore"');
-    expect(markup).toContain('data-testid="drafting-floating-project-grid-line-tool"');
-    expect(markup).toContain('data-testid="drafting-floating-shaft-tool"');
+    expect(markup).toContain('data-testid="drafting-tool-button-project-grid-line"');
+    expect(markup).toContain('data-testid="drafting-tool-button-shaft"');
+    expect(markup).toContain('data-testid="drafting-tool-button-select"');
+    expect(markup).toContain('data-testid="drafting-tool-button-pan"');
     expect(markup).toContain('Grid Line');
     expect(markup).toContain('Shaft');
-    expect(markup).toContain('Tool Grid');
-    expect(markup).toContain('Focus canvas');
+    expect(markup).toContain('Tools');
+    expect(markup).not.toContain('data-testid="drafting-canvas-controls"');
     expect(markup).toContain('aria-label="Restore canvas"');
     expect(markup).toContain('data-testid="drafting-project-grid-bubble"');
   });

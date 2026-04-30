@@ -1310,6 +1310,7 @@ export function DraftingEditor({
           labelMode={canvasLabelMode}
           activeToolLabel={getDraftingToolShortLabel(drafting.activeTool)}
           helperGridVisible={helperGridVisible}
+          isPanning={view.isPanning}
           model={currentModel}
           onBackgroundPointerDown={view.handleBackgroundPointerDown}
           onCanvasClick={handleCanvasClick}
@@ -1596,14 +1597,21 @@ export function DraftingEditor({
           }}
           onFitModel={view.handleFitView}
           onObjectUpdate={updateContextObject}
+          onObjectWorkspaceChange={(objectId, workspaceId) =>
+            updateContextObject(objectId, (object) =>
+              assignDraftingObjectWorkspace(object, workspaceId),
+            )
+          }
           onOpenProperties={() => {
             drafting.setActiveTab('properties');
             setInspectorExpanded(true);
           }}
+          readOnly={false}
           onSetTool={drafting.setActiveTool}
           onToggleHelperGrid={() => setHelperGridVisible((current) => !current)}
           onToggleSnap={drafting.toggleSnapEnabled}
           snapEnabled={drafting.snapSettings.enabled}
+          workspaces={workspaces}
         />
       </div>
     </>
