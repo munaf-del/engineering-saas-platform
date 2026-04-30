@@ -108,6 +108,58 @@ describe('PDF underlay render hooks', () => {
     expect(loading.current.errorKind).toBeNull();
   });
 
+  it('renders page bitmaps at the fixed PDF viewport scale used by the cache key', async () => {
+    const page = createPdfPage({
+      height: 400,
+      renderPromise: Promise.resolve(),
+      width: 800,
+    });
+    const getPage = vi.fn(() => Promise.resolve(page));
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({ numPages: 1, getPage }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const hook = await renderPageRenderHook('fixed-render-scale-document', 1);
+    await waitFor(() => hook.current.data != null);
+    await hook.unmount();
+
+    expect(page.getViewport).toHaveBeenCalledWith({ scale: 2 });
+    expect(hook.current.data).toMatchObject({
+      height: 200,
+      imageUrl: 'blob:pdf-render',
+      pageCount: 1,
+      width: 400,
+    });
+  });
+
+  it('shares cached render output for concurrent hooks with the same file and page', async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:shared-cache-key');
+    const getPage = vi.fn(() =>
+      Promise.resolve(createPdfPage({ height: 200, renderPromise: Promise.resolve(), width: 400 })),
+    );
+
+    vi.mocked(apiArrayBuffer).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(pdfjsLib.getDocument).mockReturnValue({
+      promise: Promise.resolve({ numPages: 1, getPage }),
+    } as unknown as ReturnType<typeof pdfjsLib.getDocument>);
+
+    const first = await renderPageRenderHook('shared-cache-key-document', 1);
+    const second = await renderPageRenderHook('shared-cache-key-document', 1);
+    await waitFor(() => first.current.data != null && second.current.data != null);
+
+    expect(getPage).toHaveBeenCalledTimes(1);
+    expect(first.current.data?.imageUrl).toBe('blob:shared-cache-key');
+    expect(second.current.data?.imageUrl).toBe('blob:shared-cache-key');
+
+    await first.unmount();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:shared-cache-key');
+
+    await second.unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:shared-cache-key');
+  });
+
   it('clears stale rendered page data when switching file IDs', async () => {
     const fileBRender = createDeferred<void>();
 
