@@ -19,6 +19,7 @@ const pdfDocumentInfoState = vi.hoisted(() => ({
   current: {
     data: null as { pageCount: number } | null,
     error: null as Error | null,
+    errorKind: null as null | import('../hooks/use-pdf-underlay-render').PdfUnderlayRenderErrorKind,
     isLoading: false,
   },
 }));
@@ -27,6 +28,7 @@ const pdfPageRenderState = vi.hoisted(() => ({
   current: {
     data: null as { height: number; imageUrl: string; pageCount: number; width: number } | null,
     error: null as Error | null,
+    errorKind: null as null | import('../hooks/use-pdf-underlay-render').PdfUnderlayRenderErrorKind,
     isLoading: false,
   },
 }));
@@ -51,6 +53,26 @@ vi.mock('@/hooks/use-documents', () => ({
 }));
 
 vi.mock('../hooks/use-pdf-underlay-render', () => ({
+  getPdfUnderlayRenderErrorMessage: (
+    kind: string | null | undefined,
+    options: { fallback?: string; pageNumber?: number | null } = {},
+  ) => {
+    const pageLabel = options.pageNumber ? `Page ${options.pageNumber}` : 'The selected page';
+
+    if (kind === 'missing_document') {
+      return 'The referenced project PDF could not be found. It may have been removed or moved.';
+    }
+
+    if (kind === 'invalid_pdf') {
+      return 'The PDF could not be read. It may be corrupt, encrypted, or unsupported.';
+    }
+
+    if (kind === 'page_unavailable') {
+      return `${pageLabel} is not available in the selected PDF.`;
+    }
+
+    return options.fallback ?? 'The PDF underlay could not be rendered.';
+  },
   usePdfDocumentInfo: () => pdfDocumentInfoState.current,
   usePdfPageRender: () => pdfPageRenderState.current,
 }));
@@ -73,11 +95,13 @@ describe('DraftingUnderlaysPanel', () => {
     pdfDocumentInfoState.current = {
       data: null,
       error: null,
+      errorKind: null,
       isLoading: false,
     };
     pdfPageRenderState.current = {
       data: null,
       error: null,
+      errorKind: null,
       isLoading: false,
     };
     vi.mocked(toast.error).mockReset();
@@ -162,6 +186,7 @@ describe('DraftingUnderlaysPanel', () => {
     pdfPageRenderState.current = {
       data: null,
       error: new Error('Failed to render PDF page'),
+      errorKind: null,
       isLoading: false,
     };
 
@@ -325,11 +350,13 @@ describe('DraftingUnderlaysPanel', () => {
     pdfDocumentInfoState.current = {
       data: { pageCount: 2 },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
     pdfPageRenderState.current = {
       data: null,
       error: new Error('Failed to render PDF page'),
+      errorKind: null,
       isLoading: false,
     };
 
@@ -339,11 +366,56 @@ describe('DraftingUnderlaysPanel', () => {
     expect(markup).toContain('Page 1 could not be rendered. Check the page number or PDF file.');
   });
 
+  it('shows classified PDF inspection and page feedback when available', () => {
+    documentsQueryState.current.data = [createDocument()];
+    pdfDocumentInfoState.current = {
+      data: null,
+      error: new Error('API 404: Not Found'),
+      errorKind: 'missing_document',
+      isLoading: false,
+    };
+    pdfPageRenderState.current = {
+      data: null,
+      error: new Error('Invalid page request'),
+      errorKind: 'page_unavailable',
+      isLoading: false,
+    };
+
+    const markup = renderToStaticMarkup(<DraftingUnderlaysPanel {...createPanelProps([], null)} />);
+
+    expect(markup).toContain(
+      'The referenced project PDF could not be found. It may have been removed or moved.',
+    );
+    expect(markup).toContain('Page 1 is not available in the selected PDF.');
+  });
+
+  it('shows classified page-render feedback when selected underlay mode entry is blocked', () => {
+    const selectedUnderlay = createUnderlay();
+    pdfPageRenderState.current = {
+      data: null,
+      error: new Error('Invalid PDF structure'),
+      errorKind: 'invalid_pdf',
+      isLoading: false,
+    };
+
+    const markup = renderToStaticMarkup(
+      <DraftingUnderlaysPanel {...createPanelProps([selectedUnderlay], selectedUnderlay)} />,
+    );
+
+    expect(markup).toContain(
+      'The PDF could not be read. It may be corrupt, encrypted, or unsupported. Calibration is disabled until the page renders again.',
+    );
+    expect(markup).toContain(
+      'The PDF could not be read. It may be corrupt, encrypted, or unsupported. Crop is disabled until the page renders again.',
+    );
+  });
+
   it('keeps valid inspected PDF page feedback unchanged', () => {
     documentsQueryState.current.data = [createDocument()];
     pdfDocumentInfoState.current = {
       data: { pageCount: 1 },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
     pdfPageRenderState.current = {
@@ -354,6 +426,7 @@ describe('DraftingUnderlaysPanel', () => {
         width: 400,
       },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
 
@@ -582,6 +655,7 @@ describe('DraftingUnderlaysPanel', () => {
         width: 400,
       },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
 
@@ -602,6 +676,7 @@ describe('DraftingUnderlaysPanel', () => {
     pdfPageRenderState.current = {
       data: null,
       error: new Error('Failed to render PDF page'),
+      errorKind: null,
       isLoading: false,
     };
 
@@ -631,6 +706,7 @@ describe('DraftingUnderlaysPanel', () => {
         width: 400,
       },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
 
@@ -653,6 +729,7 @@ describe('DraftingUnderlaysPanel', () => {
     pdfPageRenderState.current = {
       data: null,
       error: new Error('Failed to render PDF page'),
+      errorKind: null,
       isLoading: false,
     };
 

@@ -13,11 +13,22 @@ const pdfPageRenderState = vi.hoisted(() => ({
       width: number;
     },
     error: null as Error | null,
+    errorKind: null as null | import('../hooks/use-pdf-underlay-render').PdfUnderlayRenderErrorKind,
     isLoading: false,
   },
 }));
 
 vi.mock('../hooks/use-pdf-underlay-render', () => ({
+  getPdfUnderlayRenderErrorMessage: (
+    kind: string | null | undefined,
+    options: { fallback?: string; pageNumber?: number | null } = {},
+  ) => {
+    if (kind === 'page_unavailable') {
+      return `Page ${options.pageNumber} is not available in the selected PDF.`;
+    }
+
+    return options.fallback ?? 'The PDF underlay could not be rendered.';
+  },
   usePdfPageRender: () => pdfPageRenderState.current,
 }));
 
@@ -26,6 +37,7 @@ describe('DraftingPdfUnderlay', () => {
     pdfPageRenderState.current = {
       data: null,
       error: new Error('Failed to render PDF page'),
+      errorKind: 'page_unavailable',
       isLoading: false,
     };
 
@@ -44,6 +56,7 @@ describe('DraftingPdfUnderlay', () => {
     expect(markup).toContain('data-testid="drafting-pdf-underlay-render-fallback"');
     expect(markup).toContain('PDF underlay unavailable');
     expect(markup).toContain('survey.pdf');
+    expect(markup).toContain('Page 1 is not available in the selected PDF.');
     expect(markup).toContain('stroke="#0f766e"');
   });
 
@@ -56,6 +69,7 @@ describe('DraftingPdfUnderlay', () => {
         width: 400,
       },
       error: null,
+      errorKind: null,
       isLoading: false,
     };
 
