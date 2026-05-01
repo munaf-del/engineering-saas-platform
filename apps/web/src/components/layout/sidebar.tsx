@@ -7,6 +7,7 @@ import {
   Bot,
   Building2,
   Calculator,
+  Cable,
   ClipboardList,
   Database,
   FolderOpen,
@@ -38,6 +39,7 @@ const mainNav: NavItem[] = [
   { label: 'Projects', href: '/projects', icon: FolderOpen },
   { label: 'Templates', href: '/templates', icon: Layers },
   { label: 'Calculators', href: '/calculators', icon: Calculator },
+  { label: 'SAP2000 Bridge', href: '/sap2000', icon: Cable },
 ];
 
 const catalogueNav: NavItem[] = [
