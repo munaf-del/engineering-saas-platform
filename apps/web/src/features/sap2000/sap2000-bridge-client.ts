@@ -4,6 +4,9 @@ export const SAP2000_APPROVED_SMOKE_MODEL_PATH =
 export const SAP2000_READ_ONLY_WARNING =
   'Read-only SAP2000 integration. Real analysis, result extraction, and model write-back are not enabled.';
 
+export const defaultSap2000BrowserFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+  window.fetch(input, init);
+
 export const SAP2000_BRIDGE_ENDPOINTS = {
   health: '/health',
   bridgeInfo: '/bridge/info',
@@ -223,7 +226,7 @@ export class Sap2000BridgeClient {
 
   constructor(
     baseUrl?: string,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = defaultSap2000BrowserFetch,
   ) {
     this.baseUrl = getSap2000BridgeBaseUrl(baseUrl);
   }
