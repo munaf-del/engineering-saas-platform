@@ -5,6 +5,7 @@ import {
   SAP2000_BRIDGE_ENDPOINTS,
   SAP2000_APPROVED_SMOKE_MODEL_PATH,
   Sap2000BridgeClient,
+  defaultSap2000BrowserFetch,
   getSap2000BridgeBaseUrl,
   parseSap2000BridgeError,
 } from './sap2000-bridge-client';
@@ -25,6 +26,20 @@ describe('Sap2000BridgeClient', () => {
     expect(endpoints).not.toContain('/sap2000/results');
     expect(endpoints).not.toContain('/sap2000/patches');
     expect(endpoints).not.toContain('/sap2000/launch');
+  });
+
+  it('uses a browser-safe default fetch wrapper bound through window.fetch', async () => {
+    const fetchMock = vi.fn(function (this: unknown) {
+      expect(this).toBe(window);
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+    });
+    vi.stubGlobal('window', { fetch: fetchMock });
+
+    const response = await defaultSap2000BrowserFetch('http://127.0.0.1:8765/health');
+    const body = (await response.json()) as { ok: boolean };
+
+    expect(body.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8765/health', undefined);
   });
 
   it('checks an online comtypes bridge response using mocked smoke data', async () => {
